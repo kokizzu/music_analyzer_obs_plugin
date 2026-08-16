@@ -43,6 +43,8 @@ struct VisualizerRenderer {
 	uint32_t width = kDefaultVisualizerWidth;
 	uint32_t height = kDefaultVisualizerHeight;
 	VisualizerLayoutMode layout_mode = VisualizerLayoutMode::Complete;
+	// The OBS source omits the low-confidence catch-all row to keep the scene compact.
+	bool show_other_row = true;
 	uint64_t drum_history_sequence = 0;
 	std::array<std::vector<DrumBar>, kDrumCount> drum_history = {};
 	std::array<StableDisplayState, 5> stable_labels = {};

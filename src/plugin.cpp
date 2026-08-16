@@ -545,6 +545,7 @@ struct VisualizerData {
 void *visualizer_create(obs_data_t *settings, obs_source_t *)
 {
 	auto *visualizer = new VisualizerData();
+	visualizer->renderer.show_other_row = false;
 	const uint32_t width = static_cast<uint32_t>(std::clamp<long long>(obs_data_get_int(settings, "width"), 320, 1920));
 	const uint32_t height = static_cast<uint32_t>(std::clamp<long long>(obs_data_get_int(settings, "height"), 520, 1080));
 	visualizer->update_fps = static_cast<uint32_t>(std::clamp<long long>(obs_data_get_int(settings, "update_fps"), 1, 30));

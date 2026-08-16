@@ -70,25 +70,21 @@ struct VisualLayout {
 	int note_w = 480;
 	int chord_x = 654;
 	int stable_x = 782;
-	int count_x = 822;
 	int chord_w = 72;
 	int stable_w = 92;
-	int count_w = 64;
 };
 
 VisualLayout visual_layout(const VisualizerRenderer *visualizer)
 {
 	VisualLayout layout;
 	const int width = static_cast<int>(visualizer->width);
-	static constexpr int kMinNoteWidth = 420;
+	static constexpr int kMinNoteWidth = 360;
 	static constexpr int kNoteToChordGap = 24;
 	static constexpr int kColumnGap = 12;
 	static constexpr int kRightMargin = 28;
 
-	layout.count_x = std::max(layout.note_x + kMinNoteWidth + kNoteToChordGap + layout.chord_w + kColumnGap +
-					  layout.stable_w + kColumnGap,
-				  width - kRightMargin - layout.count_w);
-	layout.stable_x = layout.count_x - kColumnGap - layout.stable_w;
+	layout.stable_x = std::max(layout.note_x + kMinNoteWidth + kNoteToChordGap + layout.chord_w + kColumnGap,
+					   width - kRightMargin - layout.stable_w);
 	layout.chord_x = layout.stable_x - kColumnGap - layout.chord_w;
 	layout.note_w = std::max(kMinNoteWidth, layout.chord_x - layout.note_x - kNoteToChordGap);
 	return layout;
@@ -103,7 +99,7 @@ VisualLayout bass_guitar_visual_layout(const VisualizerRenderer *visualizer)
 	static constexpr int kColumnGap = 12;
 	layout.stable_x = width - kRightMargin - layout.stable_w;
 	layout.chord_x = layout.stable_x - kColumnGap - layout.chord_w;
-	layout.note_w = std::max(420, layout.chord_x - layout.note_x - kNoteToChordGap);
+	layout.note_w = std::max(360, layout.chord_x - layout.note_x - kNoteToChordGap);
 	return layout;
 }
 
@@ -579,7 +575,6 @@ void draw_note_cell(VisualizerRenderer *visualizer, int x, int y, int w, int h, 
 		  active_text);
 }
 
-int note_grid_active_count(const NoteGrid &notes);
 
 enum StableSlot : std::size_t {
 	StableBass = 0,
@@ -830,14 +825,13 @@ void draw_stable_label(VisualizerRenderer *visualizer, const VisualLayout &layou
 
 int draw_instrument_rows(VisualizerRenderer *visualizer, const VisualLayout &layout, int y, const char *name,
 			 const NoteGrid &notes, const InstrumentState *chord, const char *stable_label, Color accent,
-			 std::size_t row_count, bool draw_note_count = true, bool show_current_note_as_chord = false)
+			 std::size_t row_count, bool show_current_note_as_chord = false)
 {
 	const int cell_w = std::max(30, layout.note_w / 12);
 	const int cell_h = 17;
 	const int row_pitch = 18;
 	const Color dim = kLabelColor;
 	const Color chord_text = kWhiteTextColor;
-	const Color count_text = kValueTextColor;
 	char current_note[8] = {};
 	const bool has_current_note = show_current_note_as_chord &&
 				      current_note_label(notes, current_note, sizeof(current_note));
@@ -856,24 +850,7 @@ int draw_instrument_rows(VisualizerRenderer *visualizer, const VisualLayout &lay
 	else if (show_current_note_as_chord)
 		draw_chord_text(visualizer, layout.chord_x, y + 2, chord_label, 2, chord_text);
 	draw_stable_label(visualizer, layout, y, stable_label, chord_text);
-	if (draw_note_count) {
-		char note_count[12] = {};
-		std::snprintf(note_count, sizeof(note_count), "%d", note_grid_active_count(notes));
-		draw_text(visualizer, layout.count_x, y + 2, note_count, 2, count_text);
-	}
 	return y + static_cast<int>(row_count) * row_pitch + 4;
-}
-
-int note_grid_active_count(const NoteGrid &notes)
-{
-	int count = 0;
-	for (const auto &row : notes.rows) {
-		for (const NoteCell &cell : row) {
-			if (cell.active)
-				++count;
-		}
-	}
-	return count;
 }
 
 float note_grid_midi_level(const NoteGrid &notes, int midi)
@@ -1033,7 +1010,7 @@ void draw_centered_text(VisualizerRenderer *visualizer, int x, int y, int w, int
 
 int draw_piano_keyboard(VisualizerRenderer *visualizer, const VisualLayout &layout, int y, const NoteGrid &notes,
 			const InstrumentState &chord, const char *stable_label, int degree_root_pitch_class,
-			int first_row = 0, int row_count = 3, bool draw_note_count = true)
+			int first_row = 0, int row_count = 3)
 {
 	static constexpr int kTotalRowCount = 3;
 	static constexpr int kOctavesPerRow = 2;
@@ -1056,7 +1033,6 @@ int draw_piano_keyboard(VisualizerRenderer *visualizer, const VisualLayout &layo
 	const Color black_key{20, 25, 32, 245};
 	const Color border{58, 68, 82, 230};
 	const Color chord_text = kWhiteTextColor;
-	const Color count_text = kValueTextColor;
 	const Color active_text{10, 15, 22, 255};
 	char compact_chord_label[7] = {};
 	compact_instrument_chord_label(compact_chord_label, sizeof(compact_chord_label), chord.label,
@@ -1070,12 +1046,6 @@ int draw_piano_keyboard(VisualizerRenderer *visualizer, const VisualLayout &layo
 	draw_text(visualizer, layout.label_x, y + 38, "KEYS", 2, dim);
 	draw_chord_text(visualizer, layout.chord_x, y + 16, chord_label, 2, chord_text);
 	draw_stable_label(visualizer, layout, y + 14, stable_label, chord_text);
-	if (draw_note_count) {
-		char note_count[12] = {};
-		std::snprintf(note_count, sizeof(note_count), "%d", note_grid_active_count(notes));
-		draw_text(visualizer, layout.count_x, y + 16, note_count, 2, count_text);
-	}
-
 	for (int visible_row = 0; visible_row < row_count; ++visible_row) {
 		const int row = first_row + visible_row;
 		const int base_midi = 24 + row * kOctavesPerRow * 12;
@@ -1136,7 +1106,7 @@ int draw_piano_keyboard(VisualizerRenderer *visualizer, const VisualLayout &layo
 
 int draw_guitar_fretboard(VisualizerRenderer *visualizer, const VisualLayout &layout, int y, const NoteGrid &notes,
 			  const InstrumentState &chord, const char *stable_label, int degree_root_pitch_class,
-			  bool draw_summary_columns = true, bool draw_note_count = true)
+			  bool draw_summary_columns = true)
 {
 	static constexpr int kStringCount = 6;
 	static constexpr int kFretCount = 16;
@@ -1155,7 +1125,6 @@ int draw_guitar_fretboard(VisualizerRenderer *visualizer, const VisualLayout &la
 	const Color nut{148, 163, 184, 230};
 	const Color text = kLabelColor;
 	const Color chord_text = kWhiteTextColor;
-	const Color count_text = kValueTextColor;
 	const Color active_text{10, 15, 22, 255};
 	char compact_chord_label[7] = {};
 	compact_instrument_chord_label(compact_chord_label, sizeof(compact_chord_label), chord.label,
@@ -1176,12 +1145,6 @@ int draw_guitar_fretboard(VisualizerRenderer *visualizer, const VisualLayout &la
 		draw_chord_text(visualizer, layout.chord_x, y + 16, chord_label, 2, chord_text);
 		draw_stable_label(visualizer, layout, y + 14, stable_label, chord_text);
 	}
-	if (draw_note_count) {
-		char note_count[12] = {};
-		std::snprintf(note_count, sizeof(note_count), "%d", note_grid_active_count(notes));
-		draw_text(visualizer, layout.count_x, y + 16, note_count, 2, count_text);
-	}
-
 	for (int string = 0; string < kStringCount; ++string) {
 		const int cell_y = row_y + string * row_pitch;
 		char string_label[8] = {};
@@ -1256,7 +1219,7 @@ void draw_drum_row(VisualizerRenderer *visualizer, const AnalysisSnapshot &snaps
 }
 
 void draw_note_column_headers(VisualizerRenderer *visualizer, const VisualLayout &layout, int y,
-			      bool draw_chord_columns = true, bool draw_note_count = true)
+			      bool draw_chord_columns = true)
 {
 	static constexpr const char *kNoteNames[12] = {"C", "C#", "D", "D#", "E", "F",
 						       "F#", "G", "G#", "A", "A#", "B"};
@@ -1267,11 +1230,9 @@ void draw_note_column_headers(VisualizerRenderer *visualizer, const VisualLayout
 		draw_text(visualizer, layout.chord_x, y, "CHORD", 2, kLabelColor);
 		draw_text(visualizer, layout.stable_x, y, "SUSTAIN", 2, kLabelColor);
 	}
-	if (draw_note_count)
-		draw_text(visualizer, layout.count_x, y, "NOTES", 2, kLabelColor);
 }
 
-void format_bpm_candidate_list(char *output, std::size_t output_size, const AnalysisSnapshot &snapshot)
+[[maybe_unused]] void format_bpm_candidate_list(char *output, std::size_t output_size, const AnalysisSnapshot &snapshot)
 {
 	if (!output || output_size == 0)
 		return;
@@ -1299,7 +1260,7 @@ void format_bpm_candidate_list(char *output, std::size_t output_size, const Anal
 		const int relative_score =
 			std::clamp(static_cast<int>(std::lround(candidate.score / best_score * 100.0f)), 0, 999);
 		written = std::snprintf(output + used, output_size - used, " %d:%d", candidate.bpm,
-					relative_score);
+						relative_score);
 		if (written <= 0)
 			break;
 		used = std::min<std::size_t>(used + static_cast<std::size_t>(written), output_size - 1);
@@ -1426,14 +1387,16 @@ void render_complete_pixels(VisualizerRenderer *visualizer, const AnalysisSnapsh
 	int row_y = 164 + y_shift;
 	row_y = draw_instrument_rows(visualizer, layout, row_y, "BASS", snapshot.bass_notes, nullptr,
 				     visualizer->stable_labels[StableBass].label,
-				     Color{255, 59, 48, 245}, 1, true, true);
+				     Color{255, 59, 48, 245}, 1, true);
 	row_y += 6;
 	row_y = draw_instrument_rows(visualizer, layout, row_y, "VOCAL", snapshot.vocal_notes, nullptr,
 				     visualizer->stable_labels[StableVocal].label,
-				     Color{10, 132, 255, 245}, kMatrixRowCount, true, true);
-	row_y += 6;
-	row_y = draw_instrument_rows(visualizer, layout, row_y, "OTHERS", snapshot.other_notes, nullptr, nullptr,
-				     Color{191, 90, 242, 245}, kMatrixRowCount);
+				     Color{10, 132, 255, 245}, kMatrixRowCount, true);
+	if (visualizer->show_other_row) {
+		row_y += 6;
+		row_y = draw_instrument_rows(visualizer, layout, row_y, "OTHERS", snapshot.other_notes, nullptr, nullptr,
+						     Color{191, 90, 242, 245}, kMatrixRowCount);
+	}
 	const int degree_root_pitch_class = pitch_class_from_note_label(snapshot.root.label);
 	row_y = draw_piano_keyboard(visualizer, layout, row_y + 4, snapshot.keyboard_notes, snapshot.keyboard_chord,
 				    visualizer->stable_labels[StableKeyboard].label, degree_root_pitch_class);
@@ -1456,18 +1419,18 @@ void render_bass_guitar_pixels(VisualizerRenderer *visualizer, const AnalysisSna
 	update_stable_label(visualizer, StableBass, snapshot, snapshot.bass_notes, nullptr, true);
 	update_stable_label(visualizer, StableKeyboard, snapshot, snapshot.keyboard_notes, &snapshot.keyboard_chord, false);
 	update_stable_label(visualizer, StableGuitar, snapshot, snapshot.guitar_notes, &snapshot.guitar_chord, false);
-	draw_note_column_headers(visualizer, layout, 158 + y_shift, true, false);
+	draw_note_column_headers(visualizer, layout, 158 + y_shift, true);
 
 	int row_y = 178 + y_shift;
 	row_y = draw_instrument_rows(visualizer, layout, row_y, "BASS", snapshot.bass_notes, nullptr,
-				     visualizer->stable_labels[StableBass].label, Color{255, 59, 48, 245}, 1, false, true);
+				     visualizer->stable_labels[StableBass].label, Color{255, 59, 48, 245}, 1, true);
 	const int degree_root_pitch_class = pitch_class_from_note_label(snapshot.root.label);
 	row_y = draw_piano_keyboard(visualizer, layout, row_y - 8, snapshot.keyboard_notes, snapshot.keyboard_chord,
 				    visualizer->stable_labels[StableKeyboard].label, degree_root_pitch_class,
-				    kHalfMusicKeyboardFirstRow, kHalfMusicKeyboardRowCount, false);
+				    kHalfMusicKeyboardFirstRow, kHalfMusicKeyboardRowCount);
 	row_y = draw_guitar_fretboard(visualizer, layout, kHalfMusicGuitarY + y_shift, snapshot.guitar_notes,
 				      snapshot.guitar_chord,
-				      visualizer->stable_labels[StableGuitar].label, degree_root_pitch_class, true, false);
+				      visualizer->stable_labels[StableGuitar].label, degree_root_pitch_class, true);
 
 	const int root_y = std::max(row_y + 6, static_cast<int>(visualizer->height) - 42 + y_shift);
 	draw_root_and_bpm(visualizer, snapshot, root_y, root_y);
