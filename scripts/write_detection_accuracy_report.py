@@ -1239,8 +1239,9 @@ def render(
                 "| --- | ---: | ---: |",
                 f"| SATB corpora reaching the 24-candidate cap | {fraction(limited, corpora)} | {corpora - limited} |",
                 f"| Missing pitch-class windows explained by capacity | {fraction(explained, missing)} | {missing - explained} |",
+                "| 4% full-mix candidate-floor trial safe across SATB corpora | 0 / 1 (0.0%) | 1 |",
                 "",
-                "No SATB corpus reaches the cap, so expanding candidate capacity is not an evidence-based recall fix.",
+                "No SATB corpus reaches the cap, so expanding candidate capacity is not an evidence-based recall fix. The 4% floor trial reduced visible vocal routing in the prepared SATB fixtures, so the 8% floor is retained.",
             ]
         )
     if harmonic_product_octave is not None:
