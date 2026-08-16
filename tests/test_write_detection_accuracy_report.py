@@ -136,6 +136,15 @@ class DetectionAccuracyReportTest(unittest.TestCase):
             )
             self.assertEqual(REPORT.guitarset_attribute_audit(attributes), (6, 8, 1, 2))
 
+    def test_same_root_guitar_quality_audit_requires_cross_corpus_support(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            audit = Path(temporary) / "same_root_guitar_quality_audit.txt"
+            audit.write_text(
+                "same_root_guitar_quality: best_floor=0.040 supported_corpora=0/4 regressions=169 common_zero_regression=0\n",
+                encoding="utf-8",
+            )
+            self.assertEqual(REPORT.same_root_guitar_quality_audit(audit), (0.04, 0, 4, 169, 0))
+
     def test_violin_guitar_audit_requires_two_independent_corpora(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             audit = Path(temporary) / "violin_guitar_route_audit.txt"

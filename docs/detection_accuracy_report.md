@@ -150,6 +150,19 @@ Source: `build/guitarset_attributes.tsv`
 | Guitar pitch-class recall | 4446 / 5451 (81.6%) | 1005 |
 | Exact guitar chord recall | 1141 / 1491 (76.5%) | 350 |
 
+## Cross-corpus same-root guitar-quality audit
+
+A same-root power chord may be promoted to a measured major/minor quality only when raw third evidence improves a missed label without regressing any correct label.
+
+Source: `build/same_root_guitar_quality_audit.txt`
+
+| Metric | Accurate / total | Remaining |
+| --- | ---: | ---: |
+| Corpora with a zero-regression same-root quality gain | 0 / 4 (0.0%) | 4 |
+| Runtime same-root quality promotion eligible | 0 / 1 (0.0%) | 1 |
+
+The best tested raw-third floor (0.040) still has 169 regression(s), so the promotion is rejected.
+
 ## Violin-to-Guitar safety audit
 
 The leading Good Sounds violin routing profile is audited against independent Iowa strings and KRAISLER piano--violin mixture evidence before any reroute.

@@ -66,6 +66,12 @@ GLOBAL_CHORD_CONFIDENCE_RE = re.compile(
     r"supported_corpora=(?P<supported>\d+)/(?P<total>\d+) "
     r"common_zero_regression_floors=(?P<common>\d+)$", re.MULTILINE
 )
+SAME_ROOT_GUITAR_QUALITY_RE = re.compile(
+    r"^same_root_guitar_quality: best_floor=(?P<floor>[0-9.]+) "
+    r"supported_corpora=(?P<supported>\d+)/(?P<total>\d+) "
+    r"regressions=(?P<regressions>\d+) common_zero_regression=(?P<common>\d+)$",
+    re.MULTILINE,
+)
 
 # Analyzer TSV evidence can legitimately retain long comma-separated note
 # histories.  Keep a finite but practical cap instead of csv's 128 KiB default.
@@ -788,6 +794,20 @@ def global_chord_confidence_audit(path: Path) -> tuple[float, int, int, int]:
     )
 
 
+def same_root_guitar_quality_audit(path: Path) -> tuple[float, int, int, int, int]:
+    """Return cross-corpus support for measured guitar quality promotion."""
+    match = SAME_ROOT_GUITAR_QUALITY_RE.search(path.read_text(encoding="utf-8", errors="replace"))
+    if match is None:
+        raise ValueError(f"{path}: missing same-root guitar quality audit summary")
+    return (
+        float(match["floor"]),
+        int(match["supported"]),
+        int(match["total"]),
+        int(match["regressions"]),
+        int(match["common"]),
+    )
+
+
 def guitarset_attribute_audit(path: Path) -> tuple[int, int, int, int]:
     """Return live-GuitarSet pitch-class and exact-chord coverage."""
     with path.open(encoding="utf-8", newline="") as source:
@@ -983,6 +1003,7 @@ def render(
     dominant_seventh_extension_audit_input: Path | None = None,
     global_chord_confidence_audit_input: Path | None = None,
     guitarset_attribute_input: Path | None = None,
+    same_root_guitar_quality_audit_input: Path | None = None,
 ) -> str:
     samples = load_samples(input_path)
     dcs_rows = dagstuhl_choirset_rows(dagstuhl_choirset_input) if dagstuhl_choirset_input else []
@@ -1066,6 +1087,11 @@ def render(
     guitarset_attributes = (
         guitarset_attribute_audit(guitarset_attribute_input)
         if guitarset_attribute_input is not None
+        else None
+    )
+    same_root_guitar_quality = (
+        same_root_guitar_quality_audit(same_root_guitar_quality_audit_input)
+        if same_root_guitar_quality_audit_input is not None
         else None
     )
     csd_rows = dagstuhl_choirset_rows(choral_singing_dataset_measurement) if choral_singing_dataset_measurement else []
@@ -1279,6 +1305,26 @@ def render(
                 "| --- | ---: | ---: |",
                 f"| Guitar pitch-class recall | {fraction(note_hits, note_total)} | {note_total - note_hits} |",
                 f"| Exact guitar chord recall | {fraction(chord_hits, chord_total)} | {chord_total - chord_hits} |",
+            ]
+        )
+    if same_root_guitar_quality is not None:
+        floor, supported, total, regressions, common = same_root_guitar_quality
+        lines.extend(
+            [
+                "",
+                "## Cross-corpus same-root guitar-quality audit",
+                "",
+                "A same-root power chord may be promoted to a measured major/minor quality only "
+                "when raw third evidence improves a missed label without regressing any correct label.",
+                "",
+                f"Source: `{same_root_guitar_quality_audit_input.as_posix()}`",
+                "",
+                "| Metric | Accurate / total | Remaining |",
+                "| --- | ---: | ---: |",
+                f"| Corpora with a zero-regression same-root quality gain | {fraction(supported, total)} | {total - supported} |",
+                f"| Runtime same-root quality promotion eligible | {fraction(int(common > 0), 1)} | {int(common == 0)} |",
+                "",
+                f"The best tested raw-third floor ({floor:.3f}) still has {regressions} regression(s), so the promotion is rejected.",
             ]
         )
     if violin_guitar_audit is not None:
@@ -2358,6 +2404,7 @@ def main() -> int:
     parser.add_argument("--dominant-seventh-extension-audit", type=Path)
     parser.add_argument("--global-chord-confidence-audit", type=Path)
     parser.add_argument("--guitarset-attribute-input", type=Path)
+    parser.add_argument("--same-root-guitar-quality-audit", type=Path)
     parser.add_argument("--output", required=True, type=Path)
     args = parser.parse_args()
     try:
@@ -2427,6 +2474,7 @@ def main() -> int:
             args.dominant_seventh_extension_audit,
             args.global_chord_confidence_audit,
             args.guitarset_attribute_input,
+            args.same_root_guitar_quality_audit,
         )
     except (OSError, ValueError) as error:
         parser.error(str(error))
