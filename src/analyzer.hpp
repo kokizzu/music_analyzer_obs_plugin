@@ -8,6 +8,9 @@ namespace mao {
 
 constexpr std::size_t kLegacyAnalysisWindow = 4096;
 constexpr std::size_t kAnalysisWindow = 8192;
+// Keep the dormant Other classifier code available without emitting a separate
+// low-confidence catch-all instrument result.
+constexpr bool kEnableOtherDetection = false;
 constexpr uint32_t kDefaultAnalysisWindowMs = 100;
 constexpr std::size_t kDrumCount = 7;
 constexpr std::size_t kNoteRowCount = 3;

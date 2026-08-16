@@ -1392,7 +1392,7 @@ void render_complete_pixels(VisualizerRenderer *visualizer, const AnalysisSnapsh
 	row_y = draw_instrument_rows(visualizer, layout, row_y, "VOCAL", snapshot.vocal_notes, nullptr,
 				     visualizer->stable_labels[StableVocal].label,
 				     Color{10, 132, 255, 245}, kMatrixRowCount, true);
-	if (visualizer->show_other_row) {
+	if (kEnableOtherDetection && visualizer->show_other_row) {
 		row_y += 6;
 		row_y = draw_instrument_rows(visualizer, layout, row_y, "OTHERS", snapshot.other_notes, nullptr, nullptr,
 						     Color{191, 90, 242, 245}, kMatrixRowCount);

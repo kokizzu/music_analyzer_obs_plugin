@@ -35510,9 +35510,10 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 		 full_mix_source_hint_allows_row(full_mix_source_hint_mode, FullMixDisplayRow::Vocal)) ||
 		input_mode == AnalysisInputMode::IsolatedVocal;
 	const bool other_enabled =
-		(input_mode == AnalysisInputMode::FullMix &&
+		kEnableOtherDetection &&
+		((input_mode == AnalysisInputMode::FullMix &&
 		 full_mix_source_hint_allows_row(full_mix_source_hint_mode, FullMixDisplayRow::Other)) ||
-		input_mode == AnalysisInputMode::IsolatedOther;
+		 input_mode == AnalysisInputMode::IsolatedOther);
 
 	if (keyboard_enabled) {
 		process_keyboard();
