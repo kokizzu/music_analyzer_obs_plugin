@@ -146,6 +146,12 @@ int run_visualizer_renderer_tests()
 
 	VisualizerRenderer renderer;
 	renderer.layout_mode = VisualizerLayoutMode::Complete;
+	expect_true(!kEnableOtherRendering && !renderer.show_other_row,
+		    "OTHERS must remain disabled by both the global renderer gate and new renderer default", &checks,
+		    &failures);
+	renderer.show_other_row = true;
+	expect_true(!kEnableOtherRendering,
+		    "a renderer instance must not be able to restore the dormant OTHERS section", &checks, &failures);
 	resize_visualizer(&renderer, 960, 540);
 	AnalysisSnapshot snapshot;
 	snapshot.audio_seen = true;

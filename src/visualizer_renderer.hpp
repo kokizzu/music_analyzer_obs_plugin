@@ -43,8 +43,10 @@ struct VisualizerRenderer {
 	uint32_t width = kDefaultVisualizerWidth;
 	uint32_t height = kDefaultVisualizerHeight;
 	VisualizerLayoutMode layout_mode = VisualizerLayoutMode::Complete;
-	// The OBS source omits the low-confidence catch-all row to keep the scene compact.
-	bool show_other_row = true;
+	// OTHERS is intentionally dormant: it is neither detected nor rendered in
+	// the live visualizers.  Keep this local fallback false as well as the
+	// global rendering gate, so a new renderer cannot reserve space for it.
+	bool show_other_row = false;
 	uint64_t drum_history_sequence = 0;
 	std::array<std::vector<DrumBar>, kDrumCount> drum_history = {};
 	std::array<StableDisplayState, 5> stable_labels = {};
