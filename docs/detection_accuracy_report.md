@@ -112,6 +112,19 @@ Source: `build/octave_correction_cross_corpus_audit.txt`
 
 No shared zero-regression octave selector was found, so broad octave correction is not permitted.
 
+## Cross-corpus dominant-seventh extension audit
+
+A plain major label may gain a dominant-seventh alias only when the complete four-tone pitch-class set and raw seventh evidence recur without chord regressions across independent corpora.
+
+Source: `build/dominant_seventh_extension_audit.txt`
+
+| Metric | Accurate / total | Remaining |
+| --- | ---: | ---: |
+| Corpora with a zero-regression dominant-seventh gain | 0 / 4 (0.0%) | 4 |
+| Runtime dominant-seventh extension eligible | 0 / 1 (0.0%) | 1 |
+
+The cached sweep found 3 regression(s), so the extension is rejected.
+
 ## Violin-to-Guitar safety audit
 
 The leading Good Sounds violin routing profile is audited against independent Iowa strings and KRAISLER piano--violin mixture evidence before any reroute.

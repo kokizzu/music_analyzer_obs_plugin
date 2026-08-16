@@ -57,6 +57,10 @@ URMP_GOOD_SOUNDS_SAX_SHARED_PATTERN_RE = re.compile(
 OCTAVE_CORRECTION_CROSS_CORPUS_RE = re.compile(
     r"^shared_octave_correction_candidates=(?P<count>\d+)$", re.MULTILINE
 )
+DOMINANT_SEVENTH_EXTENSION_RE = re.compile(
+    r"^dominant_seventh_extension: supported_corpora=(?P<supported>\d+)/(?P<total>\d+) "
+    r"regressions=(?P<regressions>\d+)$", re.MULTILINE
+)
 
 # Analyzer TSV evidence can legitimately retain long comma-separated note
 # histories.  Keep a finite but practical cap instead of csv's 128 KiB default.
@@ -756,6 +760,16 @@ def octave_correction_cross_corpus_audit(path: Path) -> int:
     return int(match["count"])
 
 
+def dominant_seventh_extension_audit(path: Path) -> tuple[int, int, int]:
+    """Return independent support and observed regressions for the extension rule."""
+    match = DOMINANT_SEVENTH_EXTENSION_RE.search(
+        path.read_text(encoding="utf-8", errors="replace")
+    )
+    if match is None:
+        raise ValueError(f"{path}: missing dominant-seventh audit summary")
+    return int(match["supported"]), int(match["total"]), int(match["regressions"])
+
+
 def violin_guitar_route_audit(path: Path) -> tuple[int, int, int]:
     return route_profile_audit(path, 2)
 
@@ -922,6 +936,7 @@ def render(
     guitar_chord_tone_recovery_audit_input: Path | None = None,
     urmp_good_sounds_sax_shared_pattern_audit_input: Path | None = None,
     octave_correction_cross_corpus_audit_input: Path | None = None,
+    dominant_seventh_extension_audit_input: Path | None = None,
 ) -> str:
     samples = load_samples(input_path)
     dcs_rows = dagstuhl_choirset_rows(dagstuhl_choirset_input) if dagstuhl_choirset_input else []
@@ -989,6 +1004,12 @@ def render(
         octave_correction_cross_corpus_audit(octave_correction_cross_corpus_audit_input)
         if octave_correction_cross_corpus_audit_input is not None
         and octave_correction_cross_corpus_audit_input.is_file()
+        else None
+    )
+    dominant_seventh_extension = (
+        dominant_seventh_extension_audit(dominant_seventh_extension_audit_input)
+        if dominant_seventh_extension_audit_input is not None
+        and dominant_seventh_extension_audit_input.is_file()
         else None
     )
     csd_rows = dagstuhl_choirset_rows(choral_singing_dataset_measurement) if choral_singing_dataset_measurement else []
@@ -1137,6 +1158,27 @@ def render(
                     if shared
                     else "No shared zero-regression octave selector was found, so broad octave correction is not permitted."
                 ),
+            ]
+        )
+    if dominant_seventh_extension is not None:
+        supported, total, regressions = dominant_seventh_extension
+        lines.extend(
+            [
+                "",
+                "## Cross-corpus dominant-seventh extension audit",
+                "",
+                "A plain major label may gain a dominant-seventh alias only when the complete "
+                "four-tone pitch-class set and raw seventh evidence recur without chord regressions "
+                "across independent corpora.",
+                "",
+                f"Source: `{dominant_seventh_extension_audit_input.as_posix()}`",
+                "",
+                "| Metric | Accurate / total | Remaining |",
+                "| --- | ---: | ---: |",
+                f"| Corpora with a zero-regression dominant-seventh gain | {fraction(supported, total)} | {total - supported} |",
+                f"| Runtime dominant-seventh extension eligible | {fraction(int(supported >= 2 and regressions == 0), 1)} | {int(supported < 2 or regressions != 0)} |",
+                "",
+                f"The cached sweep found {regressions} regression(s), so the extension is rejected.",
             ]
         )
     if violin_guitar_audit is not None:
@@ -2213,6 +2255,7 @@ def main() -> int:
     parser.add_argument("--guitar-chord-tone-recovery-audit", type=Path)
     parser.add_argument("--urmp-good-sounds-sax-shared-pattern-audit", type=Path)
     parser.add_argument("--octave-correction-cross-corpus-audit", type=Path)
+    parser.add_argument("--dominant-seventh-extension-audit", type=Path)
     parser.add_argument("--output", required=True, type=Path)
     args = parser.parse_args()
     try:
@@ -2279,6 +2322,7 @@ def main() -> int:
             args.guitar_chord_tone_recovery_audit,
             args.urmp_good_sounds_sax_shared_pattern_audit,
             args.octave_correction_cross_corpus_audit,
+            args.dominant_seventh_extension_audit,
         )
     except (OSError, ValueError) as error:
         parser.error(str(error))

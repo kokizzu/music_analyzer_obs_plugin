@@ -115,6 +115,15 @@ class DetectionAccuracyReportTest(unittest.TestCase):
             audit.write_text("shared_octave_correction_candidates=0\n", encoding="utf-8")
             self.assertEqual(REPORT.octave_correction_cross_corpus_audit(audit), 0)
 
+    def test_dominant_seventh_audit_requires_independent_zero_regression_support(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            audit = Path(temporary) / "dominant_seventh_extension_audit.txt"
+            audit.write_text(
+                "dominant_seventh_extension: supported_corpora=0/4 regressions=3\n",
+                encoding="utf-8",
+            )
+            self.assertEqual(REPORT.dominant_seventh_extension_audit(audit), (0, 4, 3))
+
     def test_violin_guitar_audit_requires_two_independent_corpora(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             audit = Path(temporary) / "violin_guitar_route_audit.txt"
