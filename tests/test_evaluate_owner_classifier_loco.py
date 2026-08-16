@@ -18,9 +18,18 @@ def row(family: str, owner: str, values: tuple[float, ...]) -> str:
 
 
 def write(path: Path) -> None:
+    # Keep bass in the labelled set: the evaluator must not silently discard the
+    # analyzer's existing bass-score evidence.
+    bass = (1.0, 0.0, 0.0, 0.0, 0.0)
     keyboard = (0.0, 1.0, 0.0, 0.0, 0.0)
     guitar = (0.0, 0.0, 1.0, 0.0, 0.0)
-    path.write_text(HEADER + row("piano", "guitar", keyboard) + row("guitar", "guitar", guitar), encoding="utf-8")
+    path.write_text(
+        HEADER
+        + row("bass", "bass", bass)
+        + row("piano", "guitar", keyboard)
+        + row("guitar", "guitar", guitar),
+        encoding="utf-8",
+    )
 
 
 def main() -> None:
@@ -30,8 +39,8 @@ def main() -> None:
         write(first)
         write(second)
         result = subprocess.run([sys.executable, str(SCRIPT), str(first), str(second)], check=True, capture_output=True, text=True)
-    assert "first.tsv: current=1/2 model=2/2 delta=+1 improved=1" in result.stdout
-    assert "owner_classifier_loco: improved_corpora=2/2 current=2/4 model=4/4" in result.stdout
+    assert "first.tsv: current=2/3 model=3/3 delta=+1 improved=1" in result.stdout
+    assert "owner_classifier_loco: improved_corpora=2/2 current=4/6 model=6/6" in result.stdout
     print("test_evaluate_owner_classifier_loco: ok")
 
 

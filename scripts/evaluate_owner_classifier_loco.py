@@ -10,9 +10,21 @@ from collections import defaultdict
 from pathlib import Path
 
 
-CLASSES = ("keyboard", "guitar", "vocal", "other")
-FAMILY_TO_CLASS = {"piano": "keyboard", "guitar": "guitar", "vocals": "vocal", "other": "other"}
-OWNER_TO_CLASS = {"piano": "keyboard", "guitar": "guitar", "vocals": "vocal", "other": "other"}
+CLASSES = ("bass", "keyboard", "guitar", "vocal", "other")
+FAMILY_TO_CLASS = {
+    "bass": "bass",
+    "piano": "keyboard",
+    "guitar": "guitar",
+    "vocals": "vocal",
+    "other": "other",
+}
+OWNER_TO_CLASS = {
+    "bass": "bass",
+    "piano": "keyboard",
+    "guitar": "guitar",
+    "vocals": "vocal",
+    "other": "other",
+}
 FEATURES = (
     "bass_score", "keyboard_score", "guitar_score", "vocal_score", "other_score",
 )

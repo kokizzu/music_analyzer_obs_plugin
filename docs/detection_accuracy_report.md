@@ -171,9 +171,9 @@ Source: `build/owner_classifier_loco_audit.txt`
 
 | Metric | Accurate / total | Remaining |
 | --- | ---: | ---: |
-| LOCO corpora improved over current owner | 1 / 2 (50.0%) | 1 |
-| Aggregate current-owner accuracy | 10672 / 33568 (31.8%) | 22896 |
-| Aggregate centroid-model accuracy | 12030 / 33568 (35.8%) | 21538 |
+| LOCO corpora improved over current owner | 4 / 9 (44.4%) | 5 |
+| Aggregate current-owner accuracy | 12807 / 61501 (20.8%) | 48694 |
+| Aggregate centroid-model accuracy | 11176 / 61501 (18.2%) | 50325 |
 | Runtime owner classifier eligible | 0 / 1 (0.0%) | 1 |
 
 The model is retained only as an offline baseline because it regresses at least one held-out corpus.
