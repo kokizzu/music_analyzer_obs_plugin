@@ -70,7 +70,7 @@ Source: `build/harmonic_product_octave_audit.txt`
 | Independently labelled SATB corpora audited | 3 / 3 (100.0%) | 0 |
 | Runtime harmonic-product octave correction eligible | 0 / 1 (0.0%) | 1 |
 
-Every tested threshold still moves at least one labelled correct pitch downward, so harmonic-product evidence remains diagnostic and no pre-routing correction is enabled.
+Every tested threshold—and every compact pairing with pitch confidence, periodicity, fit error, or noise—still moves at least one labelled correct pitch downward, so harmonic-product evidence remains diagnostic and no pre-routing correction is enabled.
 
 ## Detector-improvement route coverage
 

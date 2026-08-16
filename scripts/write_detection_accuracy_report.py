@@ -1254,7 +1254,7 @@ def render(
                 f"| Independently labelled SATB corpora audited | {fraction(corpora, corpora)} | 0 |",
                 f"| Runtime harmonic-product octave correction eligible | {fraction(int(safe > 0), 1)} | {int(safe == 0)} |",
                 "",
-                "Every tested threshold still moves at least one labelled correct pitch downward, so harmonic-product evidence remains diagnostic and no pre-routing correction is enabled.",
+                "Every tested threshold—and every compact pairing with pitch confidence, periodicity, fit error, or noise—still moves at least one labelled correct pitch downward, so harmonic-product evidence remains diagnostic and no pre-routing correction is enabled.",
             ]
         )
     if route_summary is not None:
