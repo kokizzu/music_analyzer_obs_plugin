@@ -45,6 +45,19 @@ The catch-all OTHERS detector and renderer are intentionally disabled. Its histo
 | Vocals — Primary display row | 6 / 22 (27.3%) | 16 |
 | Vocals — Visual primary row | 6 / 22 (27.3%) | 16 |
 
+## SATB multi-pitch candidate-capacity audit
+
+The full-mix extractor considers up to 24 independently scored pitch candidates. This audit checks whether that cap, rather than pitch scoring, truncated labelled SATB windows.
+
+Source: `build/polyphonic_candidate_capacity_audit.txt`
+
+| Metric | Accurate / total | Remaining |
+| --- | ---: | ---: |
+| SATB corpora reaching the 24-candidate cap | 0 / 3 (0.0%) | 3 |
+| Missing pitch-class windows explained by capacity | 0 / 427 (0.0%) | 427 |
+
+No SATB corpus reaches the cap, so expanding candidate capacity is not an evidence-based recall fix.
+
 ## Detector-improvement route coverage
 
 This tracks the empirical candidate search. A route is actionable only when its measured gain has no protected-row regression and positive evidence from two independently prepared corpora.
@@ -181,7 +194,7 @@ Source: `build/owner_classifier_loco_audit.txt`
 | --- | ---: | ---: |
 | LOCO corpora improved over current owner | 4 / 9 (44.4%) | 5 |
 | Aggregate current-owner accuracy | 12807 / 61501 (20.8%) | 48694 |
-| Aggregate centroid-model accuracy | 11176 / 61501 (18.2%) | 50325 |
+| Aggregate centroid-model accuracy | 11257 / 61501 (18.3%) | 50244 |
 | Runtime owner classifier eligible | 0 / 1 (0.0%) | 1 |
 
 The model is retained only as an offline baseline because it regresses at least one held-out corpus.
@@ -255,17 +268,17 @@ Source: `build/high_vocal_octave_evidence.txt`
 high-vocal octave safety audit: midi=77,78
 | Lower-octave ratio cap | DCS candidates | CSD candidates | ESMUC candidates | Corpora with candidates | Protected risks |
 | --- | ---: | ---: | ---: | ---: | ---: |
-| <= 0.05 | 13 / 15 | 0 / 0 | 6 / 7 | 2 / 3 | 220 / 229 |
-| <= 0.10 | 14 / 15 | 0 / 0 | 6 / 7 | 2 / 3 | 220 / 229 |
-| <= 0.20 | 14 / 15 | 0 / 0 | 6 / 7 | 2 / 3 | 227 / 229 |
-| <= 0.35 | 15 / 15 | 0 / 0 | 7 / 7 | 2 / 3 | 228 / 229 |
-| <= 0.50 | 15 / 15 | 0 / 0 | 7 / 7 | 2 / 3 | 228 / 229 |
-| <= 0.75 | 15 / 15 | 0 / 0 | 7 / 7 | 2 / 3 | 228 / 229 |
-| <= 1.00 | 15 / 15 | 0 / 0 | 7 / 7 | 2 / 3 | 229 / 229 |
+| <= 0.05 | 13 / 15 | 0 / 0 | 6 / 7 | 2 / 3 | 107 / 115 |
+| <= 0.10 | 14 / 15 | 0 / 0 | 6 / 7 | 2 / 3 | 107 / 115 |
+| <= 0.20 | 14 / 15 | 0 / 0 | 6 / 7 | 2 / 3 | 113 / 115 |
+| <= 0.35 | 15 / 15 | 0 / 0 | 7 / 7 | 2 / 3 | 114 / 115 |
+| <= 0.50 | 15 / 15 | 0 / 0 | 7 / 7 | 2 / 3 | 114 / 115 |
+| <= 0.75 | 15 / 15 | 0 / 0 | 7 / 7 | 2 / 3 | 114 / 115 |
+| <= 1.00 | 15 / 15 | 0 / 0 | 7 / 7 | 2 / 3 | 115 / 115 |
 
 | Multi-signal route profile | DCS candidates | CSD candidates | ESMUC candidates | Corpora with candidates | Protected risks |
 | --- | ---: | ---: | ---: | ---: | ---: |
-| upper-adjacent >= 0.053; centroid 0.013..0.116 | 8 / 15 | 0 / 0 | 1 / 7 | 2 / 3 | 0 / 229 |
+| upper-adjacent >= 0.053; centroid 0.013..0.116 | 8 / 15 | 0 / 0 | 1 / 7 | 2 / 3 | 0 / 115 |
 
 ## Rejected three-corpus keys-to-vocal routing trial
 
@@ -321,136 +334,136 @@ Source: `build/choral_singing_dataset_measurement.tsv`
 
 | Metric | Accurate / total | Remaining |
 | --- | ---: | ---: |
-| CSD All CSD chord windows — Exact chord accuracy | 43 / 144 (29.9%) | 101 |
-| CSD All CSD chord windows — Simplified chord accuracy | 72 / 144 (50.0%) | 72 |
-| CSD All CSD vocal windows — Current-note vocal ownership | 53 / 144 (36.8%) | 91 |
+| CSD All CSD chord windows — Exact chord accuracy | 42 / 144 (29.2%) | 102 |
+| CSD All CSD chord windows — Simplified chord accuracy | 66 / 144 (45.8%) | 78 |
+| CSD All CSD vocal windows — Current-note vocal ownership | 68 / 144 (47.2%) | 76 |
 | CSD All CSD vocal windows — Visible current-note vocal routing | 30 / 144 (20.8%) | 114 |
-| CSD All SATB notes — Exact-MIDI recall | 418 / 576 (72.6%) | 158 |
-| CSD All SATB notes — Pitch-class recall | 463 / 576 (80.4%) | 113 |
+| CSD All SATB notes — Exact-MIDI recall | 342 / 576 (59.4%) | 234 |
+| CSD All SATB notes — Pitch-class recall | 436 / 576 (75.7%) | 140 |
 | CSD All SATB notes — Visible vocal routing | 31 / 576 (5.4%) | 545 |
-| CSD All SATB notes — Vocal ownership | 61 / 576 (10.6%) | 515 |
+| CSD All SATB notes — Vocal ownership | 79 / 576 (13.7%) | 497 |
 
 ### CSD SATB range breakdown
 
 | Metric | Accurate / total | Remaining |
 | --- | ---: | ---: |
-| CSD SATB range — Alto — Exact-MIDI recall | 113 / 144 (78.5%) | 31 |
-| CSD SATB range — Alto — Pitch-class recall | 120 / 144 (83.3%) | 24 |
+| CSD SATB range — Alto — Exact-MIDI recall | 100 / 144 (69.4%) | 44 |
+| CSD SATB range — Alto — Pitch-class recall | 116 / 144 (80.6%) | 28 |
 | CSD SATB range — Alto — Visible vocal routing | 14 / 144 (9.7%) | 130 |
-| CSD SATB range — Alto — Vocal ownership | 28 / 144 (19.4%) | 116 |
-| CSD SATB range — Bass — Exact-MIDI recall | 97 / 144 (67.4%) | 47 |
-| CSD SATB range — Bass — Pitch-class recall | 111 / 144 (77.1%) | 33 |
+| CSD SATB range — Alto — Vocal ownership | 39 / 144 (27.1%) | 105 |
+| CSD SATB range — Bass — Exact-MIDI recall | 67 / 144 (46.5%) | 77 |
+| CSD SATB range — Bass — Pitch-class recall | 98 / 144 (68.1%) | 46 |
 | CSD SATB range — Bass — Visible vocal routing | 4 / 144 (2.8%) | 140 |
-| CSD SATB range — Bass — Vocal ownership | 7 / 144 (4.9%) | 137 |
-| CSD SATB range — Soprano — Exact-MIDI recall | 104 / 144 (72.2%) | 40 |
-| CSD SATB range — Soprano — Pitch-class recall | 115 / 144 (79.9%) | 29 |
+| CSD SATB range — Bass — Vocal ownership | 9 / 144 (6.2%) | 135 |
+| CSD SATB range — Soprano — Exact-MIDI recall | 93 / 144 (64.6%) | 51 |
+| CSD SATB range — Soprano — Pitch-class recall | 110 / 144 (76.4%) | 34 |
 | CSD SATB range — Soprano — Visible vocal routing | 8 / 144 (5.6%) | 136 |
 | CSD SATB range — Soprano — Vocal ownership | 13 / 144 (9.0%) | 131 |
-| CSD SATB range — Tenor — Exact-MIDI recall | 104 / 144 (72.2%) | 40 |
-| CSD SATB range — Tenor — Pitch-class recall | 117 / 144 (81.2%) | 27 |
+| CSD SATB range — Tenor — Exact-MIDI recall | 82 / 144 (56.9%) | 62 |
+| CSD SATB range — Tenor — Pitch-class recall | 112 / 144 (77.8%) | 32 |
 | CSD SATB range — Tenor — Visible vocal routing | 5 / 144 (3.5%) | 139 |
-| CSD SATB range — Tenor — Vocal ownership | 13 / 144 (9.0%) | 131 |
+| CSD SATB range — Tenor — Vocal ownership | 18 / 144 (12.5%) | 126 |
 
 ### CSD recording-configuration breakdown
 
 | Metric | Accurate / total | Remaining |
 | --- | ---: | ---: |
-| CSD Configuration — CSD_ER_Singer1 — Current-note vocal ownership | 6 / 12 (50.0%) | 6 |
-| CSD Configuration — CSD_ER_Singer1 — Exact chord accuracy | 3 / 12 (25.0%) | 9 |
-| CSD Configuration — CSD_ER_Singer1 — Exact-MIDI recall | 35 / 48 (72.9%) | 13 |
-| CSD Configuration — CSD_ER_Singer1 — Pitch-class recall | 36 / 48 (75.0%) | 12 |
-| CSD Configuration — CSD_ER_Singer1 — Simplified chord accuracy | 5 / 12 (41.7%) | 7 |
+| CSD Configuration — CSD_ER_Singer1 — Current-note vocal ownership | 7 / 12 (58.3%) | 5 |
+| CSD Configuration — CSD_ER_Singer1 — Exact chord accuracy | 2 / 12 (16.7%) | 10 |
+| CSD Configuration — CSD_ER_Singer1 — Exact-MIDI recall | 25 / 48 (52.1%) | 23 |
+| CSD Configuration — CSD_ER_Singer1 — Pitch-class recall | 29 / 48 (60.4%) | 19 |
+| CSD Configuration — CSD_ER_Singer1 — Simplified chord accuracy | 3 / 12 (25.0%) | 9 |
 | CSD Configuration — CSD_ER_Singer1 — Visible current-note vocal routing | 3 / 12 (25.0%) | 9 |
 | CSD Configuration — CSD_ER_Singer1 — Visible vocal routing | 3 / 48 (6.2%) | 45 |
-| CSD Configuration — CSD_ER_Singer1 — Vocal ownership | 6 / 48 (12.5%) | 42 |
-| CSD Configuration — CSD_ER_Singer2 — Current-note vocal ownership | 3 / 12 (25.0%) | 9 |
+| CSD Configuration — CSD_ER_Singer1 — Vocal ownership | 8 / 48 (16.7%) | 40 |
+| CSD Configuration — CSD_ER_Singer2 — Current-note vocal ownership | 5 / 12 (41.7%) | 7 |
 | CSD Configuration — CSD_ER_Singer2 — Exact chord accuracy | 2 / 12 (16.7%) | 10 |
-| CSD Configuration — CSD_ER_Singer2 — Exact-MIDI recall | 36 / 48 (75.0%) | 12 |
-| CSD Configuration — CSD_ER_Singer2 — Pitch-class recall | 38 / 48 (79.2%) | 10 |
+| CSD Configuration — CSD_ER_Singer2 — Exact-MIDI recall | 29 / 48 (60.4%) | 19 |
+| CSD Configuration — CSD_ER_Singer2 — Pitch-class recall | 34 / 48 (70.8%) | 14 |
 | CSD Configuration — CSD_ER_Singer2 — Simplified chord accuracy | 3 / 12 (25.0%) | 9 |
 | CSD Configuration — CSD_ER_Singer2 — Visible current-note vocal routing | 2 / 12 (16.7%) | 10 |
 | CSD Configuration — CSD_ER_Singer2 — Visible vocal routing | 2 / 48 (4.2%) | 46 |
-| CSD Configuration — CSD_ER_Singer2 — Vocal ownership | 3 / 48 (6.2%) | 45 |
+| CSD Configuration — CSD_ER_Singer2 — Vocal ownership | 5 / 48 (10.4%) | 43 |
 | CSD Configuration — CSD_ER_Singer3 — Current-note vocal ownership | 4 / 12 (33.3%) | 8 |
 | CSD Configuration — CSD_ER_Singer3 — Exact chord accuracy | 4 / 12 (33.3%) | 8 |
-| CSD Configuration — CSD_ER_Singer3 — Exact-MIDI recall | 38 / 48 (79.2%) | 10 |
-| CSD Configuration — CSD_ER_Singer3 — Pitch-class recall | 41 / 48 (85.4%) | 7 |
+| CSD Configuration — CSD_ER_Singer3 — Exact-MIDI recall | 31 / 48 (64.6%) | 17 |
+| CSD Configuration — CSD_ER_Singer3 — Pitch-class recall | 39 / 48 (81.2%) | 9 |
 | CSD Configuration — CSD_ER_Singer3 — Simplified chord accuracy | 6 / 12 (50.0%) | 6 |
 | CSD Configuration — CSD_ER_Singer3 — Visible current-note vocal routing | 2 / 12 (16.7%) | 10 |
 | CSD Configuration — CSD_ER_Singer3 — Visible vocal routing | 2 / 48 (4.2%) | 46 |
 | CSD Configuration — CSD_ER_Singer3 — Vocal ownership | 4 / 48 (8.3%) | 44 |
-| CSD Configuration — CSD_ER_Singer4 — Current-note vocal ownership | 7 / 12 (58.3%) | 5 |
+| CSD Configuration — CSD_ER_Singer4 — Current-note vocal ownership | 8 / 12 (66.7%) | 4 |
 | CSD Configuration — CSD_ER_Singer4 — Exact chord accuracy | 4 / 12 (33.3%) | 8 |
-| CSD Configuration — CSD_ER_Singer4 — Exact-MIDI recall | 34 / 48 (70.8%) | 14 |
-| CSD Configuration — CSD_ER_Singer4 — Pitch-class recall | 40 / 48 (83.3%) | 8 |
+| CSD Configuration — CSD_ER_Singer4 — Exact-MIDI recall | 31 / 48 (64.6%) | 17 |
+| CSD Configuration — CSD_ER_Singer4 — Pitch-class recall | 39 / 48 (81.2%) | 9 |
 | CSD Configuration — CSD_ER_Singer4 — Simplified chord accuracy | 5 / 12 (41.7%) | 7 |
 | CSD Configuration — CSD_ER_Singer4 — Visible current-note vocal routing | 3 / 12 (25.0%) | 9 |
 | CSD Configuration — CSD_ER_Singer4 — Visible vocal routing | 3 / 48 (6.2%) | 45 |
-| CSD Configuration — CSD_ER_Singer4 — Vocal ownership | 9 / 48 (18.8%) | 39 |
-| CSD Configuration — CSD_LI_Singer1 — Current-note vocal ownership | 2 / 12 (16.7%) | 10 |
+| CSD Configuration — CSD_ER_Singer4 — Vocal ownership | 11 / 48 (22.9%) | 37 |
+| CSD Configuration — CSD_LI_Singer1 — Current-note vocal ownership | 5 / 12 (41.7%) | 7 |
 | CSD Configuration — CSD_LI_Singer1 — Exact chord accuracy | 5 / 12 (41.7%) | 7 |
-| CSD Configuration — CSD_LI_Singer1 — Exact-MIDI recall | 40 / 48 (83.3%) | 8 |
-| CSD Configuration — CSD_LI_Singer1 — Pitch-class recall | 42 / 48 (87.5%) | 6 |
+| CSD Configuration — CSD_LI_Singer1 — Exact-MIDI recall | 33 / 48 (68.8%) | 15 |
+| CSD Configuration — CSD_LI_Singer1 — Pitch-class recall | 41 / 48 (85.4%) | 7 |
 | CSD Configuration — CSD_LI_Singer1 — Simplified chord accuracy | 9 / 12 (75.0%) | 3 |
 | CSD Configuration — CSD_LI_Singer1 — Visible current-note vocal routing | 2 / 12 (16.7%) | 10 |
 | CSD Configuration — CSD_LI_Singer1 — Visible vocal routing | 2 / 48 (4.2%) | 46 |
-| CSD Configuration — CSD_LI_Singer1 — Vocal ownership | 2 / 48 (4.2%) | 46 |
-| CSD Configuration — CSD_LI_Singer2 — Current-note vocal ownership | 6 / 12 (50.0%) | 6 |
-| CSD Configuration — CSD_LI_Singer2 — Exact chord accuracy | 2 / 12 (16.7%) | 10 |
-| CSD Configuration — CSD_LI_Singer2 — Exact-MIDI recall | 40 / 48 (83.3%) | 8 |
-| CSD Configuration — CSD_LI_Singer2 — Pitch-class recall | 42 / 48 (87.5%) | 6 |
-| CSD Configuration — CSD_LI_Singer2 — Simplified chord accuracy | 8 / 12 (66.7%) | 4 |
+| CSD Configuration — CSD_LI_Singer1 — Vocal ownership | 6 / 48 (12.5%) | 42 |
+| CSD Configuration — CSD_LI_Singer2 — Current-note vocal ownership | 7 / 12 (58.3%) | 5 |
+| CSD Configuration — CSD_LI_Singer2 — Exact chord accuracy | 3 / 12 (25.0%) | 9 |
+| CSD Configuration — CSD_LI_Singer2 — Exact-MIDI recall | 27 / 48 (56.2%) | 21 |
+| CSD Configuration — CSD_LI_Singer2 — Pitch-class recall | 37 / 48 (77.1%) | 11 |
+| CSD Configuration — CSD_LI_Singer2 — Simplified chord accuracy | 9 / 12 (75.0%) | 3 |
 | CSD Configuration — CSD_LI_Singer2 — Visible current-note vocal routing | 3 / 12 (25.0%) | 9 |
 | CSD Configuration — CSD_LI_Singer2 — Visible vocal routing | 3 / 48 (6.2%) | 45 |
-| CSD Configuration — CSD_LI_Singer2 — Vocal ownership | 7 / 48 (14.6%) | 41 |
-| CSD Configuration — CSD_LI_Singer3 — Current-note vocal ownership | 4 / 12 (33.3%) | 8 |
+| CSD Configuration — CSD_LI_Singer2 — Vocal ownership | 8 / 48 (16.7%) | 40 |
+| CSD Configuration — CSD_LI_Singer3 — Current-note vocal ownership | 5 / 12 (41.7%) | 7 |
 | CSD Configuration — CSD_LI_Singer3 — Exact chord accuracy | 4 / 12 (33.3%) | 8 |
-| CSD Configuration — CSD_LI_Singer3 — Exact-MIDI recall | 40 / 48 (83.3%) | 8 |
-| CSD Configuration — CSD_LI_Singer3 — Pitch-class recall | 43 / 48 (89.6%) | 5 |
-| CSD Configuration — CSD_LI_Singer3 — Simplified chord accuracy | 10 / 12 (83.3%) | 2 |
+| CSD Configuration — CSD_LI_Singer3 — Exact-MIDI recall | 34 / 48 (70.8%) | 14 |
+| CSD Configuration — CSD_LI_Singer3 — Pitch-class recall | 41 / 48 (85.4%) | 7 |
+| CSD Configuration — CSD_LI_Singer3 — Simplified chord accuracy | 8 / 12 (66.7%) | 4 |
 | CSD Configuration — CSD_LI_Singer3 — Visible current-note vocal routing | 1 / 12 (8.3%) | 11 |
 | CSD Configuration — CSD_LI_Singer3 — Visible vocal routing | 1 / 48 (2.1%) | 47 |
-| CSD Configuration — CSD_LI_Singer3 — Vocal ownership | 5 / 48 (10.4%) | 43 |
+| CSD Configuration — CSD_LI_Singer3 — Vocal ownership | 6 / 48 (12.5%) | 42 |
 | CSD Configuration — CSD_LI_Singer4 — Current-note vocal ownership | 5 / 12 (41.7%) | 7 |
 | CSD Configuration — CSD_LI_Singer4 — Exact chord accuracy | 4 / 12 (33.3%) | 8 |
-| CSD Configuration — CSD_LI_Singer4 — Exact-MIDI recall | 38 / 48 (79.2%) | 10 |
+| CSD Configuration — CSD_LI_Singer4 — Exact-MIDI recall | 31 / 48 (64.6%) | 17 |
 | CSD Configuration — CSD_LI_Singer4 — Pitch-class recall | 40 / 48 (83.3%) | 8 |
-| CSD Configuration — CSD_LI_Singer4 — Simplified chord accuracy | 6 / 12 (50.0%) | 6 |
+| CSD Configuration — CSD_LI_Singer4 — Simplified chord accuracy | 5 / 12 (41.7%) | 7 |
 | CSD Configuration — CSD_LI_Singer4 — Visible current-note vocal routing | 4 / 12 (33.3%) | 8 |
 | CSD Configuration — CSD_LI_Singer4 — Visible vocal routing | 4 / 48 (8.3%) | 44 |
 | CSD Configuration — CSD_LI_Singer4 — Vocal ownership | 6 / 48 (12.5%) | 42 |
-| CSD Configuration — CSD_ND_Singer1 — Current-note vocal ownership | 4 / 12 (33.3%) | 8 |
+| CSD Configuration — CSD_ND_Singer1 — Current-note vocal ownership | 6 / 12 (50.0%) | 6 |
 | CSD Configuration — CSD_ND_Singer1 — Exact chord accuracy | 4 / 12 (33.3%) | 8 |
-| CSD Configuration — CSD_ND_Singer1 — Exact-MIDI recall | 36 / 48 (75.0%) | 12 |
+| CSD Configuration — CSD_ND_Singer1 — Exact-MIDI recall | 28 / 48 (58.3%) | 20 |
 | CSD Configuration — CSD_ND_Singer1 — Pitch-class recall | 43 / 48 (89.6%) | 5 |
-| CSD Configuration — CSD_ND_Singer1 — Simplified chord accuracy | 6 / 12 (50.0%) | 6 |
+| CSD Configuration — CSD_ND_Singer1 — Simplified chord accuracy | 5 / 12 (41.7%) | 7 |
 | CSD Configuration — CSD_ND_Singer1 — Visible current-note vocal routing | 3 / 12 (25.0%) | 9 |
 | CSD Configuration — CSD_ND_Singer1 — Visible vocal routing | 4 / 48 (8.3%) | 44 |
-| CSD Configuration — CSD_ND_Singer1 — Vocal ownership | 5 / 48 (10.4%) | 43 |
+| CSD Configuration — CSD_ND_Singer1 — Vocal ownership | 7 / 48 (14.6%) | 41 |
 | CSD Configuration — CSD_ND_Singer2 — Current-note vocal ownership | 3 / 12 (25.0%) | 9 |
 | CSD Configuration — CSD_ND_Singer2 — Exact chord accuracy | 4 / 12 (33.3%) | 8 |
-| CSD Configuration — CSD_ND_Singer2 — Exact-MIDI recall | 26 / 48 (54.2%) | 22 |
-| CSD Configuration — CSD_ND_Singer2 — Pitch-class recall | 32 / 48 (66.7%) | 16 |
+| CSD Configuration — CSD_ND_Singer2 — Exact-MIDI recall | 23 / 48 (47.9%) | 25 |
+| CSD Configuration — CSD_ND_Singer2 — Pitch-class recall | 31 / 48 (64.6%) | 17 |
 | CSD Configuration — CSD_ND_Singer2 — Simplified chord accuracy | 5 / 12 (41.7%) | 7 |
 | CSD Configuration — CSD_ND_Singer2 — Visible current-note vocal routing | 2 / 12 (16.7%) | 10 |
 | CSD Configuration — CSD_ND_Singer2 — Visible vocal routing | 2 / 48 (4.2%) | 46 |
 | CSD Configuration — CSD_ND_Singer2 — Vocal ownership | 4 / 48 (8.3%) | 44 |
-| CSD Configuration — CSD_ND_Singer3 — Current-note vocal ownership | 2 / 12 (16.7%) | 10 |
+| CSD Configuration — CSD_ND_Singer3 — Current-note vocal ownership | 5 / 12 (41.7%) | 7 |
 | CSD Configuration — CSD_ND_Singer3 — Exact chord accuracy | 2 / 12 (16.7%) | 10 |
-| CSD Configuration — CSD_ND_Singer3 — Exact-MIDI recall | 27 / 48 (56.2%) | 21 |
-| CSD Configuration — CSD_ND_Singer3 — Pitch-class recall | 33 / 48 (68.8%) | 15 |
-| CSD Configuration — CSD_ND_Singer3 — Simplified chord accuracy | 3 / 12 (25.0%) | 9 |
+| CSD Configuration — CSD_ND_Singer3 — Exact-MIDI recall | 25 / 48 (52.1%) | 23 |
+| CSD Configuration — CSD_ND_Singer3 — Pitch-class recall | 31 / 48 (64.6%) | 17 |
+| CSD Configuration — CSD_ND_Singer3 — Simplified chord accuracy | 2 / 12 (16.7%) | 10 |
 | CSD Configuration — CSD_ND_Singer3 — Visible current-note vocal routing | 1 / 12 (8.3%) | 11 |
 | CSD Configuration — CSD_ND_Singer3 — Visible vocal routing | 1 / 48 (2.1%) | 47 |
-| CSD Configuration — CSD_ND_Singer3 — Vocal ownership | 2 / 48 (4.2%) | 46 |
-| CSD Configuration — CSD_ND_Singer4 — Current-note vocal ownership | 7 / 12 (58.3%) | 5 |
-| CSD Configuration — CSD_ND_Singer4 — Exact chord accuracy | 5 / 12 (41.7%) | 7 |
-| CSD Configuration — CSD_ND_Singer4 — Exact-MIDI recall | 28 / 48 (58.3%) | 20 |
-| CSD Configuration — CSD_ND_Singer4 — Pitch-class recall | 33 / 48 (68.8%) | 15 |
+| CSD Configuration — CSD_ND_Singer3 — Vocal ownership | 5 / 48 (10.4%) | 43 |
+| CSD Configuration — CSD_ND_Singer4 — Current-note vocal ownership | 8 / 12 (66.7%) | 4 |
+| CSD Configuration — CSD_ND_Singer4 — Exact chord accuracy | 4 / 12 (33.3%) | 8 |
+| CSD Configuration — CSD_ND_Singer4 — Exact-MIDI recall | 25 / 48 (52.1%) | 23 |
+| CSD Configuration — CSD_ND_Singer4 — Pitch-class recall | 31 / 48 (64.6%) | 17 |
 | CSD Configuration — CSD_ND_Singer4 — Simplified chord accuracy | 6 / 12 (50.0%) | 6 |
 | CSD Configuration — CSD_ND_Singer4 — Visible current-note vocal routing | 4 / 12 (33.3%) | 8 |
 | CSD Configuration — CSD_ND_Singer4 — Visible vocal routing | 4 / 48 (8.3%) | 44 |
-| CSD Configuration — CSD_ND_Singer4 — Vocal ownership | 8 / 48 (16.7%) | 40 |
+| CSD Configuration — CSD_ND_Singer4 — Vocal ownership | 9 / 48 (18.8%) | 39 |
 
 ## ESMUC Choir Dataset coverage-gap checklist
 
@@ -478,192 +491,192 @@ Source: `build/esmuc_choir_dataset_measurement.tsv`
 
 | Metric | Accurate / total | Remaining |
 | --- | ---: | ---: |
-| ESMUC All ESMUC chord windows — Exact chord accuracy | 68 / 218 (31.2%) | 150 |
-| ESMUC All ESMUC chord windows — Simplified chord accuracy | 88 / 218 (40.4%) | 130 |
-| ESMUC All ESMUC vocal windows — Current-note vocal ownership | 104 / 228 (45.6%) | 124 |
-| ESMUC All ESMUC vocal windows — Visible current-note vocal routing | 53 / 228 (23.2%) | 175 |
-| ESMUC All SATB notes — Exact-MIDI recall | 646 / 902 (71.6%) | 256 |
-| ESMUC All SATB notes — Pitch-class recall | 722 / 902 (80.0%) | 180 |
-| ESMUC All SATB notes — Visible vocal routing | 59 / 902 (6.5%) | 843 |
-| ESMUC All SATB notes — Vocal ownership | 118 / 902 (13.1%) | 784 |
+| ESMUC All ESMUC chord windows — Exact chord accuracy | 65 / 218 (29.8%) | 153 |
+| ESMUC All ESMUC chord windows — Simplified chord accuracy | 83 / 218 (38.1%) | 135 |
+| ESMUC All ESMUC vocal windows — Current-note vocal ownership | 126 / 228 (55.3%) | 102 |
+| ESMUC All ESMUC vocal windows — Visible current-note vocal routing | 54 / 228 (23.7%) | 174 |
+| ESMUC All SATB notes — Exact-MIDI recall | 592 / 902 (65.6%) | 310 |
+| ESMUC All SATB notes — Pitch-class recall | 695 / 902 (77.1%) | 207 |
+| ESMUC All SATB notes — Visible vocal routing | 60 / 902 (6.7%) | 842 |
+| ESMUC All SATB notes — Vocal ownership | 150 / 902 (16.6%) | 752 |
 
 ### ESMUC SATB range breakdown
 
 | Metric | Accurate / total | Remaining |
 | --- | ---: | ---: |
-| ESMUC SATB range — Alto — Exact-MIDI recall | 164 / 228 (71.9%) | 64 |
-| ESMUC SATB range — Alto — Pitch-class recall | 180 / 228 (78.9%) | 48 |
+| ESMUC SATB range — Alto — Exact-MIDI recall | 155 / 228 (68.0%) | 73 |
+| ESMUC SATB range — Alto — Pitch-class recall | 176 / 228 (77.2%) | 52 |
 | ESMUC SATB range — Alto — Visible vocal routing | 28 / 228 (12.3%) | 200 |
-| ESMUC SATB range — Alto — Vocal ownership | 35 / 228 (15.4%) | 193 |
-| ESMUC SATB range — Bass — Exact-MIDI recall | 182 / 228 (79.8%) | 46 |
-| ESMUC SATB range — Bass — Pitch-class recall | 196 / 228 (86.0%) | 32 |
-| ESMUC SATB range — Bass — Visible vocal routing | 15 / 228 (6.6%) | 213 |
-| ESMUC SATB range — Bass — Vocal ownership | 37 / 228 (16.2%) | 191 |
-| ESMUC SATB range — Soprano — Exact-MIDI recall | 136 / 218 (62.4%) | 82 |
-| ESMUC SATB range — Soprano — Pitch-class recall | 161 / 218 (73.9%) | 57 |
+| ESMUC SATB range — Alto — Vocal ownership | 39 / 228 (17.1%) | 189 |
+| ESMUC SATB range — Bass — Exact-MIDI recall | 162 / 228 (71.1%) | 66 |
+| ESMUC SATB range — Bass — Pitch-class recall | 188 / 228 (82.5%) | 40 |
+| ESMUC SATB range — Bass — Visible vocal routing | 16 / 228 (7.0%) | 212 |
+| ESMUC SATB range — Bass — Vocal ownership | 47 / 228 (20.6%) | 181 |
+| ESMUC SATB range — Soprano — Exact-MIDI recall | 126 / 218 (57.8%) | 92 |
+| ESMUC SATB range — Soprano — Pitch-class recall | 153 / 218 (70.2%) | 65 |
 | ESMUC SATB range — Soprano — Visible vocal routing | 7 / 218 (3.2%) | 211 |
-| ESMUC SATB range — Soprano — Vocal ownership | 15 / 218 (6.9%) | 203 |
-| ESMUC SATB range — Tenor — Exact-MIDI recall | 164 / 228 (71.9%) | 64 |
-| ESMUC SATB range — Tenor — Pitch-class recall | 185 / 228 (81.1%) | 43 |
+| ESMUC SATB range — Soprano — Vocal ownership | 19 / 218 (8.7%) | 199 |
+| ESMUC SATB range — Tenor — Exact-MIDI recall | 149 / 228 (65.4%) | 79 |
+| ESMUC SATB range — Tenor — Pitch-class recall | 178 / 228 (78.1%) | 50 |
 | ESMUC SATB range — Tenor — Visible vocal routing | 9 / 228 (3.9%) | 219 |
-| ESMUC SATB range — Tenor — Vocal ownership | 31 / 228 (13.6%) | 197 |
+| ESMUC SATB range — Tenor — Vocal ownership | 45 / 228 (19.7%) | 183 |
 
 ### ESMUC recording-configuration breakdown
 
 | Metric | Accurate / total | Remaining |
 | --- | ---: | ---: |
-| ESMUC Configuration — ESMUC_DG_FT_take1 — Current-note vocal ownership | 6 / 12 (50.0%) | 6 |
+| ESMUC Configuration — ESMUC_DG_FT_take1 — Current-note vocal ownership | 7 / 12 (58.3%) | 5 |
 | ESMUC Configuration — ESMUC_DG_FT_take1 — Exact chord accuracy | 4 / 12 (33.3%) | 8 |
-| ESMUC Configuration — ESMUC_DG_FT_take1 — Exact-MIDI recall | 34 / 48 (70.8%) | 14 |
-| ESMUC Configuration — ESMUC_DG_FT_take1 — Pitch-class recall | 39 / 48 (81.2%) | 9 |
-| ESMUC Configuration — ESMUC_DG_FT_take1 — Simplified chord accuracy | 6 / 12 (50.0%) | 6 |
+| ESMUC Configuration — ESMUC_DG_FT_take1 — Exact-MIDI recall | 27 / 48 (56.2%) | 21 |
+| ESMUC Configuration — ESMUC_DG_FT_take1 — Pitch-class recall | 37 / 48 (77.1%) | 11 |
+| ESMUC Configuration — ESMUC_DG_FT_take1 — Simplified chord accuracy | 4 / 12 (33.3%) | 8 |
 | ESMUC Configuration — ESMUC_DG_FT_take1 — Visible current-note vocal routing | 3 / 12 (25.0%) | 9 |
 | ESMUC Configuration — ESMUC_DG_FT_take1 — Visible vocal routing | 4 / 48 (8.3%) | 44 |
-| ESMUC Configuration — ESMUC_DG_FT_take1 — Vocal ownership | 7 / 48 (14.6%) | 41 |
-| ESMUC Configuration — ESMUC_DG_FT_take2 — Current-note vocal ownership | 7 / 12 (58.3%) | 5 |
+| ESMUC Configuration — ESMUC_DG_FT_take1 — Vocal ownership | 8 / 48 (16.7%) | 40 |
+| ESMUC Configuration — ESMUC_DG_FT_take2 — Current-note vocal ownership | 8 / 12 (66.7%) | 4 |
 | ESMUC Configuration — ESMUC_DG_FT_take2 — Exact chord accuracy | 4 / 12 (33.3%) | 8 |
-| ESMUC Configuration — ESMUC_DG_FT_take2 — Exact-MIDI recall | 39 / 48 (81.2%) | 9 |
-| ESMUC Configuration — ESMUC_DG_FT_take2 — Pitch-class recall | 44 / 48 (91.7%) | 4 |
+| ESMUC Configuration — ESMUC_DG_FT_take2 — Exact-MIDI recall | 34 / 48 (70.8%) | 14 |
+| ESMUC Configuration — ESMUC_DG_FT_take2 — Pitch-class recall | 38 / 48 (79.2%) | 10 |
 | ESMUC Configuration — ESMUC_DG_FT_take2 — Simplified chord accuracy | 7 / 12 (58.3%) | 5 |
 | ESMUC Configuration — ESMUC_DG_FT_take2 — Visible current-note vocal routing | 4 / 12 (33.3%) | 8 |
 | ESMUC Configuration — ESMUC_DG_FT_take2 — Visible vocal routing | 4 / 48 (8.3%) | 44 |
-| ESMUC Configuration — ESMUC_DG_FT_take2 — Vocal ownership | 8 / 48 (16.7%) | 40 |
+| ESMUC Configuration — ESMUC_DG_FT_take2 — Vocal ownership | 10 / 48 (20.8%) | 38 |
 | ESMUC Configuration — ESMUC_DG_FT_take3 — Current-note vocal ownership | 4 / 12 (33.3%) | 8 |
 | ESMUC Configuration — ESMUC_DG_FT_take3 — Exact chord accuracy | 5 / 12 (41.7%) | 7 |
-| ESMUC Configuration — ESMUC_DG_FT_take3 — Exact-MIDI recall | 33 / 48 (68.8%) | 15 |
-| ESMUC Configuration — ESMUC_DG_FT_take3 — Pitch-class recall | 37 / 48 (77.1%) | 11 |
+| ESMUC Configuration — ESMUC_DG_FT_take3 — Exact-MIDI recall | 29 / 48 (60.4%) | 19 |
+| ESMUC Configuration — ESMUC_DG_FT_take3 — Pitch-class recall | 35 / 48 (72.9%) | 13 |
 | ESMUC Configuration — ESMUC_DG_FT_take3 — Simplified chord accuracy | 7 / 12 (58.3%) | 5 |
 | ESMUC Configuration — ESMUC_DG_FT_take3 — Visible current-note vocal routing | 1 / 12 (8.3%) | 11 |
 | ESMUC Configuration — ESMUC_DG_FT_take3 — Visible vocal routing | 1 / 48 (2.1%) | 47 |
-| ESMUC Configuration — ESMUC_DG_FT_take3 — Vocal ownership | 4 / 48 (8.3%) | 44 |
-| ESMUC Configuration — ESMUC_DG_FT_take4 — Current-note vocal ownership | 8 / 12 (66.7%) | 4 |
+| ESMUC Configuration — ESMUC_DG_FT_take3 — Vocal ownership | 5 / 48 (10.4%) | 43 |
+| ESMUC Configuration — ESMUC_DG_FT_take4 — Current-note vocal ownership | 10 / 12 (83.3%) | 2 |
 | ESMUC Configuration — ESMUC_DG_FT_take4 — Exact chord accuracy | 4 / 12 (33.3%) | 8 |
-| ESMUC Configuration — ESMUC_DG_FT_take4 — Exact-MIDI recall | 39 / 48 (81.2%) | 9 |
-| ESMUC Configuration — ESMUC_DG_FT_take4 — Pitch-class recall | 40 / 48 (83.3%) | 8 |
-| ESMUC Configuration — ESMUC_DG_FT_take4 — Simplified chord accuracy | 9 / 12 (75.0%) | 3 |
+| ESMUC Configuration — ESMUC_DG_FT_take4 — Exact-MIDI recall | 34 / 48 (70.8%) | 14 |
+| ESMUC Configuration — ESMUC_DG_FT_take4 — Pitch-class recall | 39 / 48 (81.2%) | 9 |
+| ESMUC Configuration — ESMUC_DG_FT_take4 — Simplified chord accuracy | 8 / 12 (66.7%) | 4 |
 | ESMUC Configuration — ESMUC_DG_FT_take4 — Visible current-note vocal routing | 6 / 12 (50.0%) | 6 |
 | ESMUC Configuration — ESMUC_DG_FT_take4 — Visible vocal routing | 7 / 48 (14.6%) | 41 |
-| ESMUC Configuration — ESMUC_DG_FT_take4 — Vocal ownership | 10 / 48 (20.8%) | 38 |
-| ESMUC Configuration — ESMUC_DG_SE_short2 — Current-note vocal ownership | 9 / 12 (75.0%) | 3 |
-| ESMUC Configuration — ESMUC_DG_SE_short2 — Exact chord accuracy | 5 / 10 (50.0%) | 5 |
-| ESMUC Configuration — ESMUC_DG_SE_short2 — Exact-MIDI recall | 34 / 48 (70.8%) | 14 |
-| ESMUC Configuration — ESMUC_DG_SE_short2 — Pitch-class recall | 44 / 48 (91.7%) | 4 |
-| ESMUC Configuration — ESMUC_DG_SE_short2 — Simplified chord accuracy | 5 / 10 (50.0%) | 5 |
+| ESMUC Configuration — ESMUC_DG_FT_take4 — Vocal ownership | 13 / 48 (27.1%) | 35 |
+| ESMUC Configuration — ESMUC_DG_SE_short2 — Current-note vocal ownership | 10 / 12 (83.3%) | 2 |
+| ESMUC Configuration — ESMUC_DG_SE_short2 — Exact chord accuracy | 6 / 10 (60.0%) | 4 |
+| ESMUC Configuration — ESMUC_DG_SE_short2 — Exact-MIDI recall | 33 / 48 (68.8%) | 15 |
+| ESMUC Configuration — ESMUC_DG_SE_short2 — Pitch-class recall | 43 / 48 (89.6%) | 5 |
+| ESMUC Configuration — ESMUC_DG_SE_short2 — Simplified chord accuracy | 6 / 10 (60.0%) | 4 |
 | ESMUC Configuration — ESMUC_DG_SE_short2 — Visible current-note vocal routing | 4 / 12 (33.3%) | 8 |
 | ESMUC Configuration — ESMUC_DG_SE_short2 — Visible vocal routing | 4 / 48 (8.3%) | 44 |
-| ESMUC Configuration — ESMUC_DG_SE_short2 — Vocal ownership | 9 / 48 (18.8%) | 39 |
-| ESMUC Configuration — ESMUC_DG_SE_short3 — Current-note vocal ownership | 3 / 12 (25.0%) | 9 |
-| ESMUC Configuration — ESMUC_DG_SE_short3 — Exact chord accuracy | 4 / 12 (33.3%) | 8 |
-| ESMUC Configuration — ESMUC_DG_SE_short3 — Exact-MIDI recall | 38 / 48 (79.2%) | 10 |
-| ESMUC Configuration — ESMUC_DG_SE_short3 — Pitch-class recall | 40 / 48 (83.3%) | 8 |
-| ESMUC Configuration — ESMUC_DG_SE_short3 — Simplified chord accuracy | 5 / 12 (41.7%) | 7 |
+| ESMUC Configuration — ESMUC_DG_SE_short2 — Vocal ownership | 10 / 48 (20.8%) | 38 |
+| ESMUC Configuration — ESMUC_DG_SE_short3 — Current-note vocal ownership | 6 / 12 (50.0%) | 6 |
+| ESMUC Configuration — ESMUC_DG_SE_short3 — Exact chord accuracy | 3 / 12 (25.0%) | 9 |
+| ESMUC Configuration — ESMUC_DG_SE_short3 — Exact-MIDI recall | 33 / 48 (68.8%) | 15 |
+| ESMUC Configuration — ESMUC_DG_SE_short3 — Pitch-class recall | 39 / 48 (81.2%) | 9 |
+| ESMUC Configuration — ESMUC_DG_SE_short3 — Simplified chord accuracy | 4 / 12 (33.3%) | 8 |
 | ESMUC Configuration — ESMUC_DG_SE_short3 — Visible current-note vocal routing | 2 / 12 (16.7%) | 10 |
 | ESMUC Configuration — ESMUC_DG_SE_short3 — Visible vocal routing | 4 / 48 (8.3%) | 44 |
-| ESMUC Configuration — ESMUC_DG_SE_short3 — Vocal ownership | 5 / 48 (10.4%) | 43 |
+| ESMUC Configuration — ESMUC_DG_SE_short3 — Vocal ownership | 10 / 48 (20.8%) | 38 |
 | ESMUC Configuration — ESMUC_DG_SE_short4 — Current-note vocal ownership | 6 / 12 (50.0%) | 6 |
 | ESMUC Configuration — ESMUC_DG_SE_short4 — Exact chord accuracy | 2 / 12 (16.7%) | 10 |
-| ESMUC Configuration — ESMUC_DG_SE_short4 — Exact-MIDI recall | 31 / 48 (64.6%) | 17 |
-| ESMUC Configuration — ESMUC_DG_SE_short4 — Pitch-class recall | 39 / 48 (81.2%) | 9 |
+| ESMUC Configuration — ESMUC_DG_SE_short4 — Exact-MIDI recall | 26 / 48 (54.2%) | 22 |
+| ESMUC Configuration — ESMUC_DG_SE_short4 — Pitch-class recall | 38 / 48 (79.2%) | 10 |
 | ESMUC Configuration — ESMUC_DG_SE_short4 — Simplified chord accuracy | 2 / 12 (16.7%) | 10 |
 | ESMUC Configuration — ESMUC_DG_SE_short4 — Visible current-note vocal routing | 3 / 12 (25.0%) | 9 |
 | ESMUC Configuration — ESMUC_DG_SE_short4 — Visible vocal routing | 3 / 48 (6.2%) | 45 |
 | ESMUC Configuration — ESMUC_DG_SE_short4 — Vocal ownership | 7 / 48 (14.6%) | 41 |
-| ESMUC Configuration — ESMUC_DH1_FT_take1 — Current-note vocal ownership | 0 / 12 (0.0%) | 12 |
+| ESMUC Configuration — ESMUC_DH1_FT_take1 — Current-note vocal ownership | 2 / 12 (16.7%) | 10 |
 | ESMUC Configuration — ESMUC_DH1_FT_take1 — Exact chord accuracy | 4 / 12 (33.3%) | 8 |
-| ESMUC Configuration — ESMUC_DH1_FT_take1 — Exact-MIDI recall | 38 / 48 (79.2%) | 10 |
-| ESMUC Configuration — ESMUC_DH1_FT_take1 — Pitch-class recall | 44 / 48 (91.7%) | 4 |
+| ESMUC Configuration — ESMUC_DH1_FT_take1 — Exact-MIDI recall | 35 / 48 (72.9%) | 13 |
+| ESMUC Configuration — ESMUC_DH1_FT_take1 — Pitch-class recall | 42 / 48 (87.5%) | 6 |
 | ESMUC Configuration — ESMUC_DH1_FT_take1 — Simplified chord accuracy | 5 / 12 (41.7%) | 7 |
 | ESMUC Configuration — ESMUC_DH1_FT_take1 — Visible current-note vocal routing | 0 / 12 (0.0%) | 12 |
 | ESMUC Configuration — ESMUC_DH1_FT_take1 — Visible vocal routing | 0 / 48 (0.0%) | 48 |
-| ESMUC Configuration — ESMUC_DH1_FT_take1 — Vocal ownership | 0 / 48 (0.0%) | 48 |
-| ESMUC Configuration — ESMUC_DH1_SE_short1 — Current-note vocal ownership | 4 / 12 (33.3%) | 8 |
+| ESMUC Configuration — ESMUC_DH1_FT_take1 — Vocal ownership | 3 / 48 (6.2%) | 45 |
+| ESMUC Configuration — ESMUC_DH1_SE_short1 — Current-note vocal ownership | 5 / 12 (41.7%) | 7 |
 | ESMUC Configuration — ESMUC_DH1_SE_short1 — Exact chord accuracy | 0 / 4 (0.0%) | 4 |
-| ESMUC Configuration — ESMUC_DH1_SE_short1 — Exact-MIDI recall | 19 / 38 (50.0%) | 19 |
+| ESMUC Configuration — ESMUC_DH1_SE_short1 — Exact-MIDI recall | 15 / 38 (39.5%) | 23 |
 | ESMUC Configuration — ESMUC_DH1_SE_short1 — Pitch-class recall | 23 / 38 (60.5%) | 15 |
 | ESMUC Configuration — ESMUC_DH1_SE_short1 — Simplified chord accuracy | 0 / 4 (0.0%) | 4 |
 | ESMUC Configuration — ESMUC_DH1_SE_short1 — Visible current-note vocal routing | 2 / 12 (16.7%) | 10 |
 | ESMUC Configuration — ESMUC_DH1_SE_short1 — Visible vocal routing | 2 / 38 (5.3%) | 36 |
-| ESMUC Configuration — ESMUC_DH1_SE_short1 — Vocal ownership | 4 / 38 (10.5%) | 34 |
+| ESMUC Configuration — ESMUC_DH1_SE_short1 — Vocal ownership | 5 / 38 (13.2%) | 33 |
 | ESMUC Configuration — ESMUC_DH1_SE_short2 — Current-note vocal ownership | 5 / 12 (41.7%) | 7 |
-| ESMUC Configuration — ESMUC_DH1_SE_short2 — Exact chord accuracy | 3 / 12 (25.0%) | 9 |
-| ESMUC Configuration — ESMUC_DH1_SE_short2 — Exact-MIDI recall | 29 / 48 (60.4%) | 19 |
-| ESMUC Configuration — ESMUC_DH1_SE_short2 — Pitch-class recall | 35 / 48 (72.9%) | 13 |
-| ESMUC Configuration — ESMUC_DH1_SE_short2 — Simplified chord accuracy | 3 / 12 (25.0%) | 9 |
+| ESMUC Configuration — ESMUC_DH1_SE_short2 — Exact chord accuracy | 2 / 12 (16.7%) | 10 |
+| ESMUC Configuration — ESMUC_DH1_SE_short2 — Exact-MIDI recall | 26 / 48 (54.2%) | 22 |
+| ESMUC Configuration — ESMUC_DH1_SE_short2 — Pitch-class recall | 33 / 48 (68.8%) | 15 |
+| ESMUC Configuration — ESMUC_DH1_SE_short2 — Simplified chord accuracy | 2 / 12 (16.7%) | 10 |
 | ESMUC Configuration — ESMUC_DH1_SE_short2 — Visible current-note vocal routing | 2 / 12 (16.7%) | 10 |
 | ESMUC Configuration — ESMUC_DH1_SE_short2 — Visible vocal routing | 3 / 48 (6.2%) | 45 |
 | ESMUC Configuration — ESMUC_DH1_SE_short2 — Vocal ownership | 6 / 48 (12.5%) | 42 |
 | ESMUC Configuration — ESMUC_DH2_FT_take1 — Current-note vocal ownership | 3 / 12 (25.0%) | 9 |
-| ESMUC Configuration — ESMUC_DH2_FT_take1 — Exact chord accuracy | 2 / 12 (16.7%) | 10 |
-| ESMUC Configuration — ESMUC_DH2_FT_take1 — Exact-MIDI recall | 34 / 48 (70.8%) | 14 |
-| ESMUC Configuration — ESMUC_DH2_FT_take1 — Pitch-class recall | 37 / 48 (77.1%) | 11 |
+| ESMUC Configuration — ESMUC_DH2_FT_take1 — Exact chord accuracy | 1 / 12 (8.3%) | 11 |
+| ESMUC Configuration — ESMUC_DH2_FT_take1 — Exact-MIDI recall | 29 / 48 (60.4%) | 19 |
+| ESMUC Configuration — ESMUC_DH2_FT_take1 — Pitch-class recall | 34 / 48 (70.8%) | 14 |
 | ESMUC Configuration — ESMUC_DH2_FT_take1 — Simplified chord accuracy | 2 / 12 (16.7%) | 10 |
 | ESMUC Configuration — ESMUC_DH2_FT_take1 — Visible current-note vocal routing | 2 / 12 (16.7%) | 10 |
 | ESMUC Configuration — ESMUC_DH2_FT_take1 — Visible vocal routing | 2 / 48 (4.2%) | 46 |
-| ESMUC Configuration — ESMUC_DH2_FT_take1 — Vocal ownership | 3 / 48 (6.2%) | 45 |
-| ESMUC Configuration — ESMUC_SC1_FT_take1 — Current-note vocal ownership | 7 / 12 (58.3%) | 5 |
+| ESMUC Configuration — ESMUC_DH2_FT_take1 — Vocal ownership | 4 / 48 (8.3%) | 44 |
+| ESMUC Configuration — ESMUC_SC1_FT_take1 — Current-note vocal ownership | 8 / 12 (66.7%) | 4 |
 | ESMUC Configuration — ESMUC_SC1_FT_take1 — Exact chord accuracy | 3 / 12 (25.0%) | 9 |
-| ESMUC Configuration — ESMUC_SC1_FT_take1 — Exact-MIDI recall | 34 / 48 (70.8%) | 14 |
-| ESMUC Configuration — ESMUC_SC1_FT_take1 — Pitch-class recall | 37 / 48 (77.1%) | 11 |
+| ESMUC Configuration — ESMUC_SC1_FT_take1 — Exact-MIDI recall | 30 / 48 (62.5%) | 18 |
+| ESMUC Configuration — ESMUC_SC1_FT_take1 — Pitch-class recall | 35 / 48 (72.9%) | 13 |
 | ESMUC Configuration — ESMUC_SC1_FT_take1 — Simplified chord accuracy | 3 / 12 (25.0%) | 9 |
 | ESMUC Configuration — ESMUC_SC1_FT_take1 — Visible current-note vocal routing | 4 / 12 (33.3%) | 8 |
 | ESMUC Configuration — ESMUC_SC1_FT_take1 — Visible vocal routing | 4 / 48 (8.3%) | 44 |
-| ESMUC Configuration — ESMUC_SC1_FT_take1 — Vocal ownership | 7 / 48 (14.6%) | 41 |
-| ESMUC Configuration — ESMUC_SC1_FT_take2 — Current-note vocal ownership | 8 / 12 (66.7%) | 4 |
+| ESMUC Configuration — ESMUC_SC1_FT_take1 — Vocal ownership | 9 / 48 (18.8%) | 39 |
+| ESMUC Configuration — ESMUC_SC1_FT_take2 — Current-note vocal ownership | 9 / 12 (75.0%) | 3 |
 | ESMUC Configuration — ESMUC_SC1_FT_take2 — Exact chord accuracy | 3 / 12 (25.0%) | 9 |
-| ESMUC Configuration — ESMUC_SC1_FT_take2 — Exact-MIDI recall | 36 / 48 (75.0%) | 12 |
-| ESMUC Configuration — ESMUC_SC1_FT_take2 — Pitch-class recall | 39 / 48 (81.2%) | 9 |
+| ESMUC Configuration — ESMUC_SC1_FT_take2 — Exact-MIDI recall | 35 / 48 (72.9%) | 13 |
+| ESMUC Configuration — ESMUC_SC1_FT_take2 — Pitch-class recall | 38 / 48 (79.2%) | 10 |
 | ESMUC Configuration — ESMUC_SC1_FT_take2 — Simplified chord accuracy | 3 / 12 (25.0%) | 9 |
 | ESMUC Configuration — ESMUC_SC1_FT_take2 — Visible current-note vocal routing | 4 / 12 (33.3%) | 8 |
 | ESMUC Configuration — ESMUC_SC1_FT_take2 — Visible vocal routing | 4 / 48 (8.3%) | 44 |
-| ESMUC Configuration — ESMUC_SC1_FT_take2 — Vocal ownership | 9 / 48 (18.8%) | 39 |
-| ESMUC Configuration — ESMUC_SC1_FT_take3 — Current-note vocal ownership | 3 / 12 (25.0%) | 9 |
+| ESMUC Configuration — ESMUC_SC1_FT_take2 — Vocal ownership | 10 / 48 (20.8%) | 38 |
+| ESMUC Configuration — ESMUC_SC1_FT_take3 — Current-note vocal ownership | 6 / 12 (50.0%) | 6 |
 | ESMUC Configuration — ESMUC_SC1_FT_take3 — Exact chord accuracy | 4 / 12 (33.3%) | 8 |
-| ESMUC Configuration — ESMUC_SC1_FT_take3 — Exact-MIDI recall | 34 / 48 (70.8%) | 14 |
-| ESMUC Configuration — ESMUC_SC1_FT_take3 — Pitch-class recall | 40 / 48 (83.3%) | 8 |
+| ESMUC Configuration — ESMUC_SC1_FT_take3 — Exact-MIDI recall | 33 / 48 (68.8%) | 15 |
+| ESMUC Configuration — ESMUC_SC1_FT_take3 — Pitch-class recall | 39 / 48 (81.2%) | 9 |
 | ESMUC Configuration — ESMUC_SC1_FT_take3 — Simplified chord accuracy | 6 / 12 (50.0%) | 6 |
 | ESMUC Configuration — ESMUC_SC1_FT_take3 — Visible current-note vocal routing | 3 / 12 (25.0%) | 9 |
 | ESMUC Configuration — ESMUC_SC1_FT_take3 — Visible vocal routing | 3 / 48 (6.2%) | 45 |
-| ESMUC Configuration — ESMUC_SC1_FT_take3 — Vocal ownership | 4 / 48 (8.3%) | 44 |
-| ESMUC Configuration — ESMUC_SC2_FT_take1 — Current-note vocal ownership | 7 / 12 (58.3%) | 5 |
-| ESMUC Configuration — ESMUC_SC2_FT_take1 — Exact chord accuracy | 5 / 12 (41.7%) | 7 |
-| ESMUC Configuration — ESMUC_SC2_FT_take1 — Exact-MIDI recall | 35 / 48 (72.9%) | 13 |
-| ESMUC Configuration — ESMUC_SC2_FT_take1 — Pitch-class recall | 39 / 48 (81.2%) | 9 |
-| ESMUC Configuration — ESMUC_SC2_FT_take1 — Simplified chord accuracy | 5 / 12 (41.7%) | 7 |
-| ESMUC Configuration — ESMUC_SC2_FT_take1 — Visible current-note vocal routing | 1 / 12 (8.3%) | 11 |
-| ESMUC Configuration — ESMUC_SC2_FT_take1 — Visible vocal routing | 1 / 48 (2.1%) | 47 |
-| ESMUC Configuration — ESMUC_SC2_FT_take1 — Vocal ownership | 7 / 48 (14.6%) | 41 |
-| ESMUC Configuration — ESMUC_SC2_FT_take2 — Current-note vocal ownership | 8 / 12 (66.7%) | 4 |
+| ESMUC Configuration — ESMUC_SC1_FT_take3 — Vocal ownership | 7 / 48 (14.6%) | 41 |
+| ESMUC Configuration — ESMUC_SC2_FT_take1 — Current-note vocal ownership | 8 / 12 (66.7%) | 4 |
+| ESMUC Configuration — ESMUC_SC2_FT_take1 — Exact chord accuracy | 4 / 12 (33.3%) | 8 |
+| ESMUC Configuration — ESMUC_SC2_FT_take1 — Exact-MIDI recall | 34 / 48 (70.8%) | 14 |
+| ESMUC Configuration — ESMUC_SC2_FT_take1 — Pitch-class recall | 38 / 48 (79.2%) | 10 |
+| ESMUC Configuration — ESMUC_SC2_FT_take1 — Simplified chord accuracy | 4 / 12 (33.3%) | 8 |
+| ESMUC Configuration — ESMUC_SC2_FT_take1 — Visible current-note vocal routing | 2 / 12 (16.7%) | 10 |
+| ESMUC Configuration — ESMUC_SC2_FT_take1 — Visible vocal routing | 2 / 48 (4.2%) | 46 |
+| ESMUC Configuration — ESMUC_SC2_FT_take1 — Vocal ownership | 9 / 48 (18.8%) | 39 |
+| ESMUC Configuration — ESMUC_SC2_FT_take2 — Current-note vocal ownership | 10 / 12 (83.3%) | 2 |
 | ESMUC Configuration — ESMUC_SC2_FT_take2 — Exact chord accuracy | 7 / 12 (58.3%) | 5 |
 | ESMUC Configuration — ESMUC_SC2_FT_take2 — Exact-MIDI recall | 38 / 48 (79.2%) | 10 |
 | ESMUC Configuration — ESMUC_SC2_FT_take2 — Pitch-class recall | 38 / 48 (79.2%) | 10 |
 | ESMUC Configuration — ESMUC_SC2_FT_take2 — Simplified chord accuracy | 7 / 12 (58.3%) | 5 |
 | ESMUC Configuration — ESMUC_SC2_FT_take2 — Visible current-note vocal routing | 4 / 12 (33.3%) | 8 |
 | ESMUC Configuration — ESMUC_SC2_FT_take2 — Visible vocal routing | 4 / 48 (8.3%) | 44 |
-| ESMUC Configuration — ESMUC_SC2_FT_take2 — Vocal ownership | 9 / 48 (18.8%) | 39 |
-| ESMUC Configuration — ESMUC_SC2_FT_take3 — Current-note vocal ownership | 7 / 12 (58.3%) | 5 |
+| ESMUC Configuration — ESMUC_SC2_FT_take2 — Vocal ownership | 11 / 48 (22.9%) | 37 |
+| ESMUC Configuration — ESMUC_SC2_FT_take3 — Current-note vocal ownership | 8 / 12 (66.7%) | 4 |
 | ESMUC Configuration — ESMUC_SC2_FT_take3 — Exact chord accuracy | 4 / 12 (33.3%) | 8 |
 | ESMUC Configuration — ESMUC_SC2_FT_take3 — Exact-MIDI recall | 35 / 48 (72.9%) | 13 |
-| ESMUC Configuration — ESMUC_SC2_FT_take3 — Pitch-class recall | 37 / 48 (77.1%) | 11 |
+| ESMUC Configuration — ESMUC_SC2_FT_take3 — Pitch-class recall | 36 / 48 (75.0%) | 12 |
 | ESMUC Configuration — ESMUC_SC2_FT_take3 — Simplified chord accuracy | 4 / 12 (33.3%) | 8 |
 | ESMUC Configuration — ESMUC_SC2_FT_take3 — Visible current-note vocal routing | 2 / 12 (16.7%) | 10 |
 | ESMUC Configuration — ESMUC_SC2_FT_take3 — Visible vocal routing | 2 / 48 (4.2%) | 46 |
-| ESMUC Configuration — ESMUC_SC2_FT_take3 — Vocal ownership | 9 / 48 (18.8%) | 39 |
-| ESMUC Configuration — ESMUC_SC3_FT_take1 — Current-note vocal ownership | 4 / 12 (33.3%) | 8 |
+| ESMUC Configuration — ESMUC_SC2_FT_take3 — Vocal ownership | 10 / 48 (20.8%) | 38 |
+| ESMUC Configuration — ESMUC_SC3_FT_take1 — Current-note vocal ownership | 5 / 12 (41.7%) | 7 |
 | ESMUC Configuration — ESMUC_SC3_FT_take1 — Exact chord accuracy | 3 / 12 (25.0%) | 9 |
 | ESMUC Configuration — ESMUC_SC3_FT_take1 — Exact-MIDI recall | 36 / 48 (75.0%) | 12 |
 | ESMUC Configuration — ESMUC_SC3_FT_take1 — Pitch-class recall | 39 / 48 (81.2%) | 9 |
 | ESMUC Configuration — ESMUC_SC3_FT_take1 — Simplified chord accuracy | 6 / 12 (50.0%) | 6 |
 | ESMUC Configuration — ESMUC_SC3_FT_take1 — Visible current-note vocal routing | 2 / 12 (16.7%) | 10 |
 | ESMUC Configuration — ESMUC_SC3_FT_take1 — Visible vocal routing | 3 / 48 (6.2%) | 45 |
-| ESMUC Configuration — ESMUC_SC3_FT_take1 — Vocal ownership | 5 / 48 (10.4%) | 43 |
-| ESMUC Configuration — ESMUC_SC3_FT_take2 — Current-note vocal ownership | 5 / 12 (41.7%) | 7 |
+| ESMUC Configuration — ESMUC_SC3_FT_take1 — Vocal ownership | 6 / 48 (12.5%) | 42 |
+| ESMUC Configuration — ESMUC_SC3_FT_take2 — Current-note vocal ownership | 6 / 12 (50.0%) | 6 |
 | ESMUC Configuration — ESMUC_SC3_FT_take2 — Exact chord accuracy | 2 / 12 (16.7%) | 10 |
 | ESMUC Configuration — ESMUC_SC3_FT_take2 — Exact-MIDI recall | 30 / 48 (62.5%) | 18 |
 | ESMUC Configuration — ESMUC_SC3_FT_take2 — Pitch-class recall | 31 / 48 (64.6%) | 17 |
 | ESMUC Configuration — ESMUC_SC3_FT_take2 — Simplified chord accuracy | 3 / 12 (25.0%) | 9 |
 | ESMUC Configuration — ESMUC_SC3_FT_take2 — Visible current-note vocal routing | 4 / 12 (33.3%) | 8 |
 | ESMUC Configuration — ESMUC_SC3_FT_take2 — Visible vocal routing | 4 / 48 (8.3%) | 44 |
-| ESMUC Configuration — ESMUC_SC3_FT_take2 — Vocal ownership | 5 / 48 (10.4%) | 43 |
+| ESMUC Configuration — ESMUC_SC3_FT_take2 — Vocal ownership | 7 / 48 (14.6%) | 41 |
 
 ## MIR-1K vocal-with-accompaniment coverage-gap checklist
 
@@ -731,14 +744,14 @@ Source: `build/vocal_exact_note_cross_corpus.tsv`
 
 | Corpus / outcome | Accurate / total | Remaining |
 | --- | ---: | ---: |
-| CSD — exact MIDI in vocal row | 50 / 576 (8.7%) | 526 |
-| CSD — exact MIDI only in foreign row | 368 / 576 (63.9%) | 208 |
-| CSD — pitch class only (wrong octave) | 45 / 576 (7.8%) | 531 |
-| CSD — no expected pitch class | 113 / 576 (19.6%) | 463 |
-| DCS — exact MIDI in vocal row | 73 / 984 (7.4%) | 911 |
-| DCS — exact MIDI only in foreign row | 495 / 984 (50.3%) | 489 |
-| DCS — pitch class only (wrong octave) | 140 / 984 (14.2%) | 844 |
-| DCS — no expected pitch class | 276 / 984 (28.0%) | 708 |
+| CSD — exact MIDI in vocal row | 68 / 576 (11.8%) | 508 |
+| CSD — exact MIDI only in foreign row | 274 / 576 (47.6%) | 302 |
+| CSD — pitch class only (wrong octave) | 94 / 576 (16.3%) | 482 |
+| CSD — no expected pitch class | 140 / 576 (24.3%) | 436 |
+| DCS — exact MIDI in vocal row | 78 / 984 (7.9%) | 906 |
+| DCS — exact MIDI only in foreign row | 355 / 984 (36.1%) | 629 |
+| DCS — pitch class only (wrong octave) | 221 / 984 (22.5%) | 763 |
+| DCS — no expected pitch class | 330 / 984 (33.5%) | 654 |
 | ESMUC — exact MIDI in vocal row | 76 / 902 (8.4%) | 826 |
 | ESMUC — exact MIDI only in foreign row | 570 / 902 (63.2%) | 332 |
 | ESMUC — pitch class only (wrong octave) | 76 / 902 (8.4%) | 826 |
@@ -751,14 +764,14 @@ Source: `build/vocal_exact_note_cross_corpus.tsv`
 | SCMS — exact MIDI only in foreign row | 4040 / 7095 (56.9%) | 3055 |
 | SCMS — pitch class only (wrong octave) | 673 / 7095 (9.5%) | 6422 |
 | SCMS — no expected pitch class | 670 / 7095 (9.4%) | 6425 |
-| Vocadito — exact MIDI in vocal row | 545 / 2284 (23.9%) | 1739 |
-| Vocadito — exact MIDI only in foreign row | 1274 / 2284 (55.8%) | 1010 |
-| Vocadito — pitch class only (wrong octave) | 137 / 2284 (6.0%) | 2147 |
-| Vocadito — no expected pitch class | 328 / 2284 (14.4%) | 1956 |
-| VocalSet — exact MIDI in vocal row | 2660 / 17344 (15.3%) | 14684 |
-| VocalSet — exact MIDI only in foreign row | 9396 / 17344 (54.2%) | 7948 |
-| VocalSet — pitch class only (wrong octave) | 1130 / 17344 (6.5%) | 16214 |
-| VocalSet — no expected pitch class | 4158 / 17344 (24.0%) | 13186 |
+| Vocadito — exact MIDI in vocal row | 744 / 2284 (32.6%) | 1540 |
+| Vocadito — exact MIDI only in foreign row | 937 / 2284 (41.0%) | 1347 |
+| Vocadito — pitch class only (wrong octave) | 251 / 2284 (11.0%) | 2033 |
+| Vocadito — no expected pitch class | 352 / 2284 (15.4%) | 1932 |
+| VocalSet — exact MIDI in vocal row | 3065 / 17344 (17.7%) | 14279 |
+| VocalSet — exact MIDI only in foreign row | 7963 / 17344 (45.9%) | 9381 |
+| VocalSet — pitch class only (wrong octave) | 1909 / 17344 (11.0%) | 15435 |
+| VocalSet — no expected pitch class | 4407 / 17344 (25.4%) | 12937 |
 
 ## Dagstuhl ChoirSet (DCS) real-audio measurement
 
@@ -768,35 +781,35 @@ Source: `build/dagstuhl_choirset_measurement.tsv`
 
 | Metric | Accurate / total | Remaining |
 | --- | ---: | ---: |
-| DCS All DCS chord windows — Exact chord accuracy | 49 / 240 (20.4%) | 191 |
-| DCS All DCS chord windows — Simplified chord accuracy | 82 / 240 (34.2%) | 158 |
-| DCS All DCS vocal windows — Current-note vocal ownership | 86 / 240 (35.8%) | 154 |
-| DCS All DCS vocal windows — Visible current-note vocal routing | 52 / 240 (21.7%) | 188 |
-| DCS All SATB notes — Exact-MIDI recall | 568 / 984 (57.7%) | 416 |
-| DCS All SATB notes — Pitch-class recall | 708 / 984 (72.0%) | 276 |
-| DCS All SATB notes — Visible vocal routing | 58 / 984 (5.9%) | 926 |
-| DCS All SATB notes — Vocal ownership | 109 / 984 (11.1%) | 875 |
+| DCS All DCS chord windows — Exact chord accuracy | 46 / 240 (19.2%) | 194 |
+| DCS All DCS chord windows — Simplified chord accuracy | 74 / 240 (30.8%) | 166 |
+| DCS All DCS vocal windows — Current-note vocal ownership | 89 / 240 (37.1%) | 151 |
+| DCS All DCS vocal windows — Visible current-note vocal routing | 53 / 240 (22.1%) | 187 |
+| DCS All SATB notes — Exact-MIDI recall | 433 / 984 (44.0%) | 551 |
+| DCS All SATB notes — Pitch-class recall | 654 / 984 (66.5%) | 330 |
+| DCS All SATB notes — Visible vocal routing | 59 / 984 (6.0%) | 925 |
+| DCS All SATB notes — Vocal ownership | 114 / 984 (11.6%) | 870 |
 
 ### DCS SATB range breakdown
 
 | Metric | Accurate / total | Remaining |
 | --- | ---: | ---: |
-| DCS SATB range — Alto — Exact-MIDI recall | 162 / 240 (67.5%) | 78 |
-| DCS SATB range — Alto — Pitch-class recall | 178 / 240 (74.2%) | 62 |
+| DCS SATB range — Alto — Exact-MIDI recall | 133 / 240 (55.4%) | 107 |
+| DCS SATB range — Alto — Pitch-class recall | 166 / 240 (69.2%) | 74 |
 | DCS SATB range — Alto — Visible vocal routing | 20 / 240 (8.3%) | 220 |
-| DCS SATB range — Alto — Vocal ownership | 36 / 240 (15.0%) | 204 |
-| DCS SATB range — Bass — Exact-MIDI recall | 95 / 264 (36.0%) | 169 |
-| DCS SATB range — Bass — Pitch-class recall | 185 / 264 (70.1%) | 79 |
+| DCS SATB range — Alto — Vocal ownership | 37 / 240 (15.4%) | 203 |
+| DCS SATB range — Bass — Exact-MIDI recall | 67 / 264 (25.4%) | 197 |
+| DCS SATB range — Bass — Pitch-class recall | 171 / 264 (64.8%) | 93 |
 | DCS SATB range — Bass — Visible vocal routing | 8 / 264 (3.0%) | 256 |
 | DCS SATB range — Bass — Vocal ownership | 21 / 264 (8.0%) | 243 |
-| DCS SATB range — Soprano — Exact-MIDI recall | 129 / 240 (53.8%) | 111 |
-| DCS SATB range — Soprano — Pitch-class recall | 151 / 240 (62.9%) | 89 |
+| DCS SATB range — Soprano — Exact-MIDI recall | 121 / 240 (50.4%) | 119 |
+| DCS SATB range — Soprano — Pitch-class recall | 148 / 240 (61.7%) | 92 |
 | DCS SATB range — Soprano — Visible vocal routing | 8 / 240 (3.3%) | 232 |
 | DCS SATB range — Soprano — Vocal ownership | 18 / 240 (7.5%) | 222 |
-| DCS SATB range — Tenor — Exact-MIDI recall | 182 / 240 (75.8%) | 58 |
-| DCS SATB range — Tenor — Pitch-class recall | 194 / 240 (80.8%) | 46 |
-| DCS SATB range — Tenor — Visible vocal routing | 22 / 240 (9.2%) | 218 |
-| DCS SATB range — Tenor — Vocal ownership | 34 / 240 (14.2%) | 206 |
+| DCS SATB range — Tenor — Exact-MIDI recall | 112 / 240 (46.7%) | 128 |
+| DCS SATB range — Tenor — Pitch-class recall | 169 / 240 (70.4%) | 71 |
+| DCS SATB range — Tenor — Visible vocal routing | 23 / 240 (9.6%) | 217 |
+| DCS SATB range — Tenor — Vocal ownership | 38 / 240 (15.8%) | 202 |
 
 ### DCS recording-configuration breakdown
 
@@ -804,151 +817,151 @@ Source: `build/dagstuhl_choirset_measurement.tsv`
 | --- | ---: | ---: |
 | DCS Configuration — DCS_LI_FullChoir_Take01 — Current-note vocal ownership | 3 / 12 (25.0%) | 9 |
 | DCS Configuration — DCS_LI_FullChoir_Take01 — Exact chord accuracy | 1 / 12 (8.3%) | 11 |
-| DCS Configuration — DCS_LI_FullChoir_Take01 — Exact-MIDI recall | 28 / 48 (58.3%) | 20 |
-| DCS Configuration — DCS_LI_FullChoir_Take01 — Pitch-class recall | 37 / 48 (77.1%) | 11 |
-| DCS Configuration — DCS_LI_FullChoir_Take01 — Simplified chord accuracy | 5 / 12 (41.7%) | 7 |
+| DCS Configuration — DCS_LI_FullChoir_Take01 — Exact-MIDI recall | 20 / 48 (41.7%) | 28 |
+| DCS Configuration — DCS_LI_FullChoir_Take01 — Pitch-class recall | 32 / 48 (66.7%) | 16 |
+| DCS Configuration — DCS_LI_FullChoir_Take01 — Simplified chord accuracy | 3 / 12 (25.0%) | 9 |
 | DCS Configuration — DCS_LI_FullChoir_Take01 — Visible current-note vocal routing | 3 / 12 (25.0%) | 9 |
 | DCS Configuration — DCS_LI_FullChoir_Take01 — Visible vocal routing | 3 / 48 (6.2%) | 45 |
 | DCS Configuration — DCS_LI_FullChoir_Take01 — Vocal ownership | 3 / 48 (6.2%) | 45 |
 | DCS Configuration — DCS_LI_FullChoir_Take02 — Current-note vocal ownership | 4 / 12 (33.3%) | 8 |
 | DCS Configuration — DCS_LI_FullChoir_Take02 — Exact chord accuracy | 1 / 12 (8.3%) | 11 |
-| DCS Configuration — DCS_LI_FullChoir_Take02 — Exact-MIDI recall | 31 / 48 (64.6%) | 17 |
-| DCS Configuration — DCS_LI_FullChoir_Take02 — Pitch-class recall | 35 / 48 (72.9%) | 13 |
-| DCS Configuration — DCS_LI_FullChoir_Take02 — Simplified chord accuracy | 3 / 12 (25.0%) | 9 |
+| DCS Configuration — DCS_LI_FullChoir_Take02 — Exact-MIDI recall | 20 / 48 (41.7%) | 28 |
+| DCS Configuration — DCS_LI_FullChoir_Take02 — Pitch-class recall | 30 / 48 (62.5%) | 18 |
+| DCS Configuration — DCS_LI_FullChoir_Take02 — Simplified chord accuracy | 2 / 12 (16.7%) | 10 |
 | DCS Configuration — DCS_LI_FullChoir_Take02 — Visible current-note vocal routing | 3 / 12 (25.0%) | 9 |
 | DCS Configuration — DCS_LI_FullChoir_Take02 — Visible vocal routing | 3 / 48 (6.2%) | 45 |
 | DCS Configuration — DCS_LI_FullChoir_Take02 — Vocal ownership | 4 / 48 (8.3%) | 44 |
-| DCS Configuration — DCS_LI_FullChoir_Take03 — Current-note vocal ownership | 2 / 12 (16.7%) | 10 |
+| DCS Configuration — DCS_LI_FullChoir_Take03 — Current-note vocal ownership | 3 / 12 (25.0%) | 9 |
 | DCS Configuration — DCS_LI_FullChoir_Take03 — Exact chord accuracy | 1 / 12 (8.3%) | 11 |
-| DCS Configuration — DCS_LI_FullChoir_Take03 — Exact-MIDI recall | 32 / 48 (66.7%) | 16 |
+| DCS Configuration — DCS_LI_FullChoir_Take03 — Exact-MIDI recall | 22 / 48 (45.8%) | 26 |
 | DCS Configuration — DCS_LI_FullChoir_Take03 — Pitch-class recall | 40 / 48 (83.3%) | 8 |
-| DCS Configuration — DCS_LI_FullChoir_Take03 — Simplified chord accuracy | 4 / 12 (33.3%) | 8 |
+| DCS Configuration — DCS_LI_FullChoir_Take03 — Simplified chord accuracy | 3 / 12 (25.0%) | 9 |
 | DCS Configuration — DCS_LI_FullChoir_Take03 — Visible current-note vocal routing | 1 / 12 (8.3%) | 11 |
 | DCS Configuration — DCS_LI_FullChoir_Take03 — Visible vocal routing | 1 / 48 (2.1%) | 47 |
-| DCS Configuration — DCS_LI_FullChoir_Take03 — Vocal ownership | 2 / 48 (4.2%) | 46 |
+| DCS Configuration — DCS_LI_FullChoir_Take03 — Vocal ownership | 3 / 48 (6.2%) | 45 |
 | DCS Configuration — DCS_LI_QuartetA_Take01 — Current-note vocal ownership | 4 / 12 (33.3%) | 8 |
 | DCS Configuration — DCS_LI_QuartetA_Take01 — Exact chord accuracy | 1 / 12 (8.3%) | 11 |
-| DCS Configuration — DCS_LI_QuartetA_Take01 — Exact-MIDI recall | 28 / 48 (58.3%) | 20 |
-| DCS Configuration — DCS_LI_QuartetA_Take01 — Pitch-class recall | 37 / 48 (77.1%) | 11 |
+| DCS Configuration — DCS_LI_QuartetA_Take01 — Exact-MIDI recall | 18 / 48 (37.5%) | 30 |
+| DCS Configuration — DCS_LI_QuartetA_Take01 — Pitch-class recall | 34 / 48 (70.8%) | 14 |
 | DCS Configuration — DCS_LI_QuartetA_Take01 — Simplified chord accuracy | 4 / 12 (33.3%) | 8 |
 | DCS Configuration — DCS_LI_QuartetA_Take01 — Visible current-note vocal routing | 1 / 12 (8.3%) | 11 |
 | DCS Configuration — DCS_LI_QuartetA_Take01 — Visible vocal routing | 1 / 48 (2.1%) | 47 |
 | DCS Configuration — DCS_LI_QuartetA_Take01 — Vocal ownership | 4 / 48 (8.3%) | 44 |
 | DCS Configuration — DCS_LI_QuartetA_Take02 — Current-note vocal ownership | 3 / 12 (25.0%) | 9 |
 | DCS Configuration — DCS_LI_QuartetA_Take02 — Exact chord accuracy | 4 / 12 (33.3%) | 8 |
-| DCS Configuration — DCS_LI_QuartetA_Take02 — Exact-MIDI recall | 30 / 48 (62.5%) | 18 |
-| DCS Configuration — DCS_LI_QuartetA_Take02 — Pitch-class recall | 37 / 48 (77.1%) | 11 |
+| DCS Configuration — DCS_LI_QuartetA_Take02 — Exact-MIDI recall | 20 / 48 (41.7%) | 28 |
+| DCS Configuration — DCS_LI_QuartetA_Take02 — Pitch-class recall | 32 / 48 (66.7%) | 16 |
 | DCS Configuration — DCS_LI_QuartetA_Take02 — Simplified chord accuracy | 5 / 12 (41.7%) | 7 |
 | DCS Configuration — DCS_LI_QuartetA_Take02 — Visible current-note vocal routing | 2 / 12 (16.7%) | 10 |
 | DCS Configuration — DCS_LI_QuartetA_Take02 — Visible vocal routing | 2 / 48 (4.2%) | 46 |
 | DCS Configuration — DCS_LI_QuartetA_Take02 — Vocal ownership | 4 / 48 (8.3%) | 44 |
 | DCS Configuration — DCS_LI_QuartetA_Take03 — Current-note vocal ownership | 9 / 12 (75.0%) | 3 |
 | DCS Configuration — DCS_LI_QuartetA_Take03 — Exact chord accuracy | 0 / 12 (0.0%) | 12 |
-| DCS Configuration — DCS_LI_QuartetA_Take03 — Exact-MIDI recall | 23 / 48 (47.9%) | 25 |
-| DCS Configuration — DCS_LI_QuartetA_Take03 — Pitch-class recall | 29 / 48 (60.4%) | 19 |
+| DCS Configuration — DCS_LI_QuartetA_Take03 — Exact-MIDI recall | 16 / 48 (33.3%) | 32 |
+| DCS Configuration — DCS_LI_QuartetA_Take03 — Pitch-class recall | 28 / 48 (58.3%) | 20 |
 | DCS Configuration — DCS_LI_QuartetA_Take03 — Simplified chord accuracy | 4 / 12 (33.3%) | 8 |
 | DCS Configuration — DCS_LI_QuartetA_Take03 — Visible current-note vocal routing | 6 / 12 (50.0%) | 6 |
 | DCS Configuration — DCS_LI_QuartetA_Take03 — Visible vocal routing | 6 / 48 (12.5%) | 42 |
 | DCS Configuration — DCS_LI_QuartetA_Take03 — Vocal ownership | 9 / 48 (18.8%) | 39 |
 | DCS Configuration — DCS_LI_QuartetA_Take04 — Current-note vocal ownership | 4 / 12 (33.3%) | 8 |
 | DCS Configuration — DCS_LI_QuartetA_Take04 — Exact chord accuracy | 3 / 12 (25.0%) | 9 |
-| DCS Configuration — DCS_LI_QuartetA_Take04 — Exact-MIDI recall | 29 / 48 (60.4%) | 19 |
-| DCS Configuration — DCS_LI_QuartetA_Take04 — Pitch-class recall | 35 / 48 (72.9%) | 13 |
+| DCS Configuration — DCS_LI_QuartetA_Take04 — Exact-MIDI recall | 21 / 48 (43.8%) | 27 |
+| DCS Configuration — DCS_LI_QuartetA_Take04 — Pitch-class recall | 33 / 48 (68.8%) | 15 |
 | DCS Configuration — DCS_LI_QuartetA_Take04 — Simplified chord accuracy | 4 / 12 (33.3%) | 8 |
 | DCS Configuration — DCS_LI_QuartetA_Take04 — Visible current-note vocal routing | 3 / 12 (25.0%) | 9 |
 | DCS Configuration — DCS_LI_QuartetA_Take04 — Visible vocal routing | 4 / 48 (8.3%) | 44 |
-| DCS Configuration — DCS_LI_QuartetA_Take04 — Vocal ownership | 5 / 48 (10.4%) | 43 |
+| DCS Configuration — DCS_LI_QuartetA_Take04 — Vocal ownership | 6 / 48 (12.5%) | 42 |
 | DCS Configuration — DCS_LI_QuartetA_Take05 — Current-note vocal ownership | 3 / 12 (25.0%) | 9 |
 | DCS Configuration — DCS_LI_QuartetA_Take05 — Exact chord accuracy | 2 / 12 (16.7%) | 10 |
-| DCS Configuration — DCS_LI_QuartetA_Take05 — Exact-MIDI recall | 30 / 48 (62.5%) | 18 |
-| DCS Configuration — DCS_LI_QuartetA_Take05 — Pitch-class recall | 35 / 48 (72.9%) | 13 |
+| DCS Configuration — DCS_LI_QuartetA_Take05 — Exact-MIDI recall | 21 / 48 (43.8%) | 27 |
+| DCS Configuration — DCS_LI_QuartetA_Take05 — Pitch-class recall | 31 / 48 (64.6%) | 17 |
 | DCS Configuration — DCS_LI_QuartetA_Take05 — Simplified chord accuracy | 4 / 12 (33.3%) | 8 |
 | DCS Configuration — DCS_LI_QuartetA_Take05 — Visible current-note vocal routing | 3 / 12 (25.0%) | 9 |
 | DCS Configuration — DCS_LI_QuartetA_Take05 — Visible vocal routing | 3 / 48 (6.2%) | 45 |
 | DCS Configuration — DCS_LI_QuartetA_Take05 — Vocal ownership | 3 / 48 (6.2%) | 45 |
 | DCS Configuration — DCS_LI_QuartetA_Take06 — Current-note vocal ownership | 5 / 12 (41.7%) | 7 |
 | DCS Configuration — DCS_LI_QuartetA_Take06 — Exact chord accuracy | 3 / 12 (25.0%) | 9 |
-| DCS Configuration — DCS_LI_QuartetA_Take06 — Exact-MIDI recall | 29 / 48 (60.4%) | 19 |
-| DCS Configuration — DCS_LI_QuartetA_Take06 — Pitch-class recall | 33 / 48 (68.8%) | 15 |
+| DCS Configuration — DCS_LI_QuartetA_Take06 — Exact-MIDI recall | 22 / 48 (45.8%) | 26 |
+| DCS Configuration — DCS_LI_QuartetA_Take06 — Pitch-class recall | 31 / 48 (64.6%) | 17 |
 | DCS Configuration — DCS_LI_QuartetA_Take06 — Simplified chord accuracy | 7 / 12 (58.3%) | 5 |
 | DCS Configuration — DCS_LI_QuartetA_Take06 — Visible current-note vocal routing | 2 / 12 (16.7%) | 10 |
 | DCS Configuration — DCS_LI_QuartetA_Take06 — Visible vocal routing | 2 / 48 (4.2%) | 46 |
 | DCS Configuration — DCS_LI_QuartetA_Take06 — Vocal ownership | 6 / 48 (12.5%) | 42 |
-| DCS Configuration — DCS_LI_QuartetB_Take01 — Current-note vocal ownership | 1 / 12 (8.3%) | 11 |
+| DCS Configuration — DCS_LI_QuartetB_Take01 — Current-note vocal ownership | 3 / 12 (25.0%) | 9 |
 | DCS Configuration — DCS_LI_QuartetB_Take01 — Exact chord accuracy | 4 / 12 (33.3%) | 8 |
-| DCS Configuration — DCS_LI_QuartetB_Take01 — Exact-MIDI recall | 35 / 48 (72.9%) | 13 |
-| DCS Configuration — DCS_LI_QuartetB_Take01 — Pitch-class recall | 37 / 48 (77.1%) | 11 |
+| DCS Configuration — DCS_LI_QuartetB_Take01 — Exact-MIDI recall | 32 / 48 (66.7%) | 16 |
+| DCS Configuration — DCS_LI_QuartetB_Take01 — Pitch-class recall | 34 / 48 (70.8%) | 14 |
 | DCS Configuration — DCS_LI_QuartetB_Take01 — Simplified chord accuracy | 4 / 12 (33.3%) | 8 |
 | DCS Configuration — DCS_LI_QuartetB_Take01 — Visible current-note vocal routing | 0 / 12 (0.0%) | 12 |
 | DCS Configuration — DCS_LI_QuartetB_Take01 — Visible vocal routing | 0 / 48 (0.0%) | 48 |
-| DCS Configuration — DCS_LI_QuartetB_Take01 — Vocal ownership | 1 / 48 (2.1%) | 47 |
+| DCS Configuration — DCS_LI_QuartetB_Take01 — Vocal ownership | 3 / 48 (6.2%) | 45 |
 | DCS Configuration — DCS_LI_QuartetB_Take02 — Current-note vocal ownership | 6 / 12 (50.0%) | 6 |
 | DCS Configuration — DCS_LI_QuartetB_Take02 — Exact chord accuracy | 1 / 12 (8.3%) | 11 |
-| DCS Configuration — DCS_LI_QuartetB_Take02 — Exact-MIDI recall | 29 / 48 (60.4%) | 19 |
-| DCS Configuration — DCS_LI_QuartetB_Take02 — Pitch-class recall | 33 / 48 (68.8%) | 15 |
+| DCS Configuration — DCS_LI_QuartetB_Take02 — Exact-MIDI recall | 24 / 48 (50.0%) | 24 |
+| DCS Configuration — DCS_LI_QuartetB_Take02 — Pitch-class recall | 29 / 48 (60.4%) | 19 |
 | DCS Configuration — DCS_LI_QuartetB_Take02 — Simplified chord accuracy | 1 / 12 (8.3%) | 11 |
-| DCS Configuration — DCS_LI_QuartetB_Take02 — Visible current-note vocal routing | 2 / 12 (16.7%) | 10 |
-| DCS Configuration — DCS_LI_QuartetB_Take02 — Visible vocal routing | 2 / 48 (4.2%) | 46 |
-| DCS Configuration — DCS_LI_QuartetB_Take02 — Vocal ownership | 6 / 48 (12.5%) | 42 |
+| DCS Configuration — DCS_LI_QuartetB_Take02 — Visible current-note vocal routing | 3 / 12 (25.0%) | 9 |
+| DCS Configuration — DCS_LI_QuartetB_Take02 — Visible vocal routing | 3 / 48 (6.2%) | 45 |
+| DCS Configuration — DCS_LI_QuartetB_Take02 — Vocal ownership | 7 / 48 (14.6%) | 41 |
 | DCS Configuration — DCS_LI_QuartetB_Take03 — Current-note vocal ownership | 3 / 12 (25.0%) | 9 |
 | DCS Configuration — DCS_LI_QuartetB_Take03 — Exact chord accuracy | 2 / 12 (16.7%) | 10 |
-| DCS Configuration — DCS_LI_QuartetB_Take03 — Exact-MIDI recall | 27 / 48 (56.2%) | 21 |
-| DCS Configuration — DCS_LI_QuartetB_Take03 — Pitch-class recall | 32 / 48 (66.7%) | 16 |
+| DCS Configuration — DCS_LI_QuartetB_Take03 — Exact-MIDI recall | 22 / 48 (45.8%) | 26 |
+| DCS Configuration — DCS_LI_QuartetB_Take03 — Pitch-class recall | 29 / 48 (60.4%) | 19 |
 | DCS Configuration — DCS_LI_QuartetB_Take03 — Simplified chord accuracy | 3 / 12 (25.0%) | 9 |
 | DCS Configuration — DCS_LI_QuartetB_Take03 — Visible current-note vocal routing | 3 / 12 (25.0%) | 9 |
 | DCS Configuration — DCS_LI_QuartetB_Take03 — Visible vocal routing | 3 / 48 (6.2%) | 45 |
 | DCS Configuration — DCS_LI_QuartetB_Take03 — Vocal ownership | 4 / 48 (8.3%) | 44 |
 | DCS Configuration — DCS_LI_QuartetB_Take04 — Current-note vocal ownership | 4 / 12 (33.3%) | 8 |
 | DCS Configuration — DCS_LI_QuartetB_Take04 — Exact chord accuracy | 1 / 12 (8.3%) | 11 |
-| DCS Configuration — DCS_LI_QuartetB_Take04 — Exact-MIDI recall | 15 / 48 (31.2%) | 33 |
-| DCS Configuration — DCS_LI_QuartetB_Take04 — Pitch-class recall | 23 / 48 (47.9%) | 25 |
+| DCS Configuration — DCS_LI_QuartetB_Take04 — Exact-MIDI recall | 11 / 48 (22.9%) | 37 |
+| DCS Configuration — DCS_LI_QuartetB_Take04 — Pitch-class recall | 21 / 48 (43.8%) | 27 |
 | DCS Configuration — DCS_LI_QuartetB_Take04 — Simplified chord accuracy | 2 / 12 (16.7%) | 10 |
 | DCS Configuration — DCS_LI_QuartetB_Take04 — Visible current-note vocal routing | 1 / 12 (8.3%) | 11 |
 | DCS Configuration — DCS_LI_QuartetB_Take04 — Visible vocal routing | 1 / 48 (2.1%) | 47 |
 | DCS Configuration — DCS_LI_QuartetB_Take04 — Vocal ownership | 5 / 48 (10.4%) | 43 |
 | DCS Configuration — DCS_LI_QuartetB_Take05 — Current-note vocal ownership | 4 / 12 (33.3%) | 8 |
 | DCS Configuration — DCS_LI_QuartetB_Take05 — Exact chord accuracy | 1 / 12 (8.3%) | 11 |
-| DCS Configuration — DCS_LI_QuartetB_Take05 — Exact-MIDI recall | 29 / 48 (60.4%) | 19 |
-| DCS Configuration — DCS_LI_QuartetB_Take05 — Pitch-class recall | 31 / 48 (64.6%) | 17 |
-| DCS Configuration — DCS_LI_QuartetB_Take05 — Simplified chord accuracy | 3 / 12 (25.0%) | 9 |
+| DCS Configuration — DCS_LI_QuartetB_Take05 — Exact-MIDI recall | 23 / 48 (47.9%) | 25 |
+| DCS Configuration — DCS_LI_QuartetB_Take05 — Pitch-class recall | 29 / 48 (60.4%) | 19 |
+| DCS Configuration — DCS_LI_QuartetB_Take05 — Simplified chord accuracy | 2 / 12 (16.7%) | 10 |
 | DCS Configuration — DCS_LI_QuartetB_Take05 — Visible current-note vocal routing | 3 / 12 (25.0%) | 9 |
 | DCS Configuration — DCS_LI_QuartetB_Take05 — Visible vocal routing | 3 / 48 (6.2%) | 45 |
 | DCS Configuration — DCS_LI_QuartetB_Take05 — Vocal ownership | 4 / 48 (8.3%) | 44 |
 | DCS Configuration — DCS_TP_FullChoir_Take01 — Current-note vocal ownership | 7 / 12 (58.3%) | 5 |
-| DCS Configuration — DCS_TP_FullChoir_Take01 — Exact chord accuracy | 5 / 12 (41.7%) | 7 |
-| DCS Configuration — DCS_TP_FullChoir_Take01 — Exact-MIDI recall | 30 / 52 (57.7%) | 22 |
-| DCS Configuration — DCS_TP_FullChoir_Take01 — Pitch-class recall | 43 / 52 (82.7%) | 9 |
-| DCS Configuration — DCS_TP_FullChoir_Take01 — Simplified chord accuracy | 6 / 12 (50.0%) | 6 |
+| DCS Configuration — DCS_TP_FullChoir_Take01 — Exact chord accuracy | 4 / 12 (33.3%) | 8 |
+| DCS Configuration — DCS_TP_FullChoir_Take01 — Exact-MIDI recall | 26 / 52 (50.0%) | 26 |
+| DCS Configuration — DCS_TP_FullChoir_Take01 — Pitch-class recall | 42 / 52 (80.8%) | 10 |
+| DCS Configuration — DCS_TP_FullChoir_Take01 — Simplified chord accuracy | 5 / 12 (41.7%) | 7 |
 | DCS Configuration — DCS_TP_FullChoir_Take01 — Visible current-note vocal routing | 4 / 12 (33.3%) | 8 |
 | DCS Configuration — DCS_TP_FullChoir_Take01 — Visible vocal routing | 4 / 52 (7.7%) | 48 |
 | DCS Configuration — DCS_TP_FullChoir_Take01 — Vocal ownership | 9 / 52 (17.3%) | 43 |
 | DCS Configuration — DCS_TP_FullChoir_Take02 — Current-note vocal ownership | 3 / 12 (25.0%) | 9 |
-| DCS Configuration — DCS_TP_FullChoir_Take02 — Exact chord accuracy | 4 / 12 (33.3%) | 8 |
-| DCS Configuration — DCS_TP_FullChoir_Take02 — Exact-MIDI recall | 28 / 52 (53.8%) | 24 |
-| DCS Configuration — DCS_TP_FullChoir_Take02 — Pitch-class recall | 39 / 52 (75.0%) | 13 |
-| DCS Configuration — DCS_TP_FullChoir_Take02 — Simplified chord accuracy | 5 / 12 (41.7%) | 7 |
+| DCS Configuration — DCS_TP_FullChoir_Take02 — Exact chord accuracy | 3 / 12 (25.0%) | 9 |
+| DCS Configuration — DCS_TP_FullChoir_Take02 — Exact-MIDI recall | 20 / 52 (38.5%) | 32 |
+| DCS Configuration — DCS_TP_FullChoir_Take02 — Pitch-class recall | 34 / 52 (65.4%) | 18 |
+| DCS Configuration — DCS_TP_FullChoir_Take02 — Simplified chord accuracy | 4 / 12 (33.3%) | 8 |
 | DCS Configuration — DCS_TP_FullChoir_Take02 — Visible current-note vocal routing | 0 / 12 (0.0%) | 12 |
 | DCS Configuration — DCS_TP_FullChoir_Take02 — Visible vocal routing | 0 / 52 (0.0%) | 52 |
 | DCS Configuration — DCS_TP_FullChoir_Take02 — Vocal ownership | 3 / 52 (5.8%) | 49 |
 | DCS Configuration — DCS_TP_FullChoir_Take03 — Current-note vocal ownership | 4 / 12 (33.3%) | 8 |
 | DCS Configuration — DCS_TP_FullChoir_Take03 — Exact chord accuracy | 2 / 12 (16.7%) | 10 |
-| DCS Configuration — DCS_TP_FullChoir_Take03 — Exact-MIDI recall | 20 / 52 (38.5%) | 32 |
-| DCS Configuration — DCS_TP_FullChoir_Take03 — Pitch-class recall | 30 / 52 (57.7%) | 22 |
+| DCS Configuration — DCS_TP_FullChoir_Take03 — Exact-MIDI recall | 14 / 52 (26.9%) | 38 |
+| DCS Configuration — DCS_TP_FullChoir_Take03 — Pitch-class recall | 28 / 52 (53.8%) | 24 |
 | DCS Configuration — DCS_TP_FullChoir_Take03 — Simplified chord accuracy | 2 / 12 (16.7%) | 10 |
 | DCS Configuration — DCS_TP_FullChoir_Take03 — Visible current-note vocal routing | 2 / 12 (16.7%) | 10 |
 | DCS Configuration — DCS_TP_FullChoir_Take03 — Visible vocal routing | 2 / 52 (3.8%) | 50 |
 | DCS Configuration — DCS_TP_FullChoir_Take03 — Vocal ownership | 8 / 52 (15.4%) | 44 |
 | DCS Configuration — DCS_TP_FullChoir_Take04 — Current-note vocal ownership | 2 / 12 (16.7%) | 10 |
 | DCS Configuration — DCS_TP_FullChoir_Take04 — Exact chord accuracy | 2 / 12 (16.7%) | 10 |
-| DCS Configuration — DCS_TP_FullChoir_Take04 — Exact-MIDI recall | 18 / 52 (34.6%) | 34 |
-| DCS Configuration — DCS_TP_FullChoir_Take04 — Pitch-class recall | 26 / 52 (50.0%) | 26 |
+| DCS Configuration — DCS_TP_FullChoir_Take04 — Exact-MIDI recall | 13 / 52 (25.0%) | 39 |
+| DCS Configuration — DCS_TP_FullChoir_Take04 — Pitch-class recall | 23 / 52 (44.2%) | 29 |
 | DCS Configuration — DCS_TP_FullChoir_Take04 — Simplified chord accuracy | 2 / 12 (16.7%) | 10 |
 | DCS Configuration — DCS_TP_FullChoir_Take04 — Visible current-note vocal routing | 1 / 12 (8.3%) | 11 |
 | DCS Configuration — DCS_TP_FullChoir_Take04 — Visible vocal routing | 1 / 52 (1.9%) | 51 |
 | DCS Configuration — DCS_TP_FullChoir_Take04 — Vocal ownership | 4 / 52 (7.7%) | 48 |
 | DCS Configuration — DCS_TP_QuartetA_Take01 — Current-note vocal ownership | 6 / 12 (50.0%) | 6 |
-| DCS Configuration — DCS_TP_QuartetA_Take01 — Exact chord accuracy | 8 / 12 (66.7%) | 4 |
-| DCS Configuration — DCS_TP_QuartetA_Take01 — Exact-MIDI recall | 38 / 52 (73.1%) | 14 |
+| DCS Configuration — DCS_TP_QuartetA_Take01 — Exact chord accuracy | 7 / 12 (58.3%) | 5 |
+| DCS Configuration — DCS_TP_QuartetA_Take01 — Exact-MIDI recall | 36 / 52 (69.2%) | 16 |
 | DCS Configuration — DCS_TP_QuartetA_Take01 — Pitch-class recall | 50 / 52 (96.2%) | 2 |
 | DCS Configuration — DCS_TP_QuartetA_Take01 — Simplified chord accuracy | 9 / 12 (75.0%) | 3 |
 | DCS Configuration — DCS_TP_QuartetA_Take01 — Visible current-note vocal routing | 5 / 12 (41.7%) | 7 |
@@ -956,9 +969,9 @@ Source: `build/dagstuhl_choirset_measurement.tsv`
 | DCS Configuration — DCS_TP_QuartetA_Take01 — Vocal ownership | 9 / 52 (17.3%) | 43 |
 | DCS Configuration — DCS_TP_QuartetA_Take02 — Current-note vocal ownership | 9 / 12 (75.0%) | 3 |
 | DCS Configuration — DCS_TP_QuartetA_Take02 — Exact chord accuracy | 3 / 12 (25.0%) | 9 |
-| DCS Configuration — DCS_TP_QuartetA_Take02 — Exact-MIDI recall | 39 / 52 (75.0%) | 13 |
-| DCS Configuration — DCS_TP_QuartetA_Take02 — Pitch-class recall | 46 / 52 (88.5%) | 6 |
-| DCS Configuration — DCS_TP_QuartetA_Take02 — Simplified chord accuracy | 5 / 12 (41.7%) | 7 |
+| DCS Configuration — DCS_TP_QuartetA_Take02 — Exact-MIDI recall | 32 / 52 (61.5%) | 20 |
+| DCS Configuration — DCS_TP_QuartetA_Take02 — Pitch-class recall | 44 / 52 (84.6%) | 8 |
+| DCS Configuration — DCS_TP_QuartetA_Take02 — Simplified chord accuracy | 4 / 12 (33.3%) | 8 |
 | DCS Configuration — DCS_TP_QuartetA_Take02 — Visible current-note vocal routing | 7 / 12 (58.3%) | 5 |
 | DCS Configuration — DCS_TP_QuartetA_Take02 — Visible vocal routing | 11 / 52 (21.2%) | 41 |
 | DCS Configuration — DCS_TP_QuartetA_Take02 — Vocal ownership | 16 / 52 (30.8%) | 36 |
@@ -972,10 +985,10 @@ Source: `build/vocadito_full_mix_attributes.tsv`
 | Metric | Accurate / total | Remaining |
 | --- | ---: | ---: |
 | Vocadito vocals — Any detected note | 354 / 354 (100.0%) | 0 |
-| Vocadito vocals — Expected instrument row | 288 / 354 (81.4%) | 66 |
-| Vocadito vocals — Lit expected pitch class | 166 / 354 (46.9%) | 188 |
-| Vocadito vocals — Primary display row | 45 / 354 (12.7%) | 309 |
-| Vocadito vocals — Visual primary row | 20 / 354 (5.6%) | 334 |
+| Vocadito vocals — Expected instrument row | 309 / 354 (87.3%) | 45 |
+| Vocadito vocals — Lit expected pitch class | 172 / 354 (48.6%) | 182 |
+| Vocadito vocals — Primary display row | 47 / 354 (13.3%) | 307 |
+| Vocadito vocals — Visual primary row | 34 / 354 (9.6%) | 320 |
 
 ## VocalSet full-mix vocal routing
 
@@ -985,11 +998,11 @@ Source: `build/vocalset_full_mix_attributes.tsv`
 
 | Metric | Accurate / total | Remaining |
 | --- | ---: | ---: |
-| VocalSet vocals — Any detected note | 2371 / 2389 (99.2%) | 18 |
-| VocalSet vocals — Expected instrument row | 1301 / 2389 (54.5%) | 1088 |
-| VocalSet vocals — Lit expected pitch class | 781 / 2389 (32.7%) | 1608 |
-| VocalSet vocals — Primary display row | 199 / 2389 (8.3%) | 2190 |
-| VocalSet vocals — Visual primary row | 173 / 2389 (7.2%) | 2216 |
+| VocalSet vocals — Any detected note | 2365 / 2389 (99.0%) | 24 |
+| VocalSet vocals — Expected instrument row | 1390 / 2389 (58.2%) | 999 |
+| VocalSet vocals — Lit expected pitch class | 795 / 2389 (33.3%) | 1594 |
+| VocalSet vocals — Primary display row | 216 / 2389 (9.0%) | 2173 |
+| VocalSet vocals — Visual primary row | 209 / 2389 (8.7%) | 2180 |
 
 ### Focused clean-vowel regression
 
@@ -1492,11 +1505,11 @@ These independent one-shot samples are sharded by expected instrument; the seven
 
 | Metric | Accurate / total | Remaining |
 | --- | ---: | ---: |
-| High-fidelity drum kit — primary kick | 286 / 300 (95.3%) | 14 |
+| High-fidelity drum kit — primary kick | 288 / 300 (96.0%) | 12 |
 | High-fidelity drum kit — primary snare | 295 / 300 (98.3%) | 5 |
 | High-fidelity drum kit — primary hihat | 299 / 300 (99.7%) | 1 |
-| High-fidelity drum kit — primary crash | 282 / 300 (94.0%) | 18 |
-| High-fidelity drum kit — primary tom | 283 / 300 (94.3%) | 17 |
+| High-fidelity drum kit — primary crash | 283 / 300 (94.3%) | 17 |
+| High-fidelity drum kit — primary tom | 282 / 300 (94.0%) | 18 |
 | High-fidelity drum kit — primary ride | 295 / 300 (98.3%) | 5 |
 | High-fidelity drum kit — primary rim | 283 / 300 (94.3%) | 17 |
 

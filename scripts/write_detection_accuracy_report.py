@@ -451,6 +451,10 @@ ROUTE_SUMMARY_RE = re.compile(
     r"actionable=(?P<actionable>\d+) coverage_blocked=(?P<coverage_blocked>\d+)"
     r"(?: independent_corpus_blocked=(?P<independent_corpus_blocked>\d+))?"
 )
+POLYPHONIC_CANDIDATE_CAPACITY_RE = re.compile(
+    r"polyphonic_candidate_capacity: capacity_limited_corpora=(?P<limited>\d+)/(?P<corpora>\d+) "
+    r"missing_pitch_windows=(?P<missing>\d+) saturation_explains_missing=(?P<explained>\d+)"
+)
 
 
 def bach10_gate_rows(paths: list[Path]) -> list[tuple[str, int, int]]:
@@ -840,6 +844,16 @@ def owner_score_calibration_loco_audit(path: Path) -> tuple[int, int, int, int, 
     )
 
 
+def polyphonic_candidate_capacity_audit(path: Path) -> tuple[int, int, int, int]:
+    """Return whether full-mix candidate capacity explains SATB pitch misses."""
+    match = POLYPHONIC_CANDIDATE_CAPACITY_RE.search(path.read_text(encoding="utf-8", errors="replace"))
+    if match is None:
+        raise ValueError(f"{path}: missing polyphonic candidate-capacity summary")
+    return (
+        int(match["limited"]), int(match["corpora"]), int(match["missing"]), int(match["explained"]),
+    )
+
+
 def guitarset_attribute_audit(path: Path) -> tuple[int, int, int, int]:
     """Return live-GuitarSet pitch-class and exact-chord coverage."""
     with path.open(encoding="utf-8", newline="") as source:
@@ -1039,6 +1053,7 @@ def render(
     owner_classifier_loco_audit_input: Path | None = None,
     owner_score_calibration_loco_audit_input: Path | None = None,
     other_detection_disabled: bool = False,
+    polyphonic_candidate_capacity_audit_input: Path | None = None,
 ) -> str:
     samples = load_samples(input_path)
     dcs_rows = dagstuhl_choirset_rows(dagstuhl_choirset_input) if dagstuhl_choirset_input else []
@@ -1139,6 +1154,11 @@ def render(
         if owner_score_calibration_loco_audit_input is not None
         else None
     )
+    polyphonic_candidate_capacity = (
+        polyphonic_candidate_capacity_audit(polyphonic_candidate_capacity_audit_input)
+        if polyphonic_candidate_capacity_audit_input is not None
+        else None
+    )
     csd_rows = dagstuhl_choirset_rows(choral_singing_dataset_measurement) if choral_singing_dataset_measurement else []
     esmuc_rows = dagstuhl_choirset_rows(esmuc_choir_dataset_measurement) if esmuc_choir_dataset_measurement else []
     exact_note_cross_rows = (
@@ -1179,6 +1199,26 @@ def render(
     )
     for label, accurate, total in table_rows(samples):
         lines.append(f"| {label} | {fraction(accurate, total)} | {total - accurate} |")
+    if polyphonic_candidate_capacity is not None:
+        limited, corpora, missing, explained = polyphonic_candidate_capacity
+        lines.extend(
+            [
+                "",
+                "## SATB multi-pitch candidate-capacity audit",
+                "",
+                "The full-mix extractor considers up to 24 independently scored pitch candidates. "
+                "This audit checks whether that cap, rather than pitch scoring, truncated labelled SATB windows.",
+                "",
+                f"Source: `{polyphonic_candidate_capacity_audit_input.as_posix()}`",
+                "",
+                "| Metric | Accurate / total | Remaining |",
+                "| --- | ---: | ---: |",
+                f"| SATB corpora reaching the 24-candidate cap | {fraction(limited, corpora)} | {corpora - limited} |",
+                f"| Missing pitch-class windows explained by capacity | {fraction(explained, missing)} | {missing - explained} |",
+                "",
+                "No SATB corpus reaches the cap, so expanding candidate capacity is not an evidence-based recall fix.",
+            ]
+        )
     if route_summary is not None:
         lines.extend(
             [
@@ -2516,6 +2556,7 @@ def main() -> int:
     parser.add_argument("--owner-classifier-loco-audit", type=Path)
     parser.add_argument("--owner-score-calibration-loco-audit", type=Path)
     parser.add_argument("--other-detection-disabled", action="store_true")
+    parser.add_argument("--polyphonic-candidate-capacity-audit", type=Path)
     parser.add_argument("--output", required=True, type=Path)
     args = parser.parse_args()
     try:
@@ -2589,6 +2630,7 @@ def main() -> int:
             args.owner_classifier_loco_audit,
             args.owner_score_calibration_loco_audit,
             args.other_detection_disabled,
+            args.polyphonic_candidate_capacity_audit,
         )
     except (OSError, ValueError) as error:
         parser.error(str(error))

@@ -166,6 +166,16 @@ class DetectionAccuracyReportTest(unittest.TestCase):
                 (5, 9, 12807, 12211, 61501),
             )
 
+    def test_polyphonic_candidate_capacity_audit_tracks_saturation_explanation(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            audit = Path(temporary) / "polyphonic_candidate_capacity_audit.txt"
+            audit.write_text(
+                "polyphonic_candidate_capacity: capacity_limited_corpora=0/3 "
+                "missing_pitch_windows=427 saturation_explains_missing=0\n",
+                encoding="utf-8",
+            )
+            self.assertEqual(REPORT.polyphonic_candidate_capacity_audit(audit), (0, 3, 427, 0))
+
     def test_violin_guitar_audit_requires_two_independent_corpora(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             audit = Path(temporary) / "violin_guitar_route_audit.txt"
