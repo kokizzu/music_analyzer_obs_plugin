@@ -455,6 +455,10 @@ POLYPHONIC_CANDIDATE_CAPACITY_RE = re.compile(
     r"polyphonic_candidate_capacity: capacity_limited_corpora=(?P<limited>\d+)/(?P<corpora>\d+) "
     r"missing_pitch_windows=(?P<missing>\d+) saturation_explains_missing=(?P<explained>\d+)"
 )
+HARMONIC_PRODUCT_OCTAVE_RE = re.compile(
+    r"harmonic_product_octave: common_zero_regression_thresholds=(?P<safe>\d+)/(?P<thresholds>\d+) "
+    r"corpora=(?P<corpora>\d+)"
+)
 
 
 def bach10_gate_rows(paths: list[Path]) -> list[tuple[str, int, int]]:
@@ -854,6 +858,14 @@ def polyphonic_candidate_capacity_audit(path: Path) -> tuple[int, int, int, int]
     )
 
 
+def harmonic_product_octave_audit(path: Path) -> tuple[int, int, int]:
+    """Return safe harmonic-product thresholds and labelled-corpus coverage."""
+    match = HARMONIC_PRODUCT_OCTAVE_RE.search(path.read_text(encoding="utf-8", errors="replace"))
+    if match is None:
+        raise ValueError(f"{path}: missing harmonic-product octave summary")
+    return int(match["safe"]), int(match["thresholds"]), int(match["corpora"])
+
+
 def guitarset_attribute_audit(path: Path) -> tuple[int, int, int, int]:
     """Return live-GuitarSet pitch-class and exact-chord coverage."""
     with path.open(encoding="utf-8", newline="") as source:
@@ -1054,6 +1066,7 @@ def render(
     owner_score_calibration_loco_audit_input: Path | None = None,
     other_detection_disabled: bool = False,
     polyphonic_candidate_capacity_audit_input: Path | None = None,
+    harmonic_product_octave_audit_input: Path | None = None,
 ) -> str:
     samples = load_samples(input_path)
     dcs_rows = dagstuhl_choirset_rows(dagstuhl_choirset_input) if dagstuhl_choirset_input else []
@@ -1159,6 +1172,11 @@ def render(
         if polyphonic_candidate_capacity_audit_input is not None
         else None
     )
+    harmonic_product_octave = (
+        harmonic_product_octave_audit(harmonic_product_octave_audit_input)
+        if harmonic_product_octave_audit_input is not None
+        else None
+    )
     csd_rows = dagstuhl_choirset_rows(choral_singing_dataset_measurement) if choral_singing_dataset_measurement else []
     esmuc_rows = dagstuhl_choirset_rows(esmuc_choir_dataset_measurement) if esmuc_choir_dataset_measurement else []
     exact_note_cross_rows = (
@@ -1217,6 +1235,26 @@ def render(
                 f"| Missing pitch-class windows explained by capacity | {fraction(explained, missing)} | {missing - explained} |",
                 "",
                 "No SATB corpus reaches the cap, so expanding candidate capacity is not an evidence-based recall fix.",
+            ]
+        )
+    if harmonic_product_octave is not None:
+        safe, thresholds, corpora = harmonic_product_octave
+        lines.extend(
+            [
+                "",
+                "## Harmonic-product octave-correction audit",
+                "",
+                "Each full-mix candidate now exports a geometric direct/2x/3x/4x support score and the lower-subharmonic ratio before row routing. The audit treats an upper-octave-only candidate as a possible recovery and every labelled direct candidate as protected.",
+                "",
+                f"Source: `{harmonic_product_octave_audit_input.as_posix()}`",
+                "",
+                "| Metric | Accurate / total | Remaining |",
+                "| --- | ---: | ---: |",
+                f"| Zero-regression harmonic-product thresholds across all SATB corpora | {fraction(safe, thresholds)} | {thresholds - safe} |",
+                f"| Independently labelled SATB corpora audited | {fraction(corpora, corpora)} | 0 |",
+                f"| Runtime harmonic-product octave correction eligible | {fraction(int(safe > 0), 1)} | {int(safe == 0)} |",
+                "",
+                "Every tested threshold still moves at least one labelled correct pitch downward, so harmonic-product evidence remains diagnostic and no pre-routing correction is enabled.",
             ]
         )
     if route_summary is not None:
@@ -2557,6 +2595,7 @@ def main() -> int:
     parser.add_argument("--owner-score-calibration-loco-audit", type=Path)
     parser.add_argument("--other-detection-disabled", action="store_true")
     parser.add_argument("--polyphonic-candidate-capacity-audit", type=Path)
+    parser.add_argument("--harmonic-product-octave-audit", type=Path)
     parser.add_argument("--output", required=True, type=Path)
     args = parser.parse_args()
     try:
@@ -2631,6 +2670,7 @@ def main() -> int:
             args.owner_score_calibration_loco_audit,
             args.other_detection_disabled,
             args.polyphonic_candidate_capacity_audit,
+            args.harmonic_product_octave_audit,
         )
     except (OSError, ValueError) as error:
         parser.error(str(error))

@@ -601,6 +601,11 @@ class DetectionAccuracyReportTest(unittest.TestCase):
             kraisler_extraction.mkdir()
             kraisler_manifest = Path(temporary) / "kraisler-manifest.json"
             kraisler_manifest.write_text("fixture\n", encoding="utf-8")
+            harmonic_product_audit = Path(temporary) / "harmonic_product_octave_audit.txt"
+            harmonic_product_audit.write_text(
+                "harmonic_product_octave: common_zero_regression_thresholds=0/6 corpora=3\n",
+                encoding="utf-8",
+            )
             report = REPORT.render(
                 source, [chords], vocal_full_mix, [bach10_0, bach10_1], musicnet, drum, urmp,
                 vocalset_full_mix, [maps], None, route_summary, good_sounds_full_mix, irmas_labelled,
@@ -638,6 +643,7 @@ class DetectionAccuracyReportTest(unittest.TestCase):
                 kraisler_extraction=kraisler_extraction,
                 kraisler_manifest=kraisler_manifest,
                 kraisler_measurement=dcs_measurement,
+                harmonic_product_octave_audit_input=harmonic_product_audit,
             )
 
         self.assertIn("| Any detected note | 2 / 3 (66.7%) | 1 |", report)
@@ -646,6 +652,8 @@ class DetectionAccuracyReportTest(unittest.TestCase):
         self.assertIn("| Visual primary row | 2 / 3 (66.7%) | 1 |", report)
         self.assertIn("| Guitar — Visual primary row | 1 / 2 (50.0%) | 1 |", report)
         self.assertIn("## Detector-improvement route coverage", report)
+        self.assertIn("## Harmonic-product octave-correction audit", report)
+        self.assertIn("| Zero-regression harmonic-product thresholds across all SATB corpora | 0 / 6 (0.0%) | 6 |", report)
         self.assertIn("## Rejected three-corpus keys-to-vocal routing trial", report)
         self.assertIn(
             "| Protected full-mix first-row accuracy during trial | 771 / 2212 (34.9%) | 1441 |",

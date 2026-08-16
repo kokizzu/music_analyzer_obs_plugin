@@ -33,7 +33,8 @@ OUTPUT_FIELDS = (
     "debug_note", "debug_midi", "debug_owner", "debug_conf", "bass_score", "keyboard_score", "guitar_score",
     "vocal_score", "other_score", "spectral_level", "pitch_confidence", "periodicity", "harmonicity", "fit_error",
     "centroid", "slope", "noise", "adjacent_lower_ratio", "adjacent_upper_ratio", "third_octave_ratio",
-    "partial1", "partial2", "partial3", "partial4", "partial5", "vocal_tone_profile", "vocal_rejected_polyphony",
+    "partial1", "partial2", "partial3", "partial4", "partial5", "harmonic_product_score",
+    "lower_subharmonic_product_ratio", "vocal_tone_profile", "vocal_rejected_polyphony",
 )
 
 
@@ -149,6 +150,11 @@ def export_rows(attributes: Path, manifest: Path) -> list[dict[str, str]]:
                             "adjacent_lower_ratio": candidate[19], "adjacent_upper_ratio": candidate[20],
                             "third_octave_ratio": candidate[21], "partial1": candidate[22], "partial2": candidate[23],
                             "partial3": candidate[24], "partial4": candidate[25], "partial5": candidate[26],
+                        })
+                    if len(candidate) >= 29:
+                        row.update({
+                            "harmonic_product_score": candidate[27],
+                            "lower_subharmonic_product_ratio": candidate[28],
                         })
                 result.append(row)
     return result

@@ -58,6 +58,20 @@ Source: `build/polyphonic_candidate_capacity_audit.txt`
 
 No SATB corpus reaches the cap, so expanding candidate capacity is not an evidence-based recall fix.
 
+## Harmonic-product octave-correction audit
+
+Each full-mix candidate now exports a geometric direct/2x/3x/4x support score and the lower-subharmonic ratio before row routing. The audit treats an upper-octave-only candidate as a possible recovery and every labelled direct candidate as protected.
+
+Source: `build/harmonic_product_octave_audit.txt`
+
+| Metric | Accurate / total | Remaining |
+| --- | ---: | ---: |
+| Zero-regression harmonic-product thresholds across all SATB corpora | 0 / 6 (0.0%) | 6 |
+| Independently labelled SATB corpora audited | 3 / 3 (100.0%) | 0 |
+| Runtime harmonic-product octave correction eligible | 0 / 1 (0.0%) | 1 |
+
+Every tested threshold still moves at least one labelled correct pitch downward, so harmonic-product evidence remains diagnostic and no pre-routing correction is enabled.
+
 ## Detector-improvement route coverage
 
 This tracks the empirical candidate search. A route is actionable only when its measured gain has no protected-row regression and positive evidence from two independently prepared corpora.
@@ -194,7 +208,7 @@ Source: `build/owner_classifier_loco_audit.txt`
 | --- | ---: | ---: |
 | LOCO corpora improved over current owner | 4 / 9 (44.4%) | 5 |
 | Aggregate current-owner accuracy | 12807 / 61501 (20.8%) | 48694 |
-| Aggregate centroid-model accuracy | 11257 / 61501 (18.3%) | 50244 |
+| Aggregate centroid-model accuracy | 11176 / 61501 (18.2%) | 50325 |
 | Runtime owner classifier eligible | 0 / 1 (0.0%) | 1 |
 
 The model is retained only as an offline baseline because it regresses at least one held-out corpus.

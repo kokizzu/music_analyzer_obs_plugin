@@ -1301,6 +1301,8 @@ struct NoteEvidence {
 	float spectral_slope = 0.0f;
 	float local_noise_level = 0.0f;
 	float lower_octave_ratio = 0.0f;
+	float harmonic_product_score = 0.0f;
+	float lower_subharmonic_product_ratio = 0.0f;
 	float adjacent_lower_ratio = 0.0f;
 	float adjacent_upper_ratio = 0.0f;
 	float third_octave_ratio = 0.0f;
@@ -1529,6 +1531,26 @@ TimbreMix timbre_mix_for_midi(const std::array<float, kNoteProbeCount> &powers, 
 	return mix;
 }
 
+// A compact harmonic-product score measures support for one physical pitch
+// across its direct, 2x, 3x, and 4x probes.  It deliberately stays diagnostic
+// until a selector reproduces across independent corpora without protected
+// regressions; routing must not infer an arbitrary subharmonic from one peak.
+float harmonic_product_score(const std::array<float, kNoteProbeCount> &powers, int midi)
+{
+	static constexpr std::array<int, 4> kProductIntervals = {0, 12, 19, 24};
+	float log_sum = 0.0f;
+	for (int interval : kProductIntervals) {
+		const int harmonic_midi = midi + interval;
+		if (harmonic_midi > kLastMidi)
+			return 0.0f;
+		const float level = probe_level(powers, harmonic_midi);
+		if (level <= 1.0e-6f)
+			return 0.0f;
+		log_sum += std::log(level);
+	}
+	return std::exp(log_sum / static_cast<float>(kProductIntervals.size()));
+}
+
 float timbre_fit_residual(const TimbreMix &mix)
 {
 	const float fundamental = mix.bands[0];
@@ -1619,6 +1641,12 @@ NoteEvidence build_note_evidence(const std::array<float, kNoteProbeCount> &power
 		const float lower_octave =
 			std::sqrt(std::max(powers[candidate.midi - 12 - kFirstMidi], 0.0f));
 		evidence.lower_octave_ratio = std::clamp(lower_octave / fundamental, 0.0f, 1.0f);
+	}
+	evidence.harmonic_product_score = harmonic_product_score(powers, candidate.midi);
+	if (candidate.midi - 12 >= kFirstMidi && evidence.harmonic_product_score > 1.0e-6f) {
+		const float lower_score = harmonic_product_score(powers, candidate.midi - 12);
+		evidence.lower_subharmonic_product_ratio =
+			std::min(lower_score / evidence.harmonic_product_score, 8.0f);
 	}
 	if (candidate.midi - 1 >= kFirstMidi) {
 		const float lower = std::sqrt(std::max(powers[candidate.midi - 1 - kFirstMidi], 0.0f));
@@ -2110,6 +2138,8 @@ void append_full_mix_debug_candidate(FullMixOwnership &ownership, const NoteCand
 	debug.spectral_slope = evidence.spectral_slope;
 	debug.local_noise_level = evidence.local_noise_level;
 	debug.lower_octave_ratio = evidence.lower_octave_ratio;
+	debug.harmonic_product_score = evidence.harmonic_product_score;
+	debug.lower_subharmonic_product_ratio = evidence.lower_subharmonic_product_ratio;
 	debug.adjacent_lower_ratio = evidence.adjacent_lower_ratio;
 	debug.adjacent_upper_ratio = evidence.adjacent_upper_ratio;
 	debug.third_octave_ratio = evidence.third_octave_ratio;

@@ -139,6 +139,11 @@ struct FullMixDebugCandidate {
 	float spectral_slope = 0.0f;
 	float local_noise_level = 0.0f;
 	float lower_octave_ratio = 0.0f;
+	// Geometric support across the direct, octave, fifth, and second-octave
+	// probes.  This is exported for a source-independent octave audit before it
+	// is allowed to alter candidate routing.
+	float harmonic_product_score = 0.0f;
+	float lower_subharmonic_product_ratio = 0.0f;
 	float adjacent_lower_ratio = 0.0f;
 	float adjacent_upper_ratio = 0.0f;
 	float third_octave_ratio = 0.0f;

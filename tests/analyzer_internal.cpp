@@ -5879,6 +5879,34 @@ void check_measured_missing_low_sax_fundamental_is_promoted(Runner &runner)
 		      "missing low sax fundamental: expected unsupported profile to keep overtone");
 }
 
+void check_harmonic_product_subharmonic_evidence(Runner &runner)
+{
+	static constexpr int kFundamentalMidi = 48;
+	static constexpr int kSelectedOctaveMidi = kFundamentalMidi + 12;
+	std::array<float, kNoteProbeCount> powers = {};
+	// A weak direct C3 with a coherent C4/G4/C5 ladder is a physical C3;
+	// the strong C4 probe alone must not obscure that diagnostic distinction.
+	set_probe_level(powers, kFundamentalMidi, 0.72f);
+	set_probe_level(powers, kFundamentalMidi + 12, 0.96f);
+	set_probe_level(powers, kFundamentalMidi + 19, 0.66f);
+	set_probe_level(powers, kFundamentalMidi + 24, 0.58f);
+	set_probe_level(powers, kSelectedOctaveMidi + 19, 0.08f);
+	set_probe_level(powers, kSelectedOctaveMidi + 24, 0.05f);
+
+	const float fundamental_score = harmonic_product_score(powers, kFundamentalMidi);
+	const float selected_score = harmonic_product_score(powers, kSelectedOctaveMidi);
+	runner.expect(fundamental_score > selected_score * 2.0f,
+		      "harmonic product: coherent lower ladder should outrank an octave-selected peak");
+
+	NoteCandidate selected = {};
+	selected.midi = kSelectedOctaveMidi;
+	selected.score = 1.0f;
+	const NoteEvidence evidence =
+		build_note_evidence(powers, selected, 1.0f, timbre_mix_for_midi(powers, selected.midi), {});
+	runner.expect(evidence.harmonic_product_score > 0.0f && evidence.lower_subharmonic_product_ratio > 2.0f,
+		      "harmonic product: octave candidate should expose stronger lower subharmonic support");
+}
+
 void check_probe_supported_guitar_rootless_major_seventh_with_analysis_residue(Runner &runner)
 {
 	InstrumentState state = {};
@@ -6038,6 +6066,7 @@ int run()
 	check_low_wind_other_octave_alias_promotes_raw_fundamental(runner);
 	check_low_wind_other_octave_alias_requires_upper_stack(runner);
 	check_measured_missing_low_sax_fundamental_is_promoted(runner);
+	check_harmonic_product_subharmonic_evidence(runner);
 	if (runner.failures) {
 		std::fprintf(stderr, "analyzer_internal: %d/%d checks failed\n", runner.failures,
 			     runner.checks);

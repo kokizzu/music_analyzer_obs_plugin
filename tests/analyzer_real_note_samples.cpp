@@ -990,7 +990,8 @@ void print_attribute_header(std::ostream &out)
 	    << "\tonset_strength\tdecay_rate\tpitch_stability\tsimultaneous_onset"
 	    << "\tbass_score\tkeyboard_score\tguitar_score\tvocal_score\tother_score"
 	    << "\tspectral_level\tpitch_confidence\tperiodicity\tharmonicity\tfit_error"
-	    << "\tcentroid\tslope\tnoise\tadjacent_lower_ratio\tadjacent_upper_ratio\tthird_octave_ratio"
+	    << "\tcentroid\tslope\tnoise\tharmonic_product_score\tlower_subharmonic_product_ratio"
+	    << "\tadjacent_lower_ratio\tadjacent_upper_ratio\tthird_octave_ratio"
 	    << "\tvocal_tone_profile\tvocal_rejected_polyphony"
 	    << "\tpartial1\tpartial2\tpartial3\tpartial4\tpartial5\n";
 }
@@ -998,7 +999,7 @@ void print_attribute_header(std::ostream &out)
 void append_debug_candidate_fields(std::ostringstream &line, const mao::FullMixDebugCandidate *debug)
 {
 	if (!debug) {
-		for (int i = 0; i < 31; ++i)
+		for (int i = 0; i < 33; ++i)
 			append_tsv(line, "");
 		return;
 	}
@@ -1024,6 +1025,8 @@ void append_debug_candidate_fields(std::ostringstream &line, const mao::FullMixD
 	append_tsv(line, debug->spectral_centroid);
 	append_tsv(line, debug->spectral_slope);
 	append_tsv(line, debug->local_noise_level);
+	append_tsv(line, debug->harmonic_product_score);
+	append_tsv(line, debug->lower_subharmonic_product_ratio);
 	append_tsv(line, debug->adjacent_lower_ratio);
 	append_tsv(line, debug->adjacent_upper_ratio);
 	append_tsv(line, debug->third_octave_ratio);

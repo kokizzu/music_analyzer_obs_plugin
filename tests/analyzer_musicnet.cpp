@@ -909,7 +909,7 @@ std::string full_mix_candidate_evidence(const mao::AnalysisSnapshot &snapshot)
 			      "%d,%d,"
 			      "%.3f,%.3f,%.3f,%.3f,%.3f,"
 			      "%.3f,%.3f,%.3f,%.3f,%.3f,"
-			      "%.3f,%.3f,%.3f,%.3f,%.3f",
+			      "%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f",
 			      candidate.midi, owner_name(candidate.owner), candidate.ownership_confidence,
 			      candidate.bass_score, candidate.keyboard_score, candidate.guitar_score,
 			      candidate.vocal_score, candidate.other_score, candidate.pitch_confidence,
@@ -919,7 +919,8 @@ std::string full_mix_candidate_evidence(const mao::AnalysisSnapshot &snapshot)
 			      candidate.spectral_centroid, candidate.spectral_slope, candidate.local_noise_level,
 			      candidate.adjacent_lower_ratio, candidate.adjacent_upper_ratio,
 			      candidate.third_octave_ratio, candidate.harmonic_ratios[0], candidate.harmonic_ratios[1],
-			      candidate.harmonic_ratios[2], candidate.harmonic_ratios[3], candidate.harmonic_ratios[4]);
+			      candidate.harmonic_ratios[2], candidate.harmonic_ratios[3], candidate.harmonic_ratios[4],
+			      candidate.harmonic_product_score, candidate.lower_subharmonic_product_ratio);
 		text += item;
 	}
 	return text.empty() ? "--" : text;
