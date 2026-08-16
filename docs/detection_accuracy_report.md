@@ -178,6 +178,21 @@ Source: `build/owner_classifier_loco_audit.txt`
 
 The model is retained only as an offline baseline because it regresses at least one held-out corpus.
 
+## Owner-score calibration leave-one-corpus-out audit
+
+A small class-bias calibration is fitted only on the non-held-out corpora and applied to the analyzer's existing owner scores. It is an offline experiment, not a runtime model.
+
+Source: `build/owner_score_calibration_loco_audit.txt`
+
+| Metric | Accurate / total | Remaining |
+| --- | ---: | ---: |
+| LOCO corpora improved over current owner | 5 / 9 (55.6%) | 4 |
+| Aggregate current-owner accuracy | 12807 / 61501 (20.8%) | 48694 |
+| Aggregate calibrated-score accuracy | 12211 / 61501 (19.9%) | 49290 |
+| Runtime score calibration eligible | 0 / 1 (0.0%) | 1 |
+
+The calibration remains offline unless it improves every independently held-out corpus.
+
 ## Violin-to-Guitar safety audit
 
 The leading Good Sounds violin routing profile is audited against independent Iowa strings and KRAISLER piano--violin mixture evidence before any reroute.

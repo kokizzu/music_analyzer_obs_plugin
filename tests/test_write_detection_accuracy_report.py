@@ -154,6 +154,18 @@ class DetectionAccuracyReportTest(unittest.TestCase):
             )
             self.assertEqual(REPORT.owner_classifier_loco_audit(audit), (1, 2, 10672, 12030, 33568))
 
+    def test_owner_score_calibration_loco_audit_requires_all_held_out_corpora(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            audit = Path(temporary) / "owner_score_calibration_loco_audit.txt"
+            audit.write_text(
+                "owner_score_calibration_loco: improved_corpora=5/9 current=12807/61501 model=12211/61501\n",
+                encoding="utf-8",
+            )
+            self.assertEqual(
+                REPORT.owner_score_calibration_loco_audit(audit),
+                (5, 9, 12807, 12211, 61501),
+            )
+
     def test_violin_guitar_audit_requires_two_independent_corpora(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             audit = Path(temporary) / "violin_guitar_route_audit.txt"

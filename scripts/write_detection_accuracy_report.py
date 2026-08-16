@@ -77,6 +77,11 @@ OWNER_CLASSIFIER_LOCO_RE = re.compile(
     r"current=(?P<current>\d+)/(?P<count>\d+) model=(?P<model>\d+)/(?P=count)$",
     re.MULTILINE,
 )
+OWNER_SCORE_CALIBRATION_LOCO_RE = re.compile(
+    r"^owner_score_calibration_loco: improved_corpora=(?P<supported>\d+)/(?P<total>\d+) "
+    r"current=(?P<current>\d+)/(?P<count>\d+) model=(?P<model>\d+)/(?P=count)$",
+    re.MULTILINE,
+)
 
 # Analyzer TSV evidence can legitimately retain long comma-separated note
 # histories.  Keep a finite but practical cap instead of csv's 128 KiB default.
@@ -824,6 +829,17 @@ def owner_classifier_loco_audit(path: Path) -> tuple[int, int, int, int, int]:
     )
 
 
+def owner_score_calibration_loco_audit(path: Path) -> tuple[int, int, int, int, int]:
+    """Return LOCO support and aggregate score-calibration accuracy."""
+    match = OWNER_SCORE_CALIBRATION_LOCO_RE.search(path.read_text(encoding="utf-8", errors="replace"))
+    if match is None:
+        raise ValueError(f"{path}: missing owner score-calibration LOCO summary")
+    return (
+        int(match["supported"]), int(match["total"]), int(match["current"]),
+        int(match["model"]), int(match["count"]),
+    )
+
+
 def guitarset_attribute_audit(path: Path) -> tuple[int, int, int, int]:
     """Return live-GuitarSet pitch-class and exact-chord coverage."""
     with path.open(encoding="utf-8", newline="") as source:
@@ -1021,6 +1037,7 @@ def render(
     guitarset_attribute_input: Path | None = None,
     same_root_guitar_quality_audit_input: Path | None = None,
     owner_classifier_loco_audit_input: Path | None = None,
+    owner_score_calibration_loco_audit_input: Path | None = None,
 ) -> str:
     samples = load_samples(input_path)
     dcs_rows = dagstuhl_choirset_rows(dagstuhl_choirset_input) if dagstuhl_choirset_input else []
@@ -1114,6 +1131,11 @@ def render(
     owner_classifier_loco = (
         owner_classifier_loco_audit(owner_classifier_loco_audit_input)
         if owner_classifier_loco_audit_input is not None
+        else None
+    )
+    owner_score_calibration_loco = (
+        owner_score_calibration_loco_audit(owner_score_calibration_loco_audit_input)
+        if owner_score_calibration_loco_audit_input is not None
         else None
     )
     csd_rows = dagstuhl_choirset_rows(choral_singing_dataset_measurement) if choral_singing_dataset_measurement else []
@@ -1369,6 +1391,28 @@ def render(
                 f"| Runtime owner classifier eligible | {fraction(int(supported == total), 1)} | {int(supported != total)} |",
                 "",
                 "The model is retained only as an offline baseline because it regresses at least one held-out corpus.",
+            ]
+        )
+    if owner_score_calibration_loco is not None:
+        supported, total, current, model, count = owner_score_calibration_loco
+        lines.extend(
+            [
+                "",
+                "## Owner-score calibration leave-one-corpus-out audit",
+                "",
+                "A small class-bias calibration is fitted only on the non-held-out corpora and applied "
+                "to the analyzer's existing owner scores. It is an offline experiment, not a runtime model.",
+                "",
+                f"Source: `{owner_score_calibration_loco_audit_input.as_posix()}`",
+                "",
+                "| Metric | Accurate / total | Remaining |",
+                "| --- | ---: | ---: |",
+                f"| LOCO corpora improved over current owner | {fraction(supported, total)} | {total - supported} |",
+                f"| Aggregate current-owner accuracy | {fraction(current, count)} | {count - current} |",
+                f"| Aggregate calibrated-score accuracy | {fraction(model, count)} | {count - model} |",
+                f"| Runtime score calibration eligible | {fraction(int(supported == total), 1)} | {int(supported != total)} |",
+                "",
+                "The calibration remains offline unless it improves every independently held-out corpus.",
             ]
         )
     if violin_guitar_audit is not None:
@@ -2450,6 +2494,7 @@ def main() -> int:
     parser.add_argument("--guitarset-attribute-input", type=Path)
     parser.add_argument("--same-root-guitar-quality-audit", type=Path)
     parser.add_argument("--owner-classifier-loco-audit", type=Path)
+    parser.add_argument("--owner-score-calibration-loco-audit", type=Path)
     parser.add_argument("--output", required=True, type=Path)
     args = parser.parse_args()
     try:
@@ -2521,6 +2566,7 @@ def main() -> int:
             args.guitarset_attribute_input,
             args.same_root_guitar_quality_audit,
             args.owner_classifier_loco_audit,
+            args.owner_score_calibration_loco_audit,
         )
     except (OSError, ValueError) as error:
         parser.error(str(error))

@@ -183,8 +183,10 @@ GLOBAL_CHORD_CONFIDENCE_AUDIT ?= $(BUILD_DIR)/global_chord_confidence_audit.txt
 DETECTION_ACCURACY_GLOBAL_CHORD_CONFIDENCE_AUDIT_ARG = --global-chord-confidence-audit "$(GLOBAL_CHORD_CONFIDENCE_AUDIT)"
 SAME_ROOT_GUITAR_QUALITY_AUDIT ?= $(BUILD_DIR)/same_root_guitar_quality_audit.txt
 OWNER_CLASSIFIER_LOCO_AUDIT ?= $(BUILD_DIR)/owner_classifier_loco_audit.txt
+OWNER_SCORE_CALIBRATION_LOCO_AUDIT ?= $(BUILD_DIR)/owner_score_calibration_loco_audit.txt
 DETECTION_ACCURACY_OWNER_CLASSIFIER_LOCO_AUDIT_ARG = --owner-classifier-loco-audit "$(OWNER_CLASSIFIER_LOCO_AUDIT)"
-DETECTION_ACCURACY_SAME_ROOT_GUITAR_QUALITY_AUDIT_ARG = --same-root-guitar-quality-audit "$(SAME_ROOT_GUITAR_QUALITY_AUDIT)" $(DETECTION_ACCURACY_OWNER_CLASSIFIER_LOCO_AUDIT_ARG)
+DETECTION_ACCURACY_OWNER_SCORE_CALIBRATION_LOCO_AUDIT_ARG = --owner-score-calibration-loco-audit "$(OWNER_SCORE_CALIBRATION_LOCO_AUDIT)"
+DETECTION_ACCURACY_SAME_ROOT_GUITAR_QUALITY_AUDIT_ARG = --same-root-guitar-quality-audit "$(SAME_ROOT_GUITAR_QUALITY_AUDIT)" $(DETECTION_ACCURACY_OWNER_CLASSIFIER_LOCO_AUDIT_ARG) $(DETECTION_ACCURACY_OWNER_SCORE_CALIBRATION_LOCO_AUDIT_ARG)
 DETECTION_ACCURACY_GUITARSET_ATTRIBUTE_ARG = $(if $(wildcard $(GUITARSET_ATTRIBUTE_TSV)),--guitarset-attribute-input "$(GUITARSET_ATTRIBUTE_TSV)")
 DETECTION_ACCURACY_REPORT ?= docs/detection_accuracy_report.md
 HIGH_VOCAL_OCTAVE_AUDIT ?= $(BUILD_DIR)/high_vocal_octave_evidence.txt
@@ -3633,6 +3635,14 @@ evaluate-owner-classifier-loco: scripts/evaluate_owner_classifier_loco.py
 
 test-evaluate-owner-classifier-loco: tests/test_evaluate_owner_classifier_loco.py scripts/evaluate_owner_classifier_loco.py
 	$(PYTHON) tests/test_evaluate_owner_classifier_loco.py
+
+.PHONY: evaluate-owner-score-calibration-loco test-evaluate-owner-score-calibration-loco
+evaluate-owner-score-calibration-loco: scripts/evaluate_owner_score_calibration_loco.py
+	@for path in "$(BUILD_DIR)/real_note_full_mix_attributes.tsv" "$(GOOD_SOUNDS_FULL_MIX_ATTRIBUTE_TSV)" "$(PHILHARMONIA_FULL_ATTRIBUTE_TSV)" "$(IOWA_ORCHESTRA_FULL_ATTRIBUTE_TSV)" "$(DAGSTUHL_CHOIRSET_PATTERN_OUTPUT)" "$(CHORAL_SINGING_DATASET_PATTERN_OUTPUT)" "$(ESMUC_CHOIR_DATASET_PATTERN_OUTPUT)" "$(VOCADITO_FULL_MIX_ATTRIBUTE_TSV)" "$(VOCALSET_FULL_MIX_ATTRIBUTE_TSV)" "$(MIR1K_DATASET_ATTRIBUTE_OUTPUT)" "$(SCMS_DATASET_ATTRIBUTE_OUTPUT)"; do test -s "$$path" || { printf '%s\n' "missing cached owner-score-calibration input: $$path"; exit 2; }; done
+	@tmp="$(OWNER_SCORE_CALIBRATION_LOCO_AUDIT).$$$$.tmp"; $(PYTHON) scripts/evaluate_owner_score_calibration_loco.py "$(BUILD_DIR)/real_note_full_mix_attributes.tsv" "$(GOOD_SOUNDS_FULL_MIX_ATTRIBUTE_TSV)" "$(PHILHARMONIA_FULL_ATTRIBUTE_TSV)" "$(IOWA_ORCHESTRA_FULL_ATTRIBUTE_TSV)" "$(DAGSTUHL_CHOIRSET_PATTERN_OUTPUT)" "$(CHORAL_SINGING_DATASET_PATTERN_OUTPUT)" "$(ESMUC_CHOIR_DATASET_PATTERN_OUTPUT)" "$(VOCADITO_FULL_MIX_ATTRIBUTE_TSV)" "$(VOCALSET_FULL_MIX_ATTRIBUTE_TSV)" "$(MIR1K_DATASET_ATTRIBUTE_OUTPUT)" "$(SCMS_DATASET_ATTRIBUTE_OUTPUT)" > "$$tmp" && mv "$$tmp" "$(OWNER_SCORE_CALIBRATION_LOCO_AUDIT)" && cat "$(OWNER_SCORE_CALIBRATION_LOCO_AUDIT)"
+
+test-evaluate-owner-score-calibration-loco: tests/test_evaluate_owner_score_calibration_loco.py scripts/evaluate_owner_score_calibration_loco.py
+	$(PYTHON) tests/test_evaluate_owner_score_calibration_loco.py
 
 # Inspect an existing real-audio chord export without re-preparing its corpus.
 analyze-guitar-chord-mix-recovery-cached: scripts/analyze_guitar_chord_recovery.py
