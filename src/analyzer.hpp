@@ -11,6 +11,10 @@ constexpr std::size_t kAnalysisWindow = 8192;
 // Keep the dormant Other classifier code available without emitting a separate
 // low-confidence catch-all instrument result.
 constexpr bool kEnableOtherDetection = false;
+// Keep the matching visual section independently disabled.  This remains false
+// even if the detector is later enabled for diagnostics, so a deliberately
+// reviewed UI change is required before OTHERS can consume visualizer space.
+constexpr bool kEnableOtherRendering = false;
 constexpr uint32_t kDefaultAnalysisWindowMs = 100;
 constexpr std::size_t kDrumCount = 7;
 constexpr std::size_t kNoteRowCount = 3;

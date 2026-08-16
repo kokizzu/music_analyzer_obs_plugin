@@ -1392,7 +1392,10 @@ void render_complete_pixels(VisualizerRenderer *visualizer, const AnalysisSnapsh
 	row_y = draw_instrument_rows(visualizer, layout, row_y, "VOCAL", snapshot.vocal_notes, nullptr,
 				     visualizer->stable_labels[StableVocal].label,
 				     Color{10, 132, 255, 245}, kMatrixRowCount, true);
-	if (kEnableOtherDetection && visualizer->show_other_row) {
+	// OTHERS is retained as dormant implementation code, but it is not a useful
+	// live display.  Keep this separate from the detector flag so diagnostics can
+	// never accidentally restore the row or its unreliable labels to OBS.
+	if (kEnableOtherRendering && visualizer->show_other_row) {
 		row_y += 6;
 		row_y = draw_instrument_rows(visualizer, layout, row_y, "OTHERS", snapshot.other_notes, nullptr, nullptr,
 						     Color{191, 90, 242, 245}, kMatrixRowCount);
