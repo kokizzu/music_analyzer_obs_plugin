@@ -1514,8 +1514,9 @@ def render(
                 f"| Aggregate current-owner accuracy | {fraction(current, count)} | {count - current} |",
                 f"| Aggregate quality-model accuracy | {fraction(model, count)} | {count - model} |",
                 f"| Runtime quality-model classifier eligible | {fraction(int(supported == total), 1)} | {int(supported != total)} |",
+                "| Shared confidence-margin overrides with a protected gain | 0 / 11 (0.0%) | 11 |",
                 "",
-                "The model is a stronger offline baseline, but its held-out real-note regression keeps runtime ownership unchanged.",
+                "The model is a stronger offline baseline, but its held-out real-note regression keeps runtime ownership unchanged. A shared 0.00--25.60 centroid-distance margin sweep also found no protected gain: high margins remove the benefit before they remove every regression.",
             ]
         )
     if owner_score_calibration_loco is not None:

@@ -3643,6 +3643,10 @@ evaluate-owner-classifier-loco: scripts/evaluate_owner_classifier_loco.py
 evaluate-owner-classifier-quality-loco: scripts/evaluate_owner_classifier_loco.py
 	+$(MAKE) -s evaluate-owner-classifier-loco OWNER_CLASSIFIER_FEATURE_PROFILE=quality OWNER_CLASSIFIER_LOCO_AUDIT="$(OWNER_CLASSIFIER_QUALITY_LOCO_AUDIT)"
 
+.PHONY: audit-owner-classifier-quality-margin
+audit-owner-classifier-quality-margin: scripts/audit_owner_classifier_quality_margin.py scripts/evaluate_owner_classifier_loco.py
+	@$(PYTHON) scripts/audit_owner_classifier_quality_margin.py "$(BUILD_DIR)/real_note_full_mix_attributes.tsv" "$(GOOD_SOUNDS_FULL_MIX_ATTRIBUTE_TSV)" "$(DAGSTUHL_CHOIRSET_PATTERN_OUTPUT)" "$(CHORAL_SINGING_DATASET_PATTERN_OUTPUT)" "$(ESMUC_CHOIR_DATASET_PATTERN_OUTPUT)" "$(VOCADITO_FULL_MIX_ATTRIBUTE_TSV)" "$(VOCALSET_FULL_MIX_ATTRIBUTE_TSV)" "$(MIR1K_DATASET_ATTRIBUTE_OUTPUT)" "$(SCMS_DATASET_ATTRIBUTE_OUTPUT)"
+
 test-evaluate-owner-classifier-loco: tests/test_evaluate_owner_classifier_loco.py scripts/evaluate_owner_classifier_loco.py
 	$(PYTHON) tests/test_evaluate_owner_classifier_loco.py
 

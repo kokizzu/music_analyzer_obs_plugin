@@ -78,11 +78,18 @@ def means(samples: list[tuple[str, str, tuple[float, ...]]]) -> tuple[tuple[floa
 
 def classify(values: tuple[float, ...], center: tuple[float, ...], scale: tuple[float, ...],
              prototypes: dict[str, tuple[float, ...]]) -> str:
+    return classify_with_margin(values, center, scale, prototypes)[0]
+
+
+def classify_with_margin(values: tuple[float, ...], center: tuple[float, ...], scale: tuple[float, ...],
+                         prototypes: dict[str, tuple[float, ...]]) -> tuple[str, float]:
     normal = tuple((value - center[index]) / scale[index] for index, value in enumerate(values))
-    return min(
-        prototypes,
-        key=lambda label: sum((normal[index] - prototypes[label][index]) ** 2 for index in range(len(values))),
+    distances = sorted(
+        (sum((normal[index] - prototype[index]) ** 2 for index in range(len(values))), label)
+        for label, prototype in prototypes.items()
     )
+    margin = distances[1][0] - distances[0][0] if len(distances) > 1 else float("inf")
+    return distances[0][1], margin
 
 
 def main() -> int:

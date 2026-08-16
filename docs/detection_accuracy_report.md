@@ -225,8 +225,9 @@ Source: `build/owner_classifier_quality_loco_audit.txt`
 | Aggregate current-owner accuracy | 12807 / 61501 (20.8%) | 48694 |
 | Aggregate quality-model accuracy | 15771 / 61501 (25.6%) | 45730 |
 | Runtime quality-model classifier eligible | 0 / 1 (0.0%) | 1 |
+| Shared confidence-margin overrides with a protected gain | 0 / 11 (0.0%) | 11 |
 
-The model is a stronger offline baseline, but its held-out real-note regression keeps runtime ownership unchanged.
+The model is a stronger offline baseline, but its held-out real-note regression keeps runtime ownership unchanged. A shared 0.00--25.60 centroid-distance margin sweep also found no protected gain: high margins remove the benefit before they remove every regression.
 
 ## Owner-score calibration leave-one-corpus-out audit
 
