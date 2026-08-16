@@ -6159,6 +6159,11 @@ audit-dominant-seventh-extension: scripts/audit_dominant_seventh_extensions.py
 test-audit-dominant-seventh-extension: tests/test_audit_dominant_seventh_extensions.py scripts/audit_dominant_seventh_extensions.py
 	$(PYTHON) tests/test_audit_dominant_seventh_extensions.py
 
+.PHONY: analyze-choir-chord-traits
+analyze-choir-chord-traits: scripts/summarize_musicnet_attributes.py
+	@for path in "$(DAGSTUHL_CHOIRSET_ATTRIBUTE_OUTPUT)" "$(CHORAL_SINGING_DATASET_ATTRIBUTE_OUTPUT)" "$(ESMUC_CHOIR_DATASET_ATTRIBUTE_OUTPUT)"; do test -s "$$path" || { printf '%s\n' "missing cached choir chord input: $$path"; exit 2; }; done
+	@for path in "$(DAGSTUHL_CHOIRSET_ATTRIBUTE_OUTPUT)" "$(CHORAL_SINGING_DATASET_ATTRIBUTE_OUTPUT)" "$(ESMUC_CHOIR_DATASET_ATTRIBUTE_OUTPUT)"; do printf '%s\n' "=== $$path ==="; $(PYTHON) scripts/summarize_musicnet_attributes.py "$$path"; done
+
 test-summarize-musicnet-routing: tests/test_summarize_musicnet_routing.py scripts/summarize_musicnet_routing.py
 	$(PYTHON) tests/test_summarize_musicnet_routing.py
 
