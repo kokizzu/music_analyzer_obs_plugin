@@ -1431,7 +1431,6 @@ void render_complete_pixels(VisualizerRenderer *visualizer, const AnalysisSnapsh
 	const VisualLayout layout = visual_layout(visualizer);
 	update_stable_label(visualizer, StableBass, snapshot, snapshot.bass_notes, nullptr, true);
 	update_stable_label(visualizer, StableVocal, snapshot, snapshot.vocal_notes, nullptr, true);
-	update_stable_label(visualizer, StableOther, snapshot, snapshot.other_notes, &snapshot.other_chord, false);
 	update_stable_label(visualizer, StableKeyboard, snapshot, snapshot.keyboard_notes, &snapshot.keyboard_chord, false);
 	update_stable_label(visualizer, StableGuitar, snapshot, snapshot.guitar_notes, &snapshot.guitar_chord, false);
 	draw_note_column_headers(visualizer, layout, 144 + y_shift);
@@ -1444,8 +1443,7 @@ void render_complete_pixels(VisualizerRenderer *visualizer, const AnalysisSnapsh
 				     visualizer->stable_labels[StableVocal].label,
 				     Color{10, 132, 255, 245}, kMatrixRowCount, true, true);
 	row_y += 6;
-	row_y = draw_instrument_rows(visualizer, layout, row_y, "OTHERS", snapshot.other_notes, &snapshot.other_chord,
-				     visualizer->stable_labels[StableOther].label,
+	row_y = draw_instrument_rows(visualizer, layout, row_y, "OTHERS", snapshot.other_notes, nullptr, nullptr,
 				     Color{191, 90, 242, 245}, kMatrixRowCount);
 	const int degree_root_pitch_class = pitch_class_from_note_label(snapshot.root.label);
 	row_y = draw_piano_keyboard(visualizer, layout, row_y + 4, snapshot.keyboard_notes, snapshot.keyboard_chord,
