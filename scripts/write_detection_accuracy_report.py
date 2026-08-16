@@ -61,6 +61,11 @@ DOMINANT_SEVENTH_EXTENSION_RE = re.compile(
     r"^dominant_seventh_extension: supported_corpora=(?P<supported>\d+)/(?P<total>\d+) "
     r"regressions=(?P<regressions>\d+)$", re.MULTILINE
 )
+GLOBAL_CHORD_CONFIDENCE_RE = re.compile(
+    r"^global_chord_confidence: best_floor=(?P<floor>[0-9.]+) "
+    r"supported_corpora=(?P<supported>\d+)/(?P<total>\d+) "
+    r"common_zero_regression_floors=(?P<common>\d+)$", re.MULTILINE
+)
 
 # Analyzer TSV evidence can legitimately retain long comma-separated note
 # histories.  Keep a finite but practical cap instead of csv's 128 KiB default.
@@ -770,6 +775,19 @@ def dominant_seventh_extension_audit(path: Path) -> tuple[int, int, int]:
     return int(match["supported"]), int(match["total"]), int(match["regressions"])
 
 
+def global_chord_confidence_audit(path: Path) -> tuple[float, int, int, int]:
+    """Return the best tested floor and its protected-corpus support."""
+    match = GLOBAL_CHORD_CONFIDENCE_RE.search(path.read_text(encoding="utf-8", errors="replace"))
+    if match is None:
+        raise ValueError(f"{path}: missing global-chord confidence audit summary")
+    return (
+        float(match["floor"]),
+        int(match["supported"]),
+        int(match["total"]),
+        int(match["common"]),
+    )
+
+
 def violin_guitar_route_audit(path: Path) -> tuple[int, int, int]:
     return route_profile_audit(path, 2)
 
@@ -937,6 +955,7 @@ def render(
     urmp_good_sounds_sax_shared_pattern_audit_input: Path | None = None,
     octave_correction_cross_corpus_audit_input: Path | None = None,
     dominant_seventh_extension_audit_input: Path | None = None,
+    global_chord_confidence_audit_input: Path | None = None,
 ) -> str:
     samples = load_samples(input_path)
     dcs_rows = dagstuhl_choirset_rows(dagstuhl_choirset_input) if dagstuhl_choirset_input else []
@@ -1010,6 +1029,11 @@ def render(
         dominant_seventh_extension_audit(dominant_seventh_extension_audit_input)
         if dominant_seventh_extension_audit_input is not None
         and dominant_seventh_extension_audit_input.is_file()
+        else None
+    )
+    global_chord_confidence = (
+        global_chord_confidence_audit(global_chord_confidence_audit_input)
+        if global_chord_confidence_audit_input is not None
         else None
     )
     csd_rows = dagstuhl_choirset_rows(choral_singing_dataset_measurement) if choral_singing_dataset_measurement else []
@@ -1179,6 +1203,32 @@ def render(
                 f"| Runtime dominant-seventh extension eligible | {fraction(int(supported >= 2 and regressions == 0), 1)} | {int(supported < 2 or regressions != 0)} |",
                 "",
                 f"The cached sweep found {regressions} regression(s), so the extension is rejected.",
+            ]
+        )
+    if global_chord_confidence is not None:
+        floor, supported, total, common = global_chord_confidence
+        lines.extend(
+            [
+                "",
+                "## Global chord confidence calibration audit",
+                "",
+                "The chord label is assessed separately from the Bass and Vocal current-note "
+                "displays. A higher display threshold is eligible only if it suppresses wrong "
+                "labels without hiding a correct label in every confidence-capable corpus.",
+                "",
+                f"Source: `{global_chord_confidence_audit_input.as_posix()}`",
+                "",
+                "| Metric | Accurate / total | Remaining |",
+                "| --- | ---: | ---: |",
+                f"| Corpora with zero-regression suppression at best floor ({floor:.2f}) | {fraction(supported, total)} | {total - supported} |",
+                f"| Common zero-regression confidence floor found | {fraction(int(common > 0), 1)} | {int(common == 0)} |",
+                f"| Runtime global-chord confidence gate eligible | {fraction(int(common > 0), 1)} | {int(common == 0)} |",
+                "",
+                (
+                    "A common zero-regression display threshold is available for a runtime trial."
+                    if common
+                    else "No common zero-regression threshold was found, so the current chord display gate is retained."
+                ),
             ]
         )
     if violin_guitar_audit is not None:
@@ -2256,6 +2306,7 @@ def main() -> int:
     parser.add_argument("--urmp-good-sounds-sax-shared-pattern-audit", type=Path)
     parser.add_argument("--octave-correction-cross-corpus-audit", type=Path)
     parser.add_argument("--dominant-seventh-extension-audit", type=Path)
+    parser.add_argument("--global-chord-confidence-audit", type=Path)
     parser.add_argument("--output", required=True, type=Path)
     args = parser.parse_args()
     try:
@@ -2323,6 +2374,7 @@ def main() -> int:
             args.urmp_good_sounds_sax_shared_pattern_audit,
             args.octave_correction_cross_corpus_audit,
             args.dominant_seventh_extension_audit,
+            args.global_chord_confidence_audit,
         )
     except (OSError, ValueError) as error:
         parser.error(str(error))

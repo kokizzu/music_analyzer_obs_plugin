@@ -125,6 +125,20 @@ Source: `build/dominant_seventh_extension_audit.txt`
 
 The cached sweep found 3 regression(s), so the extension is rejected.
 
+## Global chord confidence calibration audit
+
+The chord label is assessed separately from the Bass and Vocal current-note displays. A higher display threshold is eligible only if it suppresses wrong labels without hiding a correct label in every confidence-capable corpus.
+
+Source: `build/global_chord_confidence_audit.txt`
+
+| Metric | Accurate / total | Remaining |
+| --- | ---: | ---: |
+| Corpora with zero-regression suppression at best floor (0.45) | 1 / 4 (25.0%) | 3 |
+| Common zero-regression confidence floor found | 0 / 1 (0.0%) | 1 |
+| Runtime global-chord confidence gate eligible | 0 / 1 (0.0%) | 1 |
+
+No common zero-regression threshold was found, so the current chord display gate is retained.
+
 ## Violin-to-Guitar safety audit
 
 The leading Good Sounds violin routing profile is audited against independent Iowa strings and KRAISLER piano--violin mixture evidence before any reroute.
