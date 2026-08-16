@@ -109,6 +109,12 @@ class DetectionAccuracyReportTest(unittest.TestCase):
             audit.write_text("shared_sax_candidates=0\n", encoding="utf-8")
             self.assertEqual(REPORT.urmp_good_sounds_sax_shared_pattern_audit(audit), 0)
 
+    def test_cross_corpus_octave_audit_records_zero_candidates(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            audit = Path(temporary) / "octave_correction_cross_corpus_audit.txt"
+            audit.write_text("shared_octave_correction_candidates=0\n", encoding="utf-8")
+            self.assertEqual(REPORT.octave_correction_cross_corpus_audit(audit), 0)
+
     def test_violin_guitar_audit_requires_two_independent_corpora(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             audit = Path(temporary) / "violin_guitar_route_audit.txt"

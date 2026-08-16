@@ -54,6 +54,9 @@ GUITAR_TONE_AUDIT_RE = re.compile(
 URMP_GOOD_SOUNDS_SAX_SHARED_PATTERN_RE = re.compile(
     r"^shared_sax_candidates=(?P<count>\d+)$", re.MULTILINE
 )
+OCTAVE_CORRECTION_CROSS_CORPUS_RE = re.compile(
+    r"^shared_octave_correction_candidates=(?P<count>\d+)$", re.MULTILINE
+)
 
 # Analyzer TSV evidence can legitimately retain long comma-separated note
 # histories.  Keep a finite but practical cap instead of csv's 128 KiB default.
@@ -743,6 +746,16 @@ def urmp_good_sounds_sax_shared_pattern_audit(path: Path) -> int:
     return int(match["count"])
 
 
+def octave_correction_cross_corpus_audit(path: Path) -> int:
+    """Return protected zero-regression octave-correction selector count."""
+    match = OCTAVE_CORRECTION_CROSS_CORPUS_RE.search(
+        path.read_text(encoding="utf-8", errors="replace")
+    )
+    if match is None:
+        raise ValueError(f"{path}: missing shared octave selector count")
+    return int(match["count"])
+
+
 def violin_guitar_route_audit(path: Path) -> tuple[int, int, int]:
     return route_profile_audit(path, 2)
 
@@ -908,6 +921,7 @@ def render(
     guitar_chord_primary_display_audit_input: Path | None = None,
     guitar_chord_tone_recovery_audit_input: Path | None = None,
     urmp_good_sounds_sax_shared_pattern_audit_input: Path | None = None,
+    octave_correction_cross_corpus_audit_input: Path | None = None,
 ) -> str:
     samples = load_samples(input_path)
     dcs_rows = dagstuhl_choirset_rows(dagstuhl_choirset_input) if dagstuhl_choirset_input else []
@@ -969,6 +983,12 @@ def render(
         )
         if urmp_good_sounds_sax_shared_pattern_audit_input is not None
         and urmp_good_sounds_sax_shared_pattern_audit_input.is_file()
+        else None
+    )
+    octave_correction_cross_corpus_count = (
+        octave_correction_cross_corpus_audit(octave_correction_cross_corpus_audit_input)
+        if octave_correction_cross_corpus_audit_input is not None
+        and octave_correction_cross_corpus_audit_input.is_file()
         else None
     )
     csd_rows = dagstuhl_choirset_rows(choral_singing_dataset_measurement) if choral_singing_dataset_measurement else []
@@ -1092,6 +1112,30 @@ def render(
                     f"{shared} shared selector(s) require a separate runtime trial."
                     if shared
                     else "No shared zero-regression selector was found, so no saxophone routing change is permitted."
+                ),
+            ]
+        )
+    if octave_correction_cross_corpus_count is not None:
+        shared = octave_correction_cross_corpus_count
+        lines.extend(
+            [
+                "",
+                "## Cross-corpus octave-correction audit",
+                "",
+                "Large +36-semitone Other-instrument octave overshoots are mined jointly from "
+                "the real-note, Philharmonia, and Iowa orchestral evidence, then protected "
+                "against Good Sounds, TinySOL saxophone, URMP saxophone, and KRAISLER.",
+                "",
+                f"Source: `{octave_correction_cross_corpus_audit_input.as_posix()}`",
+                "",
+                "| Metric | Accurate / total | Remaining |",
+                "| --- | ---: | ---: |",
+                f"| Shared protected zero-regression octave selector found | {fraction(int(shared > 0), 1)} | {int(shared == 0)} |",
+                "",
+                (
+                    f"{shared} selector(s) require a separate runtime trial."
+                    if shared
+                    else "No shared zero-regression octave selector was found, so broad octave correction is not permitted."
                 ),
             ]
         )
@@ -2168,6 +2212,7 @@ def main() -> int:
     parser.add_argument("--guitar-chord-primary-display-audit", type=Path)
     parser.add_argument("--guitar-chord-tone-recovery-audit", type=Path)
     parser.add_argument("--urmp-good-sounds-sax-shared-pattern-audit", type=Path)
+    parser.add_argument("--octave-correction-cross-corpus-audit", type=Path)
     parser.add_argument("--output", required=True, type=Path)
     args = parser.parse_args()
     try:
@@ -2233,6 +2278,7 @@ def main() -> int:
             args.guitar_chord_primary_display_audit,
             args.guitar_chord_tone_recovery_audit,
             args.urmp_good_sounds_sax_shared_pattern_audit,
+            args.octave_correction_cross_corpus_audit,
         )
     except (OSError, ValueError) as error:
         parser.error(str(error))

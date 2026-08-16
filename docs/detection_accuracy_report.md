@@ -100,6 +100,18 @@ Source: `build/urmp_good_sounds_sax_shared_patterns.txt`
 
 No shared zero-regression selector was found, so no saxophone routing change is permitted.
 
+## Cross-corpus octave-correction audit
+
+Large +36-semitone Other-instrument octave overshoots are mined jointly from the real-note, Philharmonia, and Iowa orchestral evidence, then protected against Good Sounds, TinySOL saxophone, URMP saxophone, and KRAISLER.
+
+Source: `build/octave_correction_cross_corpus_audit.txt`
+
+| Metric | Accurate / total | Remaining |
+| --- | ---: | ---: |
+| Shared protected zero-regression octave selector found | 0 / 1 (0.0%) | 1 |
+
+No shared zero-regression octave selector was found, so broad octave correction is not permitted.
+
 ## Violin-to-Guitar safety audit
 
 The leading Good Sounds violin routing profile is audited against independent Iowa strings and KRAISLER piano--violin mixture evidence before any reroute.
