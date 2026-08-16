@@ -788,6 +788,32 @@ def global_chord_confidence_audit(path: Path) -> tuple[float, int, int, int]:
     )
 
 
+def guitarset_attribute_audit(path: Path) -> tuple[int, int, int, int]:
+    """Return live-GuitarSet pitch-class and exact-chord coverage."""
+    with path.open(encoding="utf-8", newline="") as source:
+        rows = list(csv.DictReader(source, delimiter="\t"))
+    required = {"guitar_note_hits", "expected_note_count", "expected_chords", "chord_hit"}
+    missing = required - set(rows[0] if rows else ())
+    if missing:
+        raise ValueError(f"{path}: missing GuitarSet attribute columns: {', '.join(sorted(missing))}")
+    note_hits = 0
+    note_total = 0
+    chord_hits = 0
+    chord_total = 0
+    for row in rows:
+        try:
+            note_hits += int(row["guitar_note_hits"])
+            note_total += int(row["expected_note_count"])
+        except ValueError as error:
+            raise ValueError(f"{path}: invalid GuitarSet note count") from error
+        if (row["expected_chords"] or "").strip() not in {"", "--"}:
+            chord_total += 1
+            chord_hits += int(row["chord_hit"] == "1")
+    if note_total <= 0 or chord_total <= 0:
+        raise ValueError(f"{path}: no GuitarSet note or chord coverage")
+    return note_hits, note_total, chord_hits, chord_total
+
+
 def violin_guitar_route_audit(path: Path) -> tuple[int, int, int]:
     return route_profile_audit(path, 2)
 
@@ -956,6 +982,7 @@ def render(
     octave_correction_cross_corpus_audit_input: Path | None = None,
     dominant_seventh_extension_audit_input: Path | None = None,
     global_chord_confidence_audit_input: Path | None = None,
+    guitarset_attribute_input: Path | None = None,
 ) -> str:
     samples = load_samples(input_path)
     dcs_rows = dagstuhl_choirset_rows(dagstuhl_choirset_input) if dagstuhl_choirset_input else []
@@ -1034,6 +1061,11 @@ def render(
     global_chord_confidence = (
         global_chord_confidence_audit(global_chord_confidence_audit_input)
         if global_chord_confidence_audit_input is not None
+        else None
+    )
+    guitarset_attributes = (
+        guitarset_attribute_audit(guitarset_attribute_input)
+        if guitarset_attribute_input is not None
         else None
     )
     csd_rows = dagstuhl_choirset_rows(choral_singing_dataset_measurement) if choral_singing_dataset_measurement else []
@@ -1229,6 +1261,24 @@ def render(
                     if common
                     else "No common zero-regression threshold was found, so the current chord display gate is retained."
                 ),
+            ]
+        )
+    if guitarset_attributes is not None:
+        note_hits, note_total, chord_hits, chord_total = guitarset_attributes
+        lines.extend(
+            [
+                "",
+                "## Expanded live GuitarSet baseline",
+                "",
+                "GuitarSet contributes microphone-recorded live guitar with note and chord annotations. "
+                "It is independent evidence for polyphonic guitar changes; this is a baseline, not a gate relaxation.",
+                "",
+                f"Source: `{guitarset_attribute_input.as_posix()}`",
+                "",
+                "| Metric | Accurate / total | Remaining |",
+                "| --- | ---: | ---: |",
+                f"| Guitar pitch-class recall | {fraction(note_hits, note_total)} | {note_total - note_hits} |",
+                f"| Exact guitar chord recall | {fraction(chord_hits, chord_total)} | {chord_total - chord_hits} |",
             ]
         )
     if violin_guitar_audit is not None:
@@ -2307,6 +2357,7 @@ def main() -> int:
     parser.add_argument("--octave-correction-cross-corpus-audit", type=Path)
     parser.add_argument("--dominant-seventh-extension-audit", type=Path)
     parser.add_argument("--global-chord-confidence-audit", type=Path)
+    parser.add_argument("--guitarset-attribute-input", type=Path)
     parser.add_argument("--output", required=True, type=Path)
     args = parser.parse_args()
     try:
@@ -2375,6 +2426,7 @@ def main() -> int:
             args.octave_correction_cross_corpus_audit,
             args.dominant_seventh_extension_audit,
             args.global_chord_confidence_audit,
+            args.guitarset_attribute_input,
         )
     except (OSError, ValueError) as error:
         parser.error(str(error))

@@ -124,6 +124,18 @@ class DetectionAccuracyReportTest(unittest.TestCase):
             )
             self.assertEqual(REPORT.dominant_seventh_extension_audit(audit), (0, 4, 3))
 
+    def test_guitarset_attributes_report_pitch_and_chord_coverage(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            attributes = Path(temporary) / "guitarset_attributes.tsv"
+            attributes.write_text(
+                "guitar_note_hits\texpected_note_count\texpected_chords\tchord_hit\n"
+                "3\t4\tC\t1\n"
+                "2\t3\tDm\t0\n"
+                "1\t1\t--\t0\n",
+                encoding="utf-8",
+            )
+            self.assertEqual(REPORT.guitarset_attribute_audit(attributes), (6, 8, 1, 2))
+
     def test_violin_guitar_audit_requires_two_independent_corpora(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             audit = Path(temporary) / "violin_guitar_route_audit.txt"

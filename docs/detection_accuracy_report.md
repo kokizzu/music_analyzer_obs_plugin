@@ -139,6 +139,17 @@ Source: `build/global_chord_confidence_audit.txt`
 
 No common zero-regression threshold was found, so the current chord display gate is retained.
 
+## Expanded live GuitarSet baseline
+
+GuitarSet contributes microphone-recorded live guitar with note and chord annotations. It is independent evidence for polyphonic guitar changes; this is a baseline, not a gate relaxation.
+
+Source: `build/guitarset_attributes.tsv`
+
+| Metric | Accurate / total | Remaining |
+| --- | ---: | ---: |
+| Guitar pitch-class recall | 4446 / 5451 (81.6%) | 1005 |
+| Exact guitar chord recall | 1141 / 1491 (76.5%) | 350 |
+
 ## Violin-to-Guitar safety audit
 
 The leading Good Sounds violin routing profile is audited against independent Iowa strings and KRAISLER piano--violin mixture evidence before any reroute.
