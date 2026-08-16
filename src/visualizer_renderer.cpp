@@ -27,7 +27,9 @@ static constexpr int kBassGuitarContentShiftY = -8;
 static constexpr int kHalfMusicKeyboardFirstRow = 1;
 static constexpr int kHalfMusicKeyboardRowCount = 2;
 static constexpr int kHalfMusicGuitarY = 284;
-static constexpr float kBpmDisplayConfidenceThreshold = 0.15f;
+// Tempo ambiguity is especially common with sparse percussion and half/double
+// time. Keep estimating continuously, but only publish a well-supported BPM.
+static constexpr float kBpmDisplayConfidenceThreshold = 0.50f;
 
 uint8_t blend_channel(uint8_t from, uint8_t to, float amount)
 {
@@ -1331,19 +1333,6 @@ void draw_root_and_bpm(VisualizerRenderer *visualizer, const AnalysisSnapshot &s
 	const int total_width = text_width("BPM ", 2) + text_width(bpm_value, 2) +
 				(bpm_confidence[0] ? text_width(" ", 2) + text_width(bpm_confidence, 2) : 0);
 	int bpm_x = std::max(28, static_cast<int>(visualizer->width) - 28 - total_width);
-	char bpm_candidates[64] = {};
-	format_bpm_candidate_list(bpm_candidates, sizeof(bpm_candidates), snapshot);
-	if (bpm_candidates[0]) {
-		const int candidate_w = text_width(bpm_candidates, 1);
-		const int candidate_x = std::max(28, static_cast<int>(visualizer->width) - 28 - candidate_w);
-		const int candidate_y = std::max(0, bpm_y - 12);
-		static constexpr char kCandidateLabel[] = "CAND";
-		draw_text(visualizer, candidate_x, candidate_y, kCandidateLabel, 1, kLabelColor);
-		const int label_w = text_width(kCandidateLabel, 1);
-		if (bpm_candidates[4])
-			draw_text(visualizer, candidate_x + label_w, candidate_y, bpm_candidates + 4, 1,
-				  kValueTextColor);
-	}
 	if (visualizer->external_control.visible) {
 		constexpr std::array<const char *, 12> kRootNames = {
 			"C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B",
