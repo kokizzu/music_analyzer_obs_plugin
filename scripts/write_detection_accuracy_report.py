@@ -1038,6 +1038,7 @@ def render(
     same_root_guitar_quality_audit_input: Path | None = None,
     owner_classifier_loco_audit_input: Path | None = None,
     owner_score_calibration_loco_audit_input: Path | None = None,
+    other_detection_disabled: bool = False,
 ) -> str:
     samples = load_samples(input_path)
     dcs_rows = dagstuhl_choirset_rows(dagstuhl_choirset_input) if dagstuhl_choirset_input else []
@@ -1154,9 +1155,28 @@ def render(
         "",
         f"Source: `{input_path.as_posix()}`",
         "",
+    ]
+    if other_detection_disabled:
+        lines.extend(
+            [
+                "## Runtime OTHERS output",
+                "",
+                "The catch-all OTHERS detector and renderer are intentionally disabled. "
+                "Its historical rows remain below as baseline evidence only; they are not active "
+                "runtime output.",
+                "",
+                "| Work item | Complete / total | Remaining |",
+                "| --- | ---: | ---: |",
+                "| Disable OTHERS detection and rendering | 1 / 1 (100.0%) | 0 |",
+                "",
+            ]
+        )
+    lines.extend(
+        [
         "| Metric | Accurate / total | Remaining |",
         "| --- | ---: | ---: |",
-    ]
+        ]
+    )
     for label, accurate, total in table_rows(samples):
         lines.append(f"| {label} | {fraction(accurate, total)} | {total - accurate} |")
     if route_summary is not None:
@@ -2495,6 +2515,7 @@ def main() -> int:
     parser.add_argument("--same-root-guitar-quality-audit", type=Path)
     parser.add_argument("--owner-classifier-loco-audit", type=Path)
     parser.add_argument("--owner-score-calibration-loco-audit", type=Path)
+    parser.add_argument("--other-detection-disabled", action="store_true")
     parser.add_argument("--output", required=True, type=Path)
     args = parser.parse_args()
     try:
@@ -2567,6 +2588,7 @@ def main() -> int:
             args.same_root_guitar_quality_audit,
             args.owner_classifier_loco_audit,
             args.owner_score_calibration_loco_audit,
+            args.other_detection_disabled,
         )
     except (OSError, ValueError) as error:
         parser.error(str(error))

@@ -4,33 +4,41 @@ This dashboard is generated from the deterministic full-mix real-note attribute 
 
 Source: `build/real_note_full_mix_attributes.tsv`
 
+## Runtime OTHERS output
+
+The catch-all OTHERS detector and renderer are intentionally disabled. Its historical rows remain below as baseline evidence only; they are not active runtime output.
+
+| Work item | Complete / total | Remaining |
+| --- | ---: | ---: |
+| Disable OTHERS detection and rendering | 1 / 1 (100.0%) | 0 |
+
 | Metric | Accurate / total | Remaining |
 | --- | ---: | ---: |
 | Any detected note | 2212 / 2212 (100.0%) | 0 |
-| Expected instrument row | 2212 / 2212 (100.0%) | 0 |
-| Lit expected pitch class | 2015 / 2212 (91.1%) | 197 |
-| Primary display row | 772 / 2212 (34.9%) | 1440 |
-| Visual primary row | 870 / 2212 (39.3%) | 1342 |
+| Expected instrument row | 1622 / 2212 (73.3%) | 590 |
+| Lit expected pitch class | 1496 / 2212 (67.6%) | 716 |
+| Primary display row | 699 / 2212 (31.6%) | 1513 |
+| Visual primary row | 745 / 2212 (33.7%) | 1467 |
 | Bass — Any detected note | 137 / 137 (100.0%) | 0 |
 | Bass — Expected instrument row | 137 / 137 (100.0%) | 0 |
 | Bass — Lit expected pitch class | 137 / 137 (100.0%) | 0 |
-| Bass — Primary display row | 45 / 137 (32.8%) | 92 |
-| Bass — Visual primary row | 50 / 137 (36.5%) | 87 |
+| Bass — Primary display row | 46 / 137 (33.6%) | 91 |
+| Bass — Visual primary row | 57 / 137 (41.6%) | 80 |
 | Guitar — Any detected note | 346 / 346 (100.0%) | 0 |
 | Guitar — Expected instrument row | 346 / 346 (100.0%) | 0 |
 | Guitar — Lit expected pitch class | 288 / 346 (83.2%) | 58 |
-| Guitar — Primary display row | 152 / 346 (43.9%) | 194 |
-| Guitar — Visual primary row | 60 / 346 (17.3%) | 286 |
+| Guitar — Primary display row | 159 / 346 (46.0%) | 187 |
+| Guitar — Visual primary row | 71 / 346 (20.5%) | 275 |
 | Other — Any detected note | 590 / 590 (100.0%) | 0 |
-| Other — Expected instrument row | 590 / 590 (100.0%) | 0 |
-| Other — Lit expected pitch class | 519 / 590 (88.0%) | 71 |
-| Other — Primary display row | 117 / 590 (19.8%) | 473 |
-| Other — Visual primary row | 209 / 590 (35.4%) | 381 |
+| Other — Expected instrument row | 0 / 590 (0.0%) | 590 |
+| Other — Lit expected pitch class | 0 / 590 (0.0%) | 590 |
+| Other — Primary display row | 0 / 590 (0.0%) | 590 |
+| Other — Visual primary row | 0 / 590 (0.0%) | 590 |
 | Piano — Any detected note | 1117 / 1117 (100.0%) | 0 |
 | Piano — Expected instrument row | 1117 / 1117 (100.0%) | 0 |
 | Piano — Lit expected pitch class | 1050 / 1117 (94.0%) | 67 |
-| Piano — Primary display row | 452 / 1117 (40.5%) | 665 |
-| Piano — Visual primary row | 545 / 1117 (48.8%) | 572 |
+| Piano — Primary display row | 488 / 1117 (43.7%) | 629 |
+| Piano — Visual primary row | 611 / 1117 (54.7%) | 506 |
 | Vocals — Any detected note | 22 / 22 (100.0%) | 0 |
 | Vocals — Expected instrument row | 22 / 22 (100.0%) | 0 |
 | Vocals — Lit expected pitch class | 21 / 22 (95.5%) | 1 |
@@ -188,7 +196,7 @@ Source: `build/owner_score_calibration_loco_audit.txt`
 | --- | ---: | ---: |
 | LOCO corpora improved over current owner | 5 / 9 (55.6%) | 4 |
 | Aggregate current-owner accuracy | 12807 / 61501 (20.8%) | 48694 |
-| Aggregate calibrated-score accuracy | 12211 / 61501 (19.9%) | 49290 |
+| Aggregate calibrated-score accuracy | 12611 / 61501 (20.5%) | 48890 |
 | Runtime score calibration eligible | 0 / 1 (0.0%) | 1 |
 
 The calibration remains offline unless it improves every independently held-out corpus.
