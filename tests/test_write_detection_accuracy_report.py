@@ -606,6 +606,11 @@ class DetectionAccuracyReportTest(unittest.TestCase):
                 "harmonic_product_octave: common_zero_regression_thresholds=0/6 corpora=3\n",
                 encoding="utf-8",
             )
+            quality_classifier_audit = Path(temporary) / "owner_classifier_quality_loco_audit.txt"
+            quality_classifier_audit.write_text(
+                "owner_classifier_loco: improved_corpora=8/9 current=10/20 model=14/20\n",
+                encoding="utf-8",
+            )
             report = REPORT.render(
                 source, [chords], vocal_full_mix, [bach10_0, bach10_1], musicnet, drum, urmp,
                 vocalset_full_mix, [maps], None, route_summary, good_sounds_full_mix, irmas_labelled,
@@ -644,6 +649,7 @@ class DetectionAccuracyReportTest(unittest.TestCase):
                 kraisler_manifest=kraisler_manifest,
                 kraisler_measurement=dcs_measurement,
                 harmonic_product_octave_audit_input=harmonic_product_audit,
+                owner_classifier_quality_loco_audit_input=quality_classifier_audit,
             )
 
         self.assertIn("| Any detected note | 2 / 3 (66.7%) | 1 |", report)
@@ -654,6 +660,8 @@ class DetectionAccuracyReportTest(unittest.TestCase):
         self.assertIn("## Detector-improvement route coverage", report)
         self.assertIn("## Harmonic-product octave-correction audit", report)
         self.assertIn("| Zero-regression harmonic-product thresholds across all SATB corpora | 0 / 6 (0.0%) | 6 |", report)
+        self.assertIn("## Extended owner-classifier leave-one-corpus-out audit", report)
+        self.assertIn("| LOCO corpora improved over current owner | 8 / 9 (88.9%) | 1 |", report)
         self.assertIn("## Rejected three-corpus keys-to-vocal routing trial", report)
         self.assertIn(
             "| Protected full-mix first-row accuracy during trial | 771 / 2212 (34.9%) | 1441 |",

@@ -213,6 +213,21 @@ Source: `build/owner_classifier_loco_audit.txt`
 
 The model is retained only as an offline baseline because it regresses at least one held-out corpus.
 
+## Extended owner-classifier leave-one-corpus-out audit
+
+This offline nearest-centroid experiment adds pitch confidence, periodicity, harmonic shape, local noise, and adjacent-pitch features to the owner-score baseline. It remains a diagnostic model until it improves every held-out corpus.
+
+Source: `build/owner_classifier_quality_loco_audit.txt`
+
+| Metric | Accurate / total | Remaining |
+| --- | ---: | ---: |
+| LOCO corpora improved over current owner | 8 / 9 (88.9%) | 1 |
+| Aggregate current-owner accuracy | 12807 / 61501 (20.8%) | 48694 |
+| Aggregate quality-model accuracy | 15771 / 61501 (25.6%) | 45730 |
+| Runtime quality-model classifier eligible | 0 / 1 (0.0%) | 1 |
+
+The model is a stronger offline baseline, but its held-out real-note regression keeps runtime ownership unchanged.
+
 ## Owner-score calibration leave-one-corpus-out audit
 
 A small class-bias calibration is fitted only on the non-held-out corpora and applied to the analyzer's existing owner scores. It is an offline experiment, not a runtime model.
@@ -223,7 +238,7 @@ Source: `build/owner_score_calibration_loco_audit.txt`
 | --- | ---: | ---: |
 | LOCO corpora improved over current owner | 5 / 9 (55.6%) | 4 |
 | Aggregate current-owner accuracy | 12807 / 61501 (20.8%) | 48694 |
-| Aggregate calibrated-score accuracy | 12611 / 61501 (20.5%) | 48890 |
+| Aggregate calibrated-score accuracy | 12211 / 61501 (19.9%) | 49290 |
 | Runtime score calibration eligible | 0 / 1 (0.0%) | 1 |
 
 The calibration remains offline unless it improves every independently held-out corpus.

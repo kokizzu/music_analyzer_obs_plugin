@@ -1063,6 +1063,7 @@ def render(
     guitarset_attribute_input: Path | None = None,
     same_root_guitar_quality_audit_input: Path | None = None,
     owner_classifier_loco_audit_input: Path | None = None,
+    owner_classifier_quality_loco_audit_input: Path | None = None,
     owner_score_calibration_loco_audit_input: Path | None = None,
     other_detection_disabled: bool = False,
     polyphonic_candidate_capacity_audit_input: Path | None = None,
@@ -1160,6 +1161,11 @@ def render(
     owner_classifier_loco = (
         owner_classifier_loco_audit(owner_classifier_loco_audit_input)
         if owner_classifier_loco_audit_input is not None
+        else None
+    )
+    owner_classifier_quality_loco = (
+        owner_classifier_loco_audit(owner_classifier_quality_loco_audit_input)
+        if owner_classifier_quality_loco_audit_input is not None
         else None
     )
     owner_score_calibration_loco = (
@@ -1489,6 +1495,27 @@ def render(
                 f"| Runtime owner classifier eligible | {fraction(int(supported == total), 1)} | {int(supported != total)} |",
                 "",
                 "The model is retained only as an offline baseline because it regresses at least one held-out corpus.",
+            ]
+        )
+    if owner_classifier_quality_loco is not None:
+        supported, total, current, model, count = owner_classifier_quality_loco
+        lines.extend(
+            [
+                "",
+                "## Extended owner-classifier leave-one-corpus-out audit",
+                "",
+                "This offline nearest-centroid experiment adds pitch confidence, periodicity, harmonic shape, local noise, and adjacent-pitch features to the owner-score baseline. It remains a diagnostic model until it improves every held-out corpus.",
+                "",
+                f"Source: `{owner_classifier_quality_loco_audit_input.as_posix()}`",
+                "",
+                "| Metric | Accurate / total | Remaining |",
+                "| --- | ---: | ---: |",
+                f"| LOCO corpora improved over current owner | {fraction(supported, total)} | {total - supported} |",
+                f"| Aggregate current-owner accuracy | {fraction(current, count)} | {count - current} |",
+                f"| Aggregate quality-model accuracy | {fraction(model, count)} | {count - model} |",
+                f"| Runtime quality-model classifier eligible | {fraction(int(supported == total), 1)} | {int(supported != total)} |",
+                "",
+                "The model is a stronger offline baseline, but its held-out real-note regression keeps runtime ownership unchanged.",
             ]
         )
     if owner_score_calibration_loco is not None:
@@ -2592,6 +2619,7 @@ def main() -> int:
     parser.add_argument("--guitarset-attribute-input", type=Path)
     parser.add_argument("--same-root-guitar-quality-audit", type=Path)
     parser.add_argument("--owner-classifier-loco-audit", type=Path)
+    parser.add_argument("--owner-classifier-quality-loco-audit", type=Path)
     parser.add_argument("--owner-score-calibration-loco-audit", type=Path)
     parser.add_argument("--other-detection-disabled", action="store_true")
     parser.add_argument("--polyphonic-candidate-capacity-audit", type=Path)
@@ -2667,6 +2695,7 @@ def main() -> int:
             args.guitarset_attribute_input,
             args.same_root_guitar_quality_audit,
             args.owner_classifier_loco_audit,
+            args.owner_classifier_quality_loco_audit,
             args.owner_score_calibration_loco_audit,
             args.other_detection_disabled,
             args.polyphonic_candidate_capacity_audit,
