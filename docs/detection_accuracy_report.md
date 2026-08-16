@@ -163,6 +163,21 @@ Source: `build/same_root_guitar_quality_audit.txt`
 
 The best tested raw-third floor (0.040) still has 169 regression(s), so the promotion is rejected.
 
+## Owner-classifier leave-one-corpus-out audit
+
+A small nearest-centroid classifier is evaluated from the analyzer's existing owner scores, with every corpus held out in turn. It is an offline calibration experiment, not a runtime model.
+
+Source: `build/owner_classifier_loco_audit.txt`
+
+| Metric | Accurate / total | Remaining |
+| --- | ---: | ---: |
+| LOCO corpora improved over current owner | 1 / 2 (50.0%) | 1 |
+| Aggregate current-owner accuracy | 10672 / 33568 (31.8%) | 22896 |
+| Aggregate centroid-model accuracy | 12030 / 33568 (35.8%) | 21538 |
+| Runtime owner classifier eligible | 0 / 1 (0.0%) | 1 |
+
+The model is retained only as an offline baseline because it regresses at least one held-out corpus.
+
 ## Violin-to-Guitar safety audit
 
 The leading Good Sounds violin routing profile is audited against independent Iowa strings and KRAISLER piano--violin mixture evidence before any reroute.

@@ -72,6 +72,11 @@ SAME_ROOT_GUITAR_QUALITY_RE = re.compile(
     r"regressions=(?P<regressions>\d+) common_zero_regression=(?P<common>\d+)$",
     re.MULTILINE,
 )
+OWNER_CLASSIFIER_LOCO_RE = re.compile(
+    r"^owner_classifier_loco: improved_corpora=(?P<supported>\d+)/(?P<total>\d+) "
+    r"current=(?P<current>\d+)/(?P<count>\d+) model=(?P<model>\d+)/(?P=count)$",
+    re.MULTILINE,
+)
 
 # Analyzer TSV evidence can legitimately retain long comma-separated note
 # histories.  Keep a finite but practical cap instead of csv's 128 KiB default.
@@ -808,6 +813,17 @@ def same_root_guitar_quality_audit(path: Path) -> tuple[float, int, int, int, in
     )
 
 
+def owner_classifier_loco_audit(path: Path) -> tuple[int, int, int, int, int]:
+    """Return LOCO support and aggregate baseline/model owner accuracy."""
+    match = OWNER_CLASSIFIER_LOCO_RE.search(path.read_text(encoding="utf-8", errors="replace"))
+    if match is None:
+        raise ValueError(f"{path}: missing owner-classifier LOCO summary")
+    return (
+        int(match["supported"]), int(match["total"]), int(match["current"]),
+        int(match["model"]), int(match["count"]),
+    )
+
+
 def guitarset_attribute_audit(path: Path) -> tuple[int, int, int, int]:
     """Return live-GuitarSet pitch-class and exact-chord coverage."""
     with path.open(encoding="utf-8", newline="") as source:
@@ -1004,6 +1020,7 @@ def render(
     global_chord_confidence_audit_input: Path | None = None,
     guitarset_attribute_input: Path | None = None,
     same_root_guitar_quality_audit_input: Path | None = None,
+    owner_classifier_loco_audit_input: Path | None = None,
 ) -> str:
     samples = load_samples(input_path)
     dcs_rows = dagstuhl_choirset_rows(dagstuhl_choirset_input) if dagstuhl_choirset_input else []
@@ -1092,6 +1109,11 @@ def render(
     same_root_guitar_quality = (
         same_root_guitar_quality_audit(same_root_guitar_quality_audit_input)
         if same_root_guitar_quality_audit_input is not None
+        else None
+    )
+    owner_classifier_loco = (
+        owner_classifier_loco_audit(owner_classifier_loco_audit_input)
+        if owner_classifier_loco_audit_input is not None
         else None
     )
     csd_rows = dagstuhl_choirset_rows(choral_singing_dataset_measurement) if choral_singing_dataset_measurement else []
@@ -1325,6 +1347,28 @@ def render(
                 f"| Runtime same-root quality promotion eligible | {fraction(int(common > 0), 1)} | {int(common == 0)} |",
                 "",
                 f"The best tested raw-third floor ({floor:.3f}) still has {regressions} regression(s), so the promotion is rejected.",
+            ]
+        )
+    if owner_classifier_loco is not None:
+        supported, total, current, model, count = owner_classifier_loco
+        lines.extend(
+            [
+                "",
+                "## Owner-classifier leave-one-corpus-out audit",
+                "",
+                "A small nearest-centroid classifier is evaluated from the analyzer's existing owner scores, "
+                "with every corpus held out in turn. It is an offline calibration experiment, not a runtime model.",
+                "",
+                f"Source: `{owner_classifier_loco_audit_input.as_posix()}`",
+                "",
+                "| Metric | Accurate / total | Remaining |",
+                "| --- | ---: | ---: |",
+                f"| LOCO corpora improved over current owner | {fraction(supported, total)} | {total - supported} |",
+                f"| Aggregate current-owner accuracy | {fraction(current, count)} | {count - current} |",
+                f"| Aggregate centroid-model accuracy | {fraction(model, count)} | {count - model} |",
+                f"| Runtime owner classifier eligible | {fraction(int(supported == total), 1)} | {int(supported != total)} |",
+                "",
+                "The model is retained only as an offline baseline because it regresses at least one held-out corpus.",
             ]
         )
     if violin_guitar_audit is not None:
@@ -2405,6 +2449,7 @@ def main() -> int:
     parser.add_argument("--global-chord-confidence-audit", type=Path)
     parser.add_argument("--guitarset-attribute-input", type=Path)
     parser.add_argument("--same-root-guitar-quality-audit", type=Path)
+    parser.add_argument("--owner-classifier-loco-audit", type=Path)
     parser.add_argument("--output", required=True, type=Path)
     args = parser.parse_args()
     try:
@@ -2475,6 +2520,7 @@ def main() -> int:
             args.global_chord_confidence_audit,
             args.guitarset_attribute_input,
             args.same_root_guitar_quality_audit,
+            args.owner_classifier_loco_audit,
         )
     except (OSError, ValueError) as error:
         parser.error(str(error))
