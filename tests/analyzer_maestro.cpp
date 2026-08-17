@@ -374,7 +374,9 @@ struct NoteAnnotation {
 	int midi = 0;
 };
 
-bool read_maestro_midi(const std::string &path, std::vector<NoteAnnotation> &notes, std::string &error)
+bool read_maestro_midi(const std::string &path, std::vector<NoteAnnotation> &notes,
+			      std::vector<TempoPoint> *tempo_points_output, bool *has_explicit_tempo,
+			      std::string &error)
 {
 	std::vector<unsigned char> bytes;
 	if (!read_file_bytes(path, bytes, error))
@@ -514,6 +516,10 @@ bool read_maestro_midi(const std::string &path, std::vector<NoteAnnotation> &not
 	}
 
 	const std::vector<TempoPoint> tempo_points = build_tempo_points(tempo_events, division);
+	if (tempo_points_output)
+		*tempo_points_output = tempo_points;
+	if (has_explicit_tempo)
+		*has_explicit_tempo = !tempo_events.empty();
 	for (const RawMidiNote &raw : raw_notes) {
 		if (raw.midi < mao::kFirstAnalyzedMidi || raw.midi > mao::kLastAnalyzedMidi)
 			continue;
@@ -580,6 +586,9 @@ struct Recording {
 	uint32_t sample_rate = 0;
 	uint64_t frame_count = 0;
 	std::vector<NoteAnnotation> notes;
+	std::vector<TempoPoint> tempo_points;
+	bool has_explicit_tempo = false;
+	double tempo_audio_offset_seconds = 0.0;
 };
 
 std::string find_metadata_csv(const std::string &root)
@@ -657,7 +666,8 @@ std::string resolve_maestro_root()
 }
 
 bool load_recording(const std::string &root, const std::string &id, const std::string &audio_filename,
-		    const std::string &midi_filename, Recording &recording, std::string &error)
+		    const std::string &midi_filename, double tempo_audio_offset_seconds,
+		    Recording &recording, std::string &error)
 {
 	const std::string audio_path = join_path(root, audio_filename);
 	const std::string midi_path = join_path(root, midi_filename);
@@ -665,7 +675,9 @@ bool load_recording(const std::string &root, const std::string &id, const std::s
 	if (!read_wav_format(audio_path, format, error))
 		return false;
 	std::vector<NoteAnnotation> notes;
-	if (!read_maestro_midi(midi_path, notes, error))
+	std::vector<TempoPoint> tempo_points;
+	bool has_explicit_tempo = false;
+	if (!read_maestro_midi(midi_path, notes, &tempo_points, &has_explicit_tempo, error))
 		return false;
 
 	recording.id = id;
@@ -674,6 +686,9 @@ bool load_recording(const std::string &root, const std::string &id, const std::s
 	recording.sample_rate = format.sample_rate;
 	recording.frame_count = format.frame_count;
 	recording.notes = std::move(notes);
+	recording.tempo_points = std::move(tempo_points);
+	recording.has_explicit_tempo = has_explicit_tempo;
+	recording.tempo_audio_offset_seconds = tempo_audio_offset_seconds;
 	return true;
 }
 
@@ -721,9 +736,23 @@ void collect_recordings(const std::string &root, std::vector<Recording> &recordi
 			continue;
 		}
 
+		double tempo_audio_offset_seconds = 0.0;
+		const auto tempo_offset_column = column.find("tempo_audio_offset_seconds");
+		if (tempo_offset_column != column.end()) {
+			const char *offset_text = fields[tempo_offset_column->second].c_str();
+			char *offset_end = nullptr;
+			tempo_audio_offset_seconds = std::strtod(offset_text, &offset_end);
+			if (offset_end == offset_text || *offset_end != '\0' || !std::isfinite(tempo_audio_offset_seconds) ||
+			    tempo_audio_offset_seconds < 0.0) {
+				++unusable;
+				continue;
+			}
+		}
+
 		Recording recording;
 		std::string error;
-		if (!load_recording(root, std::to_string(row), audio_filename, midi_filename, recording, error)) {
+		if (!load_recording(root, std::to_string(row), audio_filename, midi_filename,
+				    tempo_audio_offset_seconds, recording, error)) {
 			++unusable;
 			if (unusable <= 5)
 				std::fprintf(stderr, "analyzer_maestro: skipping row %d: %s\n", row,
@@ -1018,6 +1047,91 @@ mao::AnalysisSnapshot analyze_confirmed_buffer(const mao_test::Buffer &buffer, u
 	for (int frame = 0; frame < 3; ++frame)
 		snapshot = engine.analyze(buffer.data(), buffer.size(), settings, "MAESTRO piano", 0);
 	return snapshot;
+}
+
+bool maestro_tempo_interval(const Recording &recording, double max_seconds, double &start_seconds,
+			    double &end_seconds, float &expected_bpm)
+{
+	if (!recording.has_explicit_tempo || recording.tempo_points.empty())
+		return false;
+	const double available_seconds = static_cast<double>(recording.frame_count) / recording.sample_rate;
+	for (std::size_t index = 0; index < recording.tempo_points.size(); ++index) {
+		const TempoPoint &point = recording.tempo_points[index];
+		const double interval_end = index + 1 < recording.tempo_points.size() ?
+					    recording.tempo_points[index + 1].seconds : available_seconds;
+		const double duration = std::min(max_seconds, interval_end - point.seconds);
+		if (point.microseconds_per_quarter <= 0 || duration < 14.0)
+			continue;
+	start_seconds = point.seconds + recording.tempo_audio_offset_seconds;
+	end_seconds = start_seconds + duration;
+		expected_bpm = 60000000.0f / static_cast<float>(point.microseconds_per_quarter);
+		return true;
+	}
+	return false;
+}
+
+struct TempoStats {
+	int eligible = 0;
+	int measured = 0;
+	int hits = 0;
+	int no_estimate = 0;
+	double absolute_error_sum = 0.0;
+	double max_absolute_error = 0.0;
+};
+
+bool measure_maestro_tempo(const Recording &recording, double max_seconds, float confidence_floor,
+			  float tolerance, TempoStats &stats, std::string &error)
+{
+	double start_seconds = 0.0;
+	double end_seconds = 0.0;
+	float expected = 0.0f;
+	if (recording.sample_rate == 0 ||
+	    !maestro_tempo_interval(recording, max_seconds, start_seconds, end_seconds, expected))
+		return false;
+	++stats.eligible;
+
+	mao::AnalysisEngine engine;
+	mao::AnalysisSettings settings = mao_test::default_settings();
+	settings.sample_rate = recording.sample_rate;
+	settings.analysis_interval_seconds =
+		static_cast<float>(mao_test::Buffer{}.size()) / static_cast<float>(recording.sample_rate);
+	settings.input_mode = mao::AnalysisInputMode::FullMix;
+
+	mao_test::Buffer buffer = {};
+	const uint64_t first_center = static_cast<uint64_t>(std::llround(start_seconds * recording.sample_rate)) +
+				      buffer.size() / 2;
+	const uint64_t last_center = static_cast<uint64_t>(std::floor(end_seconds * recording.sample_rate));
+	mao::AnalysisSnapshot snapshot = {};
+	for (uint64_t center = first_center;
+	     center + buffer.size() / 2 <= last_center; center += buffer.size()) {
+		uint32_t sample_rate = 0;
+		if (!read_wav_window(recording.audio_path, center, buffer, sample_rate, error))
+			return false;
+		if (sample_rate != recording.sample_rate) {
+			error = "sample-rate changed while reading";
+			return false;
+		}
+		snapshot = engine.analyze(buffer.data(), buffer.size(), settings, "MAESTRO piano tempo", 0);
+	}
+
+	++stats.measured;
+	if (snapshot.estimated_bpm <= 0.0f || snapshot.bpm_confidence < confidence_floor) {
+		++stats.no_estimate;
+		std::fprintf(stderr,
+			     "MAESTRO tempo diag\tid=%s\texpected=%.2f\tgot=0.00\traw=%.2f\tconfidence=%.3f\terror=%.2f\tstatus=no-estimate\tcandidates=-\n",
+			     recording.id.c_str(), expected, snapshot.estimated_bpm, snapshot.bpm_confidence,
+			     static_cast<double>(expected));
+		return true;
+	}
+	const double absolute_error = std::abs(static_cast<double>(snapshot.estimated_bpm - expected));
+	stats.absolute_error_sum += absolute_error;
+	stats.max_absolute_error = std::max(stats.max_absolute_error, absolute_error);
+	if (absolute_error <= tolerance)
+		++stats.hits;
+	std::fprintf(stderr, "MAESTRO tempo diag\tid=%s\texpected=%.2f\tgot=%.2f\traw=%.2f\tconfidence=%.3f\terror=%.2f\tstatus=%s\tcandidates=-\n",
+		     recording.id.c_str(), expected, snapshot.estimated_bpm, snapshot.estimated_bpm, snapshot.bpm_confidence,
+		     absolute_error, absolute_error <= tolerance ? "hit" : "miss");
+	return true;
 }
 
 struct RecallStats {
@@ -1512,6 +1626,15 @@ int main()
 		return 1;
 	}
 	const bool inspect_only = env_truthy("MUSIC_ANALYZER_MAESTRO_INSPECT_ONLY");
+	const bool validate_tempo = env_truthy("MUSIC_ANALYZER_MAESTRO_VALIDATE_BPM");
+	const bool measure_all_tempo = env_truthy("MUSIC_ANALYZER_MAESTRO_MEASURE_ALL_TEMPO");
+	const int required_tempo_recordings =
+		resolve_positive_int_env("MUSIC_ANALYZER_MAESTRO_REQUIRED_TEMPO_RECORDINGS", 20);
+	const int tempo_max_seconds =
+		resolve_positive_int_env("MUSIC_ANALYZER_MAESTRO_BPM_MAX_SECONDS", 20);
+	const int bpm_tolerance = resolve_positive_int_env("MUSIC_ANALYZER_MAESTRO_BPM_TOLERANCE", 8);
+	const int min_bpm_pass_percent =
+		resolve_percent_env("MUSIC_ANALYZER_MAESTRO_MIN_BPM_PASS_PERCENT", 0);
 	const char *attribute_path_env = std::getenv("MUSIC_ANALYZER_MAESTRO_ATTRIBUTE_TSV");
 	std::ofstream attribute_file;
 	if (attribute_path_env && *attribute_path_env) {
@@ -1532,6 +1655,7 @@ int main()
 	int tested_windows = 0;
 	int read_failures = 0;
 	int no_candidate_recordings = 0;
+	TempoStats tempo;
 
 	std::size_t recording_ordinal = 0;
 	for (const Recording &recording : recordings) {
@@ -1540,6 +1664,14 @@ int main()
 		    current_recording_ordinal % static_cast<std::size_t>(shard_count) !=
 			    static_cast<std::size_t>(shard_index))
 			continue;
+		if (validate_tempo && (measure_all_tempo || tempo.measured < required_tempo_recordings)) {
+			std::string tempo_error;
+			if (!measure_maestro_tempo(recording, tempo_max_seconds, 0.50f,
+						 static_cast<float>(bpm_tolerance), tempo, tempo_error) &&
+			    !tempo_error.empty()) {
+				runner.expect(false, "MAESTRO tempo " + recording.id + ": " + tempo_error);
+			}
+		}
 
 		const std::vector<CandidateWindow> candidates =
 			select_candidate_windows(recording, max_windows_per_recording, min_active_notes,
@@ -1659,6 +1791,26 @@ int main()
 							     keyboard_chord_precision.predicted_windows) +
 					      " (" + chord_precision_summary(keyboard_chord_precision) + ")");
 		}
+	}
+	if (validate_tempo) {
+		runner.expect(tempo.eligible >= required_tempo_recordings,
+			      "MAESTRO tempo coverage: expected at least " +
+				      std::to_string(required_tempo_recordings) +
+				      " constant-tempo recordings, got " + std::to_string(tempo.eligible));
+		runner.expect(tempo.measured >= required_tempo_recordings,
+			      "MAESTRO tempo measurement: expected at least " +
+				      std::to_string(required_tempo_recordings) +
+				      " recordings, got " + std::to_string(tempo.measured));
+		if (tempo.measured > 0) {
+			runner.expect(tempo.hits * 100 >= tempo.measured * min_bpm_pass_percent,
+			      "MAESTRO tempo accuracy: expected >=" + std::to_string(min_bpm_pass_percent) +
+				      "%, got " + std::to_string(tempo.hits) + "/" +
+				      std::to_string(tempo.measured));
+		}
+		std::printf("analyzer_maestro: tempo hits %d/%d, no-estimate %d, mean abs error %.2f, max abs error %.2f\n",
+			    tempo.hits, tempo.measured, tempo.no_estimate,
+			    tempo.measured > 0 ? tempo.absolute_error_sum / tempo.measured : 0.0,
+			    tempo.max_absolute_error);
 	}
 
 	if (runner.failures != 0) {

@@ -963,6 +963,21 @@ def dagstuhl_choirset_rows(path: Path) -> list[tuple[str, str, int, int]]:
     return result
 
 
+def tempo_diagnostic_counts(path: Path, prefix: str = "MAESTRO tempo diag\t") -> tuple[int, int]:
+    accurate = 0
+    total = 0
+    for line in path.read_text(encoding="utf-8", errors="replace").splitlines():
+        if not line.startswith(prefix):
+            continue
+        fields = dict(field.split("=", 1) for field in line[len(prefix) :].split("\t") if "=" in field)
+        total += 1
+        if fields.get("status") == "hit":
+            accurate += 1
+    if total <= 0:
+        raise ValueError(f"{path}: no tempo diagnostic rows")
+    return accurate, total
+
+
 def vocal_exact_note_cross_corpus_rows(path: Path) -> list[tuple[str, int, int, int, int, int]]:
     with path.open(encoding="utf-8", newline="") as source:
         reader = csv.DictReader(source, delimiter="\t")
@@ -1068,6 +1083,7 @@ def render(
     other_detection_disabled: bool = False,
     polyphonic_candidate_capacity_audit_input: Path | None = None,
     harmonic_product_octave_audit_input: Path | None = None,
+    kraisler_bpm_input: Path | None = None,
 ) -> str:
     samples = load_samples(input_path)
     dcs_rows = dagstuhl_choirset_rows(dagstuhl_choirset_input) if dagstuhl_choirset_input else []
@@ -1082,6 +1098,7 @@ def render(
     kraisler_extraction_ready = int(kraisler_extraction is not None and kraisler_extraction.is_dir())
     kraisler_manifest_ready = int(kraisler_manifest is not None and kraisler_manifest.is_file())
     kraisler_audit_ready = int(bool(kraisler_rows) and route_summary is not None and route_summary.is_file())
+    kraisler_bpm = tempo_diagnostic_counts(kraisler_bpm_input) if kraisler_bpm_input else None
     piano_state_evidence = (
         independent_piano_state_evidence(independent_piano_chord_state_evidence_input)
         if independent_piano_chord_state_evidence_input
@@ -2421,6 +2438,20 @@ def render(
             )
             for group, metric, accurate, total in kraisler_rows:
                 lines.append(f"| KRAISLER {group} — {metric} | {fraction(accurate, total)} | {total - accurate} |")
+        if kraisler_bpm is not None:
+            accurate, total = kraisler_bpm
+            lines.extend(
+                [
+                    "",
+                    "### KRAISLER annotated-tempo diagnostic",
+                    "",
+                    f"Source: `{kraisler_bpm_input.as_posix()}`. Each row is real KRAISLER mixture audio paired with a stable, reviewed beat-time interval; it is diagnostic evidence, not a release gate.",
+                    "",
+                    "| Metric | Accurate / total | Remaining |",
+                    "| --- | ---: | ---: |",
+                    f"| Displayable BPM at confidence ≥ 0.50 | {fraction(accurate, total)} | {total - accurate} |",
+                ]
+            )
     if maps_attribute_input is not None:
         lines.extend(
             [
@@ -2607,6 +2638,7 @@ def main() -> int:
     parser.add_argument("--kraisler-extraction", type=Path)
     parser.add_argument("--kraisler-manifest", type=Path)
     parser.add_argument("--kraisler-measurement", type=Path)
+    parser.add_argument("--kraisler-bpm-input", type=Path)
     parser.add_argument("--high-vocal-octave-audit", type=Path)
     parser.add_argument("--electronic-piano-guitar-route-audit", type=Path)
     parser.add_argument("--scms-vocal-other-route-audit", type=Path)
@@ -2702,6 +2734,7 @@ def main() -> int:
             args.other_detection_disabled,
             args.polyphonic_candidate_capacity_audit,
             args.harmonic_product_octave_audit,
+            args.kraisler_bpm_input,
         )
     except (OSError, ValueError) as error:
         parser.error(str(error))

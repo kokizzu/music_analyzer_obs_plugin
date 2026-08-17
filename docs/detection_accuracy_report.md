@@ -1486,6 +1486,14 @@ Source: `build/kraisler_measurement.tsv`
 | KRAISLER KRAISLER Violin notes — Pitch-class recall | 806 / 903 (89.3%) | 97 |
 | KRAISLER KRAISLER Violin notes — Visible expected instrument row | 418 / 903 (46.3%) | 485 |
 
+### KRAISLER annotated-tempo diagnostic
+
+Source: `build/kraisler_bpm_diagnostics.log`. Each row is real KRAISLER mixture audio paired with a stable, reviewed beat-time interval; it is diagnostic evidence, not a release gate.
+
+| Metric | Accurate / total | Remaining |
+| --- | ---: | ---: |
+| Displayable BPM at confidence ≥ 0.50 | 0 / 11 (0.0%) | 11 |
+
 ## MAPS chord-miss evidence
 
 This isolates misses where note evidence is already present from misses that still lack a keyboard chord label.

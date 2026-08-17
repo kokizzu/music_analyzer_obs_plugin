@@ -14,7 +14,7 @@ from collections import Counter
 from dataclasses import dataclass
 
 
-DIAG_PREFIX = "E-GMD tempo diag\t"
+DEFAULT_DIAG_PREFIX = "E-GMD tempo diag\t"
 CANDIDATE_RE = re.compile(r"(?P<bpm>\d+)\(s=(?P<score>[0-9.]+)")
 
 
@@ -30,21 +30,21 @@ class TempoRow:
     candidates: str
 
 
-def parse_key_values(line: str) -> dict[str, str]:
+def parse_key_values(line: str, prefix: str) -> dict[str, str]:
     values: dict[str, str] = {}
-    for field in line[len(DIAG_PREFIX) :].split("\t"):
+    for field in line[len(prefix) :].split("\t"):
         key, separator, value = field.partition("=")
         if separator:
             values[key] = value
     return values
 
 
-def parse_rows(path: pathlib.Path) -> list[TempoRow]:
+def parse_rows(path: pathlib.Path, prefix: str) -> list[TempoRow]:
     rows: list[TempoRow] = []
     for line in path.read_text(errors="replace").splitlines():
-        if not line.startswith(DIAG_PREFIX):
+        if not line.startswith(prefix):
             continue
-        values = parse_key_values(line)
+        values = parse_key_values(line, prefix)
         rows.append(
             TempoRow(
                 source=path,
@@ -155,11 +155,12 @@ def main() -> int:
     parser.add_argument("logs", nargs="+", type=pathlib.Path)
     parser.add_argument("--tolerance", type=float, default=8.0)
     parser.add_argument("--worst", type=int, default=12)
+    parser.add_argument("--prefix", default=DEFAULT_DIAG_PREFIX)
     args = parser.parse_args()
 
     rows: list[TempoRow] = []
     for path in args.logs:
-        rows.extend(parse_rows(path))
+        rows.extend(parse_rows(path, args.prefix))
     print_summary(rows, args.tolerance, args.worst)
     return 0
 
