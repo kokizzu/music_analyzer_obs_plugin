@@ -1878,6 +1878,110 @@ NoteCandidateList note_peak_candidates(const std::array<float, kNoteProbeCount> 
 	return selected;
 }
 
+// Full-mix chord/SATB material often leaves a real, quieter fundamental below
+// the ordinary global peak floor.  Recover it only after explaining the
+// partials of already selected notes: a residual peak must survive the
+// selected notes' octave/fifth/second-octave stack.  This is intentionally a
+// candidate supplement, rather than a replacement for the established peak
+// detector, so monophonic routing retains its current behavior.
+float residual_polyphonic_candidate_score(const std::array<float, kNoteProbeCount> &powers,
+					 const NoteCandidateList &selected, int midi)
+{
+	float score = probe_level(powers, midi);
+	for (const NoteCandidate &lower : selected) {
+		if (midi <= lower.midi)
+			continue;
+		const int interval = midi - lower.midi;
+		float explained_ratio = 0.0f;
+		switch (interval) {
+		case 12:
+			explained_ratio = 0.58f;
+			break;
+		case 19:
+			explained_ratio = 0.42f;
+			break;
+		case 24:
+			explained_ratio = 0.30f;
+			break;
+		case 28:
+			explained_ratio = 0.18f;
+			break;
+		case 31:
+			explained_ratio = 0.14f;
+			break;
+		case 36:
+			explained_ratio = 0.10f;
+			break;
+		default:
+			break;
+		}
+		if (explained_ratio > 0.0f)
+			score = std::max(0.0f, score - probe_level(powers, lower.midi) * explained_ratio);
+	}
+	return score;
+}
+
+bool pitch_set_contains_midi(const NoteCandidateList &candidates, int midi)
+{
+	for (const NoteCandidate &candidate : candidates) {
+		if (candidate.midi == midi)
+			return true;
+	}
+	return false;
+}
+
+void append_residual_polyphonic_candidates(NoteCandidateList &candidates,
+					   const std::array<float, kNoteProbeCount> &powers,
+					   int min_midi, int max_midi, int max_notes)
+{
+	if (max_notes <= 0 || candidates.size() >= static_cast<std::size_t>(max_notes))
+		return;
+	min_midi = std::max(min_midi, kFirstMidi);
+	max_midi = std::min(max_midi, kLastMidi);
+
+	float strongest_direct = 0.0f;
+	for (int midi = min_midi; midi <= max_midi; ++midi)
+		strongest_direct = std::max(strongest_direct, probe_level(powers, midi));
+	if (strongest_direct <= 1.0e-6f)
+		return;
+
+	// The decoded pitch set is greedy but set-aware: each accepted note removes
+	// only the energy it plausibly explains, leaving independent chord voices
+	// available to subsequent iterations.
+	while (candidates.size() < static_cast<std::size_t>(max_notes)) {
+		int best_midi = -1;
+		float best_score = 0.0f;
+		for (int midi = min_midi; midi <= max_midi; ++midi) {
+			if (pitch_set_contains_midi(candidates, midi))
+				continue;
+			const float direct = probe_level(powers, midi);
+			// A recovered fundamental must still be a substantial direct peak.
+			// This keeps dense guitar partials from being promoted as extra notes.
+			if (direct < strongest_direct * 0.10f)
+				continue;
+			bool explained_harmonic = false;
+			for (const NoteCandidate &existing : candidates) {
+				if (likely_selected_harmonic(existing, NoteCandidate{midi, direct}) &&
+				    direct < probe_level(powers, existing.midi) * 0.46f) {
+					explained_harmonic = true;
+					break;
+				}
+			}
+			if (explained_harmonic)
+				continue;
+			const float residual = residual_polyphonic_candidate_score(powers, candidates, midi);
+			if (residual > best_score) {
+				best_score = residual;
+				best_midi = midi;
+			}
+		}
+		if (best_midi < 0 || best_score < strongest_direct * 0.07f)
+			break;
+
+		candidates.push_back(NoteCandidate{best_midi, best_score});
+	}
+}
+
 std::array<float, 12> peak_chroma_for_range(const std::array<float, kNoteProbeCount> &powers, int min_midi,
 					    int max_midi,
 					    const std::array<bool, 12> *blocked_pitch_classes = nullptr,
@@ -10388,6 +10492,7 @@ FullMixOwnership build_full_mix_ownership(const std::array<float, kNoteProbeCoun
 		candidates = note_peak_candidates(detection_powers, kGuitarMinMidi, kLastMidi, 24, nullptr,
 							 nullptr, true, nullptr, kMixedNoteRelativeFloor, false, 0.90f);
 	}
+	append_residual_polyphonic_candidates(candidates, detection_powers, kGuitarMinMidi, kLastMidi, 24);
 	if (preserve_raw_fundamental_candidates)
 		append_missing_raw_fundamental_candidates(candidates, detection_powers, kGuitarMinMidi, kLastMidi,
 								 24);

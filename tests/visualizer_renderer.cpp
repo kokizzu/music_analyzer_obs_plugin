@@ -128,6 +128,13 @@ int run_visualizer_renderer_tests()
 				       sizeof(crowded_chord.label));
 	expect_true(std::strcmp(compact_chord, "Cmaj7") == 0,
 		    "instrument chord display must show only its first six-character candidate", &checks, &failures);
+	crowded_chord.confidence = kInstrumentChordDisplayConfidenceThreshold - 0.01f;
+	expect_true(!has_displayable_instrument_chord(crowded_chord),
+		    "low-confidence keyboard and guitar chords must not replace the primary display", &checks,
+		    &failures);
+	crowded_chord.confidence = kInstrumentChordDisplayConfidenceThreshold;
+	expect_true(has_displayable_instrument_chord(crowded_chord),
+		    "primary chord display should retain candidates at the confidence floor", &checks, &failures);
 	std::memset(crowded_chord.label, 'X', sizeof(crowded_chord.label));
 	compact_instrument_chord_label(compact_chord, sizeof(compact_chord), crowded_chord.label,
 				       sizeof(crowded_chord.label));

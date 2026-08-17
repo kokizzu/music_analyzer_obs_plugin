@@ -5907,6 +5907,22 @@ void check_harmonic_product_subharmonic_evidence(Runner &runner)
 		      "harmonic product: octave candidate should expose stronger lower subharmonic support");
 }
 
+void check_residual_polyphonic_pitch_set_recovery(Runner &runner)
+{
+	std::array<float, kNoteProbeCount> powers = {};
+	// C5 is a strong partial of C4; E4 is a quieter independent chord tone.
+	set_probe_level(powers, 60, 1.00f);
+	set_probe_level(powers, 72, 0.55f);
+	set_probe_level(powers, 64, 0.12f);
+	NoteCandidateList candidates;
+	candidates.push_back(NoteCandidate{60, 1.00f});
+	append_residual_polyphonic_candidates(candidates, powers, 48, 84, 4);
+	runner.expect(pitch_set_contains_midi(candidates, 64),
+		      "residual pitch set: expected independent quiet E4 chord tone recovered");
+	runner.expect(!pitch_set_contains_midi(candidates, 72),
+		      "residual pitch set: expected explained C5 octave partial rejected");
+}
+
 void check_probe_supported_guitar_rootless_major_seventh_with_analysis_residue(Runner &runner)
 {
 	InstrumentState state = {};
@@ -6067,6 +6083,7 @@ int run()
 	check_low_wind_other_octave_alias_requires_upper_stack(runner);
 	check_measured_missing_low_sax_fundamental_is_promoted(runner);
 	check_harmonic_product_subharmonic_evidence(runner);
+	check_residual_polyphonic_pitch_set_recovery(runner);
 	if (runner.failures) {
 		std::fprintf(stderr, "analyzer_internal: %d/%d checks failed\n", runner.failures,
 			     runner.checks);

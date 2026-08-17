@@ -30,6 +30,10 @@ static constexpr int kHalfMusicGuitarY = 284;
 // Tempo ambiguity is especially common with sparse percussion and half/double
 // time. Keep estimating continuously, but only publish a well-supported BPM.
 static constexpr float kBpmDisplayConfidenceThreshold = 0.50f;
+// Keyboard and guitar chord labels are the compact primary display.  Keep
+// their threshold aligned with the stable-label vote floor so a weak current
+// chord cannot replace a previously dependable display.
+static constexpr float kInstrumentChordDisplayConfidenceThreshold = 0.42f;
 
 uint8_t blend_channel(uint8_t from, uint8_t to, float amount)
 {
@@ -329,11 +333,14 @@ void compact_instrument_chord_label(char *output, std::size_t output_size, const
 	output[copied] = '\0';
 }
 
+bool has_displayable_instrument_chord(const InstrumentState &chord);
+
 void draw_instrument_chord_text(VisualizerRenderer *visualizer, int x, int y, const InstrumentState &chord,
 				uint32_t scale, Color color)
 {
 	char compact_label[7] = {};
-	compact_instrument_chord_label(compact_label, sizeof(compact_label), chord.label, sizeof(chord.label));
+	if (has_displayable_instrument_chord(chord))
+		compact_instrument_chord_label(compact_label, sizeof(compact_label), chord.label, sizeof(chord.label));
 	draw_chord_text(visualizer, x, y, compact_label[0] ? compact_label : "--", scale, color);
 }
 
@@ -595,6 +602,12 @@ bool has_display_label(const NoteCell &cell)
 	       std::strcmp(cell.label, "--") != 0;
 }
 
+bool has_displayable_instrument_chord(const InstrumentState &chord)
+{
+	return has_display_label(chord.label) &&
+	       chord.confidence >= kInstrumentChordDisplayConfidenceThreshold;
+}
+
 void copy_label(char *dst, std::size_t dst_size, const char *src)
 {
 	if (!dst || dst_size == 0)
@@ -684,7 +697,7 @@ const NoteCell *strongest_note_cell(const NoteGrid &notes, float min_level)
 StableCandidate stable_candidate_label(const NoteGrid &notes, const InstrumentState *chord)
 {
 	StableCandidate candidate;
-	if (chord && has_display_label(chord->label) && chord->confidence >= 0.42f) {
+	if (chord && has_displayable_instrument_chord(*chord)) {
 		char simplified[64] = {};
 		if (simplify_major_minor_chord_label(chord->label, simplified, sizeof(simplified))) {
 			copy_label(candidate.label, sizeof(candidate.label), simplified);
@@ -791,8 +804,10 @@ void update_stable_label(VisualizerRenderer *visualizer, StableSlot slot, const 
 	}
 
 	const StableCandidate candidate = stable_candidate_label(notes, chord);
-	if (!has_display_label(candidate.label))
+	if (!has_display_label(candidate.label)) {
+		clear_stable_state(state);
 		return;
+	}
 
 	add_stable_vote(state, candidate, snapshot.sequence);
 	choose_stable_vote_label(state, prefer_frequency);
@@ -1035,7 +1050,8 @@ int draw_piano_keyboard(VisualizerRenderer *visualizer, const VisualLayout &layo
 	const Color chord_text = kWhiteTextColor;
 	const Color active_text{10, 15, 22, 255};
 	char compact_chord_label[7] = {};
-	compact_instrument_chord_label(compact_chord_label, sizeof(compact_chord_label), chord.label,
+	if (has_displayable_instrument_chord(chord))
+		compact_instrument_chord_label(compact_chord_label, sizeof(compact_chord_label), chord.label,
 				       sizeof(chord.label));
 	const char *chord_label = compact_chord_label[0] ? compact_chord_label : "--";
 	first_row = std::clamp(first_row, 0, kTotalRowCount - 1);
@@ -1127,7 +1143,8 @@ int draw_guitar_fretboard(VisualizerRenderer *visualizer, const VisualLayout &la
 	const Color chord_text = kWhiteTextColor;
 	const Color active_text{10, 15, 22, 255};
 	char compact_chord_label[7] = {};
-	compact_instrument_chord_label(compact_chord_label, sizeof(compact_chord_label), chord.label,
+	if (has_displayable_instrument_chord(chord))
+		compact_instrument_chord_label(compact_chord_label, sizeof(compact_chord_label), chord.label,
 				       sizeof(chord.label));
 	const char *chord_label = compact_chord_label[0] ? compact_chord_label : "--";
 	if (degree_root_pitch_class < 0)
