@@ -7,6 +7,10 @@ destination="$root_dir/third_party/beat_and_tempo_tracking"
 repository=https://github.com/michaelkrzyzaniak/Beat-and-Tempo-Tracking.git
 
 if [ -f "$destination/BTT.h" ] && [ -f "$destination/LICENSE" ]; then
+	if [ -d "$destination/.git" ]; then
+		git -C "$destination" rev-parse HEAD > "$destination/UPSTREAM_COMMIT"
+		rm -rf "$destination/.git"
+	fi
     printf 'permissive_beat_tracker: existing source %s\n' "$destination"
     exit 0
 fi
@@ -19,4 +23,5 @@ test -f "$temporary/LICENSE"
 grep -q 'MIT License' "$temporary/LICENSE"
 mv "$temporary" "$destination"
 git -C "$destination" rev-parse HEAD > "$destination/UPSTREAM_COMMIT"
+rm -rf "$destination/.git"
 printf 'permissive_beat_tracker: fetched %s\n' "$(cat "$destination/UPSTREAM_COMMIT")"
