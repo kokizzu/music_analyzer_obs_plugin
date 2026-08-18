@@ -97,6 +97,73 @@ class DownloadBallroomTempoDatasetTest(unittest.TestCase):
             self.assertTrue((store / "ballroom_tempo" / "audio" / "fixture.wav").is_file())
             self.assertIn("ballroom tempo data ready", result.stdout)
 
+    def test_resets_a_full_length_checksum_invalid_archive_once(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            temp = Path(temporary)
+            source_tree = temp / "source"
+            source_tree.mkdir()
+            (source_tree / "fixture.wav").write_bytes(b"fixture audio\n" * 4096)
+            source_archive = temp / "source.tar.gz"
+            with tarfile.open(source_archive, "w:gz") as archive:
+                archive.add(source_tree / "fixture.wav", arcname="fixture.wav")
+            payload = source_archive.read_bytes()
+            expected_md5 = hashlib.md5(payload).hexdigest()
+
+            curl_calls = temp / "curl-calls"
+            fake_curl = temp / "fake-curl.py"
+            fake_curl.write_text(
+                "#!/usr/bin/env python3\n"
+                "import os\n"
+                "from pathlib import Path\n"
+                "import sys\n"
+                "destination = Path(sys.argv[sys.argv.index('-o') + 1])\n"
+                "source = Path(os.environ['BALLROOM_TEST_SOURCE'])\n"
+                "calls = Path(os.environ['BALLROOM_TEST_CALLS'])\n"
+                "count = int(calls.read_text() if calls.exists() else '0')\n"
+                "if destination.stat().st_size == 0:\n"
+                "    destination.write_bytes(source.read_bytes())\n"
+                "calls.write_text(str(count + 1))\n",
+                encoding="utf-8",
+            )
+            fake_curl.chmod(0o755)
+
+            store = temp / "InstrumentSamples"
+            target = store / "ballroom_tempo"
+            (target / "annotations" / ".git").mkdir(parents=True)
+            # Match the server length while ensuring the initial cache cannot
+            # pass the integrity gate. The first fake resume is a no-op.
+            (target / "data1.tar.gz").write_bytes(b"x" * len(payload))
+            environment = os.environ.copy()
+            environment.update(
+                {
+                    "BALLROOM_TEST_SOURCE": str(source_archive),
+                    "BALLROOM_TEST_CALLS": str(curl_calls),
+                }
+            )
+            result = subprocess.run(
+                [
+                    "bash",
+                    str(SCRIPT),
+                    str(store),
+                    str(fake_curl),
+                    "fixture-url",
+                    "",
+                    expected_md5,
+                    "",
+                    "1",
+                    "2",
+                ],
+                check=True,
+                capture_output=True,
+                text=True,
+                env=environment,
+            )
+
+            archive_path = target / "data1.tar.gz"
+            self.assertEqual(hashlib.md5(archive_path.read_bytes()).hexdigest(), expected_md5)
+            self.assertEqual(curl_calls.read_text(encoding="utf-8"), "2")
+            self.assertIn("resetting invalid cache once", result.stderr)
+
 
 if __name__ == "__main__":
     unittest.main()

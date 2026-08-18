@@ -30,7 +30,16 @@ if [ "$actual_md5" != "$expected_md5" ]; then
   # resume requests instead of making the managed corpus job stop at that
   # transient boundary. The checksum remains the only promotion gate.
   attempt=1
+  # A previously interrupted multi-writer transfer can leave a file at the
+  # server's advertised length with the wrong checksum. A range request from
+  # that offset makes no progress forever, so allow one explicitly verified
+  # reset to recover a corrupt cache. The checksum remains the promotion gate.
+  reset_invalid_archive=0
   while [ "$actual_md5" != "$expected_md5" ] && [ "$attempt" -le "$max_resume_attempts" ]; do
+    before_size=0
+    if [ -e "$archive" ]; then
+      before_size=$(wc -c < "$archive")
+    fi
     # aria2's range bitmap is trustworthy only for a fresh archive. Once a
     # curl fallback has written any bytes, use one owner for the partial file
     # rather than trying to reconcile a segmented bitmap with its byte length.
@@ -50,6 +59,15 @@ if [ "$actual_md5" != "$expected_md5" ]; then
       "$curl_bin" -fL --retry 4 --continue-at - -o "$archive" "$archive_url"
     fi
     actual_md5=$(md5sum "$archive" | awk '{print $1}')
+    after_size=$(wc -c < "$archive")
+    if [ "$actual_md5" != "$expected_md5" ] && [ "$after_size" -le "$before_size" ] &&
+       [ "$reset_invalid_archive" -eq 0 ]; then
+      printf 'Ballroom archive made no resume progress after checksum failure; resetting invalid cache once\n' >&2
+      : > "$archive"
+      rm -f "$archive.aria2"
+      reset_invalid_archive=1
+      attempt=0
+    fi
     if [ "$actual_md5" != "$expected_md5" ] && [ "$attempt" -lt "$max_resume_attempts" ]; then
       printf 'Ballroom archive incomplete after resume attempt %s/%s; continuing from stored partial\n' \
         "$attempt" "$max_resume_attempts" >&2
