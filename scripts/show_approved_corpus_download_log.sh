@@ -17,4 +17,7 @@ if [ ! -f "$log_file" ]; then
     exit 2
 fi
 
-sed -n '1,160p' "$log_file"
+# curl redraws its meter with carriage returns. Read a bounded tail then turn
+# those redraws into lines, so monitoring a slow large download stays useful
+# instead of replaying the full transfer history.
+tail -c 16384 "$log_file" | tr '\r' '\n' | tail -n 24

@@ -5,6 +5,7 @@ PYTHON ?= python3
 # is task-scoped: a target belongs here only while it is an active accuracy
 # coverage gap, rather than merely being supported by the project.
 APPROVED_CORPUS_DOWNLOAD_TARGETS ?= measure-maestro-real-samples measure-kraisler measure-ballroom-bpm download-filobass
+CORPUS_DOWNLOAD_LOG_TARGET ?= $(word 1,$(APPROVED_CORPUS_DOWNLOAD_TARGETS))
 PKG_CONFIG ?= pkg-config
 TAR ?= tar
 FFMPEG ?= ffmpeg
@@ -25,7 +26,7 @@ report-approved-corpus-downloads: scripts/report_approved_corpus_downloads.sh
 	$(SHELL) scripts/report_approved_corpus_downloads.sh "$(BUILD_DIR)" $(APPROVED_CORPUS_DOWNLOAD_TARGETS)
 
 show-approved-corpus-download-log: scripts/show_approved_corpus_download_log.sh
-	$(SHELL) scripts/show_approved_corpus_download_log.sh "$(BUILD_DIR)" "$(word 1,$(APPROVED_CORPUS_DOWNLOAD_TARGETS))"
+	$(SHELL) scripts/show_approved_corpus_download_log.sh "$(BUILD_DIR)" "$(CORPUS_DOWNLOAD_LOG_TARGET)"
 
 test-approved-corpus-download-manager: scripts/start_approved_corpus_downloads.sh scripts/stop_approved_corpus_downloads.sh scripts/report_approved_corpus_downloads.sh scripts/show_approved_corpus_download_log.sh
 	$(SHELL) -n scripts/start_approved_corpus_downloads.sh
