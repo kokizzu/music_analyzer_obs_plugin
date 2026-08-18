@@ -15,7 +15,12 @@ for target in "$@"; do
     log_file="$build_dir/corpus-download-jobs/$safe_target.log"
     status_file="$build_dir/corpus-download-jobs/$safe_target.status"
     if [ ! -s "$pid_file" ]; then
-        printf 'NOT_STARTED target=%s log=%s\n' "$target" "$log_file"
+        status=$(cat "$status_file" 2>/dev/null || true)
+        if [ "$status" = "stopped" ]; then
+            printf 'STOPPED target=%s log=%s\n' "$target" "$log_file"
+        else
+            printf 'NOT_STARTED target=%s log=%s\n' "$target" "$log_file"
+        fi
         continue
     fi
     pid=$(cat "$pid_file")

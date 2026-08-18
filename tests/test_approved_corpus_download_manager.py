@@ -13,6 +13,7 @@ import time
 ROOT = Path(__file__).resolve().parents[1]
 START = ROOT / "scripts" / "start_approved_corpus_downloads.sh"
 REPORT = ROOT / "scripts" / "report_approved_corpus_downloads.sh"
+STOP = ROOT / "scripts" / "stop_approved_corpus_downloads.sh"
 
 
 def wait_for_status(status_file: Path) -> None:
@@ -32,6 +33,7 @@ def main() -> None:
             "case \"$1\" in\n"
             "  succeeds) exit 0 ;;\n"
             "  fails) exit 7 ;;\n"
+            "  sleeps) sleep 30 ;;\n"
             "  *) exit 64 ;;\n"
             "esac\n",
             encoding="utf-8",
@@ -46,7 +48,15 @@ def main() -> None:
                 ["sh", str(REPORT), str(build), target], check=True, capture_output=True, text=True
             ).stdout
             assert report.startswith(f"{expected} target={target}"), report
-    print("test_approved_corpus_download_manager: success and failure states passed")
+        subprocess.run(["sh", str(START), str(fake_make), str(build), "sleeps"], check=True)
+        subprocess.run(["sh", str(STOP), str(build), "sleeps"], check=True)
+        stopped_status = build / "corpus-download-jobs" / "sleeps.status"
+        wait_for_status(stopped_status)
+        report = subprocess.run(
+            ["sh", str(REPORT), str(build), "sleeps"], check=True, capture_output=True, text=True
+        ).stdout
+        assert report.startswith("STOPPED target=sleeps"), report
+    print("test_approved_corpus_download_manager: terminal and stopped states passed")
 
 
 if __name__ == "__main__":

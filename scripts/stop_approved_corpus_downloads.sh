@@ -19,7 +19,10 @@ for target in "$@"; do
     fi
     pid=$(cat "$pid_file")
     if kill -0 "$pid" 2>/dev/null; then
-        kill -TERM -- "-$pid" 2>/dev/null || kill -TERM "$pid"
+        # POSIX sh implementations such as dash do not accept `kill --`.
+        # Target the detached session's process group directly so descendants
+        # (curl/aria2 and the wrapper shell) cannot outlive their Make parent.
+        kill -TERM "-$pid" 2>/dev/null || kill -TERM "$pid"
         printf '%s\n' "stopped" >"$status_file"
         printf 'STOPPED target=%s pid=%s\n' "$target" "$pid"
     else

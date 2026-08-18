@@ -31,7 +31,10 @@ if [ "$actual_md5" != "$expected_md5" ]; then
   # transient boundary. The checksum remains the only promotion gate.
   attempt=1
   while [ "$actual_md5" != "$expected_md5" ] && [ "$attempt" -le "$max_resume_attempts" ]; do
-    if [ -n "$aria2c_bin" ] && command -v "$aria2c_bin" >/dev/null 2>&1; then
+    # aria2's range bitmap is trustworthy only for a fresh archive. Once a
+    # curl fallback has written any bytes, use one owner for the partial file
+    # rather than trying to reconcile a segmented bitmap with its byte length.
+    if [ ! -s "$archive" ] && [ -n "$aria2c_bin" ] && command -v "$aria2c_bin" >/dev/null 2>&1; then
       if ! "$aria2c_bin" --continue=true --allow-overwrite=true --auto-file-renaming=false \
         --max-tries=5 --retry-wait=5 --max-connection-per-server="$connections" \
         --split="$connections" --min-split-size=8M --file-allocation=none \
