@@ -71,19 +71,42 @@ def select(candidates: tuple[Candidate, ...], feature: str, weight: float) -> Ca
     return max(candidates, key=lambda candidate: candidate.score * (1.0 + weight * getattr(candidate, feature)))
 
 
+def select_pair(
+    candidates: tuple[Candidate, ...], first_feature: str, first_weight: float,
+    second_feature: str, second_weight: float,
+) -> Candidate:
+    """Apply two bounded diagnostic signals without inventing a new score scale."""
+    return max(
+        candidates,
+        key=lambda candidate: candidate.score
+        * (1.0 + first_weight * getattr(candidate, first_feature))
+        * (1.0 + second_weight * getattr(candidate, second_feature)),
+    )
+
+
+def labelled(rows: list[Row], tolerance: float) -> list[tuple[Row, Candidate]]:
+    return [
+        (row, expected)
+        for row in rows
+        if (expected := next((candidate for candidate in row.candidates if near(candidate.bpm, row.expected, tolerance)), None))
+        is not None
+    ]
+
+
+def hits(rows: list[tuple[Row, Candidate]], tolerance: float, selector) -> int:
+    return sum(near(selector(row.candidates).bpm, row.expected, tolerance) for row, _ in rows)
+
+
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("log", type=pathlib.Path)
+    parser.add_argument("--comparison-log", type=pathlib.Path)
     parser.add_argument("--prefix", default="MAESTRO tempo diag\t")
     parser.add_argument("--tolerance", type=float, default=8.0)
     args = parser.parse_args()
 
     rows = parse_rows(args.log, args.prefix)
-    eligible = [
-        (row, next((candidate for candidate in row.candidates if near(candidate.bpm, row.expected, args.tolerance)), None))
-        for row in rows
-    ]
-    eligible = [(row, expected) for row, expected in eligible if expected is not None]
+    eligible = labelled(rows, args.tolerance)
     if not eligible:
         print("tempo candidate feasibility: no labelled candidates")
         return 0
@@ -109,9 +132,41 @@ def main() -> int:
                            ("recurrence", "recurrence")):
         parts = []
         for weight in (0.25, 0.5, 1.0, 2.0, 4.0):
-            hits = sum(near(select(row.candidates, feature, weight).bpm, row.expected, args.tolerance) for row, _ in eligible)
-            parts.append(f"w={weight:g}:{hits}/{len(eligible)}")
+            hit_count = sum(near(select(row.candidates, feature, weight).bpm, row.expected, args.tolerance) for row, _ in eligible)
+            parts.append(f"w={weight:g}:{hit_count}/{len(eligible)}")
         print(f"tempo candidate feasibility: {label} selector " + " ".join(parts))
+
+    if args.comparison_log is not None:
+        comparison = labelled(parse_rows(args.comparison_log, args.prefix), args.tolerance)
+        if not comparison:
+            print("tempo candidate feasibility: combined shared selector has no comparison labels")
+            return 0
+        comparison_baseline = hits(comparison, args.tolerance, lambda candidates: select(candidates, "meter", 0.0))
+        features = ("meter", "bass_alignment", "kick_alignment", "kick_bass_alignment", "recurrence")
+        weights = (0.25, 0.5, 1.0, 2.0, 4.0)
+        choices = []
+        for first_index, first_feature in enumerate(features):
+            for second_feature in features[first_index + 1 :]:
+                for first_weight in weights:
+                    for second_weight in weights:
+                        selector = lambda candidates, a=first_feature, aw=first_weight, b=second_feature, bw=second_weight: select_pair(candidates, a, aw, b, bw)
+                        primary_hits = hits(eligible, args.tolerance, selector)
+                        comparison_hits = hits(comparison, args.tolerance, selector)
+                        choices.append((primary_hits, comparison_hits, first_feature, first_weight, second_feature, second_weight))
+        best = max(
+            choices,
+            key=lambda item: (
+                min(item[0] - baseline, item[1] - comparison_baseline),
+                item[0] + item[1],
+            ),
+        )
+        primary_hits, comparison_hits, first_feature, first_weight, second_feature, second_weight = best
+        print(
+            "tempo candidate feasibility: combined shared selector "
+            f"{first_feature}@{first_weight:g}+{second_feature}@{second_weight:g} "
+            f"primary {primary_hits}/{len(eligible)} comparison {comparison_hits}/{len(comparison)} "
+            f"baseline {baseline}/{len(eligible)} and {comparison_baseline}/{len(comparison)}"
+        )
     return 0
 
 

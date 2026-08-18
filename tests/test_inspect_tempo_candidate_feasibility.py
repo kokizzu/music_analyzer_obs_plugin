@@ -24,7 +24,7 @@ def main() -> int:
             "160(s=12,m=0.80,align=10/80/10/10) 100(s=8,m=0.20,align=10/20/10/10)\n",
             encoding="utf-8",
         )
-        result = subprocess.run([sys.executable, str(SCRIPT), str(log)], check=True, text=True,
+        result = subprocess.run([sys.executable, str(SCRIPT), str(log), "--comparison-log", str(log)], check=True, text=True,
                                 capture_output=True)
     if "labelled 2/2, score-only 0/2" not in result.stdout:
         raise AssertionError(result.stdout)
@@ -35,6 +35,8 @@ def main() -> int:
     if "recurrence selector w=0.25:1/2" not in result.stdout:
         raise AssertionError(result.stdout)
     if "kick+bass alignment selector w=0.25:1/2" not in result.stdout:
+        raise AssertionError(result.stdout)
+    if "combined shared selector" not in result.stdout:
         raise AssertionError(result.stdout)
     return 0
 

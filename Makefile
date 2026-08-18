@@ -5666,7 +5666,7 @@ summarize-ballroom-bpm: scripts/analyze_egmd_tempo.py $(BALLROOM_BPM_LOG)
 	$(PYTHON) scripts/analyze_egmd_tempo.py --prefix "MAESTRO tempo diag" --tolerance "$(BPM_DIAG_TOLERANCE)" "$(BALLROOM_BPM_LOG)"
 
 inspect-tempo-candidate-feasibility: scripts/inspect_tempo_candidate_feasibility.py $(BALLROOM_BPM_LOG) $(FILOBASS_BPM_LOG)
-	$(PYTHON) scripts/inspect_tempo_candidate_feasibility.py --tolerance "$(BPM_DIAG_TOLERANCE)" "$(BALLROOM_BPM_LOG)"
+	$(PYTHON) scripts/inspect_tempo_candidate_feasibility.py --tolerance "$(BPM_DIAG_TOLERANCE)" --comparison-log "$(FILOBASS_BPM_LOG)" "$(BALLROOM_BPM_LOG)"
 	$(PYTHON) scripts/inspect_tempo_candidate_feasibility.py --tolerance "$(BPM_DIAG_TOLERANCE)" "$(FILOBASS_BPM_LOG)"
 
 inspect-beat-tracker-backends: scripts/inspect_beat_tracker_backends.py

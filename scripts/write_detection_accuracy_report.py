@@ -2684,6 +2684,7 @@ def render(
             "| Reject longer percussive phase history | 1 / 1 (100.0%) | 0 | 12 s drops Ballroom displayable BPM from 1 / 64 to 0 / 64 and raises E-GMD mean error from 0.21 to 0.32 BPM; retain the 8 s policy |",
             "| Reject unproven dynamic beat-path selector | 1 / 1 (100.0%) | 0 | dynamic path improves Ballroom labelled-candidate rank from 9 / 64 to 13 / 64 but regresses FiloBass from 4 / 24 to 2 / 24, so it is not a safe BPM selector |",
             "| Reject bass-dominant RMS attack phase feature | 1 / 1 (100.0%) | 0 | a guarded live bass-amplitude attack left FiloBass at 0 / 24 displayed and candidate ranks 4 / 1 / 0 / 1 / 18; Ballroom 1 / 64 and E-GMD 20 / 20 were unchanged, so it adds no value |",
+            "| Reject combined bass/coincidence candidate reweighting | 1 / 1 (100.0%) | 0 | shared feasibility grid peaks at bass alignment 0.25 plus kick+bass 4.0: Ballroom improves 4 / 64 to 7 / 64, but FiloBass stays 4 / 24, so the pair is not a safe BPM selector |",
             "| Local advanced beat-tracker backend available | 0 / 2 (0.0%) | 2 | `aubio` and `essentia` are unavailable through pkg-config; next step is a dependency-free tracker or an added backend |",
             "| Demonstrate a bass-attack feature improves real bass BPM | 0 / 1 (0.0%) | 1 | improve FiloBass displayable BPM without regressing E-GMD |",
             "| Hide BPM when calibrated confidence is insufficient | 1 / 1 (100.0%) | 0 | renderer keeps `BPM --` below 0.60 confidence |",
