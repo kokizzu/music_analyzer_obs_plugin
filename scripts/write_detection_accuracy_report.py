@@ -1170,6 +1170,7 @@ def render(
     filobass_onset_diagnostic_input: Path | None = None,
     egmd_bpm_input: Path | None = None,
     idmt_bass_tempo_metadata_input: Path | None = None,
+    ballroom_annotations: Path | None = None,
 ) -> str:
     samples = load_samples(input_path)
     dcs_rows = dagstuhl_choirset_rows(dagstuhl_choirset_input) if dagstuhl_choirset_input else []
@@ -1186,6 +1187,9 @@ def render(
     kraisler_audit_ready = int(bool(kraisler_rows) and route_summary is not None and route_summary.is_file())
     kraisler_bpm = tempo_diagnostic_counts(kraisler_bpm_input) if kraisler_bpm_input else None
     ballroom_bpm = tempo_diagnostic_counts(ballroom_bpm_input) if ballroom_bpm_input else None
+    ballroom_annotations_ready = int(
+        ballroom_annotations is not None and (ballroom_annotations / ".git").is_dir()
+    )
     filobass_bpm = tempo_diagnostic_counts(filobass_bpm_input) if filobass_bpm_input else None
     filobass_phase_energy = filobass_phase_energy_counts(filobass_bpm_input) if filobass_bpm_input else None
     filobass_phase_energy_evidence = (
@@ -2662,6 +2666,7 @@ def render(
             "| Resolve half/double-time candidates with kick/bass downbeat evidence | 1 / 1 (100.0%) | 0 | analyzer cases retain the beat grid through sparse-kick half-time and dense-subdivision alternatives |",
             "| Adaptive tempo history for percussive vs sparse tonal input | 1 / 1 (100.0%) | 0 | 8 s percussion / 18 s sparse-source policy |",
             f"| Generated drum phase regression measured | {fraction(int(egmd_bpm is not None), 1)} | {int(egmd_bpm is None)} | E-GMD x/total BPM diagnostic |",
+            f"| Retrieve versioned Ballroom beat/bar annotations | {fraction(ballroom_annotations_ready, 1)} | {1 - ballroom_annotations_ready} | CPJKU BallroomAnnotations checkout in InstrumentSamples |",
             f"| Rhythm-heavy real-mix beat validation measured | {fraction(int(ballroom_bpm is not None), 1)} | {int(ballroom_bpm is None)} | Ballroom manually corrected beat/bar annotations |",
             f"| IDMT real-bass timing metadata qualifies as beat truth | {fraction(idmt_bass_timing[0], idmt_bass_timing[1]) if idmt_bass_timing is not None else '0 / 1 (0.0%)'} | {idmt_bass_timing[1] - idmt_bass_timing[0] if idmt_bass_timing is not None else 1} | only corpus-supplied tempo/beat/pattern fields count; note onsets are insufficient |",
             f"| Independent real bass-led beat-labelled validation measured | {fraction(int(filobass_bpm is not None), 1)} | {int(filobass_bpm is None)} | FiloBass real bass stems plus reviewed downbeats and MIDI time signature |",
@@ -2859,6 +2864,7 @@ def main() -> int:
     parser.add_argument("--kraisler-measurement", type=Path)
     parser.add_argument("--kraisler-bpm-input", type=Path)
     parser.add_argument("--ballroom-bpm-input", type=Path)
+    parser.add_argument("--ballroom-annotations", type=Path)
     parser.add_argument("--filobass-bpm-input", type=Path)
     parser.add_argument("--filobass-onset-diagnostic-input", type=Path)
     parser.add_argument("--egmd-bpm-input", type=Path)
@@ -2964,6 +2970,7 @@ def main() -> int:
             args.filobass_onset_diagnostic_input,
             args.egmd_bpm_input,
             args.idmt_bass_tempo_metadata_input,
+            args.ballroom_annotations,
         )
     except (OSError, ValueError) as error:
         parser.error(str(error))

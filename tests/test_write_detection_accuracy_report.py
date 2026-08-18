@@ -631,6 +631,8 @@ class DetectionAccuracyReportTest(unittest.TestCase):
                 "two\t100\t50\t3\t1\t0.8\n",
                 encoding="utf-8",
             )
+            ballroom_annotations = Path(temporary) / "ballroom-annotations"
+            (ballroom_annotations / ".git").mkdir(parents=True)
             report = REPORT.render(
                 source, [chords], vocal_full_mix, [bach10_0, bach10_1], musicnet, drum, urmp,
                 vocalset_full_mix, [maps], None, route_summary, good_sounds_full_mix, irmas_labelled,
@@ -673,6 +675,7 @@ class DetectionAccuracyReportTest(unittest.TestCase):
                 idmt_bass_tempo_metadata_input=idmt_bass_timing,
                 filobass_bpm_input=filobass_bpm,
                 filobass_onset_diagnostic_input=filobass_onsets,
+                ballroom_annotations=ballroom_annotations,
             )
 
         self.assertIn("| Any detected note | 2 / 3 (66.7%) | 1 |", report)
@@ -681,6 +684,10 @@ class DetectionAccuracyReportTest(unittest.TestCase):
         self.assertIn("| Visual primary row | 2 / 3 (66.7%) | 1 |", report)
         self.assertIn("| Guitar — Visual primary row | 1 / 2 (50.0%) | 1 |", report)
         self.assertIn("## Detector-improvement route coverage", report)
+        self.assertIn(
+            "| Retrieve versioned Ballroom beat/bar annotations | 1 / 1 (100.0%) | 0 |",
+            report,
+        )
         self.assertIn("## Harmonic-product octave-correction audit", report)
         self.assertIn("| Zero-regression harmonic-product thresholds across all SATB corpora | 0 / 6 (0.0%) | 6 |", report)
         self.assertIn("## Extended owner-classifier leave-one-corpus-out audit", report)
