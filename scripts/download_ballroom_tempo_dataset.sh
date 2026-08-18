@@ -36,6 +36,11 @@ if [ "$actual_md5" != "$expected_md5" ]; then
         --max-tries=5 --retry-wait=5 --max-connection-per-server="$connections" \
         --split="$connections" --min-split-size=8M --file-allocation=none \
         --dir "$target" --out "data1.tar.gz" "$archive_url"; then
+        # aria2's sidecar is a bitmap of completed ranges. A failed session
+        # can leave it ahead of the physical archive (especially after a curl
+        # fallback), so retain the verified bytes but discard only that stale
+        # resume metadata before curl continues from the real file length.
+        rm -f "$archive.aria2"
         "$curl_bin" -fL --retry 4 --continue-at - -o "$archive" "$archive_url"
       fi
     else

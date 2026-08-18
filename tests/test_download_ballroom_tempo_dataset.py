@@ -49,6 +49,18 @@ class DownloadBallroomTempoDatasetTest(unittest.TestCase):
                 encoding="utf-8",
             )
             fake_curl.chmod(0o755)
+            fake_aria2 = temp / "fake-aria2.py"
+            fake_aria2.write_text(
+                "#!/usr/bin/env python3\n"
+                "from pathlib import Path\n"
+                "import sys\n"
+                "directory = Path(sys.argv[sys.argv.index('--dir') + 1])\n"
+                "name = sys.argv[sys.argv.index('--out') + 1]\n"
+                "(directory / f'{name}.aria2').write_text('stale range bitmap')\n"
+                "raise SystemExit(1)\n",
+                encoding="utf-8",
+            )
+            fake_aria2.chmod(0o755)
 
             store = temp / "InstrumentSamples"
             (store / "ballroom_tempo" / "annotations" / ".git").mkdir(parents=True)
@@ -66,7 +78,7 @@ class DownloadBallroomTempoDatasetTest(unittest.TestCase):
                     str(store),
                     str(fake_curl),
                     "fixture-url",
-                    "",
+                    str(fake_aria2),
                     expected_md5,
                     "",
                     "1",
@@ -81,6 +93,7 @@ class DownloadBallroomTempoDatasetTest(unittest.TestCase):
             archive_path = store / "ballroom_tempo" / "data1.tar.gz"
             self.assertEqual(hashlib.md5(archive_path.read_bytes()).hexdigest(), expected_md5)
             self.assertEqual(curl_calls.read_text(encoding="utf-8"), "2")
+            self.assertFalse(Path(f"{archive_path}.aria2").exists())
             self.assertTrue((store / "ballroom_tempo" / "audio" / "fixture.wav").is_file())
             self.assertIn("ballroom tempo data ready", result.stdout)
 
