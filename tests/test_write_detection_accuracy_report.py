@@ -728,7 +728,7 @@ class DetectionAccuracyReportTest(unittest.TestCase):
         self.assertIn("### FiloBass raw bass-attack feasibility diagnostic", report)
         self.assertIn("| Reviewed BPM ranked first by raw bass attacks | 1 / 2 (50.0%) | 1 |", report)
         self.assertIn("| Reviewed BPM ranked in top five by raw bass attacks | 2 / 2 (100.0%) | 0 |", report)
-        self.assertIn("| Displayable BPM at confidence ≥ 0.50 | 1 / 2 (50.0%) | 1 |", report)
+        self.assertIn("| Displayable BPM at confidence ≥ 0.60 | 1 / 2 (50.0%) | 1 |", report)
         self.assertIn("| Tracks with corpus-supplied tempo, beat, or pattern metadata | 0 / 2 (0.0%) | 2 |", report)
         self.assertIn("| IDMT real-bass timing metadata qualifies as beat truth | 0 / 2 (0.0%) | 2 |", report)
         self.assertIn("| Independent real bass-led beat-labelled validation measured | 1 / 1 (100.0%) | 0 |", report)

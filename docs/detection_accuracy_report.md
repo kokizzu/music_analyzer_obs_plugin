@@ -1492,7 +1492,7 @@ Source: `build/kraisler_bpm_diagnostics.log`. Each row is real KRAISLER mixture 
 
 | Metric | Accurate / total | Remaining |
 | --- | ---: | ---: |
-| Displayable BPM at confidence ≥ 0.50 | 0 / 11 (0.0%) | 11 |
+| Displayable BPM at confidence ≥ 0.60 | 0 / 11 (0.0%) | 11 |
 
 ## FiloBass real bass-led annotated-tempo diagnostic
 
@@ -1500,7 +1500,7 @@ Source: `build/filobass_bpm_diagnostics.log`. FiloBass pairs real jazz bass stem
 
 | Metric | Accurate / total | Remaining |
 | --- | ---: | ---: |
-| Displayable BPM at confidence ≥ 0.50 | 0 / 24 (0.0%) | 24 |
+| Displayable BPM at confidence ≥ 0.60 | 0 / 24 (0.0%) | 24 |
 
 ### FiloBass raw bass-attack feasibility diagnostic
 
@@ -1517,7 +1517,7 @@ Source: `build/egmd_bpm_diagnostics.log`. This generated aligned-MIDI fixture ex
 
 | Metric | Accurate / total | Remaining |
 | --- | ---: | ---: |
-| Displayable BPM at confidence ≥ 0.50 | 20 / 20 (100.0%) | 0 |
+| Displayable BPM at confidence ≥ 0.60 | 20 / 20 (100.0%) | 0 |
 
 ## IDMT real-bass timing-ground-truth audit
 
@@ -1543,7 +1543,7 @@ Tempo estimates are only displayed at calibrated confidence. Source-specific pha
 | Independent real bass-led beat-labelled validation measured | 1 / 1 (100.0%) | 0 | FiloBass real bass stems plus reviewed downbeats and MIDI time signature |
 | Assess raw bass-attack BPM evidence | 1 / 1 (100.0%) | 0 | offline FiloBass rank-one/top-five diagnostic |
 | Demonstrate a bass-attack feature improves real bass BPM | 0 / 1 (0.0%) | 1 | improve FiloBass displayable BPM without regressing E-GMD |
-| Hide BPM when calibrated confidence is insufficient | 1 / 1 (100.0%) | 0 | renderer keeps `BPM --` below 0.50 confidence |
+| Hide BPM when calibrated confidence is insufficient | 1 / 1 (100.0%) | 0 | renderer keeps `BPM --` below 0.60 confidence |
 
 ## MAPS chord-miss evidence
 

@@ -1690,7 +1690,7 @@ int main()
 			continue;
 		if (validate_tempo && (measure_all_tempo || tempo.measured < required_tempo_recordings)) {
 			std::string tempo_error;
-			if (!measure_maestro_tempo(recording, tempo_max_seconds, 0.50f,
+			if (!measure_maestro_tempo(recording, tempo_max_seconds, mao::kBpmDisplayConfidenceThreshold,
 						 static_cast<float>(bpm_tolerance), tempo, tempo_error) &&
 			    !tempo_error.empty()) {
 				runner.expect(false, "MAESTRO tempo " + recording.id + ": " + tempo_error);

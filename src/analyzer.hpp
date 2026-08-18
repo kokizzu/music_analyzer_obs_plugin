@@ -20,6 +20,10 @@ constexpr std::size_t kDrumCount = 7;
 constexpr std::size_t kNoteRowCount = 3;
 constexpr std::size_t kFullMixDebugCandidateCount = 24;
 constexpr std::size_t kTempoDebugCandidateCount = 5;
+// Tempo is a display promise, not merely a running estimate. This floor was
+// calibrated against generated percussion (all correct at >=0.626) and real
+// FiloBass stems (every false visible estimate <=0.550).
+constexpr float kBpmDisplayConfidenceThreshold = 0.60f;
 constexpr int kFirstAnalyzedMidi = 21;
 constexpr int kLastAnalyzedMidi = 108;
 constexpr std::size_t kNoteProbeCount = static_cast<std::size_t>(kLastAnalyzedMidi - kFirstAnalyzedMidi + 1);

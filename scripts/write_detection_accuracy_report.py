@@ -2502,7 +2502,7 @@ def render(
                     "",
                     "| Metric | Accurate / total | Remaining |",
                     "| --- | ---: | ---: |",
-                    f"| Displayable BPM at confidence ≥ 0.50 | {fraction(accurate, total)} | {total - accurate} |",
+                    f"| Displayable BPM at confidence ≥ 0.60 | {fraction(accurate, total)} | {total - accurate} |",
                 ]
             )
     if ballroom_bpm is not None:
@@ -2516,7 +2516,7 @@ def render(
                 "",
                 "| Metric | Accurate / total | Remaining |",
                 "| --- | ---: | ---: |",
-                f"| Displayable BPM at confidence ≥ 0.50 | {fraction(accurate, total)} | {total - accurate} |",
+                f"| Displayable BPM at confidence ≥ 0.60 | {fraction(accurate, total)} | {total - accurate} |",
             ]
         )
     if filobass_bpm is not None:
@@ -2530,7 +2530,7 @@ def render(
                 "",
                 "| Metric | Accurate / total | Remaining |",
                 "| --- | ---: | ---: |",
-                f"| Displayable BPM at confidence ≥ 0.50 | {fraction(accurate, total)} | {total - accurate} |",
+                f"| Displayable BPM at confidence ≥ 0.60 | {fraction(accurate, total)} | {total - accurate} |",
             ]
         )
     if filobass_onset_diagnostic is not None:
@@ -2559,7 +2559,7 @@ def render(
                 "",
                 "| Metric | Accurate / total | Remaining |",
                 "| --- | ---: | ---: |",
-                f"| Displayable BPM at confidence ≥ 0.50 | {fraction(accurate, total)} | {total - accurate} |",
+                f"| Displayable BPM at confidence ≥ 0.60 | {fraction(accurate, total)} | {total - accurate} |",
             ]
         )
     if idmt_bass_timing is not None:
@@ -2595,7 +2595,7 @@ def render(
             f"| Independent real bass-led beat-labelled validation measured | {fraction(int(filobass_bpm is not None), 1)} | {int(filobass_bpm is None)} | FiloBass real bass stems plus reviewed downbeats and MIDI time signature |",
             f"| Assess raw bass-attack BPM evidence | {fraction(int(filobass_onset_diagnostic is not None), 1)} | {int(filobass_onset_diagnostic is None)} | offline FiloBass rank-one/top-five diagnostic |",
             "| Demonstrate a bass-attack feature improves real bass BPM | 0 / 1 (0.0%) | 1 | improve FiloBass displayable BPM without regressing E-GMD |",
-            "| Hide BPM when calibrated confidence is insufficient | 1 / 1 (100.0%) | 0 | renderer keeps `BPM --` below 0.50 confidence |",
+            "| Hide BPM when calibrated confidence is insufficient | 1 / 1 (100.0%) | 0 | renderer keeps `BPM --` below 0.60 confidence |",
         ]
     )
     if maps_attribute_input is not None:

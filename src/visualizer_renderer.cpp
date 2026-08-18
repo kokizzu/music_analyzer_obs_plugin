@@ -27,9 +27,6 @@ static constexpr int kBassGuitarContentShiftY = -8;
 static constexpr int kHalfMusicKeyboardFirstRow = 1;
 static constexpr int kHalfMusicKeyboardRowCount = 2;
 static constexpr int kHalfMusicGuitarY = 284;
-// Tempo ambiguity is especially common with sparse percussion and half/double
-// time. Keep estimating continuously, but only publish a well-supported BPM.
-static constexpr float kBpmDisplayConfidenceThreshold = 0.50f;
 // Keyboard and guitar chord labels are the compact primary display.  Keep
 // their threshold aligned with the stable-label vote floor so a weak current
 // chord cannot replace a previously dependable display.
