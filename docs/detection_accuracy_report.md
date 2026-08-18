@@ -1504,14 +1504,14 @@ Source: `build/filobass_bpm_diagnostics.log`. FiloBass pairs real jazz bass stem
 
 ### FiloBass source-grid energy feasibility diagnostic
 
-This compares bass energy explained by the selected candidate with an expected-BPM candidate only when that labelled candidate is already among the five exported diagnostics. It does not change BPM selection.
+The corpus harness forces the labelled BPM into the final diagnostic slot, then compares its bass energy with the selected candidate. This is not a score-ranked candidate and does not change BPM selection.
 
 | Metric | Accurate / total | Remaining |
 | --- | ---: | ---: |
-| Labelled BPM present among exported candidates | 6 / 24 (25.0%) | 18 |
-| Present labelled candidate has higher bass grid-energy | 2 / 6 (33.3%) | 4 |
-| Present labelled candidate ties selected bass grid-energy | 4 / 6 (66.7%) | 2 |
-| Present labelled candidate has lower bass grid-energy | 0 / 6 (0.0%) | 6 |
+| Labelled BPM exported through harness-only probe | 24 / 24 (100.0%) | 0 |
+| Present labelled candidate has higher bass grid-energy | 4 / 24 (16.7%) | 20 |
+| Present labelled candidate ties selected bass grid-energy | 4 / 24 (16.7%) | 20 |
+| Present labelled candidate has lower bass grid-energy | 16 / 24 (66.7%) | 8 |
 
 ### FiloBass raw bass-attack feasibility diagnostic
 
@@ -1554,7 +1554,7 @@ Tempo estimates are only displayed at calibrated confidence. Source-specific pha
 | IDMT real-bass timing metadata qualifies as beat truth | 0 / 17 (0.0%) | 17 | only corpus-supplied tempo/beat/pattern fields count; note onsets are insufficient |
 | Independent real bass-led beat-labelled validation measured | 1 / 1 (100.0%) | 0 | FiloBass real bass stems plus reviewed downbeats and MIDI time signature |
 | Assess raw bass-attack BPM evidence | 1 / 1 (100.0%) | 0 | offline FiloBass rank-one/top-five diagnostic |
-| Assess bass source-grid energy before a selector | 1 / 1 (100.0%) | 0 | FiloBass expected candidate shows higher bass alignment in 2/6 eligible rows |
+| Assess bass source-grid energy before a selector | 1 / 1 (100.0%) | 0 | FiloBass expected candidate shows higher bass alignment in 4/24 eligible rows |
 | Demonstrate a bass-attack feature improves real bass BPM | 0 / 1 (0.0%) | 1 | improve FiloBass displayable BPM without regressing E-GMD |
 | Hide BPM when calibrated confidence is insufficient | 1 / 1 (100.0%) | 0 | renderer keeps `BPM --` below 0.60 confidence |
 

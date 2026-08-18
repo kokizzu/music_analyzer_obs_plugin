@@ -28067,6 +28067,7 @@ void AnalysisEngine::update_tempo(float raw_event_strength, float raw_event_body
 			  float raw_kick_flux_strength, float raw_bass_flux_strength,
 			  float raw_snare_flux_strength, float raw_tonal_flux_strength,
 			  float event_time_offset_seconds, float interval_seconds, float rms,
+			  int tempo_debug_probe_bpm,
 			  AnalysisSnapshot &snapshot)
 {
 	snapshot.tempo_debug_event_strength = std::clamp(raw_event_strength, 0.0f, 1.25f);
@@ -29447,6 +29448,15 @@ void AnalysisEngine::update_tempo(float raw_event_strength, float raw_event_body
 		if (slot_bpm <= 0)
 			break;
 		append_debug_candidate(debug_slot, slot_bpm);
+	}
+	// Corpus harnesses may request a labelled BPM candidate for diagnostics.
+	// It deliberately replaces only the final debug slot and never changes
+	// scoring, selection, confidence, or the user-visible BPM.
+	if (tempo_debug_probe_bpm >= kMinTempoBpm && tempo_debug_probe_bpm <= kMaxTempoBpm &&
+	    !debug_candidate_already_listed(debug_slot, tempo_debug_probe_bpm)) {
+		const int probe_slot = std::min(
+			debug_slot, static_cast<int>(snapshot.tempo_debug_candidates.size()) - 1);
+		append_debug_candidate(probe_slot, tempo_debug_probe_bpm);
 	}
 
 	float cluster_sum = 0.0f;
@@ -34552,7 +34562,7 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 		     broad_tempo_mid_body_strength, broad_tempo_subdivision_strength,
 		     tempo_kick_source_strength, tempo_bass_source_strength, tempo_snare_source_strength,
 		     tempo_tonal_source_strength,
-		     tempo_event_offset_seconds, interval_seconds, rms, snapshot);
+		     tempo_event_offset_seconds, interval_seconds, rms, settings.tempo_debug_probe_bpm, snapshot);
 	snapshot.estimated_bpm = estimated_bpm_;
 	snapshot.bpm_confidence = bpm_confidence_;
 

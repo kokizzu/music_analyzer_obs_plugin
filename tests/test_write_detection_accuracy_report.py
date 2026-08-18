@@ -727,7 +727,7 @@ class DetectionAccuracyReportTest(unittest.TestCase):
         self.assertIn("## FiloBass real bass-led annotated-tempo diagnostic", report)
         self.assertIn("### FiloBass raw bass-attack feasibility diagnostic", report)
         self.assertIn("### FiloBass source-grid energy feasibility diagnostic", report)
-        self.assertIn("| Labelled BPM present among exported candidates | 2 / 2 (100.0%) | 0 |", report)
+        self.assertIn("| Labelled BPM exported through harness-only probe | 2 / 2 (100.0%) | 0 |", report)
         self.assertIn("| Present labelled candidate has higher bass grid-energy | 1 / 2 (50.0%) | 1 |", report)
         self.assertIn("| Reviewed BPM ranked first by raw bass attacks | 1 / 2 (50.0%) | 1 |", report)
         self.assertIn("| Reviewed BPM ranked in top five by raw bass attacks | 2 / 2 (100.0%) | 0 |", report)

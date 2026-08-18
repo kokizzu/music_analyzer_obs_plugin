@@ -1123,6 +1123,7 @@ bool measure_maestro_tempo(const Recording &recording, double max_seconds, float
 	settings.analysis_interval_seconds =
 		static_cast<float>(mao_test::Buffer{}.size()) / static_cast<float>(recording.sample_rate);
 	settings.input_mode = mao::AnalysisInputMode::FullMix;
+	settings.tempo_debug_probe_bpm = static_cast<int>(std::lround(expected));
 
 	mao_test::Buffer buffer = {};
 	const uint64_t first_center = static_cast<uint64_t>(std::llround(start_seconds * recording.sample_rate)) +

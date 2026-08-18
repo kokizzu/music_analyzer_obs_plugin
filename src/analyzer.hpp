@@ -95,6 +95,9 @@ struct AnalysisSettings {
 	uint32_t analysis_window_samples = 0;
 	float root_window_seconds = 15.0f;
 	AnalysisInputMode input_mode = AnalysisInputMode::Auto;
+	// Test/corpus-harness diagnostic only. When set, retain this candidate in
+	// the final tempo debug snapshot even when it is not in the score top five.
+	int tempo_debug_probe_bpm = 0;
 };
 
 struct DrumState {
@@ -449,6 +452,7 @@ private:
 			  float kick_flux_strength, float bass_flux_strength, float snare_flux_strength,
 			  float tonal_flux_strength,
 			  float event_time_offset_seconds, float interval_seconds, float rms,
+			  int tempo_debug_probe_bpm,
 			  AnalysisSnapshot &snapshot);
 	float goertzel_power(const float *samples, std::size_t count, float mean, const Probe &probe) const;
 	float goertzel_power_at_frequency(const float *samples, std::size_t count, float mean, float freq) const;

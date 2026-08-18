@@ -6253,6 +6253,15 @@ void check_explicit_input_mode_and_bpm(Runner &runner)
 
 	{
 		mao::AnalysisEngine engine;
+		mao::AnalysisSettings settings = tempo_test_settings();
+		settings.tempo_debug_probe_bpm = 73;
+		const mao::AnalysisSnapshot snapshot = run_windowed_tempo_pattern(engine, settings, 120.0f, 360, 0.0f);
+		expect_tempo_candidate_near(runner, snapshot, 73.0f, 0.1f,
+					"tempo diagnostic probe retains an explicitly requested candidate");
+	}
+
+	{
+		mao::AnalysisEngine engine;
 		const mao::AnalysisSettings settings = tempo_test_settings();
 		const mao::AnalysisSnapshot snapshot =
 			run_prehit_body_tempo_pattern(engine, settings, 120.0f, 420);
