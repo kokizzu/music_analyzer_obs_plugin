@@ -11,6 +11,7 @@ annotations_url=${4:-https://github.com/CPJKU/BallroomAnnotations.git}
 expected_md5=${5:-2872a3e52070bc342a4510a95e2fa0b8}
 aria2c_bin=${6:-}
 connections=${7:-8}
+max_resume_attempts=${8:-6}
 
 target="$store_root/ballroom_tempo"
 archive="$target/data1.tar.gz"
@@ -23,20 +24,30 @@ if [ -s "$archive" ]; then
   actual_md5=$(md5sum "$archive" | awk '{print $1}')
 fi
 if [ "$actual_md5" != "$expected_md5" ]; then
-  # Preserve the same partial path so either downloader can resume it. aria2
-  # uses segmented range requests when available; a failed or unavailable
-  # aria2 falls back to curl's single-connection resume without discarding
-  # data. The checksum below remains the only promotion gate.
-  if [ -n "$aria2c_bin" ] && command -v "$aria2c_bin" >/dev/null 2>&1; then
-    if ! "$aria2c_bin" --continue=true --allow-overwrite=true --auto-file-renaming=false \
-      --max-tries=5 --retry-wait=5 --max-connection-per-server="$connections" \
-      --split="$connections" --min-split-size=8M --file-allocation=none \
-      --dir "$target" --out "data1.tar.gz" "$archive_url"; then
+  # Preserve the same partial path so either downloader can resume it. Some
+  # legacy hosts cleanly close a partial HTTP response, which curl reports as
+  # successful even though the archive is incomplete. Keep issuing verified
+  # resume requests instead of making the managed corpus job stop at that
+  # transient boundary. The checksum remains the only promotion gate.
+  attempt=1
+  while [ "$actual_md5" != "$expected_md5" ] && [ "$attempt" -le "$max_resume_attempts" ]; do
+    if [ -n "$aria2c_bin" ] && command -v "$aria2c_bin" >/dev/null 2>&1; then
+      if ! "$aria2c_bin" --continue=true --allow-overwrite=true --auto-file-renaming=false \
+        --max-tries=5 --retry-wait=5 --max-connection-per-server="$connections" \
+        --split="$connections" --min-split-size=8M --file-allocation=none \
+        --dir "$target" --out "data1.tar.gz" "$archive_url"; then
+        "$curl_bin" -fL --retry 4 --continue-at - -o "$archive" "$archive_url"
+      fi
+    else
       "$curl_bin" -fL --retry 4 --continue-at - -o "$archive" "$archive_url"
     fi
-  else
-    "$curl_bin" -fL --retry 4 --continue-at - -o "$archive" "$archive_url"
-  fi
+    actual_md5=$(md5sum "$archive" | awk '{print $1}')
+    if [ "$actual_md5" != "$expected_md5" ] && [ "$attempt" -lt "$max_resume_attempts" ]; then
+      printf 'Ballroom archive incomplete after resume attempt %s/%s; continuing from stored partial\n' \
+        "$attempt" "$max_resume_attempts" >&2
+    fi
+    attempt=$((attempt + 1))
+  done
 fi
 actual_md5=$(md5sum "$archive" | awk '{print $1}')
 if [ "$actual_md5" != "$expected_md5" ]; then

@@ -5561,7 +5561,7 @@ test-analyzer-egmd: $(BUILD_DIR)/analyzer_egmd scripts/run_with_duration.sh
 .PHONY: test-bpm-regression
 test-bpm-regression: test-analyzer-cases test-egmd-fixture
 
-.PHONY: analyze-egmd-bpm measure-egmd-bpm-cached summarize-egmd-bpm analyze-real-egmd-bpm analyze-mdb-bpm analyze-maestro-bpm analyze-kraisler-bpm measure-kraisler-bpm-cached summarize-kraisler-bpm download-ballroom-tempo download-ballroom-annotations prepare-ballroom-tempo-fixture measure-ballroom-bpm summarize-ballroom-bpm download-filobass inspect-filobass prepare-filobass-tempo-fixture measure-filobass-bpm summarize-filobass-bpm inspect-filobass-tempo-onsets analyze-bpm-diagnostics test-analyze-egmd-tempo
+.PHONY: analyze-egmd-bpm measure-egmd-bpm-cached summarize-egmd-bpm analyze-real-egmd-bpm analyze-mdb-bpm analyze-maestro-bpm analyze-kraisler-bpm measure-kraisler-bpm-cached summarize-kraisler-bpm download-ballroom-tempo download-ballroom-annotations test-download-ballroom-tempo-script prepare-ballroom-tempo-fixture measure-ballroom-bpm summarize-ballroom-bpm download-filobass inspect-filobass prepare-filobass-tempo-fixture measure-filobass-bpm summarize-filobass-bpm inspect-filobass-tempo-onsets analyze-bpm-diagnostics test-analyze-egmd-tempo
 
 test-analyze-egmd-tempo: tests/test_analyze_egmd_tempo.py scripts/analyze_egmd_tempo.py
 	$(PYTHON) tests/test_analyze_egmd_tempo.py
@@ -5604,9 +5604,13 @@ summarize-kraisler-bpm: scripts/analyze_egmd_tempo.py $(KRAISLER_BPM_LOG)
 # Its archive and labels are stored outside the repository; the fixture below
 # only symlinks selected WAVs into build/ for the generic tempo harness.
 BALLROOM_DOWNLOAD_CONNECTIONS ?= 8
+BALLROOM_DOWNLOAD_MAX_RESUME_ATTEMPTS ?= 6
 
 download-ballroom-tempo: configure-instrument-sample-store scripts/download_ballroom_tempo_dataset.sh
-	bash scripts/download_ballroom_tempo_dataset.sh "$(INSTRUMENT_SAMPLE_STORE)" "$(CURL)" "" "" "" "$(ARIA2C)" "$(BALLROOM_DOWNLOAD_CONNECTIONS)"
+	bash scripts/download_ballroom_tempo_dataset.sh "$(INSTRUMENT_SAMPLE_STORE)" "$(CURL)" "" "" "" "$(ARIA2C)" "$(BALLROOM_DOWNLOAD_CONNECTIONS)" "$(BALLROOM_DOWNLOAD_MAX_RESUME_ATTEMPTS)"
+
+test-download-ballroom-tempo-script: scripts/download_ballroom_tempo_dataset.sh
+	bash -n scripts/download_ballroom_tempo_dataset.sh
 
 download-ballroom-annotations: configure-instrument-sample-store scripts/download_ballroom_annotations.sh
 	bash scripts/download_ballroom_annotations.sh "$(INSTRUMENT_SAMPLE_STORE)"
