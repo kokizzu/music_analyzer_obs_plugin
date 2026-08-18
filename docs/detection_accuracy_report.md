@@ -1518,6 +1518,7 @@ Tempo estimates are only displayed at calibrated confidence. Source-specific pha
 | --- | ---: | ---: | --- |
 | Separate kick, bass, snare, and tonal onset histories | 1 / 1 (100.0%) | 0 | source-specific phase coverage in debug candidates |
 | Require repeated source evidence on the selected beat grid | 1 / 1 (100.0%) | 0 | confidence cap below display floor without repeated alignment |
+| Resolve half/double-time candidates with kick/bass downbeat evidence | 1 / 1 (100.0%) | 0 | analyzer cases retain the beat grid through sparse-kick half-time and dense-subdivision alternatives |
 | Adaptive tempo history for percussive vs sparse tonal input | 1 / 1 (100.0%) | 0 | 8 s percussion / 18 s sparse-source policy |
 | Generated drum phase regression measured | 1 / 1 (100.0%) | 0 | E-GMD x/total BPM diagnostic |
 | Rhythm-heavy real-mix beat validation measured | 0 / 1 (0.0%) | 1 | Ballroom manually corrected beat/bar annotations |
