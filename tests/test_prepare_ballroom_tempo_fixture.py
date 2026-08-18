@@ -49,6 +49,7 @@ def main() -> None:
         )
         assert len(rows) == 8
         assert selected_styles == Counter({style: 2 for style in styles})
+        assert all(float(row["tempo_duration_seconds"]) >= 14.0 for row in rows)
     print("test_prepare_ballroom_tempo_fixture: genre-balanced selection passed")
 
 

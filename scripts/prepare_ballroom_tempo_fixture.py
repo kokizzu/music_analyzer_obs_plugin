@@ -31,9 +31,10 @@ def midi_with_tempo(bpm: float) -> bytes:
     return b"MThd" + struct.pack(">IHHH", 6, 0, 1, 480) + b"MTrk" + struct.pack(">I", len(track)) + track
 
 
-def stable_segment(beats: list[float], minimum_seconds: float) -> tuple[float, float] | None:
+def stable_segment(beats: list[float], minimum_seconds: float) -> tuple[float, float, float] | None:
     for begin in range(len(beats) - 1):
         intervals: list[float] = []
+        best: tuple[float, float, float] | None = None
         for end in range(begin + 1, len(beats)):
             interval = beats[end] - beats[end - 1]
             if interval <= 0.20 or interval >= 2.00:
@@ -43,8 +44,14 @@ def stable_segment(beats: list[float], minimum_seconds: float) -> tuple[float, f
             if duration < minimum_seconds or len(intervals) < 12:
                 continue
             mean = sum(intervals) / len(intervals)
-            if max(abs(item - mean) for item in intervals) <= mean * 0.10:
-                return beats[begin], 60.0 / mean
+            if max(abs(item - mean) for item in intervals) > mean * 0.10:
+                break
+            # Keep the full contiguous stable span, not merely the first
+            # 14 seconds that qualifies. The analyzer must not be asked to
+            # score a later unverified section against this BPM label.
+            best = (beats[begin], 60.0 / mean, duration)
+        if best is not None:
+            return best
     return None
 
 
@@ -68,7 +75,7 @@ def main() -> int:
         shutil.rmtree(args.output)
     (args.output / "audio").mkdir(parents=True)
     (args.output / "midi").mkdir()
-    eligible_by_style: dict[str, list[tuple[Path, Path, float, float]]] = {}
+    eligible_by_style: dict[str, list[tuple[Path, Path, float, float, float]]] = {}
     for label in sorted(args.annotations_root.rglob("*.beats")):
         wav = matching_wav(args.audio_root, label)
         if wav is None:
@@ -77,8 +84,8 @@ def main() -> int:
         segment = stable_segment(beats, args.minimum_seconds)
         if segment is None:
             continue
-        offset, bpm = segment
-        eligible_by_style.setdefault(wav.parent.name, []).append((label, wav, offset, bpm))
+        offset, bpm, duration = segment
+        eligible_by_style.setdefault(wav.parent.name, []).append((label, wav, offset, bpm, duration))
 
     # A filename-sorted prefix can accidentally measure one dance style much
     # more than the others. Round-robin the source audio directories so each
@@ -93,7 +100,7 @@ def main() -> int:
             candidates = eligible_by_style[style]
             if not candidates:
                 continue
-            label, wav, offset, bpm = candidates.pop(0)
+            label, wav, offset, bpm, duration = candidates.pop(0)
             identity = f"{label.parent.name}_{label.stem}".replace(" ", "_")
             audio_name = f"audio/{identity}.wav"
             midi_name = f"midi/{identity}.mid"
@@ -101,7 +108,8 @@ def main() -> int:
             os.symlink(os.path.relpath(wav, link.parent), link)
             (args.output / midi_name).write_bytes(midi_with_tempo(bpm))
             rows.append({"audio_filename": audio_name, "midi_filename": midi_name,
-                         "tempo_audio_offset_seconds": f"{offset:.6f}"})
+                         "tempo_audio_offset_seconds": f"{offset:.6f}",
+                         "tempo_duration_seconds": f"{duration:.6f}"})
             selected = True
         if not selected:
             break

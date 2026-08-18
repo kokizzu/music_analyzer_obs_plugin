@@ -589,6 +589,7 @@ struct Recording {
 	std::vector<TempoPoint> tempo_points;
 	bool has_explicit_tempo = false;
 	double tempo_audio_offset_seconds = 0.0;
+	double tempo_duration_seconds = 0.0;
 };
 
 std::string find_metadata_csv(const std::string &root)
@@ -666,7 +667,7 @@ std::string resolve_maestro_root()
 }
 
 bool load_recording(const std::string &root, const std::string &id, const std::string &audio_filename,
-		    const std::string &midi_filename, double tempo_audio_offset_seconds,
+		    const std::string &midi_filename, double tempo_audio_offset_seconds, double tempo_duration_seconds,
 		    Recording &recording, std::string &error)
 {
 	const std::string audio_path = join_path(root, audio_filename);
@@ -689,6 +690,7 @@ bool load_recording(const std::string &root, const std::string &id, const std::s
 	recording.tempo_points = std::move(tempo_points);
 	recording.has_explicit_tempo = has_explicit_tempo;
 	recording.tempo_audio_offset_seconds = tempo_audio_offset_seconds;
+	recording.tempo_duration_seconds = tempo_duration_seconds;
 	return true;
 }
 
@@ -737,6 +739,7 @@ void collect_recordings(const std::string &root, std::vector<Recording> &recordi
 		}
 
 		double tempo_audio_offset_seconds = 0.0;
+		double tempo_duration_seconds = 0.0;
 		const auto tempo_offset_column = column.find("tempo_audio_offset_seconds");
 		if (tempo_offset_column != column.end()) {
 			const char *offset_text = fields[tempo_offset_column->second].c_str();
@@ -748,11 +751,22 @@ void collect_recordings(const std::string &root, std::vector<Recording> &recordi
 				continue;
 			}
 		}
+		const auto tempo_duration_column = column.find("tempo_duration_seconds");
+		if (tempo_duration_column != column.end()) {
+			const char *duration_text = fields[tempo_duration_column->second].c_str();
+			char *duration_end = nullptr;
+			tempo_duration_seconds = std::strtod(duration_text, &duration_end);
+			if (duration_end == duration_text || *duration_end != '\0' ||
+			    !std::isfinite(tempo_duration_seconds) || tempo_duration_seconds < 0.0) {
+				++unusable;
+				continue;
+			}
+		}
 
 		Recording recording;
 		std::string error;
 		if (!load_recording(root, std::to_string(row), audio_filename, midi_filename,
-				    tempo_audio_offset_seconds, recording, error)) {
+				    tempo_audio_offset_seconds, tempo_duration_seconds, recording, error)) {
 			++unusable;
 			if (unusable <= 5)
 				std::fprintf(stderr, "analyzer_maestro: skipping row %d: %s\n", row,
@@ -1059,7 +1073,9 @@ bool maestro_tempo_interval(const Recording &recording, double max_seconds, doub
 		const TempoPoint &point = recording.tempo_points[index];
 		const double interval_end = index + 1 < recording.tempo_points.size() ?
 					    recording.tempo_points[index + 1].seconds : available_seconds;
-		const double duration = std::min(max_seconds, interval_end - point.seconds);
+		const double labelled_duration = recording.tempo_duration_seconds > 0.0 ?
+							 recording.tempo_duration_seconds : std::numeric_limits<double>::infinity();
+		const double duration = std::min({max_seconds, interval_end - point.seconds, labelled_duration});
 		if (point.microseconds_per_quarter <= 0 || duration < 14.0)
 			continue;
 	start_seconds = point.seconds + recording.tempo_audio_offset_seconds;
