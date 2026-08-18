@@ -1079,6 +1079,29 @@ struct TempoStats {
 	double max_absolute_error = 0.0;
 };
 
+std::string tempo_candidate_summary(const mao::AnalysisSnapshot &snapshot)
+{
+	std::string text;
+	for (std::size_t index = 0; index < snapshot.tempo_debug_candidate_count; ++index) {
+		const mao::TempoDebugCandidate &candidate = snapshot.tempo_debug_candidates[index];
+		char part[320] = {};
+		std::snprintf(part, sizeof(part),
+			      "%s%d(s=%.2f,a=%.2f,b=%.2f,ba=%.2f,ph=%.2f,lock=%.2f,m=%.2f,cov=%.0f/%.0f,src=%.0f/%.0f/%.0f/%.0f)",
+			      text.empty() ? "" : " ", candidate.bpm, candidate.score,
+			      candidate.adjacent_score, candidate.body_score,
+			      candidate.adjacent_body_score, candidate.phase_score,
+			      candidate.phase_locked_score, candidate.meter_score,
+			      candidate.phase_body_coverage * 100.0f,
+			      candidate.phase_all_coverage * 100.0f,
+			      candidate.kick_phase_coverage * 100.0f,
+			      candidate.bass_phase_coverage * 100.0f,
+			      candidate.snare_phase_coverage * 100.0f,
+			      candidate.tonal_phase_coverage * 100.0f);
+		text += part;
+	}
+	return text.empty() ? "-" : text;
+}
+
 bool measure_maestro_tempo(const Recording &recording, double max_seconds, float confidence_floor,
 			  float tolerance, TempoStats &stats, std::string &error)
 {
@@ -1118,9 +1141,9 @@ bool measure_maestro_tempo(const Recording &recording, double max_seconds, float
 	if (snapshot.estimated_bpm <= 0.0f || snapshot.bpm_confidence < confidence_floor) {
 		++stats.no_estimate;
 		std::fprintf(stderr,
-			     "MAESTRO tempo diag\tid=%s\texpected=%.2f\tgot=0.00\traw=%.2f\tconfidence=%.3f\terror=%.2f\tstatus=no-estimate\tcandidates=-\n",
+			     "MAESTRO tempo diag\tid=%s\texpected=%.2f\tgot=0.00\traw=%.2f\tconfidence=%.3f\terror=%.2f\tstatus=no-estimate\tcandidates=%s\n",
 			     recording.id.c_str(), expected, snapshot.estimated_bpm, snapshot.bpm_confidence,
-			     static_cast<double>(expected));
+			     static_cast<double>(expected), tempo_candidate_summary(snapshot).c_str());
 		return true;
 	}
 	const double absolute_error = std::abs(static_cast<double>(snapshot.estimated_bpm - expected));
@@ -1128,9 +1151,10 @@ bool measure_maestro_tempo(const Recording &recording, double max_seconds, float
 	stats.max_absolute_error = std::max(stats.max_absolute_error, absolute_error);
 	if (absolute_error <= tolerance)
 		++stats.hits;
-	std::fprintf(stderr, "MAESTRO tempo diag\tid=%s\texpected=%.2f\tgot=%.2f\traw=%.2f\tconfidence=%.3f\terror=%.2f\tstatus=%s\tcandidates=-\n",
+	std::fprintf(stderr, "MAESTRO tempo diag\tid=%s\texpected=%.2f\tgot=%.2f\traw=%.2f\tconfidence=%.3f\terror=%.2f\tstatus=%s\tcandidates=%s\n",
 		     recording.id.c_str(), expected, snapshot.estimated_bpm, snapshot.estimated_bpm, snapshot.bpm_confidence,
-		     absolute_error, absolute_error <= tolerance ? "hit" : "miss");
+		     absolute_error, absolute_error <= tolerance ? "hit" : "miss",
+		     tempo_candidate_summary(snapshot).c_str());
 	return true;
 }
 
