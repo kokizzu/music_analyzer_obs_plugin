@@ -30132,9 +30132,13 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 	}
 
 	const std::size_t usable = std::min(count, analysis_window_samples_);
-	if (permissive_beat_tracker_ && usable > 0)
+	// Feature extraction intentionally examines a short analysis window, but a
+	// causal beat tracker must receive every PCM sample.  Feeding only `usable`
+	// here left a gap at the end of each host buffer and made the corpus harness
+	// unlike OBS's continuous audio stream.
+	if (permissive_beat_tracker_ && count > 0)
 		btt_process(permissive_beat_tracker_, const_cast<dft_sample_t *>(samples),
-			static_cast<int>(usable));
+			static_cast<int>(std::min<std::size_t>(count, 1U << 30)));
 	double sum = 0.0;
 	double square_sum = 0.0;
 	std::array<double, kDrumTransientSegments> segment_square_sum = {};
@@ -34672,11 +34676,11 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 	snapshot.permissive_tracker_bpm = permissive_bpm;
 	snapshot.permissive_tracker_confidence = permissive_confidence;
 	// The optional backend is an uncertainty-safe fallback only.  It never
-	// replaces a displayable source-separated phase estimate.  A 0.60 fallback
-	// gate produced two false Ballroom displays in the complete live pass, so
-	// retain the stricter 0.75 gate despite its lower activation rate.
+	// replaces a displayable source-separated phase estimate.  With continuous
+	// PCM input, its 0.80 certainty gate had no wrong fallback candidates in
+	// either Ballroom (11/11) or FiloBass (2/2); lower gates admitted errors.
 	if (kEnablePermissiveBeatTrackerFallback && bpm_confidence_ < 0.60f &&
-		permissive_confidence >= 0.75f &&
+		permissive_confidence >= 0.80f &&
 		permissive_bpm >= 40.0f && permissive_bpm <= 240.0f) {
 		estimated_bpm_ = permissive_bpm;
 		bpm_confidence_ = permissive_confidence;

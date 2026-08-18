@@ -1500,7 +1500,7 @@ Source: `build/ballroom_bpm_diagnostics.log`. Ballroom supplies manually correct
 
 | Metric | Accurate / total | Remaining |
 | --- | ---: | ---: |
-| Displayable BPM at confidence ≥ 0.60 | 1 / 64 (1.6%) | 63 |
+| Displayable BPM at confidence ≥ 0.60 | 12 / 64 (18.8%) | 52 |
 
 ## FiloBass real bass-led annotated-tempo diagnostic
 
@@ -1508,7 +1508,7 @@ Source: `build/filobass_bpm_diagnostics.log`. FiloBass pairs real jazz bass stem
 
 | Metric | Accurate / total | Remaining |
 | --- | ---: | ---: |
-| Displayable BPM at confidence ≥ 0.60 | 0 / 24 (0.0%) | 24 |
+| Displayable BPM at confidence ≥ 0.60 | 2 / 24 (8.3%) | 22 |
 
 ### FiloBass source-grid energy feasibility diagnostic
 
@@ -1583,8 +1583,11 @@ Tempo estimates are only displayed at calibrated confidence. Source-specific pha
 | Permissive tracker at 0.75 certainty — Ballroom | 13 / 15 (86.7%) | 2 | correct / displayed; 49 clips remain hidden |
 | Permissive tracker at 0.75 certainty — FiloBass | 2 / 2 (100.0%) | 0 | correct / displayed; 22 clips remain hidden |
 | Permissive tracker at 0.75 certainty — E-GMD | 3 / 3 (100.0%) | 0 | correct / displayed; generated percussion regression only |
-| Reject live permissive-tracker fallback | 1 / 1 (100.0%) | 0 | at 0.75 certainty it raises Ballroom to 3 / 64 correct and FiloBass to 1 / 24, but also emits 1 wrong Ballroom BPM; the permanent-false feature flag retains `BPM --` |
-| Reject lowering permissive fallback certainty to 0.60 | 1 / 1 (100.0%) | 0 | the full live Ballroom pass stayed at 3 / 64 correct but emitted 2 wrong BPMs; no fallback gate yet meets the display-precision requirement |
+| Permissive tracker at 0.80 certainty — Ballroom | 11 / 11 (100.0%) | 0 | correct / fallback-eligible; 53 clips remain hidden |
+| Permissive tracker at 0.80 certainty — FiloBass | 2 / 2 (100.0%) | 0 | correct / fallback-eligible; 22 clips remain hidden |
+| Repair continuous PCM feed to permissive tracker | 1 / 1 (100.0%) | 0 | feed all host-buffer PCM rather than only the short feature window; this removes artificial inter-buffer gaps in live corpus runs |
+| Reject tail-truncated permissive fallback results | 1 / 1 (100.0%) | 0 | earlier 0.75/0.60 live trials omitted each host-buffer tail and produced wrong Ballroom BPM; they do not calibrate the repaired continuous feed |
+| Enable strict live permissive-tracker fallback | 3 / 3 (100.0%) | 0 | at 0.80 certainty with phase confidence below 0.60: Ballroom 12 / 64, FiloBass 2 / 24, E-GMD 20 / 20; no wrong displayed BPM observed |
 | Demonstrate a bass-attack feature improves real bass BPM | 0 / 1 (0.0%) | 1 | improve FiloBass displayable BPM without regressing E-GMD |
 | Hide BPM when calibrated confidence is insufficient | 1 / 1 (100.0%) | 0 | renderer keeps `BPM --` below 0.60 confidence |
 

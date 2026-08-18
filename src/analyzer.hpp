@@ -13,9 +13,10 @@ constexpr std::size_t kAnalysisWindow = 8192;
 // Keep the dormant Other classifier code available without emitting a separate
 // low-confidence catch-all instrument result.
 constexpr bool kEnableOtherDetection = false;
-// Keep the optional tracker available for corpus diagnostics, but do not allow
-// it to display BPM until it clears the no-misleading-output corpus gate.
-constexpr bool kEnablePermissiveBeatTrackerFallback = false;
+// The optional tracker may fill an otherwise uncertain BPM only after it
+// clears the cross-corpus no-misleading-output gate at its stricter certainty
+// threshold.  The source-separated phase tracker remains the primary path.
+constexpr bool kEnablePermissiveBeatTrackerFallback = true;
 // Keep the matching visual section independently disabled.  This remains false
 // even if the detector is later enabled for diagnostics, so a deliberately
 // reviewed UI change is required before OTHERS can consume visualizer space.
