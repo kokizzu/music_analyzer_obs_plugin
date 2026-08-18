@@ -136,22 +136,29 @@ def main(argv: list[str] | None = None) -> int:
             scores.sort(reverse=True)
             expected_rank = next(index + 1 for index, (_, bpm) in enumerate(scores) if abs(bpm - expected) <= 0.5)
             expected_score = next(score for score, bpm in scores if abs(bpm - expected) <= 0.5)
+            doubled_top_bpm = scores[0][1] * 2
+            direct_or_double_hit = abs(scores[0][1] - expected) <= 8.0 or (
+                doubled_top_bpm <= MAX_BPM and abs(doubled_top_bpm - expected) <= 8.0
+            )
             rows.append({
                 "id": Path(item["audio_filename"]).stem.removeprefix("filobass_"),
                 "expected_bpm": f"{expected:.2f}",
                 "top_bpm": scores[0][1],
+                "top_double_bpm": doubled_top_bpm if doubled_top_bpm <= MAX_BPM else "--",
+                "top_or_double_hit": int(direct_or_double_hit),
                 "expected_rank": expected_rank,
                 "top_score": f"{scores[0][0]:.6f}",
                 "expected_score": f"{expected_score:.6f}",
             })
     args.output.parent.mkdir(parents=True, exist_ok=True)
     with args.output.open("w", newline="", encoding="utf-8") as handle:
-        writer = csv.DictWriter(handle, fieldnames=["id", "expected_bpm", "top_bpm", "expected_rank", "top_score", "expected_score"], delimiter="\t")
+        writer = csv.DictWriter(handle, fieldnames=["id", "expected_bpm", "top_bpm", "top_double_bpm", "top_or_double_hit", "expected_rank", "top_score", "expected_score"], delimiter="\t")
         writer.writeheader()
         writer.writerows(rows)
     top_one = sum(row["expected_rank"] == 1 for row in rows)
     top_five = sum(int(row["expected_rank"]) <= 5 for row in rows)
-    print(f"inspect_bass_tempo_onsets: rows={len(rows)} expected-rank1={top_one}/{len(rows)} expected-rank5={top_five}/{len(rows)} output={args.output}")
+    direct_or_double = sum(int(row["top_or_double_hit"]) for row in rows)
+    print(f"inspect_bass_tempo_onsets: rows={len(rows)} expected-rank1={top_one}/{len(rows)} expected-rank5={top_five}/{len(rows)} top-or-double={direct_or_double}/{len(rows)} output={args.output}")
     return 0
 
 

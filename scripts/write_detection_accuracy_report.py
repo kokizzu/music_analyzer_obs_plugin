@@ -1027,8 +1027,8 @@ def filobass_phase_energy_counts(path: Path, tolerance: float = 8.0) -> tuple[in
     return (eligible, higher, equal, lower, total) if saw_alignment else None
 
 
-def filobass_onset_diagnostic_counts(path: Path) -> tuple[int, int, int]:
-    """Return (rank-one, rank-five, total) from offline bass-onset evidence."""
+def filobass_onset_diagnostic_counts(path: Path) -> tuple[int, int, int, int]:
+    """Return direct, top-five, direct-or-double, and total bass-onset counts."""
     with path.open(newline="", encoding="utf-8") as handle:
         rows = list(csv.DictReader(handle, delimiter="\t"))
     if not rows:
@@ -1037,7 +1037,11 @@ def filobass_onset_diagnostic_counts(path: Path) -> tuple[int, int, int]:
         ranks = [int(row["expected_rank"]) for row in rows]
     except (KeyError, ValueError) as error:
         raise ValueError(f"{path}: invalid FiloBass onset diagnostic rows") from error
-    return sum(rank == 1 for rank in ranks), sum(rank <= 5 for rank in ranks), len(ranks)
+    direct_or_double = sum(
+        int(row["top_or_double_hit"]) if row.get("top_or_double_hit", "") else rank == 1
+        for row, rank in zip(rows, ranks)
+    )
+    return sum(rank == 1 for rank in ranks), sum(rank <= 5 for rank in ranks), direct_or_double, len(ranks)
 
 
 def idmt_bass_timing_metadata_counts(path: Path) -> tuple[int, int]:
@@ -2610,7 +2614,7 @@ def render(
             ]
         )
     if filobass_onset_diagnostic is not None:
-        rank_one, rank_five, total = filobass_onset_diagnostic
+        rank_one, rank_five, direct_or_double, total = filobass_onset_diagnostic
         lines.extend(
             [
                 "",
@@ -2622,6 +2626,7 @@ def render(
                 "| --- | ---: | ---: |",
                 f"| Reviewed BPM ranked first by raw bass attacks | {fraction(rank_one, total)} | {total - rank_one} |",
                 f"| Reviewed BPM ranked in top five by raw bass attacks | {fraction(rank_five, total)} | {total - rank_five} |",
+                f"| Reviewed BPM matches raw bass attacks at direct or double tempo | {fraction(direct_or_double, total)} | {total - direct_or_double} |",
             ]
         )
     if egmd_bpm is not None:

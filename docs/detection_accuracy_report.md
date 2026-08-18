@@ -1529,6 +1529,7 @@ Source: `build/filobass_bass_onset_diagnostics.tsv`. This offline analysis ranks
 | --- | ---: | ---: |
 | Reviewed BPM ranked first by raw bass attacks | 1 / 24 (4.2%) | 23 |
 | Reviewed BPM ranked in top five by raw bass attacks | 10 / 24 (41.7%) | 14 |
+| Reviewed BPM matches raw bass attacks at direct or double tempo | 16 / 24 (66.7%) | 8 |
 
 ## E-GMD generated percussion tempo diagnostic
 

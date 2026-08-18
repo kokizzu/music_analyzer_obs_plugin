@@ -53,6 +53,7 @@ def main() -> int:
             row = next(csv.DictReader(handle, delimiter="\t"))
         assert int(row["top_bpm"]) in range(116, 125), row
         assert int(row["expected_rank"]) == 1, row
+        assert row["top_or_double_hit"] == "1", row
     print("test_inspect_bass_tempo_onsets: 2 checks passed")
     return 0
 

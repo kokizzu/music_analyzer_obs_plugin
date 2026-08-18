@@ -626,9 +626,9 @@ class DetectionAccuracyReportTest(unittest.TestCase):
             )
             filobass_onsets = Path(temporary) / "filobass_bass_onset_diagnostics.tsv"
             filobass_onsets.write_text(
-                "id\texpected_bpm\ttop_bpm\texpected_rank\ttop_score\texpected_score\n"
-                "one\t120\t120\t1\t1\t1\n"
-                "two\t100\t50\t3\t1\t0.8\n",
+                "id\texpected_bpm\ttop_bpm\ttop_or_double_hit\texpected_rank\ttop_score\texpected_score\n"
+                "one\t120\t120\t1\t1\t1\t1\n"
+                "two\t100\t50\t1\t3\t1\t0.8\n",
                 encoding="utf-8",
             )
             ballroom_annotations = Path(temporary) / "ballroom-annotations"
@@ -737,6 +737,7 @@ class DetectionAccuracyReportTest(unittest.TestCase):
         self.assertIn("| Labelled BPM exported through harness-only probe | 2 / 2 (100.0%) | 0 |", report)
         self.assertIn("| Present labelled candidate has higher bass grid-energy | 1 / 2 (50.0%) | 1 |", report)
         self.assertIn("| Reviewed BPM ranked first by raw bass attacks | 1 / 2 (50.0%) | 1 |", report)
+        self.assertIn("| Reviewed BPM matches raw bass attacks at direct or double tempo | 2 / 2 (100.0%) | 0 |", report)
         self.assertIn("| Reviewed BPM ranked in top five by raw bass attacks | 2 / 2 (100.0%) | 0 |", report)
         self.assertIn("| Displayable BPM at confidence ≥ 0.60 | 1 / 2 (50.0%) | 1 |", report)
         self.assertIn("| Tracks with corpus-supplied tempo, beat, or pattern metadata | 0 / 2 (0.0%) | 2 |", report)
