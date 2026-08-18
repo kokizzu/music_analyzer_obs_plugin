@@ -803,8 +803,10 @@ void update_stable_label(VisualizerRenderer *visualizer, StableSlot slot, const 
 	const StableCandidate candidate = stable_candidate_label(notes, chord);
 	if (!has_display_label(candidate.label)) {
 		// Keep the last confirmed key while audio is still present. Silence and
-		// explicit renderer resets still clear it above.
-		if (slot == StableKeyboard)
+		// explicit renderer resets still clear it above.  Bass and vocal use the
+		// same retained key in the compact KEY column, while keyboard uses it as
+		// the chord fallback.
+		if (slot == StableBass || slot == StableVocal || slot == StableKeyboard)
 			return;
 		clear_stable_state(state);
 		return;
@@ -851,7 +853,12 @@ int draw_instrument_rows(VisualizerRenderer *visualizer, const VisualLayout &lay
 	char current_note[8] = {};
 	const bool has_current_note = show_current_note_as_chord &&
 				      current_note_label(notes, current_note, sizeof(current_note));
-	const char *chord_label = chord ? nullptr : (has_current_note ? current_note : "--");
+	// Bass and vocal intentionally show their current note in the compact KEY
+	// column.  When a short analysis frame has no confident note, retain the
+	// latest confirmed key rather than visibly flickering to "--".
+	const char *chord_label = chord ? nullptr :
+					      (has_current_note ? current_note :
+					       (has_display_label(stable_label) ? stable_label : "--"));
 
 	draw_text(visualizer, layout.label_x, y + 2, name, 2, dim);
 	row_count = std::clamp<std::size_t>(row_count, 1, notes.rows.size());
@@ -1244,6 +1251,9 @@ void draw_note_column_headers(VisualizerRenderer *visualizer, const VisualLayout
 	const int cell_w = std::max(30, layout.note_w / 12);
 	for (int i = 0; i < 12; ++i)
 		draw_text(visualizer, layout.note_x + i * cell_w + 7, y, kNoteNames[i], 2, kLabelColor);
+	// Bass and vocal show their current note rather than a harmonic chord in
+	// this summary column, so label it as a key.
+	draw_text(visualizer, layout.chord_x, y, "KEY", 2, kLabelColor);
 	draw_text(visualizer, layout.stable_x, y, "SUSTAIN", 2, kLabelColor);
 }
 
@@ -1415,9 +1425,9 @@ void render_complete_pixels(VisualizerRenderer *visualizer, const AnalysisSnapsh
 		row_y = draw_instrument_rows(visualizer, layout, row_y, "OTHERS", snapshot.other_notes, nullptr, nullptr,
 						     Color{191, 90, 242, 245}, kMatrixRowCount);
 	}
-	// Keep the key heading with the keyboard section, in the existing summary
-	// column, rather than above the bass and vocal rows.
-	draw_text(visualizer, layout.chord_x, row_y, "KEY", 2, kLabelColor);
+	// The keyboard chord belongs to its own section: after VOCAL and before
+	// KEYS, in the same summary column that carries the compact KEY values.
+	draw_text(visualizer, layout.chord_x, row_y, "CHORD", 2, kLabelColor);
 	const int degree_root_pitch_class = pitch_class_from_note_label(snapshot.root.label);
 	row_y = draw_piano_keyboard(visualizer, layout, row_y + 4, snapshot.keyboard_notes, snapshot.keyboard_chord,
 				    visualizer->stable_labels[StableKeyboard].label, degree_root_pitch_class);
@@ -1445,7 +1455,7 @@ void render_bass_guitar_pixels(VisualizerRenderer *visualizer, const AnalysisSna
 	int row_y = 178 + y_shift;
 	row_y = draw_instrument_rows(visualizer, layout, row_y, "BASS", snapshot.bass_notes, nullptr,
 				     visualizer->stable_labels[StableBass].label, Color{255, 59, 48, 245}, 1, true);
-	draw_text(visualizer, layout.chord_x, row_y - 8, "KEY", 2, kLabelColor);
+	draw_text(visualizer, layout.chord_x, row_y - 8, "CHORD", 2, kLabelColor);
 	const int degree_root_pitch_class = pitch_class_from_note_label(snapshot.root.label);
 	row_y = draw_piano_keyboard(visualizer, layout, row_y - 8, snapshot.keyboard_notes, snapshot.keyboard_chord,
 				    visualizer->stable_labels[StableKeyboard].label, degree_root_pitch_class,

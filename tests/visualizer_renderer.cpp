@@ -182,10 +182,34 @@ int run_visualizer_renderer_tests()
 		    "the key display should retain its last confirmed value between detections", &checks, &failures);
 
 	snapshot.sequence = 4;
+	snapshot.keyboard_notes = {};
+	set_note_cell(snapshot.bass_notes.rows[0][0], 40, 0.62f, 0.62f);
+	set_note_cell(snapshot.vocal_notes.rows[0][0], 57, 0.62f, 0.62f);
+	render_visualizer(&renderer, snapshot, 0.0f);
+	expect_true(std::strcmp(renderer.stable_labels[StableBass].label, "E") == 0,
+		    "the bass KEY display should capture its current note", &checks, &failures);
+	expect_true(std::strcmp(renderer.stable_labels[StableVocal].label, "A") == 0,
+		    "the vocal KEY display should capture its current note", &checks, &failures);
+
+	snapshot.sequence = 5;
+	snapshot.bass_notes = {};
+	snapshot.vocal_notes = {};
+	render_visualizer(&renderer, snapshot, 0.0f);
+	expect_true(std::strcmp(renderer.stable_labels[StableBass].label, "E") == 0,
+		    "the bass KEY display should retain its last confirmed value between detections", &checks,
+		    &failures);
+	expect_true(std::strcmp(renderer.stable_labels[StableVocal].label, "A") == 0,
+		    "the vocal KEY display should retain its last confirmed value between detections", &checks,
+		    &failures);
+
+	snapshot.sequence = 6;
 	snapshot.rms = 0.0f;
 	render_visualizer(&renderer, snapshot, 0.0f);
 	expect_true(renderer.stable_labels[StableKeyboard].label[0] == '\0',
 		    "silence should clear the retained key display", &checks, &failures);
+	expect_true(renderer.stable_labels[StableBass].label[0] == '\0' &&
+			    renderer.stable_labels[StableVocal].label[0] == '\0',
+		    "silence should clear retained bass and vocal KEY displays", &checks, &failures);
 
 	if (failures != 0)
 		return 1;
