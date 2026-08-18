@@ -17,6 +17,10 @@ constexpr bool kEnableOtherDetection = false;
 // clears the cross-corpus no-misleading-output gate at its stricter certainty
 // threshold.  The source-separated phase tracker remains the primary path.
 constexpr bool kEnablePermissiveBeatTrackerFallback = true;
+// The constrained high-tempo tracker remains available for diagnostics, but
+// is disabled in live processing: running it beside phase tracking perturbed
+// a marginal phase confidence into one wrong Ballroom display.
+constexpr bool kEnableHighTempoBeatTrackerFallback = false;
 // Keep the matching visual section independently disabled.  This remains false
 // even if the detector is later enabled for diagnostics, so a deliberately
 // reviewed UI change is required before OTHERS can consume visualizer space.
@@ -212,6 +216,8 @@ struct AnalysisSnapshot {
 	float bpm_confidence = 0.0f;
 	float permissive_tracker_bpm = 0.0f;
 	float permissive_tracker_confidence = 0.0f;
+	float high_tempo_tracker_bpm = 0.0f;
+	float high_tempo_tracker_confidence = 0.0f;
 	float phase_estimated_bpm = 0.0f;
 	float phase_bpm_confidence = 0.0f;
 	float tempo_debug_event_strength = 0.0f;
@@ -456,6 +462,7 @@ private:
 	float pending_tempo_confidence_ = 0.0f;
 	float pending_tempo_seconds_ = 0.0f;
 	::Opaque_BTT_Struct *permissive_beat_tracker_ = nullptr;
+	::Opaque_BTT_Struct *high_tempo_beat_tracker_ = nullptr;
 	std::size_t analysis_window_samples_ = 0;
 	AnalysisInputMode active_input_mode_ = AnalysisInputMode::Auto;
 	bool has_active_input_mode_ = false;

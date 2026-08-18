@@ -7,8 +7,8 @@
 
 int main(int argc, char **argv)
 {
-    if (argc != 4) {
-        fprintf(stderr, "usage: btt_tempo_probe WAV OFFSET_SECONDS DURATION_SECONDS\n");
+    if (argc != 4 && argc != 6) {
+        fprintf(stderr, "usage: btt_tempo_probe WAV OFFSET_SECONDS DURATION_SECONDS [MIN_BPM MAX_BPM]\n");
         return 2;
     }
     MKAiff *audio = aiffWithContentsOfFile(argv[1]);
@@ -24,8 +24,15 @@ int main(int argc, char **argv)
     BTT *tracker = btt_new_default();
     if (tracker == NULL)
         return 2;
-    btt_set_min_tempo(tracker, 40.0);
-    btt_set_max_tempo(tracker, 240.0);
+    const double min_tempo = argc == 6 ? strtod(argv[4], NULL) : 40.0;
+    const double max_tempo = argc == 6 ? strtod(argv[5], NULL) : 240.0;
+    if (min_tempo <= 0.0 || max_tempo <= min_tempo) {
+        fprintf(stderr, "btt_tempo_probe: invalid tempo range %.2f..%.2f\n", min_tempo, max_tempo);
+        btt_destroy(tracker);
+        return 2;
+    }
+    btt_set_min_tempo(tracker, min_tempo);
+    btt_set_max_tempo(tracker, max_tempo);
     aiffSetPlayheadToSeconds(audio, strtod(argv[2], NULL));
     const int limit = (int)(strtod(argv[3], NULL) * aiffSampleRate(audio));
     dft_sample_t samples[256];
@@ -38,8 +45,8 @@ int main(int argc, char **argv)
         btt_process(tracker, samples, read);
         consumed += read;
     }
-    printf("raw=%.2f\tconfidence=%.3f\tsamples=%d\n", btt_get_tempo_bpm(tracker),
-           btt_get_tempo_certainty(tracker), consumed);
+    printf("raw=%.2f\tconfidence=%.3f\tmin_tempo=%.2f\tmax_tempo=%.2f\tsamples=%d\n",
+           btt_get_tempo_bpm(tracker), btt_get_tempo_certainty(tracker), min_tempo, max_tempo, consumed);
     btt_destroy(tracker);
     return 0;
 }

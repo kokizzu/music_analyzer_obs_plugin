@@ -755,6 +755,8 @@ class DetectionAccuracyReportTest(unittest.TestCase):
         self.assertIn("| Permissive tracker at 0.80 certainty — Ballroom | 11 / 11 (100.0%) | 0 |", report)
         self.assertIn("| Repair continuous PCM feed to permissive tracker | 1 / 1 (100.0%) | 0 |", report)
         self.assertIn("| Enable strict live permissive-tracker fallback | 3 / 3 (100.0%) | 0 |", report)
+        self.assertIn("| Benchmark constrained high-tempo beat tracker | 2 / 2 (100.0%) | 0 |", report)
+        self.assertIn("| Reject concurrent high-tempo tracker fallback | 1 / 1 (100.0%) | 0 |", report)
         self.assertIn("| Demonstrate a bass-attack feature improves real bass BPM | 0 / 1 (0.0%) | 1 |", report)
         self.assertIn("| Validate external KRAISLER archive | 1 / 1 (100.0%) | 0 |", report)
         self.assertIn("| Complete protected KRAISLER cross-corpus rule audit | 1 / 1 (100.0%) | 0 |", report)

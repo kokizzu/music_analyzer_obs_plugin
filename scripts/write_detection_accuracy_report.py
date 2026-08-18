@@ -2701,6 +2701,8 @@ def render(
             "| Repair continuous PCM feed to permissive tracker | 1 / 1 (100.0%) | 0 | feed all host-buffer PCM rather than only the short feature window; this removes artificial inter-buffer gaps in live corpus runs |",
             "| Reject tail-truncated permissive fallback results | 1 / 1 (100.0%) | 0 | earlier 0.75/0.60 live trials omitted each host-buffer tail and produced wrong Ballroom BPM; they do not calibrate the repaired continuous feed |",
             "| Enable strict live permissive-tracker fallback | 3 / 3 (100.0%) | 0 | at 0.80 certainty with phase confidence below 0.60: Ballroom 12 / 64, FiloBass 2 / 24, E-GMD 20 / 20; no wrong displayed BPM observed |",
+            "| Benchmark constrained high-tempo beat tracker | 2 / 2 (100.0%) | 0 | 120--240 BPM source-only tracker at 0.55 certainty: Ballroom 17 / 17 and FiloBass 5 / 5 correct |",
+            "| Reject concurrent high-tempo tracker fallback | 1 / 1 (100.0%) | 0 | live candidates at 0.55 were Ballroom 15 / 15 and FiloBass 5 / 5, but concurrent work raised Ballroom id 8 phase confidence from withheld to 0.617 and displayed wrong 158.97 BPM for 128.03; feature remains false |",
             "| Demonstrate a bass-attack feature improves real bass BPM | 0 / 1 (0.0%) | 1 | improve FiloBass displayable BPM without regressing E-GMD |",
             "| Hide BPM when calibrated confidence is insufficient | 1 / 1 (100.0%) | 0 | renderer keeps `BPM --` below 0.60 confidence |",
         ]

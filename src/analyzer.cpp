@@ -27904,6 +27904,8 @@ AnalysisEngine::~AnalysisEngine()
 {
 	if (permissive_beat_tracker_)
 		btt_destroy(permissive_beat_tracker_);
+	if (high_tempo_beat_tracker_)
+		btt_destroy(high_tempo_beat_tracker_);
 }
 
 void AnalysisEngine::configure(uint32_t sample_rate)
@@ -27951,6 +27953,10 @@ void AnalysisEngine::rebuild_permissive_beat_tracker()
 		btt_destroy(permissive_beat_tracker_);
 		permissive_beat_tracker_ = nullptr;
 	}
+	if (high_tempo_beat_tracker_) {
+		btt_destroy(high_tempo_beat_tracker_);
+		high_tempo_beat_tracker_ = nullptr;
+	}
 	permissive_beat_tracker_ = btt_new(BTT_SUGGESTED_SPECTRAL_FLUX_STFT_LEN,
 		BTT_SUGGESTED_SPECTRAL_FLUX_STFT_OVERLAP, BTT_SUGGESTED_OSS_FILTER_ORDER,
 		BTT_SUGGESTED_OSS_LENGTH, BTT_SUGGESTED_CBSS_LENGTH,
@@ -27959,12 +27965,24 @@ void AnalysisEngine::rebuild_permissive_beat_tracker()
 		return;
 	btt_set_min_tempo(permissive_beat_tracker_, 40.0);
 	btt_set_max_tempo(permissive_beat_tracker_, 240.0);
+	if (!kEnableHighTempoBeatTrackerFallback)
+		return;
+	high_tempo_beat_tracker_ = btt_new(BTT_SUGGESTED_SPECTRAL_FLUX_STFT_LEN,
+		BTT_SUGGESTED_SPECTRAL_FLUX_STFT_OVERLAP, BTT_SUGGESTED_OSS_FILTER_ORDER,
+		BTT_SUGGESTED_OSS_LENGTH, BTT_SUGGESTED_CBSS_LENGTH,
+		BTT_SUGGESTED_ONSET_THRESHOLD_N, static_cast<double>(sample_rate_), 0, 0);
+	if (!high_tempo_beat_tracker_)
+		return;
+	btt_set_min_tempo(high_tempo_beat_tracker_, 120.0);
+	btt_set_max_tempo(high_tempo_beat_tracker_, 240.0);
 }
 
 void AnalysisEngine::clear_permissive_beat_tracker()
 {
 	if (permissive_beat_tracker_)
 		btt_clear(permissive_beat_tracker_);
+	if (high_tempo_beat_tracker_)
+		btt_clear(high_tempo_beat_tracker_);
 }
 
 std::size_t resolve_analysis_window_samples(const AnalysisSettings &settings)
@@ -30138,6 +30156,9 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 	// unlike OBS's continuous audio stream.
 	if (permissive_beat_tracker_ && count > 0)
 		btt_process(permissive_beat_tracker_, const_cast<dft_sample_t *>(samples),
+			static_cast<int>(std::min<std::size_t>(count, 1U << 30)));
+	if (high_tempo_beat_tracker_ && count > 0)
+		btt_process(high_tempo_beat_tracker_, const_cast<dft_sample_t *>(samples),
 			static_cast<int>(std::min<std::size_t>(count, 1U << 30)));
 	double sum = 0.0;
 	double square_sum = 0.0;
@@ -34673,17 +34694,35 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 		static_cast<float>(btt_get_tempo_bpm(permissive_beat_tracker_)) : 0.0f;
 	const float permissive_confidence = permissive_beat_tracker_ ?
 		static_cast<float>(btt_get_tempo_certainty(permissive_beat_tracker_)) : 0.0f;
+	const float high_tempo_bpm = high_tempo_beat_tracker_ ?
+		static_cast<float>(btt_get_tempo_bpm(high_tempo_beat_tracker_)) : 0.0f;
+	const float high_tempo_confidence = high_tempo_beat_tracker_ ?
+		static_cast<float>(btt_get_tempo_certainty(high_tempo_beat_tracker_)) : 0.0f;
 	snapshot.permissive_tracker_bpm = permissive_bpm;
 	snapshot.permissive_tracker_confidence = permissive_confidence;
+	snapshot.high_tempo_tracker_bpm = high_tempo_bpm;
+	snapshot.high_tempo_tracker_confidence = high_tempo_confidence;
+	const bool phase_tempo_uncertain = bpm_confidence_ < 0.60f;
 	// The optional backend is an uncertainty-safe fallback only.  It never
 	// replaces a displayable source-separated phase estimate.  With continuous
 	// PCM input, its 0.80 certainty gate had no wrong fallback candidates in
 	// either Ballroom (11/11) or FiloBass (2/2); lower gates admitted errors.
-	if (kEnablePermissiveBeatTrackerFallback && bpm_confidence_ < 0.60f &&
+	if (kEnablePermissiveBeatTrackerFallback && phase_tempo_uncertain &&
 		permissive_confidence >= 0.80f &&
 		permissive_bpm >= 40.0f && permissive_bpm <= 240.0f) {
 		estimated_bpm_ = permissive_bpm;
 		bpm_confidence_ = permissive_confidence;
+		snapshot.estimated_bpm = estimated_bpm_;
+		snapshot.bpm_confidence = bpm_confidence_;
+	} else if (kEnableHighTempoBeatTrackerFallback && phase_tempo_uncertain &&
+		   high_tempo_confidence >= 0.55f && high_tempo_bpm >= 120.0f &&
+		   high_tempo_bpm <= 240.0f) {
+		// Diagnostic-only experiment: its isolated live candidates were accurate
+		// at 0.55, but concurrent processing perturbed a phase-confidence edge
+		// into a wrong display.  Keep this compile-time-disabled until a design
+		// can isolate that work from the phase tracker.
+		estimated_bpm_ = high_tempo_bpm;
+		bpm_confidence_ = high_tempo_confidence;
 		snapshot.estimated_bpm = estimated_bpm_;
 		snapshot.bpm_confidence = bpm_confidence_;
 	}

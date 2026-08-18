@@ -926,6 +926,8 @@ BALLROOM_ANNOTATIONS_DIR ?= $(BALLROOM_SOURCE_DIR)/annotations
 BALLROOM_TEMPO_FIXTURE_DIR ?= $(BUILD_DIR)/ballroom-tempo-fixture
 BALLROOM_BPM_LOG ?= $(BUILD_DIR)/ballroom_bpm_diagnostics.log
 BALLROOM_BPM_LIMIT ?= 64
+LIVE_BTT_DETAILS_MIN_CONFIDENCE ?= 0.70
+LIVE_BTT_DETAILS_MAX_CONFIDENCE ?= 0.80
 FILOBASS_SOURCE_DIR ?= $(INSTRUMENT_SAMPLE_STORE_LINK)/filobass
 FILOBASS_ARCHIVE ?= $(FILOBASS_SOURCE_DIR)/FiloBass_v1.0.0.zip
 FILOBASS_EXTRACT_DIR ?= $(FILOBASS_SOURCE_DIR)/extracted
@@ -935,6 +937,9 @@ FILOBASS_BPM_LOG ?= $(BUILD_DIR)/filobass_bpm_diagnostics.log
 BTT_BALLROOM_LOG ?= $(BUILD_DIR)/btt_ballroom_bpm_diagnostics.log
 BTT_FILOBASS_LOG ?= $(BUILD_DIR)/btt_filobass_bpm_diagnostics.log
 BTT_EGMD_LOG ?= $(BUILD_DIR)/btt_egmd_bpm_diagnostics.log
+BTT_HIGH_TEMPO_MIN ?= 120
+BTT_HIGH_TEMPO_BALLROOM_LOG ?= $(BUILD_DIR)/btt_high_tempo_ballroom_bpm_diagnostics.log
+BTT_HIGH_TEMPO_FILOBASS_LOG ?= $(BUILD_DIR)/btt_high_tempo_filobass_bpm_diagnostics.log
 FILOBASS_BPM_LIMIT ?= 24
 FILOBASS_ONSET_DIAGNOSTICS ?= $(BUILD_DIR)/filobass_bass_onset_diagnostics.tsv
 IRMAS_SOURCE_DIR ?= $(INSTRUMENT_SAMPLE_STORE_LINK)/irmas
@@ -5576,7 +5581,7 @@ test-analyzer-egmd: $(BUILD_DIR)/analyzer_egmd scripts/run_with_duration.sh
 .PHONY: test-bpm-regression
 test-bpm-regression: test-analyzer-cases test-egmd-fixture
 
-.PHONY: analyze-egmd-bpm measure-egmd-bpm-cached summarize-egmd-bpm analyze-real-egmd-bpm analyze-mdb-bpm analyze-maestro-bpm analyze-kraisler-bpm measure-kraisler-bpm-cached summarize-kraisler-bpm download-ballroom-tempo download-ballroom-annotations download-permissive-beat-tracker test-download-ballroom-tempo-script test-prepare-ballroom-tempo-fixture prepare-ballroom-tempo-fixture measure-ballroom-bpm summarize-ballroom-bpm download-filobass inspect-filobass prepare-filobass-tempo-fixture measure-filobass-bpm summarize-filobass-bpm inspect-filobass-tempo-onsets inspect-tempo-candidate-feasibility inspect-tempo-confidence-calibration inspect-beat-tracker-backends analyze-bpm-diagnostics test-analyze-egmd-tempo test-inspect-tempo-candidate-feasibility
+.PHONY: analyze-egmd-bpm measure-egmd-bpm-cached summarize-egmd-bpm analyze-real-egmd-bpm analyze-mdb-bpm analyze-maestro-bpm analyze-kraisler-bpm measure-kraisler-bpm-cached summarize-kraisler-bpm download-ballroom-tempo download-ballroom-annotations download-permissive-beat-tracker test-download-ballroom-tempo-script test-prepare-ballroom-tempo-fixture prepare-ballroom-tempo-fixture measure-ballroom-bpm summarize-ballroom-bpm download-filobass inspect-filobass prepare-filobass-tempo-fixture measure-filobass-bpm summarize-filobass-bpm inspect-filobass-tempo-onsets inspect-tempo-candidate-feasibility inspect-tempo-confidence-calibration inspect-beat-tracker-backends analyze-bpm-diagnostics test-analyze-egmd-tempo test-inspect-tempo-candidate-feasibility measure-permissive-beat-tracker-high-tempo summarize-permissive-beat-tracker-high-tempo
 
 test-analyze-egmd-tempo: tests/test_analyze_egmd_tempo.py scripts/analyze_egmd_tempo.py
 	$(PYTHON) tests/test_analyze_egmd_tempo.py
@@ -5696,6 +5701,14 @@ measure-permissive-beat-tracker: $(BTT_PROBE) scripts/measure_permissive_beat_tr
 measure-permissive-beat-tracker-egmd: $(BTT_PROBE) scripts/measure_permissive_beat_tracker.py $(REAL_GOAL_EGMD_FIXTURE_DIR)/e-gmd-v1.0.0.csv
 	$(PYTHON) scripts/measure_permissive_beat_tracker.py --root "$(REAL_GOAL_EGMD_FIXTURE_DIR)" --metadata e-gmd-v1.0.0.csv --probe "$(BTT_PROBE)" --seconds 8 > "$(BTT_EGMD_LOG)"
 
+measure-permissive-beat-tracker-high-tempo: $(BTT_PROBE) scripts/measure_permissive_beat_tracker.py $(BALLROOM_TEMPO_FIXTURE_DIR)/maestro-v3.0.0.csv $(FILOBASS_TEMPO_FIXTURE_DIR)/maestro-v3.0.0.csv
+	$(PYTHON) scripts/measure_permissive_beat_tracker.py --root "$(BALLROOM_TEMPO_FIXTURE_DIR)" --probe "$(BTT_PROBE)" --min-tempo "$(BTT_HIGH_TEMPO_MIN)" > "$(BTT_HIGH_TEMPO_BALLROOM_LOG)"
+	$(PYTHON) scripts/measure_permissive_beat_tracker.py --root "$(FILOBASS_TEMPO_FIXTURE_DIR)" --probe "$(BTT_PROBE)" --min-tempo "$(BTT_HIGH_TEMPO_MIN)" > "$(BTT_HIGH_TEMPO_FILOBASS_LOG)"
+
+summarize-permissive-beat-tracker-high-tempo: scripts/inspect_tempo_confidence_calibration.py $(BTT_HIGH_TEMPO_BALLROOM_LOG) $(BTT_HIGH_TEMPO_FILOBASS_LOG)
+	$(PYTHON) scripts/inspect_tempo_confidence_calibration.py --prefix "BTT tempo diag" --tolerance "$(BPM_DIAG_TOLERANCE)" "$(BTT_HIGH_TEMPO_BALLROOM_LOG)"
+	$(PYTHON) scripts/inspect_tempo_confidence_calibration.py --prefix "BTT tempo diag" --tolerance "$(BPM_DIAG_TOLERANCE)" "$(BTT_HIGH_TEMPO_FILOBASS_LOG)"
+
 summarize-permissive-beat-tracker: scripts/inspect_tempo_confidence_calibration.py $(BTT_BALLROOM_LOG) $(BTT_FILOBASS_LOG) $(BTT_EGMD_LOG)
 	$(PYTHON) scripts/inspect_tempo_confidence_calibration.py --prefix "BTT tempo diag" --tolerance "$(BPM_DIAG_TOLERANCE)" "$(BTT_BALLROOM_LOG)"
 	$(PYTHON) scripts/inspect_tempo_confidence_calibration.py --prefix "BTT tempo diag" --tolerance "$(BPM_DIAG_TOLERANCE)" "$(BTT_FILOBASS_LOG)"
@@ -5704,6 +5717,16 @@ summarize-permissive-beat-tracker: scripts/inspect_tempo_confidence_calibration.
 inspect-live-permissive-tracker: scripts/inspect_tempo_confidence_calibration.py $(BALLROOM_BPM_LOG) $(FILOBASS_BPM_LOG)
 	$(PYTHON) scripts/inspect_tempo_confidence_calibration.py --prefix "MAESTRO tempo diag" --estimate-field backend_raw --confidence-field backend_confidence --fallback-only-field phase_confidence --tolerance "$(BPM_DIAG_TOLERANCE)" "$(BALLROOM_BPM_LOG)"
 	$(PYTHON) scripts/inspect_tempo_confidence_calibration.py --prefix "MAESTRO tempo diag" --estimate-field backend_raw --confidence-field backend_confidence --fallback-only-field phase_confidence --tolerance "$(BPM_DIAG_TOLERANCE)" "$(FILOBASS_BPM_LOG)"
+
+.PHONY: inspect-live-permissive-tracker-borderline
+inspect-live-permissive-tracker-borderline: scripts/inspect_tempo_confidence_calibration.py $(BALLROOM_BPM_LOG) $(FILOBASS_BPM_LOG)
+	$(PYTHON) scripts/inspect_tempo_confidence_calibration.py --prefix "MAESTRO tempo diag" --estimate-field backend_raw --confidence-field backend_confidence --fallback-only-field phase_confidence --tolerance "$(BPM_DIAG_TOLERANCE)" --details-min-confidence "$(LIVE_BTT_DETAILS_MIN_CONFIDENCE)" --details-max-confidence "$(LIVE_BTT_DETAILS_MAX_CONFIDENCE)" "$(BALLROOM_BPM_LOG)"
+	$(PYTHON) scripts/inspect_tempo_confidence_calibration.py --prefix "MAESTRO tempo diag" --estimate-field backend_raw --confidence-field backend_confidence --fallback-only-field phase_confidence --tolerance "$(BPM_DIAG_TOLERANCE)" --details-min-confidence "$(LIVE_BTT_DETAILS_MIN_CONFIDENCE)" --details-max-confidence "$(LIVE_BTT_DETAILS_MAX_CONFIDENCE)" "$(FILOBASS_BPM_LOG)"
+
+.PHONY: inspect-live-high-tempo-tracker
+inspect-live-high-tempo-tracker: scripts/inspect_tempo_confidence_calibration.py $(BALLROOM_BPM_LOG) $(FILOBASS_BPM_LOG)
+	$(PYTHON) scripts/inspect_tempo_confidence_calibration.py --prefix "MAESTRO tempo diag" --estimate-field high_backend_raw --confidence-field high_backend_confidence --fallback-only-field phase_confidence --tolerance "$(BPM_DIAG_TOLERANCE)" "$(BALLROOM_BPM_LOG)"
+	$(PYTHON) scripts/inspect_tempo_confidence_calibration.py --prefix "MAESTRO tempo diag" --estimate-field high_backend_raw --confidence-field high_backend_confidence --fallback-only-field phase_confidence --tolerance "$(BPM_DIAG_TOLERANCE)" "$(FILOBASS_BPM_LOG)"
 
 inspect-beat-tracker-backends: scripts/inspect_beat_tracker_backends.py
 	$(PYTHON) scripts/inspect_beat_tracker_backends.py

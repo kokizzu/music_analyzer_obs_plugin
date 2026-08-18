@@ -1165,9 +1165,10 @@ bool measure_maestro_tempo(const Recording &recording, double max_seconds, float
 	if (snapshot.estimated_bpm <= 0.0f || snapshot.bpm_confidence < confidence_floor) {
 		++stats.no_estimate;
 		std::fprintf(stderr,
-		     "MAESTRO tempo diag\tid=%s\texpected=%.2f\tgot=0.00\traw=%.2f\tconfidence=%.3f\tbackend_raw=%.2f\tbackend_confidence=%.3f\tphase_raw=%.2f\tphase_confidence=%.3f\terror=%.2f\tstatus=no-estimate\tcandidates=%s\n",
+		     "MAESTRO tempo diag\tid=%s\texpected=%.2f\tgot=0.00\traw=%.2f\tconfidence=%.3f\tbackend_raw=%.2f\tbackend_confidence=%.3f\thigh_backend_raw=%.2f\thigh_backend_confidence=%.3f\tphase_raw=%.2f\tphase_confidence=%.3f\terror=%.2f\tstatus=no-estimate\tcandidates=%s\n",
 		     recording.id.c_str(), expected, snapshot.estimated_bpm, snapshot.bpm_confidence,
 		     snapshot.permissive_tracker_bpm, snapshot.permissive_tracker_confidence,
+		     snapshot.high_tempo_tracker_bpm, snapshot.high_tempo_tracker_confidence,
 		     snapshot.phase_estimated_bpm, snapshot.phase_bpm_confidence,
 			     static_cast<double>(expected), tempo_candidate_summary(snapshot).c_str());
 		return true;
@@ -1177,9 +1178,10 @@ bool measure_maestro_tempo(const Recording &recording, double max_seconds, float
 	stats.max_absolute_error = std::max(stats.max_absolute_error, absolute_error);
 	if (absolute_error <= tolerance)
 		++stats.hits;
-	std::fprintf(stderr, "MAESTRO tempo diag\tid=%s\texpected=%.2f\tgot=%.2f\traw=%.2f\tconfidence=%.3f\tbackend_raw=%.2f\tbackend_confidence=%.3f\tphase_raw=%.2f\tphase_confidence=%.3f\terror=%.2f\tstatus=%s\tcandidates=%s\n",
+	std::fprintf(stderr, "MAESTRO tempo diag\tid=%s\texpected=%.2f\tgot=%.2f\traw=%.2f\tconfidence=%.3f\tbackend_raw=%.2f\tbackend_confidence=%.3f\thigh_backend_raw=%.2f\thigh_backend_confidence=%.3f\tphase_raw=%.2f\tphase_confidence=%.3f\terror=%.2f\tstatus=%s\tcandidates=%s\n",
 		     recording.id.c_str(), expected, snapshot.estimated_bpm, snapshot.estimated_bpm, snapshot.bpm_confidence,
 		     snapshot.permissive_tracker_bpm, snapshot.permissive_tracker_confidence,
+		     snapshot.high_tempo_tracker_bpm, snapshot.high_tempo_tracker_confidence,
 		     snapshot.phase_estimated_bpm, snapshot.phase_bpm_confidence,
 		     absolute_error, absolute_error <= tolerance ? "hit" : "miss",
 		     tempo_candidate_summary(snapshot).c_str());
