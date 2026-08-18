@@ -1565,6 +1565,7 @@ Tempo estimates are only displayed at calibrated confidence. Source-specific pha
 | Assess raw bass-attack BPM evidence | 1 / 1 (100.0%) | 0 | offline FiloBass rank-one/top-five diagnostic |
 | Assess bass source-grid energy before a selector | 1 / 1 (100.0%) | 0 | FiloBass expected candidate shows higher bass alignment in 4/24 eligible rows |
 | Reject unproven meter/bass candidate reweighting | 1 / 1 (100.0%) | 0 | feasibility audit: Ballroom meter/bass selectors stay at 4 / 61; FiloBass stays at 4 / 24, so neither is a safe BPM selector |
+| Reject unproven normalized-recurrence selector | 1 / 1 (100.0%) | 0 | lag-normalized recurrence reaches 6 / 61 only at an extreme Ballroom weight and remains 4 / 24 on FiloBass |
 | Demonstrate a bass-attack feature improves real bass BPM | 0 / 1 (0.0%) | 1 | improve FiloBass displayable BPM without regressing E-GMD |
 | Hide BPM when calibrated confidence is insufficient | 1 / 1 (100.0%) | 0 | renderer keeps `BPM --` below 0.60 confidence |
 

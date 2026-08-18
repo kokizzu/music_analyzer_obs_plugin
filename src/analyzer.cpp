@@ -28366,6 +28366,9 @@ void AnalysisEngine::update_tempo(float raw_event_strength, float raw_event_body
 	std::array<float, kTempoBpmCount> comb_bpm_scores = {};
 	std::array<float, kTempoBpmCount> comb_body_bpm_scores = {};
 	std::array<float, kTempoBpmCount> comb_subdivision_bpm_scores = {};
+	std::array<float, kTempoBpmCount> recurrence_bpm_scores = {};
+	std::array<float, kTempoBpmCount> kick_recurrence_bpm_scores = {};
+	std::array<float, kTempoBpmCount> bass_recurrence_bpm_scores = {};
 	std::array<float, kTempoBpmCount> phase_bpm_scores = {};
 	std::array<float, kTempoBpmCount> phase_locked_bpm_scores = {};
 	std::array<float, kTempoBpmCount> meter_bpm_scores = {};
@@ -28610,6 +28613,10 @@ void AnalysisEngine::update_tempo(float raw_event_strength, float raw_event_body
 		float comb_score = 0.0f;
 		float comb_body_score = 0.0f;
 		float comb_subdivision_score = 0.0f;
+		float recurrence_score = 0.0f;
+		float kick_recurrence_score = 0.0f;
+		float bass_recurrence_score = 0.0f;
+		float recurrence_weight = 0.0f;
 		if (enough_flux_evidence) {
 			for (int multiple = 1; multiple <= 4; ++multiple) {
 				const float target_seconds = period * static_cast<float>(multiple);
@@ -28632,12 +28639,30 @@ void AnalysisEngine::update_tempo(float raw_event_strength, float raw_event_body
 						continue;
 					const float error_weight = 1.0f - phase_error / lag_tolerance;
 					const float lag_weight = multiple_weight * error_weight * error_weight;
+					float recurrence_product = 0.0f;
+					float recurrence_older_energy = 0.0f;
+					float recurrence_newer_energy = 0.0f;
+					std::array<float, 2> source_recurrence_products = {};
+					std::array<float, 2> source_recurrence_older_energies = {};
+					std::array<float, 2> source_recurrence_newer_energies = {};
 					for (std::size_t newer_index = static_cast<std::size_t>(lag);
 					     newer_index < recent_flux_count; ++newer_index) {
 						const std::size_t older_index =
 							newer_index - static_cast<std::size_t>(lag);
 						const float newer_flux = recent_flux[newer_index];
 						const float older_flux = recent_flux[older_index];
+						recurrence_product += newer_flux * older_flux;
+						recurrence_older_energy += older_flux * older_flux;
+						recurrence_newer_energy += newer_flux * newer_flux;
+						const std::array<float, 2> newer_sources = {
+							recent_kick_flux[newer_index], recent_bass_flux[newer_index]};
+						const std::array<float, 2> older_sources = {
+							recent_kick_flux[older_index], recent_bass_flux[older_index]};
+						for (std::size_t source = 0; source < newer_sources.size(); ++source) {
+							source_recurrence_products[source] += newer_sources[source] * older_sources[source];
+							source_recurrence_older_energies[source] += older_sources[source] * older_sources[source];
+							source_recurrence_newer_energies[source] += newer_sources[source] * newer_sources[source];
+						}
 						if (newer_flux < 0.010f || older_flux < 0.010f)
 							continue;
 						const float age =
@@ -28663,6 +28688,19 @@ void AnalysisEngine::update_tempo(float raw_event_strength, float raw_event_body
 							std::sqrt(subdivision_older * subdivision_newer) *
 							recency * lag_weight;
 					}
+					const auto normalized_recurrence = [](float product, float older_energy,
+												  float newer_energy) {
+						return product / std::sqrt(std::max(older_energy * newer_energy, 1.0e-12f));
+					};
+					recurrence_score += normalized_recurrence(
+						recurrence_product, recurrence_older_energy, recurrence_newer_energy) * lag_weight;
+					kick_recurrence_score += normalized_recurrence(
+						source_recurrence_products[0], source_recurrence_older_energies[0],
+						source_recurrence_newer_energies[0]) * lag_weight;
+					bass_recurrence_score += normalized_recurrence(
+						source_recurrence_products[1], source_recurrence_older_energies[1],
+						source_recurrence_newer_energies[1]) * lag_weight;
+					recurrence_weight += lag_weight;
 				}
 			}
 		}
@@ -28674,6 +28712,11 @@ void AnalysisEngine::update_tempo(float raw_event_strength, float raw_event_body
 		comb_bpm_scores[score_index] = comb_score;
 		comb_body_bpm_scores[score_index] = comb_body_score;
 		comb_subdivision_bpm_scores[score_index] = comb_subdivision_score;
+		if (recurrence_weight > 1.0e-6f) {
+			recurrence_bpm_scores[score_index] = recurrence_score / recurrence_weight;
+			kick_recurrence_bpm_scores[score_index] = kick_recurrence_score / recurrence_weight;
+			bass_recurrence_bpm_scores[score_index] = bass_recurrence_score / recurrence_weight;
+		}
 
 		float phase_score = 0.0f;
 		float phase_locked_score = 0.0f;
@@ -29417,6 +29460,9 @@ void AnalysisEngine::update_tempo(float raw_event_strength, float raw_event_body
 		candidate.phase_score = phase_bpm_scores[score_index];
 		candidate.phase_locked_score = phase_locked_bpm_scores[score_index];
 		candidate.meter_score = meter_bpm_scores[score_index];
+		candidate.recurrence_score = recurrence_bpm_scores[score_index];
+		candidate.kick_recurrence_score = kick_recurrence_bpm_scores[score_index];
+		candidate.bass_recurrence_score = bass_recurrence_bpm_scores[score_index];
 		candidate.phase_body_coverage = phase_body_coverages[score_index];
 		candidate.phase_all_coverage = phase_all_coverages[score_index];
 		candidate.kick_phase_coverage = kick_phase_coverages[score_index];

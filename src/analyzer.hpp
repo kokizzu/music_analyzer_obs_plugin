@@ -170,6 +170,11 @@ struct TempoDebugCandidate {
 	float phase_score = 0.0f;
 	float phase_locked_score = 0.0f;
 	float meter_score = 0.0f;
+	// Lag-normalized recurrence, retained separately from the summed comb score
+	// so dense fast grids cannot appear stronger solely by having more pairs.
+	float recurrence_score = 0.0f;
+	float kick_recurrence_score = 0.0f;
+	float bass_recurrence_score = 0.0f;
 	float kick_phase_coverage = 0.0f;
 	float bass_phase_coverage = 0.0f;
 	float snare_phase_coverage = 0.0f;

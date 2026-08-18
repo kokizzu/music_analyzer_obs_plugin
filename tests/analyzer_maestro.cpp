@@ -1086,11 +1086,13 @@ std::string tempo_candidate_summary(const mao::AnalysisSnapshot &snapshot)
 		const mao::TempoDebugCandidate &candidate = snapshot.tempo_debug_candidates[index];
 		char part[400] = {};
 		std::snprintf(part, sizeof(part),
-			      "%s%d(s=%.2f,a=%.2f,b=%.2f,ba=%.2f,ph=%.2f,lock=%.2f,m=%.2f,cov=%.0f/%.0f,src=%.0f/%.0f/%.0f/%.0f,align=%.0f/%.0f/%.0f/%.0f)",
+			      "%s%d(s=%.2f,a=%.2f,b=%.2f,ba=%.2f,ph=%.2f,lock=%.2f,m=%.2f,rep=%.2f/%.2f/%.2f,cov=%.0f/%.0f,src=%.0f/%.0f/%.0f/%.0f,align=%.0f/%.0f/%.0f/%.0f)",
 			      text.empty() ? "" : " ", candidate.bpm, candidate.score,
 			      candidate.adjacent_score, candidate.body_score,
 			      candidate.adjacent_body_score, candidate.phase_score,
 			      candidate.phase_locked_score, candidate.meter_score,
+			      candidate.recurrence_score, candidate.kick_recurrence_score,
+			      candidate.bass_recurrence_score,
 			      candidate.phase_body_coverage * 100.0f,
 			      candidate.phase_all_coverage * 100.0f,
 			      candidate.kick_phase_coverage * 100.0f,
