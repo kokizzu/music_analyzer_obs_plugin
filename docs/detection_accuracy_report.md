@@ -1575,7 +1575,11 @@ Tempo estimates are only displayed at calibrated confidence. Source-specific pha
 | Retain calibrated BPM display-confidence gate | 1 / 1 (100.0%) | 0 | at 0.45 confidence, raw selection is correct only 1 / 5 Ballroom and 0 / 4 FiloBass; lowering the 0.60 display gate would expose mostly wrong BPM |
 | Local advanced beat-tracker backend available | 0 / 2 (0.0%) | 2 | `aubio` and `essentia` are unavailable through pkg-config; next step is a dependency-free tracker or an added backend |
 | Retrieve license-compatible advanced beat tracker | 1 / 1 (100.0%) | 0 | MIT-licensed Beat-and-Tempo-Tracking source is pinned at `c039090f1af771092d95c3ffc402e557940f7384`; aubio remains unsuitable without a GPL compatibility decision |
-| Benchmark permissive beat tracker on both real tempo corpora | 0 / 2 (0.0%) | 2 | use the source-only tracker as an offline contender against Ballroom and FiloBass before any OBS integration |
+| Benchmark permissive beat tracker on both real tempo corpora | 2 / 2 (100.0%) | 0 | source-only MIT tracker measured on the same 20 s annotated stable segments as the analyzer |
+| Permissive tracker raw BPM — Ballroom | 41 / 64 (64.1%) | 23 | within 8 BPM; diagnostic source `build/btt_ballroom_bpm_diagnostics.log` |
+| Permissive tracker raw BPM — FiloBass | 13 / 24 (54.2%) | 11 | within 8 BPM; diagnostic source `build/btt_filobass_bpm_diagnostics.log` |
+| Permissive tracker at 0.60 certainty — Ballroom | 19 / 24 (79.2%) | 5 | correct / displayed; 40 clips remain hidden |
+| Permissive tracker at 0.60 certainty — FiloBass | 4 / 6 (66.7%) | 2 | correct / displayed; precision calibration remains required |
 | Demonstrate a bass-attack feature improves real bass BPM | 0 / 1 (0.0%) | 1 | improve FiloBass displayable BPM without regressing E-GMD |
 | Hide BPM when calibrated confidence is insufficient | 1 / 1 (100.0%) | 0 | renderer keeps `BPM --` below 0.60 confidence |
 

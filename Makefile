@@ -932,6 +932,8 @@ FILOBASS_EXTRACT_DIR ?= $(FILOBASS_SOURCE_DIR)/extracted
 FILOBASS_INSPECTION_OUTPUT ?= $(BUILD_DIR)/filobass_inspection.tsv
 FILOBASS_TEMPO_FIXTURE_DIR ?= $(FILOBASS_SOURCE_DIR)/tempo-fixture
 FILOBASS_BPM_LOG ?= $(BUILD_DIR)/filobass_bpm_diagnostics.log
+BTT_BALLROOM_LOG ?= $(BUILD_DIR)/btt_ballroom_bpm_diagnostics.log
+BTT_FILOBASS_LOG ?= $(BUILD_DIR)/btt_filobass_bpm_diagnostics.log
 FILOBASS_BPM_LIMIT ?= 24
 FILOBASS_ONSET_DIAGNOSTICS ?= $(BUILD_DIR)/filobass_bass_onset_diagnostics.tsv
 IRMAS_SOURCE_DIR ?= $(INSTRUMENT_SAMPLE_STORE_LINK)/irmas
@@ -1485,6 +1487,8 @@ RENDERER_OBJ := $(BUILD_DIR)/visualizer_renderer.o
 PLUGIN_OBJS := $(BUILD_DIR)/analyzer.o $(RENDERER_OBJ) $(BUILD_DIR)/plugin.o
 ANALYZER_TEST_OBJ := $(BUILD_DIR)/analyzer_test.o
 TEST_BINS := $(BUILD_DIR)/fret_control_tests $(BUILD_DIR)/visualizer_renderer_tests $(BUILD_DIR)/analyzer_internal $(BUILD_DIR)/analyzer_smoke $(BUILD_DIR)/analyzer_cases $(BUILD_DIR)/analyzer_midi_ranges $(BUILD_DIR)/analyzer_urmp $(BUILD_DIR)/analyzer_musicnet $(BUILD_DIR)/analyzer_multtipop $(BUILD_DIR)/analyzer_guitarset $(BUILD_DIR)/analyzer_maestro $(BUILD_DIR)/analyzer_egmd $(BUILD_DIR)/analyzer_drum_samples $(BUILD_DIR)/analyzer_instrument_samples $(BUILD_DIR)/analyzer_real_note_samples $(BUILD_DIR)/analyzer_instrument_family_samples
+BTT_SOURCE_DIR := third_party/beat_and_tempo_tracking
+BTT_PROBE := $(BUILD_DIR)/btt_tempo_probe
 STANDALONE_BIN := $(BUILD_DIR)/music-analyzer-standalone
 BASS_GUITAR_STANDALONE_BIN := $(BUILD_DIR)/music-analyzer-bass-guitar
 ONLINE_CPU_COUNT := $(or $(shell nproc 2>/dev/null),$(shell getconf _NPROCESSORS_ONLN 2>/dev/null),4)
@@ -2001,6 +2005,9 @@ $(BUILD_DIR)/analyzer_maestro: $(ANALYZER_TEST_OBJ) $(BUILD_DIR)/analyzer_maestr
 
 $(BUILD_DIR)/analyzer_egmd: $(ANALYZER_TEST_OBJ) $(BUILD_DIR)/analyzer_egmd.o
 	tmp="$@.$$$$.tmp"; $(CXX) -o "$$tmp" $^ -lm -pthread && mv "$$tmp" "$@"
+
+$(BTT_PROBE): tests/btt_tempo_probe.c $(BTT_SOURCE_DIR)/BTT.h $(BTT_SOURCE_DIR)/demos/offline/MKAiff.c $(wildcard $(BTT_SOURCE_DIR)/src/*.c) | $(BUILD_DIR)
+	tmp="$@.$$$$.tmp"; $(CC) $(CFLAGS) -I$(BTT_SOURCE_DIR) -I$(BTT_SOURCE_DIR)/demos/offline $^ -lm -o "$$tmp" && mv "$$tmp" "$@"
 
 $(BUILD_DIR)/analyzer_drum_samples: $(ANALYZER_TEST_OBJ) $(BUILD_DIR)/analyzer_drum_samples.o
 	tmp="$@.$$$$.tmp"; $(CXX) -o "$$tmp" $^ -lm -pthread && mv "$$tmp" "$@"
@@ -5675,6 +5682,14 @@ inspect-tempo-confidence-calibration: scripts/inspect_tempo_confidence_calibrati
 
 download-permissive-beat-tracker: scripts/fetch_permissive_beat_tracker.sh | $(BUILD_DIR)
 	bash scripts/fetch_permissive_beat_tracker.sh
+
+measure-permissive-beat-tracker: $(BTT_PROBE) scripts/measure_permissive_beat_tracker.py $(BALLROOM_TEMPO_FIXTURE_DIR)/maestro-v3.0.0.csv $(FILOBASS_TEMPO_FIXTURE_DIR)/maestro-v3.0.0.csv
+	$(PYTHON) scripts/measure_permissive_beat_tracker.py --root "$(BALLROOM_TEMPO_FIXTURE_DIR)" --probe "$(BTT_PROBE)" > "$(BTT_BALLROOM_LOG)"
+	$(PYTHON) scripts/measure_permissive_beat_tracker.py --root "$(FILOBASS_TEMPO_FIXTURE_DIR)" --probe "$(BTT_PROBE)" > "$(BTT_FILOBASS_LOG)"
+
+summarize-permissive-beat-tracker: scripts/inspect_tempo_confidence_calibration.py $(BTT_BALLROOM_LOG) $(BTT_FILOBASS_LOG)
+	$(PYTHON) scripts/inspect_tempo_confidence_calibration.py --prefix "BTT tempo diag" --tolerance "$(BPM_DIAG_TOLERANCE)" "$(BTT_BALLROOM_LOG)"
+	$(PYTHON) scripts/inspect_tempo_confidence_calibration.py --prefix "BTT tempo diag" --tolerance "$(BPM_DIAG_TOLERANCE)" "$(BTT_FILOBASS_LOG)"
 
 inspect-beat-tracker-backends: scripts/inspect_beat_tracker_backends.py
 	$(PYTHON) scripts/inspect_beat_tracker_backends.py
