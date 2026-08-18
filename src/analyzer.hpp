@@ -17,6 +17,9 @@ constexpr bool kEnableOtherDetection = false;
 // clears the cross-corpus no-misleading-output gate at its stricter certainty
 // threshold.  The source-separated phase tracker remains the primary path.
 constexpr bool kEnablePermissiveBeatTrackerFallback = true;
+// A high-range-only BTT setting remains diagnostic-only: it independently
+// reproduces the same marginal phase regression as the concurrent experiment.
+constexpr bool kUseHighTempoPermissiveTracker = false;
 // The constrained high-tempo tracker remains available for diagnostics but
 // is disabled in live processing: even post-phase scheduling perturbed the
 // next buffer's phase state into one wrong Ballroom display.

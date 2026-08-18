@@ -27963,7 +27963,7 @@ void AnalysisEngine::rebuild_permissive_beat_tracker()
 		BTT_SUGGESTED_ONSET_THRESHOLD_N, static_cast<double>(sample_rate_), 0, 0);
 	if (!permissive_beat_tracker_)
 		return;
-	btt_set_min_tempo(permissive_beat_tracker_, 40.0);
+	btt_set_min_tempo(permissive_beat_tracker_, kUseHighTempoPermissiveTracker ? 120.0 : 40.0);
 	btt_set_max_tempo(permissive_beat_tracker_, 240.0);
 	if (!kEnableHighTempoBeatTrackerFallback)
 		return;
@@ -34702,11 +34702,15 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 	const bool phase_tempo_uncertain = bpm_confidence_ < 0.60f;
 	// The optional backend is an uncertainty-safe fallback only.  It never
 	// replaces a displayable source-separated phase estimate.  With continuous
-	// PCM input, its 0.80 certainty gate had no wrong fallback candidates in
-	// either Ballroom (11/11) or FiloBass (2/2); lower gates admitted errors.
+	// PCM input, the broad backend needs 0.80 certainty (Ballroom 11/11,
+	// FiloBass 2/2); the single constrained 120--240 BPM backend is being
+	// measured independently at its 0.55 candidate gate.
+	const float permissive_confidence_floor =
+		kUseHighTempoPermissiveTracker ? 0.55f : 0.80f;
 	if (kEnablePermissiveBeatTrackerFallback && phase_tempo_uncertain &&
-		permissive_confidence >= 0.80f &&
-		permissive_bpm >= 40.0f && permissive_bpm <= 240.0f) {
+		permissive_confidence >= permissive_confidence_floor &&
+		permissive_bpm >= (kUseHighTempoPermissiveTracker ? 120.0f : 40.0f) &&
+		permissive_bpm <= 240.0f) {
 		estimated_bpm_ = permissive_bpm;
 		bpm_confidence_ = permissive_confidence;
 		snapshot.estimated_bpm = estimated_bpm_;
