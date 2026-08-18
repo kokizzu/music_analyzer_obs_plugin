@@ -216,9 +216,10 @@ DETECTION_ACCURACY_MAESTRO_REAL_MANIFEST_ARG = $(if $(wildcard $(MAESTRO_REAL_SA
 DETECTION_ACCURACY_KRAISLER_ARCHIVE_ARG = $(if $(wildcard $(KRAISLER_ARCHIVE)),--kraisler-archive "$(KRAISLER_ARCHIVE)")
 DETECTION_ACCURACY_KRAISLER_EXTRACT_ARG = $(if $(wildcard $(KRAISLER_EXTRACT_DIR)),--kraisler-extraction "$(KRAISLER_EXTRACT_DIR)")
 DETECTION_ACCURACY_KRAISLER_MANIFEST_ARG = $(if $(wildcard $(KRAISLER_PREPARED_DIR)/manifest.json),--kraisler-manifest "$(KRAISLER_PREPARED_DIR)/manifest.json")
-DETECTION_ACCURACY_KRAISLER_MEASUREMENT_ARG = $(if $(wildcard $(KRAISLER_MEASUREMENT_OUTPUT)),--kraisler-measurement "$(KRAISLER_MEASUREMENT_OUTPUT)") $(DETECTION_ACCURACY_KRAISLER_BPM_ARG) $(DETECTION_ACCURACY_BALLROOM_BPM_ARG) $(DETECTION_ACCURACY_EGMD_BPM_ARG) $(DETECTION_ACCURACY_IDMT_BASS_TEMPO_METADATA_ARG)
+DETECTION_ACCURACY_KRAISLER_MEASUREMENT_ARG = $(if $(wildcard $(KRAISLER_MEASUREMENT_OUTPUT)),--kraisler-measurement "$(KRAISLER_MEASUREMENT_OUTPUT)") $(DETECTION_ACCURACY_KRAISLER_BPM_ARG) $(DETECTION_ACCURACY_BALLROOM_BPM_ARG) $(DETECTION_ACCURACY_FILOBASS_BPM_ARG) $(DETECTION_ACCURACY_EGMD_BPM_ARG) $(DETECTION_ACCURACY_IDMT_BASS_TEMPO_METADATA_ARG)
 DETECTION_ACCURACY_KRAISLER_BPM_ARG = $(if $(wildcard $(KRAISLER_BPM_LOG)),--kraisler-bpm-input "$(KRAISLER_BPM_LOG)")
 DETECTION_ACCURACY_BALLROOM_BPM_ARG = $(if $(wildcard $(BALLROOM_BPM_LOG)),--ballroom-bpm-input "$(BALLROOM_BPM_LOG)")
+DETECTION_ACCURACY_FILOBASS_BPM_ARG = $(if $(wildcard $(FILOBASS_BPM_LOG)),--filobass-bpm-input "$(FILOBASS_BPM_LOG)")
 DETECTION_ACCURACY_EGMD_BPM_ARG = $(if $(wildcard $(EGMD_BPM_LOG)),--egmd-bpm-input "$(EGMD_BPM_LOG)")
 DETECTION_ACCURACY_IDMT_BASS_TEMPO_METADATA_ARG = $(if $(wildcard $(IDMT_BASS_LINES_TEMPO_METADATA)),--idmt-bass-tempo-metadata-input "$(IDMT_BASS_LINES_TEMPO_METADATA)")
 DETECTION_ACCURACY_CHORAL_SINGING_DATASET_ARG = $(if $(wildcard $(CHORAL_SINGING_DATASET_ARCHIVE)),--choral-singing-dataset-archive "$(CHORAL_SINGING_DATASET_ARCHIVE)")
@@ -912,6 +913,9 @@ FILOBASS_SOURCE_DIR ?= $(INSTRUMENT_SAMPLE_STORE_LINK)/filobass
 FILOBASS_ARCHIVE ?= $(FILOBASS_SOURCE_DIR)/FiloBass_v1.0.0.zip
 FILOBASS_EXTRACT_DIR ?= $(FILOBASS_SOURCE_DIR)/extracted
 FILOBASS_INSPECTION_OUTPUT ?= $(BUILD_DIR)/filobass_inspection.tsv
+FILOBASS_TEMPO_FIXTURE_DIR ?= $(FILOBASS_SOURCE_DIR)/tempo-fixture
+FILOBASS_BPM_LOG ?= $(BUILD_DIR)/filobass_bpm_diagnostics.log
+FILOBASS_BPM_LIMIT ?= 24
 IRMAS_SOURCE_DIR ?= $(INSTRUMENT_SAMPLE_STORE_LINK)/irmas
 IRMAS_TEST_PART1_ARCHIVE ?= $(IRMAS_SOURCE_DIR)/IRMAS-TestingData-Part1.zip
 IRMAS_TEST_PART2_ARCHIVE ?= $(IRMAS_SOURCE_DIR)/IRMAS-TestingData-Part2.zip
@@ -5541,7 +5545,7 @@ test-analyzer-egmd: $(BUILD_DIR)/analyzer_egmd scripts/run_with_duration.sh
 .PHONY: test-bpm-regression
 test-bpm-regression: test-analyzer-cases test-egmd-fixture
 
-.PHONY: analyze-egmd-bpm measure-egmd-bpm-cached summarize-egmd-bpm analyze-real-egmd-bpm analyze-mdb-bpm analyze-maestro-bpm analyze-kraisler-bpm measure-kraisler-bpm-cached summarize-kraisler-bpm download-ballroom-tempo prepare-ballroom-tempo-fixture measure-ballroom-bpm summarize-ballroom-bpm analyze-bpm-diagnostics
+.PHONY: analyze-egmd-bpm measure-egmd-bpm-cached summarize-egmd-bpm analyze-real-egmd-bpm analyze-mdb-bpm analyze-maestro-bpm analyze-kraisler-bpm measure-kraisler-bpm-cached summarize-kraisler-bpm download-ballroom-tempo prepare-ballroom-tempo-fixture measure-ballroom-bpm summarize-ballroom-bpm download-filobass inspect-filobass prepare-filobass-tempo-fixture measure-filobass-bpm summarize-filobass-bpm analyze-bpm-diagnostics
 analyze-egmd-bpm: $(BUILD_DIR)/analyzer_egmd tests/generate_egmd_fixture.py scripts/analyze_egmd_tempo.py scripts/run_with_duration.sh | $(BUILD_DIR)
 	rm -rf "$(REAL_GOAL_EGMD_FIXTURE_DIR)"
 	$(PYTHON) tests/generate_egmd_fixture.py "$(REAL_GOAL_EGMD_FIXTURE_DIR)"
@@ -5593,6 +5597,20 @@ inspect-filobass: download-filobass scripts/inspect_filobass_dataset.py | $(BUIL
 
 test-inspect-filobass: tests/test_inspect_filobass_dataset.py scripts/inspect_filobass_dataset.py
 	$(PYTHON) tests/test_inspect_filobass_dataset.py
+
+.PHONY: test-prepare-filobass-tempo-fixture
+test-prepare-filobass-tempo-fixture: tests/test_prepare_filobass_tempo_fixture.py scripts/prepare_filobass_tempo_fixture.py
+	$(PYTHON) tests/test_prepare_filobass_tempo_fixture.py
+
+prepare-filobass-tempo-fixture: inspect-filobass scripts/prepare_filobass_tempo_fixture.py | $(BUILD_DIR)
+	$(PYTHON) scripts/prepare_filobass_tempo_fixture.py --root "$(FILOBASS_EXTRACT_DIR)" --pairs "$(FILOBASS_INSPECTION_OUTPUT)" --output "$(FILOBASS_TEMPO_FIXTURE_DIR)" --ffmpeg "$(FFMPEG)" --limit "$(FILOBASS_BPM_LIMIT)"
+
+measure-filobass-bpm: $(BUILD_DIR)/analyzer_maestro prepare-filobass-tempo-fixture scripts/analyze_egmd_tempo.py scripts/run_with_duration.sh | $(BUILD_DIR)
+	$(RUN_WITH_DURATION) analyzer_filobass_bpm env MUSIC_ANALYZER_MAESTRO_ROOT="$(FILOBASS_TEMPO_FIXTURE_DIR)" MUSIC_ANALYZER_MAESTRO_REQUIRED=1 MUSIC_ANALYZER_MAESTRO_REQUIRED_RECORDINGS=1 MUSIC_ANALYZER_MAESTRO_REQUIRED_WINDOWS=1 MUSIC_ANALYZER_MAESTRO_MIN_ACTIVE_NOTES_PER_WINDOW=1 MUSIC_ANALYZER_MAESTRO_MIN_PITCH_CLASSES_PER_WINDOW=1 MUSIC_ANALYZER_MAESTRO_INSPECT_ONLY=1 MUSIC_ANALYZER_MAESTRO_VALIDATE_BPM=1 MUSIC_ANALYZER_MAESTRO_MEASURE_ALL_TEMPO=1 MUSIC_ANALYZER_MAESTRO_REQUIRED_TEMPO_RECORDINGS=1 MUSIC_ANALYZER_MAESTRO_MIN_BPM_PASS_PERCENT=0 MUSIC_ANALYZER_MAESTRO_BPM_TOLERANCE="$(BPM_DIAG_TOLERANCE)" MUSIC_ANALYZER_MAESTRO_BPM_MAX_SECONDS="$(MAESTRO_BPM_MAX_SECONDS)" $(BUILD_DIR)/analyzer_maestro > "$(FILOBASS_BPM_LOG).summary" 2> "$(FILOBASS_BPM_LOG)"
+	+$(MAKE) summarize-filobass-bpm
+
+summarize-filobass-bpm: scripts/analyze_egmd_tempo.py $(FILOBASS_BPM_LOG)
+	$(PYTHON) scripts/analyze_egmd_tempo.py --prefix "MAESTRO tempo diag" --tolerance "$(BPM_DIAG_TOLERANCE)" "$(FILOBASS_BPM_LOG)"
 
 prepare-ballroom-tempo-fixture: download-ballroom-tempo scripts/prepare_ballroom_tempo_fixture.py | $(BUILD_DIR)
 	$(PYTHON) scripts/prepare_ballroom_tempo_fixture.py --audio-root "$(BALLROOM_AUDIO_DIR)" --annotations-root "$(BALLROOM_ANNOTATIONS_DIR)" --output "$(BALLROOM_TEMPO_FIXTURE_DIR)" --limit "$(BALLROOM_BPM_LIMIT)"

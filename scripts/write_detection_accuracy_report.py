@@ -1105,6 +1105,7 @@ def render(
     harmonic_product_octave_audit_input: Path | None = None,
     kraisler_bpm_input: Path | None = None,
     ballroom_bpm_input: Path | None = None,
+    filobass_bpm_input: Path | None = None,
     egmd_bpm_input: Path | None = None,
     idmt_bass_tempo_metadata_input: Path | None = None,
 ) -> str:
@@ -1123,6 +1124,7 @@ def render(
     kraisler_audit_ready = int(bool(kraisler_rows) and route_summary is not None and route_summary.is_file())
     kraisler_bpm = tempo_diagnostic_counts(kraisler_bpm_input) if kraisler_bpm_input else None
     ballroom_bpm = tempo_diagnostic_counts(ballroom_bpm_input) if ballroom_bpm_input else None
+    filobass_bpm = tempo_diagnostic_counts(filobass_bpm_input) if filobass_bpm_input else None
     egmd_bpm = (
         tempo_diagnostic_counts(egmd_bpm_input, "E-GMD tempo diag\t") if egmd_bpm_input else None
     )
@@ -2498,6 +2500,20 @@ def render(
                 f"| Displayable BPM at confidence ≥ 0.50 | {fraction(accurate, total)} | {total - accurate} |",
             ]
         )
+    if filobass_bpm is not None:
+        accurate, total = filobass_bpm
+        lines.extend(
+            [
+                "",
+                "## FiloBass real bass-led annotated-tempo diagnostic",
+                "",
+                f"Source: `{filobass_bpm_input.as_posix()}`. FiloBass pairs real jazz bass stems with reviewed downbeat syncpoints and a MIDI time signature; BPM references are derived only from those corpus annotations.",
+                "",
+                "| Metric | Accurate / total | Remaining |",
+                "| --- | ---: | ---: |",
+                f"| Displayable BPM at confidence ≥ 0.50 | {fraction(accurate, total)} | {total - accurate} |",
+            ]
+        )
     if egmd_bpm is not None:
         accurate, total = egmd_bpm
         lines.extend(
@@ -2542,7 +2558,7 @@ def render(
             f"| Generated drum phase regression measured | {fraction(int(egmd_bpm is not None), 1)} | {int(egmd_bpm is None)} | E-GMD x/total BPM diagnostic |",
             f"| Rhythm-heavy real-mix beat validation measured | {fraction(int(ballroom_bpm is not None), 1)} | {int(ballroom_bpm is None)} | Ballroom manually corrected beat/bar annotations |",
             f"| IDMT real-bass timing metadata qualifies as beat truth | {fraction(idmt_bass_timing[0], idmt_bass_timing[1]) if idmt_bass_timing is not None else '0 / 1 (0.0%)'} | {idmt_bass_timing[1] - idmt_bass_timing[0] if idmt_bass_timing is not None else 1} | only corpus-supplied tempo/beat/pattern fields count; note onsets are insufficient |",
-            "| Independent real bass-led beat-labelled validation measured | 0 / 1 (0.0%) | 1 | public audio plus externally reviewed beat times; IDMT is not substituted |",
+            f"| Independent real bass-led beat-labelled validation measured | {fraction(int(filobass_bpm is not None), 1)} | {int(filobass_bpm is None)} | FiloBass real bass stems plus reviewed downbeats and MIDI time signature |",
             "| Hide BPM when calibrated confidence is insufficient | 1 / 1 (100.0%) | 0 | renderer keeps `BPM --` below 0.50 confidence |",
         ]
     )
@@ -2734,6 +2750,7 @@ def main() -> int:
     parser.add_argument("--kraisler-measurement", type=Path)
     parser.add_argument("--kraisler-bpm-input", type=Path)
     parser.add_argument("--ballroom-bpm-input", type=Path)
+    parser.add_argument("--filobass-bpm-input", type=Path)
     parser.add_argument("--egmd-bpm-input", type=Path)
     parser.add_argument("--idmt-bass-tempo-metadata-input", type=Path)
     parser.add_argument("--high-vocal-octave-audit", type=Path)
@@ -2833,6 +2850,7 @@ def main() -> int:
             args.harmonic_product_octave_audit,
             args.kraisler_bpm_input,
             args.ballroom_bpm_input,
+            args.filobass_bpm_input,
             args.egmd_bpm_input,
             args.idmt_bass_tempo_metadata_input,
         )

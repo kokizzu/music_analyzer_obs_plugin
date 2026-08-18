@@ -618,6 +618,12 @@ class DetectionAccuracyReportTest(unittest.TestCase):
                 "002\tinstrument\tBass\t\n",
                 encoding="utf-8",
             )
+            filobass_bpm = Path(temporary) / "filobass_bpm_diagnostics.log"
+            filobass_bpm.write_text(
+                "MAESTRO tempo diag\tid=1\texpected=120.00\tgot=120.00\tstatus=hit\n"
+                "MAESTRO tempo diag\tid=2\texpected=100.00\tgot=0.00\tstatus=no-estimate\n",
+                encoding="utf-8",
+            )
             report = REPORT.render(
                 source, [chords], vocal_full_mix, [bach10_0, bach10_1], musicnet, drum, urmp,
                 vocalset_full_mix, [maps], None, route_summary, good_sounds_full_mix, irmas_labelled,
@@ -658,6 +664,7 @@ class DetectionAccuracyReportTest(unittest.TestCase):
                 harmonic_product_octave_audit_input=harmonic_product_audit,
                 owner_classifier_quality_loco_audit_input=quality_classifier_audit,
                 idmt_bass_tempo_metadata_input=idmt_bass_timing,
+                filobass_bpm_input=filobass_bpm,
             )
 
         self.assertIn("| Any detected note | 2 / 3 (66.7%) | 1 |", report)
@@ -709,8 +716,11 @@ class DetectionAccuracyReportTest(unittest.TestCase):
         self.assertIn("| MAESTRO |", report)
         self.assertIn("## KRAISLER independent piano–violin coverage checklist", report)
         self.assertIn("## IDMT real-bass timing-ground-truth audit", report)
+        self.assertIn("## FiloBass real bass-led annotated-tempo diagnostic", report)
+        self.assertIn("| Displayable BPM at confidence ≥ 0.50 | 1 / 2 (50.0%) | 1 |", report)
         self.assertIn("| Tracks with corpus-supplied tempo, beat, or pattern metadata | 0 / 2 (0.0%) | 2 |", report)
         self.assertIn("| IDMT real-bass timing metadata qualifies as beat truth | 0 / 2 (0.0%) | 2 |", report)
+        self.assertIn("| Independent real bass-led beat-labelled validation measured | 1 / 1 (100.0%) | 0 |", report)
         self.assertIn("| Validate external KRAISLER archive | 1 / 1 (100.0%) | 0 |", report)
         self.assertIn("| Complete protected KRAISLER cross-corpus rule audit | 1 / 1 (100.0%) | 0 |", report)
         self.assertIn("### KRAISLER real piano–violin measurement", report)
