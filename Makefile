@@ -5600,8 +5600,10 @@ summarize-kraisler-bpm: scripts/analyze_egmd_tempo.py $(KRAISLER_BPM_LOG)
 # Ballroom provides manually corrected beat/bar times for real dance mixes.
 # Its archive and labels are stored outside the repository; the fixture below
 # only symlinks selected WAVs into build/ for the generic tempo harness.
+BALLROOM_DOWNLOAD_CONNECTIONS ?= 8
+
 download-ballroom-tempo: configure-instrument-sample-store scripts/download_ballroom_tempo_dataset.sh
-	bash scripts/download_ballroom_tempo_dataset.sh "$(INSTRUMENT_SAMPLE_STORE)" "$(CURL)"
+	bash scripts/download_ballroom_tempo_dataset.sh "$(INSTRUMENT_SAMPLE_STORE)" "$(CURL)" "" "" "" "$(ARIA2C)" "$(BALLROOM_DOWNLOAD_CONNECTIONS)"
 
 .PHONY: download-filobass
 download-filobass: configure-instrument-sample-store scripts/download_filobass_dataset.sh
