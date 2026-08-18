@@ -12,6 +12,7 @@ shift
 for target in "$@"; do
     safe_target=$(printf '%s' "$target" | tr '/:' '__')
     pid_file="$build_dir/corpus-download-jobs/$safe_target.pid"
+    status_file="$build_dir/corpus-download-jobs/$safe_target.status"
     if [ ! -s "$pid_file" ]; then
         printf 'NOT_RUNNING target=%s\n' "$target"
         continue
@@ -19,6 +20,7 @@ for target in "$@"; do
     pid=$(cat "$pid_file")
     if kill -0 "$pid" 2>/dev/null; then
         kill -TERM -- "-$pid" 2>/dev/null || kill -TERM "$pid"
+        printf '%s\n' "stopped" >"$status_file"
         printf 'STOPPED target=%s pid=%s\n' "$target" "$pid"
     else
         printf 'NOT_RUNNING target=%s pid=%s\n' "$target" "$pid"

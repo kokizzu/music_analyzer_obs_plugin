@@ -16,7 +16,7 @@ INSTRUMENT_SAMPLE_STORE ?= /media/kyz/sshflashtor/InstrumentSamples
 INSTRUMENT_SAMPLE_STORE_LINK ?= $(BUILD_DIR)/InstrumentSamples
 
 .PHONY: start-approved-corpus-downloads stop-approved-corpus-downloads report-approved-corpus-downloads show-approved-corpus-download-log test-approved-corpus-download-manager queue-filobass-bpm-after-download test-validate-maestro-subset-archive
-start-approved-corpus-downloads: scripts/start_approved_corpus_downloads.sh
+start-approved-corpus-downloads: scripts/start_approved_corpus_downloads.sh scripts/run_approved_corpus_download.sh
 	$(SHELL) scripts/start_approved_corpus_downloads.sh "$(MAKE)" "$(BUILD_DIR)" $(APPROVED_CORPUS_DOWNLOAD_TARGETS)
 
 stop-approved-corpus-downloads: scripts/stop_approved_corpus_downloads.sh
@@ -28,13 +28,15 @@ report-approved-corpus-downloads: scripts/report_approved_corpus_downloads.sh
 show-approved-corpus-download-log: scripts/show_approved_corpus_download_log.sh
 	$(SHELL) scripts/show_approved_corpus_download_log.sh "$(BUILD_DIR)" "$(CORPUS_DOWNLOAD_LOG_TARGET)"
 
-test-approved-corpus-download-manager: scripts/start_approved_corpus_downloads.sh scripts/stop_approved_corpus_downloads.sh scripts/report_approved_corpus_downloads.sh scripts/show_approved_corpus_download_log.sh scripts/measure_filobass_after_download.sh scripts/download_ballroom_annotations.sh
+test-approved-corpus-download-manager: tests/test_approved_corpus_download_manager.py scripts/start_approved_corpus_downloads.sh scripts/run_approved_corpus_download.sh scripts/stop_approved_corpus_downloads.sh scripts/report_approved_corpus_downloads.sh scripts/show_approved_corpus_download_log.sh scripts/measure_filobass_after_download.sh scripts/download_ballroom_annotations.sh
 	$(SHELL) -n scripts/start_approved_corpus_downloads.sh
+	$(SHELL) -n scripts/run_approved_corpus_download.sh
 	$(SHELL) -n scripts/stop_approved_corpus_downloads.sh
 	$(SHELL) -n scripts/report_approved_corpus_downloads.sh
 	$(SHELL) -n scripts/show_approved_corpus_download_log.sh
 	$(SHELL) -n scripts/measure_filobass_after_download.sh
 	$(SHELL) -n scripts/download_ballroom_annotations.sh
+	$(PYTHON) tests/test_approved_corpus_download_manager.py
 
 # This is deliberately separate from the download registry: it is a queued
 # measurement, not a second acquisition.  The detached manager preserves it

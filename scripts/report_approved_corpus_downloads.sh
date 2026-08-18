@@ -13,6 +13,7 @@ for target in "$@"; do
     safe_target=$(printf '%s' "$target" | tr '/:' '__')
     pid_file="$build_dir/corpus-download-jobs/$safe_target.pid"
     log_file="$build_dir/corpus-download-jobs/$safe_target.log"
+    status_file="$build_dir/corpus-download-jobs/$safe_target.status"
     if [ ! -s "$pid_file" ]; then
         printf 'NOT_STARTED target=%s log=%s\n' "$target" "$log_file"
         continue
@@ -22,6 +23,13 @@ for target in "$@"; do
         printf 'RUNNING target=%s pid=%s log=%s\n' "$target" "$pid" "$log_file"
     else
         last_line=$(tail -n 1 "$log_file" 2>/dev/null || true)
-        printf 'FINISHED target=%s pid=%s log=%s last=%s\n' "$target" "$pid" "$log_file" "$last_line"
+        status=$(cat "$status_file" 2>/dev/null || true)
+        case "$status" in
+            0) state=SUCCEEDED ;;
+            stopped) state=STOPPED ;;
+            '') state=EXITED_UNKNOWN ;;
+            *) state="FAILED(exit=$status)" ;;
+        esac
+        printf '%s target=%s pid=%s log=%s last=%s\n' "$state" "$target" "$pid" "$log_file" "$last_line"
     fi
 done
