@@ -163,6 +163,10 @@ struct TempoDebugCandidate {
 	float phase_score = 0.0f;
 	float phase_locked_score = 0.0f;
 	float meter_score = 0.0f;
+	float kick_phase_coverage = 0.0f;
+	float bass_phase_coverage = 0.0f;
+	float snare_phase_coverage = 0.0f;
+	float tonal_phase_coverage = 0.0f;
 	float phase_body_coverage = 0.0f;
 	float phase_all_coverage = 0.0f;
 	float phase_offset_seconds = 0.0f;
@@ -181,6 +185,10 @@ struct AnalysisSnapshot {
 	float tempo_debug_event_strength = 0.0f;
 	float tempo_debug_body_strength = 0.0f;
 	float tempo_debug_subdivision_strength = 0.0f;
+	float tempo_debug_kick_strength = 0.0f;
+	float tempo_debug_bass_strength = 0.0f;
+	float tempo_debug_snare_strength = 0.0f;
+	float tempo_debug_tonal_strength = 0.0f;
 	std::size_t tempo_debug_candidate_count = 0;
 	std::array<TempoDebugCandidate, kTempoDebugCandidateCount> tempo_debug_candidates = {};
 	uint64_t dropped_windows = 0;
@@ -360,6 +368,13 @@ private:
 	std::array<float, kMaxTempoFluxFrames> tempo_low_body_flux_ = {};
 	std::array<float, kMaxTempoFluxFrames> tempo_mid_body_flux_ = {};
 	std::array<float, kMaxTempoFluxFrames> tempo_subdivision_flux_ = {};
+	// Source-separated onset histories remain independent until beat-phase
+	// scoring.  This prevents a steady cymbal or piano texture from pretending
+	// to be the kick/bass pulse of a different tempo.
+	std::array<float, kMaxTempoFluxFrames> tempo_kick_flux_ = {};
+	std::array<float, kMaxTempoFluxFrames> tempo_bass_flux_ = {};
+	std::array<float, kMaxTempoFluxFrames> tempo_snare_flux_ = {};
+	std::array<float, kMaxTempoFluxFrames> tempo_tonal_flux_ = {};
 	int tracked_bass_midi_ = -1;
 	int pending_bass_midi_ = -1;
 	int pending_bass_hits_ = 0;
@@ -399,6 +414,7 @@ private:
 	float tempo_silence_seconds_ = 0.0f;
 	float last_tempo_event_seconds_ = -10.0f;
 	float previous_tempo_flux_level_ = 0.0f;
+	std::array<float, 4> previous_tempo_source_levels_ = {};
 	float estimated_bpm_ = 0.0f;
 	float bpm_confidence_ = 0.0f;
 	float tempo_phase_offset_seconds_ = 0.0f;
@@ -419,6 +435,8 @@ private:
 			  float event_mid_body_strength, float event_subdivision_strength,
 			  float flux_strength, float flux_body_strength, float flux_low_body_strength,
 			  float flux_mid_body_strength, float flux_subdivision_strength,
+			  float kick_flux_strength, float bass_flux_strength, float snare_flux_strength,
+			  float tonal_flux_strength,
 			  float event_time_offset_seconds, float interval_seconds, float rms,
 			  AnalysisSnapshot &snapshot);
 	float goertzel_power(const float *samples, std::size_t count, float mean, const Probe &probe) const;

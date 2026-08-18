@@ -6086,6 +6086,22 @@ void expect_best_tempo_locked_meter_support(Runner &runner, const mao::AnalysisS
 		      context + ": expected best tempo candidate to have 4-beat body-meter score");
 }
 
+void expect_best_tempo_source_phase_support(Runner &runner, const mao::AnalysisSnapshot &snapshot,
+					      const std::string &context, float minimum_coverage)
+{
+	runner.expect(snapshot.tempo_debug_candidate_count > 0,
+		      context + ": expected at least one tempo debug candidate");
+	if (snapshot.tempo_debug_candidate_count == 0)
+		return;
+	const mao::TempoDebugCandidate &candidate = snapshot.tempo_debug_candidates[0];
+	const float strongest_source_coverage =
+		std::max(std::max(candidate.kick_phase_coverage, candidate.bass_phase_coverage),
+			 std::max(candidate.snare_phase_coverage, candidate.tonal_phase_coverage));
+	runner.expect(strongest_source_coverage >= minimum_coverage,
+		      context + ": expected a repeatedly grid-aligned source, got " +
+			      std::to_string(strongest_source_coverage));
+}
+
 void debug_tempo_snapshot(const mao::AnalysisSnapshot &snapshot, const char *context)
 {
 	if (!std::getenv("MUSIC_ANALYZER_DEBUG_TEMPO_CASES"))
@@ -6098,12 +6114,14 @@ void debug_tempo_snapshot(const mao::AnalysisSnapshot &snapshot, const char *con
 	for (std::size_t i = 0; i < snapshot.tempo_debug_candidate_count; ++i) {
 		const mao::TempoDebugCandidate &candidate = snapshot.tempo_debug_candidates[i];
 		std::fprintf(stderr,
-			     " %d(s=%.3f,a=%.3f,b=%.3f,ba=%.3f,sub=%.3f,suba=%.3f,ph=%.3f,lock=%.3f,meter=%.3f,phb=%.2f,pha=%.2f)",
+			     " %d(s=%.3f,a=%.3f,b=%.3f,ba=%.3f,sub=%.3f,suba=%.3f,ph=%.3f,lock=%.3f,meter=%.3f,phb=%.2f,pha=%.2f,src=%.2f/%.2f/%.2f/%.2f)",
 			     candidate.bpm, candidate.score, candidate.adjacent_score, candidate.body_score,
 			     candidate.adjacent_body_score, candidate.subdivision_score,
 			     candidate.adjacent_subdivision_score, candidate.phase_score,
 			     candidate.phase_locked_score, candidate.meter_score,
-			     candidate.phase_body_coverage, candidate.phase_all_coverage);
+			     candidate.phase_body_coverage, candidate.phase_all_coverage,
+			     candidate.kick_phase_coverage, candidate.bass_phase_coverage,
+			     candidate.snare_phase_coverage, candidate.tonal_phase_coverage);
 	}
 	std::fprintf(stderr, "\n");
 }
@@ -6342,6 +6360,8 @@ void check_explicit_input_mode_and_bpm(Runner &runner)
 				"BPM estimate from bass and chord progression changes", 0.16f);
 		expect_tempo_candidate_near(runner, snapshot, 110.0f, 5.0f,
 					    "BPM diagnostics bass and chord progression changes");
+		expect_best_tempo_source_phase_support(
+			runner, snapshot, "bass progression source-specific beat phase", 0.35f);
 	}
 
 	{

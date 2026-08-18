@@ -28037,6 +28037,10 @@ void AnalysisEngine::reset_analysis_state()
 	tempo_low_body_flux_.fill(0.0f);
 	tempo_mid_body_flux_.fill(0.0f);
 	tempo_subdivision_flux_.fill(0.0f);
+	tempo_kick_flux_.fill(0.0f);
+	tempo_bass_flux_.fill(0.0f);
+	tempo_snare_flux_.fill(0.0f);
+	tempo_tonal_flux_.fill(0.0f);
 	tempo_event_pos_ = 0;
 	tempo_event_count_ = 0;
 	tempo_flux_pos_ = 0;
@@ -28045,6 +28049,7 @@ void AnalysisEngine::reset_analysis_state()
 	tempo_silence_seconds_ = 0.0f;
 	last_tempo_event_seconds_ = -10.0f;
 	previous_tempo_flux_level_ = 0.0f;
+	previous_tempo_source_levels_.fill(0.0f);
 	estimated_bpm_ = 0.0f;
 	bpm_confidence_ = 0.0f;
 	tempo_phase_offset_seconds_ = 0.0f;
@@ -28055,16 +28060,23 @@ void AnalysisEngine::reset_analysis_state()
 }
 
 void AnalysisEngine::update_tempo(float raw_event_strength, float raw_event_body_strength,
-				  float raw_event_low_body_strength, float raw_event_mid_body_strength,
-				  float raw_event_subdivision_strength, float raw_flux_strength,
-				  float raw_flux_body_strength, float raw_flux_low_body_strength,
-				  float raw_flux_mid_body_strength, float raw_flux_subdivision_strength,
-				  float event_time_offset_seconds, float interval_seconds, float rms,
-				  AnalysisSnapshot &snapshot)
+			  float raw_event_low_body_strength, float raw_event_mid_body_strength,
+			  float raw_event_subdivision_strength, float raw_flux_strength,
+			  float raw_flux_body_strength, float raw_flux_low_body_strength,
+			  float raw_flux_mid_body_strength, float raw_flux_subdivision_strength,
+			  float raw_kick_flux_strength, float raw_bass_flux_strength,
+			  float raw_snare_flux_strength, float raw_tonal_flux_strength,
+			  float event_time_offset_seconds, float interval_seconds, float rms,
+			  AnalysisSnapshot &snapshot)
 {
 	snapshot.tempo_debug_event_strength = std::clamp(raw_event_strength, 0.0f, 1.25f);
 	snapshot.tempo_debug_body_strength = std::clamp(raw_event_body_strength, 0.0f, 1.25f);
-	snapshot.tempo_debug_subdivision_strength = std::clamp(raw_event_subdivision_strength, 0.0f, 1.25f);
+		snapshot.tempo_debug_subdivision_strength =
+		std::clamp(raw_event_subdivision_strength, 0.0f, 1.25f);
+	snapshot.tempo_debug_kick_strength = std::clamp(raw_kick_flux_strength, 0.0f, 1.25f);
+	snapshot.tempo_debug_bass_strength = std::clamp(raw_bass_flux_strength, 0.0f, 1.25f);
+	snapshot.tempo_debug_snare_strength = std::clamp(raw_snare_flux_strength, 0.0f, 1.25f);
+	snapshot.tempo_debug_tonal_strength = std::clamp(raw_tonal_flux_strength, 0.0f, 1.25f);
 	snapshot.tempo_debug_candidate_count = 0;
 	snapshot.tempo_debug_candidates = {};
 
@@ -28083,22 +28095,30 @@ void AnalysisEngine::update_tempo(float raw_event_strength, float raw_event_body
 	const float flux_mid_body_level = std::clamp(raw_flux_mid_body_strength, 0.0f, flux_body_level);
 	const float flux_subdivision_level = std::clamp(raw_flux_subdivision_strength, 0.0f, flux_level);
 	auto append_tempo_flux = [&](float flux, float body_flux, float low_body_flux, float mid_body_flux,
-				     float subdivision_flux) {
+				     float subdivision_flux, float kick_flux, float bass_flux,
+				     float snare_flux, float tonal_flux) {
 		tempo_flux_[tempo_flux_pos_] = std::clamp(flux, 0.0f, 1.25f);
-		tempo_body_flux_[tempo_flux_pos_] = std::clamp(body_flux, 0.0f, tempo_flux_[tempo_flux_pos_]);
+		tempo_body_flux_[tempo_flux_pos_] =
+			std::clamp(body_flux, 0.0f, tempo_flux_[tempo_flux_pos_]);
 		tempo_low_body_flux_[tempo_flux_pos_] =
 			std::clamp(low_body_flux, 0.0f, tempo_body_flux_[tempo_flux_pos_]);
 		tempo_mid_body_flux_[tempo_flux_pos_] =
 			std::clamp(mid_body_flux, 0.0f, tempo_body_flux_[tempo_flux_pos_]);
 		tempo_subdivision_flux_[tempo_flux_pos_] =
 			std::clamp(subdivision_flux, 0.0f, tempo_flux_[tempo_flux_pos_]);
+		tempo_kick_flux_[tempo_flux_pos_] = std::clamp(kick_flux, 0.0f, 1.25f);
+		tempo_bass_flux_[tempo_flux_pos_] = std::clamp(bass_flux, 0.0f, 1.25f);
+		tempo_snare_flux_[tempo_flux_pos_] = std::clamp(snare_flux, 0.0f, 1.25f);
+		tempo_tonal_flux_[tempo_flux_pos_] = std::clamp(tonal_flux, 0.0f, 1.25f);
 		tempo_flux_pos_ = (tempo_flux_pos_ + 1) % tempo_flux_.size();
 		tempo_flux_count_ = std::min<std::size_t>(tempo_flux_count_ + 1, tempo_flux_.size());
 	};
 
 	if (rms <= kSilenceRms) {
-		append_tempo_flux(0.0f, 0.0f, 0.0f, 0.0f, 0.0f);
+		append_tempo_flux(0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f);
 		previous_tempo_flux_level_ *= std::exp(-clamped_interval / 0.25f);
+		for (float &level : previous_tempo_source_levels_)
+			level *= std::exp(-clamped_interval / 0.25f);
 		tempo_silence_seconds_ += clamped_interval;
 		const float confidence_decay = tempo_silence_seconds_ >= 1.0f ?
 						       std::exp(-clamped_interval / 0.45f) :
@@ -28128,10 +28148,15 @@ void AnalysisEngine::update_tempo(float raw_event_strength, float raw_event_body
 			tempo_low_body_flux_.fill(0.0f);
 			tempo_mid_body_flux_.fill(0.0f);
 			tempo_subdivision_flux_.fill(0.0f);
+			tempo_kick_flux_.fill(0.0f);
+			tempo_bass_flux_.fill(0.0f);
+			tempo_snare_flux_.fill(0.0f);
+			tempo_tonal_flux_.fill(0.0f);
 			tempo_flux_pos_ = 0;
 			tempo_flux_count_ = 0;
 			last_tempo_event_seconds_ = -10.0f;
 			previous_tempo_flux_level_ = 0.0f;
+			previous_tempo_source_levels_.fill(0.0f);
 			tempo_phase_offset_seconds_ = 0.0f;
 			tempo_phase_confidence_ = 0.0f;
 			pending_tempo_bpm_ = 0.0f;
@@ -28150,10 +28175,25 @@ void AnalysisEngine::update_tempo(float raw_event_strength, float raw_event_body
 			std::clamp(flux_level - previous_tempo_flux_level_ * 0.92f, 0.0f, 1.25f) :
 			0.0f;
 	const float flux_family_scale = flux_level > 1.0e-6f ? onset_flux / flux_level : 0.0f;
+	const std::array<float, 4> raw_source_fluxes = {
+		std::clamp(raw_kick_flux_strength, 0.0f, 1.25f),
+		std::clamp(raw_bass_flux_strength, 0.0f, 1.25f),
+		std::clamp(raw_snare_flux_strength, 0.0f, 1.25f),
+		std::clamp(raw_tonal_flux_strength, 0.0f, 1.25f),
+	};
+	std::array<float, 4> source_onsets = {};
+	for (std::size_t source = 0; source < raw_source_fluxes.size(); ++source) {
+		const float level = raw_source_fluxes[source];
+		const float previous = previous_tempo_source_levels_[source];
+		if (level > previous * 1.04f)
+			source_onsets[source] = std::clamp(level - previous * 0.88f, 0.0f, 1.25f);
+		previous_tempo_source_levels_[source] = std::max(level, previous * 0.76f);
+	}
 	append_tempo_flux(onset_flux, flux_body_level * flux_family_scale,
 			  flux_low_body_level * flux_family_scale,
 			  flux_mid_body_level * flux_family_scale,
-			  flux_subdivision_level * flux_family_scale);
+			  flux_subdivision_level * flux_family_scale, source_onsets[0], source_onsets[1],
+			  source_onsets[2], source_onsets[3]);
 	previous_tempo_flux_level_ = std::max(flux_level, previous_tempo_flux_level_ * 0.78f);
 
 	if (event_strength >= 0.08f) {
@@ -28229,12 +28269,18 @@ void AnalysisEngine::update_tempo(float raw_event_strength, float raw_event_body
 	float total_recent_low_body_strength = 0.0f;
 	float total_recent_mid_body_strength = 0.0f;
 
+	// Percussive evidence settles quickly and benefits from a short window that
+	// forgets an earlier groove. Sparse bass/piano evidence needs more repeated
+	// beats, so retain up to 18 seconds for it.
+	const bool percussive_history =
+		previous_tempo_source_levels_[0] + previous_tempo_source_levels_[2] >= 0.05f;
+	const float tempo_history_seconds = percussive_history ? 8.0f : 18.0f;
 	for (std::size_t i = 0; i < tempo_event_count_; ++i) {
 		const std::size_t index =
 			(tempo_event_pos_ + tempo_events_.size() - tempo_event_count_ + i) % tempo_events_.size();
 		const float event_time = tempo_events_[index];
 		const float event_age = tempo_clock_seconds_ - event_time;
-		if (event_age <= 14.0f && tempo_event_strengths_[index] >= 0.05f) {
+		if (event_age <= tempo_history_seconds && tempo_event_strengths_[index] >= 0.05f) {
 			recent_events[recent_count] = event_time;
 			recent_strengths[recent_count] = tempo_event_strengths_[index];
 			recent_body_strengths[recent_count] = tempo_event_body_strengths_[index];
@@ -28255,8 +28301,12 @@ void AnalysisEngine::update_tempo(float raw_event_strength, float raw_event_body
 	std::array<float, kMaxTempoFluxFrames> recent_low_body_flux = {};
 	std::array<float, kMaxTempoFluxFrames> recent_mid_body_flux = {};
 	std::array<float, kMaxTempoFluxFrames> recent_subdivision_flux = {};
-	const std::size_t max_recent_flux_frames =
-		std::max<std::size_t>(1, static_cast<std::size_t>(std::ceil(14.0f / clamped_interval)) + 1);
+	std::array<float, kMaxTempoFluxFrames> recent_kick_flux = {};
+	std::array<float, kMaxTempoFluxFrames> recent_bass_flux = {};
+	std::array<float, kMaxTempoFluxFrames> recent_snare_flux = {};
+	std::array<float, kMaxTempoFluxFrames> recent_tonal_flux = {};
+	const std::size_t max_recent_flux_frames = std::max<std::size_t>(
+		1, static_cast<std::size_t>(std::ceil(tempo_history_seconds / clamped_interval)) + 1);
 	const std::size_t recent_flux_count =
 		std::min<std::size_t>(tempo_flux_count_, std::min<std::size_t>(tempo_flux_.size(),
 									       max_recent_flux_frames));
@@ -28264,6 +28314,7 @@ void AnalysisEngine::update_tempo(float raw_event_strength, float raw_event_body
 	float total_recent_body_flux = 0.0f;
 	float total_recent_low_body_flux = 0.0f;
 	float total_recent_mid_body_flux = 0.0f;
+	std::array<float, 4> total_recent_source_flux = {};
 	for (std::size_t i = 0; i < recent_flux_count; ++i) {
 		const std::size_t index =
 			(tempo_flux_pos_ + tempo_flux_.size() - recent_flux_count + i) % tempo_flux_.size();
@@ -28272,10 +28323,18 @@ void AnalysisEngine::update_tempo(float raw_event_strength, float raw_event_body
 		recent_low_body_flux[i] = tempo_low_body_flux_[index];
 		recent_mid_body_flux[i] = tempo_mid_body_flux_[index];
 		recent_subdivision_flux[i] = tempo_subdivision_flux_[index];
+		recent_kick_flux[i] = tempo_kick_flux_[index];
+		recent_bass_flux[i] = tempo_bass_flux_[index];
+		recent_snare_flux[i] = tempo_snare_flux_[index];
+		recent_tonal_flux[i] = tempo_tonal_flux_[index];
 		total_recent_flux += recent_flux[i];
 		total_recent_body_flux += recent_body_flux[i];
 		total_recent_low_body_flux += recent_low_body_flux[i];
 		total_recent_mid_body_flux += recent_mid_body_flux[i];
+		total_recent_source_flux[0] += recent_kick_flux[i];
+		total_recent_source_flux[1] += recent_bass_flux[i];
+		total_recent_source_flux[2] += recent_snare_flux[i];
+		total_recent_source_flux[3] += recent_tonal_flux[i];
 	}
 	const bool enough_event_evidence = recent_count >= 3 && total_recent_strength >= 1.0f;
 	const float flux_confidence_weight = enough_event_evidence ? 0.0f : 0.50f;
@@ -28311,6 +28370,10 @@ void AnalysisEngine::update_tempo(float raw_event_strength, float raw_event_body
 	std::array<float, kTempoBpmCount> meter_bpm_scores = {};
 	std::array<float, kTempoBpmCount> phase_body_coverages = {};
 	std::array<float, kTempoBpmCount> phase_all_coverages = {};
+	std::array<float, kTempoBpmCount> kick_phase_coverages = {};
+	std::array<float, kTempoBpmCount> bass_phase_coverages = {};
+	std::array<float, kTempoBpmCount> snare_phase_coverages = {};
+	std::array<float, kTempoBpmCount> tonal_phase_coverages = {};
 	std::array<float, kTempoBpmCount> phase_offsets = {};
 	float best_score = 0.0f;
 	int best_bpm = 0;
@@ -28345,7 +28408,7 @@ void AnalysisEngine::update_tempo(float raw_event_strength, float raw_event_body
 
 				const float error_weight = 1.0f - phase_error / tolerance;
 				const float age = tempo_clock_seconds_ - newer;
-				const float recency = std::max(0.18f, 1.0f - age / 14.0f);
+				const float recency = std::max(0.18f, 1.0f - age / tempo_history_seconds);
 				const float span_weight = 1.0f / std::sqrt(nearest_beats);
 				const float strength_weight =
 					std::sqrt(recent_strengths[older_index] * recent_strengths[newer_index]);
@@ -28476,7 +28539,7 @@ void AnalysisEngine::update_tempo(float raw_event_strength, float raw_event_body
 						const float age =
 							static_cast<float>(recent_flux_count - 1 - newer_index) *
 							clamped_interval;
-						const float recency = std::max(0.18f, 1.0f - age / 14.0f);
+						const float recency = std::max(0.18f, 1.0f - age / tempo_history_seconds);
 						const float weight = std::sqrt(newer_flux * older_flux) *
 								     recency * error_weight * error_weight;
 						flux_score += weight;
@@ -28575,7 +28638,7 @@ void AnalysisEngine::update_tempo(float raw_event_strength, float raw_event_body
 						const float age =
 							static_cast<float>(recent_flux_count - 1 - newer_index) *
 							clamped_interval;
-						const float recency = std::max(0.18f, 1.0f - age / 14.0f);
+						const float recency = std::max(0.18f, 1.0f - age / tempo_history_seconds);
 						const float weighted = std::sqrt(newer_flux * older_flux) *
 								       recency * lag_weight;
 						comb_score += weighted;
@@ -28612,6 +28675,7 @@ void AnalysisEngine::update_tempo(float raw_event_strength, float raw_event_body
 		float meter_score = 0.0f;
 		float phase_body_coverage = 0.0f;
 		float phase_all_coverage = 0.0f;
+		std::array<float, 4> source_phase_coverages = {};
 		float phase_offset = 0.0f;
 		float phase_rank = 0.0f;
 		const float phase_step = period / static_cast<float>(kTempoPhaseBins);
@@ -28629,6 +28693,7 @@ void AnalysisEngine::update_tempo(float raw_event_strength, float raw_event_body
 				int expected_pulses = 0;
 				int body_pulses = 0;
 				int all_pulses = 0;
+				std::array<int, 4> source_pulses = {};
 				float body_grid_score = 0.0f;
 				float all_grid_score = 0.0f;
 				float subdivision_grid_score = 0.0f;
@@ -28639,6 +28704,9 @@ void AnalysisEngine::update_tempo(float raw_event_strength, float raw_event_body
 				std::array<float, 4> low_by_meter = {};
 				std::array<float, 4> mid_by_meter = {};
 				std::array<float, 4> body_by_meter = {};
+				std::array<float, 4> kick_by_meter = {};
+				std::array<float, 4> bass_by_meter = {};
+				std::array<float, 4> snare_by_meter = {};
 				int meter_position = 0;
 				while (grid_time <= tempo_clock_seconds_ + clamped_interval * 0.5f) {
 					const int center_index = static_cast<int>(
@@ -28648,6 +28716,7 @@ void AnalysisEngine::update_tempo(float raw_event_strength, float raw_event_body
 					float best_low_body_flux = 0.0f;
 					float best_mid_body_flux = 0.0f;
 					float best_subdivision_flux = 0.0f;
+					std::array<float, 4> best_source_flux = {};
 					for (int offset = -search_radius; offset <= search_radius; ++offset) {
 						const int flux_index = center_index + offset;
 						if (flux_index < 0 ||
@@ -28678,10 +28747,18 @@ void AnalysisEngine::update_tempo(float raw_event_strength, float raw_event_body
 							std::max(best_subdivision_flux,
 								 recent_subdivision_flux[index] *
 								 error_weight);
+		best_source_flux[0] =
+			std::max(best_source_flux[0], recent_kick_flux[index] * error_weight);
+		best_source_flux[1] =
+			std::max(best_source_flux[1], recent_bass_flux[index] * error_weight);
+		best_source_flux[2] =
+			std::max(best_source_flux[2], recent_snare_flux[index] * error_weight);
+		best_source_flux[3] =
+			std::max(best_source_flux[3], recent_tonal_flux[index] * error_weight);
 					}
 
 					const float age = tempo_clock_seconds_ - grid_time;
-					const float recency = std::max(0.20f, 1.0f - age / 14.0f);
+					const float recency = std::max(0.20f, 1.0f - age / tempo_history_seconds);
 					++expected_pulses;
 					if (best_body_flux >= 0.010f) {
 						++body_pulses;
@@ -28693,6 +28770,10 @@ void AnalysisEngine::update_tempo(float raw_event_strength, float raw_event_body
 					}
 					if (best_subdivision_flux >= 0.010f)
 						subdivision_grid_score += std::sqrt(best_subdivision_flux) * recency;
+					for (std::size_t source = 0; source < source_pulses.size(); ++source) {
+						if (best_source_flux[source] >= 0.010f)
+							++source_pulses[source];
+					}
 					const float locked_evidence =
 						std::sqrt(std::max(best_body_flux, 0.0f)) * 1.18f +
 						std::sqrt(std::max(best_all_flux, 0.0f)) * 0.20f +
@@ -28720,6 +28801,9 @@ void AnalysisEngine::update_tempo(float raw_event_strength, float raw_event_body
 								     recency;
 					body_by_meter[meter_index] += std::sqrt(std::max(best_body_flux, 0.0f)) *
 								      recency;
+					kick_by_meter[meter_index] += std::sqrt(best_source_flux[0]) * recency;
+					bass_by_meter[meter_index] += std::sqrt(best_source_flux[1]) * recency;
+					snare_by_meter[meter_index] += std::sqrt(best_source_flux[2]) * recency;
 					++meter_position;
 					grid_time += period;
 				}
@@ -28730,8 +28814,17 @@ void AnalysisEngine::update_tempo(float raw_event_strength, float raw_event_body
 					static_cast<float>(body_pulses) / static_cast<float>(expected_pulses);
 				const float all_coverage =
 					static_cast<float>(all_pulses) / static_cast<float>(expected_pulses);
+				std::array<float, 4> candidate_source_coverages = {};
+				for (std::size_t source = 0; source < source_pulses.size(); ++source)
+					candidate_source_coverages[source] =
+						static_cast<float>(source_pulses[source]) / static_cast<float>(expected_pulses);
+				const float repeated_source_coverage =
+				std::max(std::max(candidate_source_coverages[0], candidate_source_coverages[1]),
+					 std::max(candidate_source_coverages[2], candidate_source_coverages[3]));
 				const float coverage_weight =
-					std::clamp(body_coverage * 1.30f + all_coverage * 0.25f, 0.0f, 1.0f);
+					std::clamp(body_coverage * 1.30f + all_coverage * 0.25f +
+							   repeated_source_coverage * 0.22f,
+						   0.0f, 1.0f);
 				const float candidate_phase_score =
 					(body_grid_score * 1.28f + all_grid_score * 0.32f +
 					 subdivision_grid_score * 0.08f) *
@@ -28744,9 +28837,12 @@ void AnalysisEngine::update_tempo(float raw_event_strength, float raw_event_body
 						const int beat_three = (offset + 2) & 3;
 						const int beat_four = (offset + 3) & 3;
 						const float low_downbeat =
-							low_by_meter[beat_one] + low_by_meter[beat_three] * 0.82f;
+							low_by_meter[beat_one] + low_by_meter[beat_three] * 0.82f +
+							(kick_by_meter[beat_one] + bass_by_meter[beat_one] * 0.82f +
+							 kick_by_meter[beat_three] * 0.60f) * 0.45f;
 						const float mid_backbeat =
-							mid_by_meter[beat_two] + mid_by_meter[beat_four] * 0.88f;
+							mid_by_meter[beat_two] + mid_by_meter[beat_four] * 0.88f +
+							(snare_by_meter[beat_two] + snare_by_meter[beat_four] * 0.88f) * 0.42f;
 						const float body_grid =
 							body_by_meter[beat_one] * 0.26f +
 							body_by_meter[beat_two] * 0.18f +
@@ -28773,7 +28869,8 @@ void AnalysisEngine::update_tempo(float raw_event_strength, float raw_event_body
 				const float candidate_phase_rank =
 					candidate_phase_score +
 					candidate_locked_score * 0.24f * candidate_locked_body_weight +
-					candidate_meter_score * 0.22f;
+					candidate_meter_score * 0.22f +
+					candidate_phase_score * repeated_source_coverage * 0.12f;
 				if (candidate_phase_rank > phase_rank) {
 					phase_rank = candidate_phase_rank;
 					phase_score = candidate_phase_score;
@@ -28781,6 +28878,7 @@ void AnalysisEngine::update_tempo(float raw_event_strength, float raw_event_body
 					meter_score = candidate_meter_score;
 					phase_body_coverage = body_coverage;
 					phase_all_coverage = all_coverage;
+					source_phase_coverages = candidate_source_coverages;
 					phase_offset = candidate_offset;
 				}
 			}
@@ -28790,6 +28888,10 @@ void AnalysisEngine::update_tempo(float raw_event_strength, float raw_event_body
 		meter_bpm_scores[score_index] = meter_score;
 		phase_body_coverages[score_index] = phase_body_coverage;
 		phase_all_coverages[score_index] = phase_all_coverage;
+		kick_phase_coverages[score_index] = source_phase_coverages[0];
+		bass_phase_coverages[score_index] = source_phase_coverages[1];
+		snare_phase_coverages[score_index] = source_phase_coverages[2];
+		tonal_phase_coverages[score_index] = source_phase_coverages[3];
 		phase_offsets[score_index] = phase_offset;
 		const float locked_body_weight =
 			std::clamp(phase_body_coverage * phase_body_coverage * 1.15f +
@@ -29255,7 +29357,17 @@ void AnalysisEngine::update_tempo(float raw_event_strength, float raw_event_body
 			subdivision_bpm_scores[current_index] >= body_bpm_scores[current_index] * 0.58f ||
 			adjacent_subdivision_bpm_scores[current_index] >=
 				adjacent_body_bpm_scores[current_index] * 1.08f;
-		if (half_has_body_grid && current_is_subdivision_weighted &&
+		const float half_downbeat_source_coverage =
+			std::max(kick_phase_coverages[half_index], bass_phase_coverages[half_index]);
+		const float current_downbeat_source_coverage =
+			std::max(kick_phase_coverages[current_index], bass_phase_coverages[current_index]);
+		const bool has_downbeat_source =
+			std::max(total_recent_source_flux[0], total_recent_source_flux[1]) >= 0.18f;
+		const bool half_downbeat_source_support =
+			!has_downbeat_source ||
+			half_downbeat_source_coverage >=
+				std::max(0.42f, current_downbeat_source_coverage * 0.92f);
+		if (half_has_body_grid && current_is_subdivision_weighted && half_downbeat_source_support &&
 		    bpm_scores[half_index] >= best_score * 0.86f) {
 			best_bpm = half_bpm;
 			best_score = bpm_scores[half_index];
@@ -29288,6 +29400,10 @@ void AnalysisEngine::update_tempo(float raw_event_strength, float raw_event_body
 		candidate.meter_score = meter_bpm_scores[score_index];
 		candidate.phase_body_coverage = phase_body_coverages[score_index];
 		candidate.phase_all_coverage = phase_all_coverages[score_index];
+		candidate.kick_phase_coverage = kick_phase_coverages[score_index];
+		candidate.bass_phase_coverage = bass_phase_coverages[score_index];
+		candidate.snare_phase_coverage = snare_phase_coverages[score_index];
+		candidate.tonal_phase_coverage = tonal_phase_coverages[score_index];
 		candidate.phase_offset_seconds = phase_offsets[score_index];
 		snapshot.tempo_debug_candidate_count = static_cast<std::size_t>(slot + 1);
 		return true;
@@ -29399,6 +29515,19 @@ void AnalysisEngine::update_tempo(float raw_event_strength, float raw_event_body
 			target_confidence = std::min(target_confidence, 0.42f);
 		else
 			target_confidence = std::max(target_confidence, phase_confidence * 0.36f);
+		const float repeated_source_coverage =
+			std::max(std::max(kick_phase_coverages[best_index], bass_phase_coverages[best_index]),
+				 std::max(snare_phase_coverages[best_index], tonal_phase_coverages[best_index]));
+		const float strongest_source_energy =
+			std::max(std::max(total_recent_source_flux[0], total_recent_source_flux[1]),
+				 std::max(total_recent_source_flux[2], total_recent_source_flux[3]));
+		// A candidate may be statistically periodic yet not land the same musical
+		// source on its grid. Treat that as explicitly uncertain rather than
+		// publishing a confident tempo from a blended spectrum.
+		if (strongest_source_energy >= 0.18f && repeated_source_coverage < 0.34f)
+			target_confidence = std::min(target_confidence, 0.42f);
+		else if (repeated_source_coverage >= 0.62f)
+			target_confidence = std::max(target_confidence, phase_confidence * 0.42f);
 		tempo_phase_confidence_ = tempo_phase_confidence_ * 0.70f + phase_confidence * 0.30f;
 		if (phase_confidence >= 0.08f)
 			tempo_phase_offset_seconds_ = phase_offsets[best_index];
@@ -34306,6 +34435,8 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 	float tempo_event_low_body_strength = 0.0f;
 	float tempo_event_mid_body_strength = 0.0f;
 	float tempo_event_subdivision_strength = 0.0f;
+	float tempo_kick_source_strength = 0.0f;
+	float tempo_snare_source_strength = 0.0f;
 	if (tempo_event) {
 		static constexpr std::array<float, kDrumCount> kTempoDrumWeights = {
 			1.16f, 1.10f, 0.68f, 0.58f, 1.00f, 0.64f, 1.04f};
@@ -34320,11 +34451,18 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 			else {
 				tempo_event_body_strength = std::max(tempo_event_body_strength, weighted_level);
 				if (i == Kick)
+					tempo_kick_source_strength =
+						std::max(tempo_kick_source_strength, weighted_level);
+				if (i == Kick)
 					tempo_event_low_body_strength =
 						std::max(tempo_event_low_body_strength, weighted_level);
-				else
+				else {
+					if (i == Snare || i == Rim)
+						tempo_snare_source_strength =
+							std::max(tempo_snare_source_strength, weighted_level);
 					tempo_event_mid_body_strength =
 						std::max(tempo_event_mid_body_strength, weighted_level);
+				}
 			}
 		}
 	}
@@ -34342,14 +34480,28 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 			tempo_event_low_body_strength =
 				std::max(tempo_event_low_body_strength,
 					 body_onset_strength * snapshot.low_energy / body_total);
+			tempo_kick_source_strength =
+				std::max(tempo_kick_source_strength,
+					 body_onset_strength * snapshot.low_energy / body_total);
 			tempo_event_mid_body_strength =
 				std::max(tempo_event_mid_body_strength,
+					 body_onset_strength * snapshot.mid_energy / body_total);
+			tempo_snare_source_strength =
+				std::max(tempo_snare_source_strength,
 					 body_onset_strength * snapshot.mid_energy / body_total);
 		} else {
 			tempo_event_subdivision_strength =
 				std::max(tempo_event_subdivision_strength, onset_strength);
 		}
 	}
+	// These are deliberately not folded together. Bass/chroma onsets are only
+	// considered a tonal source when a drum transient is absent, while kick and
+	// snare inherit the post-arbitration drum decision above.
+	const float tempo_bass_source_strength =
+		!drum_transient ? musical_bass_body_strength : 0.0f;
+	const float tempo_tonal_source_strength =
+		!drum_transient ? std::max(musical_chroma_body_strength, tempo_band_onsets[1] * 0.30f) :
+					 0.0f;
 	if (broad_tempo_strength >= 0.08f) {
 		tempo_event_strength = std::max(tempo_event_strength, broad_tempo_strength);
 		tempo_event_body_strength = std::max(tempo_event_body_strength, broad_tempo_body_strength);
@@ -34374,6 +34526,8 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 		     tempo_event_mid_body_strength, tempo_event_subdivision_strength, broad_tempo_strength,
 		     broad_tempo_body_strength, broad_tempo_low_body_strength,
 		     broad_tempo_mid_body_strength, broad_tempo_subdivision_strength,
+		     tempo_kick_source_strength, tempo_bass_source_strength, tempo_snare_source_strength,
+		     tempo_tonal_source_strength,
 		     tempo_event_offset_seconds, interval_seconds, rms, snapshot);
 	snapshot.estimated_bpm = estimated_bpm_;
 	snapshot.bpm_confidence = bpm_confidence_;

@@ -1084,6 +1084,8 @@ def render(
     polyphonic_candidate_capacity_audit_input: Path | None = None,
     harmonic_product_octave_audit_input: Path | None = None,
     kraisler_bpm_input: Path | None = None,
+    ballroom_bpm_input: Path | None = None,
+    egmd_bpm_input: Path | None = None,
 ) -> str:
     samples = load_samples(input_path)
     dcs_rows = dagstuhl_choirset_rows(dagstuhl_choirset_input) if dagstuhl_choirset_input else []
@@ -1099,6 +1101,10 @@ def render(
     kraisler_manifest_ready = int(kraisler_manifest is not None and kraisler_manifest.is_file())
     kraisler_audit_ready = int(bool(kraisler_rows) and route_summary is not None and route_summary.is_file())
     kraisler_bpm = tempo_diagnostic_counts(kraisler_bpm_input) if kraisler_bpm_input else None
+    ballroom_bpm = tempo_diagnostic_counts(ballroom_bpm_input) if ballroom_bpm_input else None
+    egmd_bpm = (
+        tempo_diagnostic_counts(egmd_bpm_input, "E-GMD tempo diag\t") if egmd_bpm_input else None
+    )
     piano_state_evidence = (
         independent_piano_state_evidence(independent_piano_chord_state_evidence_input)
         if independent_piano_chord_state_evidence_input
@@ -2452,6 +2458,52 @@ def render(
                     f"| Displayable BPM at confidence ≥ 0.50 | {fraction(accurate, total)} | {total - accurate} |",
                 ]
             )
+    if ballroom_bpm is not None:
+        accurate, total = ballroom_bpm
+        lines.extend(
+            [
+                "",
+                "## Ballroom real-mix annotated-tempo diagnostic",
+                "",
+                f"Source: `{ballroom_bpm_input.as_posix()}`. Ballroom supplies manually corrected beat and bar times for real dance mixes; this is rhythm-heavy independent tempo evidence, not a release gate.",
+                "",
+                "| Metric | Accurate / total | Remaining |",
+                "| --- | ---: | ---: |",
+                f"| Displayable BPM at confidence ≥ 0.50 | {fraction(accurate, total)} | {total - accurate} |",
+            ]
+        )
+    if egmd_bpm is not None:
+        accurate, total = egmd_bpm
+        lines.extend(
+            [
+                "",
+                "## E-GMD generated percussion tempo diagnostic",
+                "",
+                f"Source: `{egmd_bpm_input.as_posix()}`. This generated aligned-MIDI fixture exercises kick/snare phase recovery; it is a regression benchmark, not independent real-audio evidence.",
+                "",
+                "| Metric | Accurate / total | Remaining |",
+                "| --- | ---: | ---: |",
+                f"| Displayable BPM at confidence ≥ 0.50 | {fraction(accurate, total)} | {total - accurate} |",
+            ]
+        )
+    lines.extend(
+        [
+            "",
+            "## Tempo coverage-gap checklist",
+            "",
+            "Tempo estimates are only displayed at calibrated confidence. Source-specific phase evidence is tested separately from corpus coverage so a synthetic regression fixture cannot be mistaken for independent real-audio validation.",
+            "",
+            "| Work item | Complete / total | Remaining | Evidence required |",
+            "| --- | ---: | ---: | --- |",
+            "| Separate kick, bass, snare, and tonal onset histories | 1 / 1 (100.0%) | 0 | source-specific phase coverage in debug candidates |",
+            "| Require repeated source evidence on the selected beat grid | 1 / 1 (100.0%) | 0 | confidence cap below display floor without repeated alignment |",
+            "| Adaptive tempo history for percussive vs sparse tonal input | 1 / 1 (100.0%) | 0 | 8 s percussion / 18 s sparse-source policy |",
+            f"| Generated drum phase regression measured | {fraction(int(egmd_bpm is not None), 1)} | {int(egmd_bpm is None)} | E-GMD x/total BPM diagnostic |",
+            f"| Rhythm-heavy real-mix beat validation measured | {fraction(int(ballroom_bpm is not None), 1)} | {int(ballroom_bpm is None)} | Ballroom manually corrected beat/bar annotations |",
+            "| Independent real bass-led beat-labelled validation measured | 0 / 1 (0.0%) | 1 | public audio plus externally reviewed beat times |",
+            "| Hide BPM when calibrated confidence is insufficient | 1 / 1 (100.0%) | 0 | renderer keeps `BPM --` below 0.50 confidence |",
+        ]
+    )
     if maps_attribute_input is not None:
         lines.extend(
             [
@@ -2639,6 +2691,8 @@ def main() -> int:
     parser.add_argument("--kraisler-manifest", type=Path)
     parser.add_argument("--kraisler-measurement", type=Path)
     parser.add_argument("--kraisler-bpm-input", type=Path)
+    parser.add_argument("--ballroom-bpm-input", type=Path)
+    parser.add_argument("--egmd-bpm-input", type=Path)
     parser.add_argument("--high-vocal-octave-audit", type=Path)
     parser.add_argument("--electronic-piano-guitar-route-audit", type=Path)
     parser.add_argument("--scms-vocal-other-route-audit", type=Path)
@@ -2735,6 +2789,8 @@ def main() -> int:
             args.polyphonic_candidate_capacity_audit,
             args.harmonic_product_octave_audit,
             args.kraisler_bpm_input,
+            args.ballroom_bpm_input,
+            args.egmd_bpm_input,
         )
     except (OSError, ValueError) as error:
         parser.error(str(error))
