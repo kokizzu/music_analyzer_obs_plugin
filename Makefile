@@ -934,6 +934,7 @@ FILOBASS_TEMPO_FIXTURE_DIR ?= $(FILOBASS_SOURCE_DIR)/tempo-fixture
 FILOBASS_BPM_LOG ?= $(BUILD_DIR)/filobass_bpm_diagnostics.log
 BTT_BALLROOM_LOG ?= $(BUILD_DIR)/btt_ballroom_bpm_diagnostics.log
 BTT_FILOBASS_LOG ?= $(BUILD_DIR)/btt_filobass_bpm_diagnostics.log
+BTT_EGMD_LOG ?= $(BUILD_DIR)/btt_egmd_bpm_diagnostics.log
 FILOBASS_BPM_LIMIT ?= 24
 FILOBASS_ONSET_DIAGNOSTICS ?= $(BUILD_DIR)/filobass_bass_onset_diagnostics.tsv
 IRMAS_SOURCE_DIR ?= $(INSTRUMENT_SAMPLE_STORE_LINK)/irmas
@@ -5687,9 +5688,13 @@ measure-permissive-beat-tracker: $(BTT_PROBE) scripts/measure_permissive_beat_tr
 	$(PYTHON) scripts/measure_permissive_beat_tracker.py --root "$(BALLROOM_TEMPO_FIXTURE_DIR)" --probe "$(BTT_PROBE)" > "$(BTT_BALLROOM_LOG)"
 	$(PYTHON) scripts/measure_permissive_beat_tracker.py --root "$(FILOBASS_TEMPO_FIXTURE_DIR)" --probe "$(BTT_PROBE)" > "$(BTT_FILOBASS_LOG)"
 
-summarize-permissive-beat-tracker: scripts/inspect_tempo_confidence_calibration.py $(BTT_BALLROOM_LOG) $(BTT_FILOBASS_LOG)
+measure-permissive-beat-tracker-egmd: $(BTT_PROBE) scripts/measure_permissive_beat_tracker.py $(REAL_GOAL_EGMD_FIXTURE_DIR)/e-gmd-v1.0.0.csv
+	$(PYTHON) scripts/measure_permissive_beat_tracker.py --root "$(REAL_GOAL_EGMD_FIXTURE_DIR)" --metadata e-gmd-v1.0.0.csv --probe "$(BTT_PROBE)" --seconds 8 > "$(BTT_EGMD_LOG)"
+
+summarize-permissive-beat-tracker: scripts/inspect_tempo_confidence_calibration.py $(BTT_BALLROOM_LOG) $(BTT_FILOBASS_LOG) $(BTT_EGMD_LOG)
 	$(PYTHON) scripts/inspect_tempo_confidence_calibration.py --prefix "BTT tempo diag" --tolerance "$(BPM_DIAG_TOLERANCE)" "$(BTT_BALLROOM_LOG)"
 	$(PYTHON) scripts/inspect_tempo_confidence_calibration.py --prefix "BTT tempo diag" --tolerance "$(BPM_DIAG_TOLERANCE)" "$(BTT_FILOBASS_LOG)"
+	$(PYTHON) scripts/inspect_tempo_confidence_calibration.py --prefix "BTT tempo diag" --tolerance "$(BPM_DIAG_TOLERANCE)" "$(BTT_EGMD_LOG)"
 
 inspect-beat-tracker-backends: scripts/inspect_beat_tracker_backends.py
 	$(PYTHON) scripts/inspect_beat_tracker_backends.py

@@ -20,13 +20,14 @@ def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--root", type=Path, required=True)
     parser.add_argument("--probe", type=Path, required=True)
+    parser.add_argument("--metadata", default="maestro-v3.0.0.csv")
     parser.add_argument("--seconds", type=float, default=20.0)
     args = parser.parse_args()
-    with (args.root / "maestro-v3.0.0.csv").open(encoding="utf-8", newline="") as handle:
+    with (args.root / args.metadata).open(encoding="utf-8", newline="") as handle:
         rows = list(csv.DictReader(handle))
     for index, row in enumerate(rows, 1):
         audio = args.root / row["audio_filename"]
-        expected = bpm_from_midi(args.root / row["midi_filename"])
+        expected = float(row["bpm"]) if row.get("bpm") else bpm_from_midi(args.root / row["midi_filename"])
         offset = float(row.get("tempo_audio_offset_seconds", "0") or 0)
         result = subprocess.run([str(args.probe), str(audio), str(offset), str(args.seconds)],
                                 check=True, text=True, capture_output=True)

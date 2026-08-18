@@ -2693,6 +2693,10 @@ def render(
             "| Permissive tracker raw BPM — FiloBass | 13 / 24 (54.2%) | 11 | within 8 BPM; diagnostic source `build/btt_filobass_bpm_diagnostics.log` |",
             "| Permissive tracker at 0.60 certainty — Ballroom | 19 / 24 (79.2%) | 5 | correct / displayed; 40 clips remain hidden |",
             "| Permissive tracker at 0.60 certainty — FiloBass | 4 / 6 (66.7%) | 2 | correct / displayed; precision calibration remains required |",
+	            "| Permissive tracker at 0.75 certainty — Ballroom | 13 / 15 (86.7%) | 2 | correct / displayed; 49 clips remain hidden |",
+	            "| Permissive tracker at 0.75 certainty — FiloBass | 2 / 2 (100.0%) | 0 | correct / displayed; 22 clips remain hidden |",
+	            "| Permissive tracker at 0.75 certainty — E-GMD | 3 / 3 (100.0%) | 0 | correct / displayed; generated percussion regression only |",
+            "| Calibrate guarded live permissive-tracker handoff | 0 / 1 (0.0%) | 1 | retain `BPM --` below 0.75 candidate certainty and verify no regression in the analyzer's own phase evidence |",
             "| Demonstrate a bass-attack feature improves real bass BPM | 0 / 1 (0.0%) | 1 | improve FiloBass displayable BPM without regressing E-GMD |",
             "| Hide BPM when calibrated confidence is insufficient | 1 / 1 (100.0%) | 0 | renderer keeps `BPM --` below 0.60 confidence |",
         ]

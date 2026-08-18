@@ -22,7 +22,7 @@ def main() -> int:
     if not rows:
         print("tempo confidence calibration: no rows")
         return 0
-    for gate in (0.0, 0.15, 0.25, 0.35, 0.45, 0.55, 0.60):
+    for gate in (0.0, 0.15, 0.25, 0.35, 0.45, 0.55, 0.60, 0.65, 0.70, 0.75, 0.80, 0.90):
         shown = [row for row in rows if float(row.get("confidence", 0.0)) >= gate]
         correct = sum(abs(float(row.get("raw", 0.0)) - float(row["expected"])) <= args.tolerance for row in shown)
         print(f"tempo confidence calibration: gate {gate:.2f} correct {correct}/{len(shown)} total {len(rows)}")
