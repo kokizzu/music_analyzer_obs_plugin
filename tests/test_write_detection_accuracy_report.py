@@ -621,7 +621,7 @@ class DetectionAccuracyReportTest(unittest.TestCase):
             filobass_bpm = Path(temporary) / "filobass_bpm_diagnostics.log"
             filobass_bpm.write_text(
                 "MAESTRO tempo diag\tid=1\texpected=120.00\tgot=120.00\tstatus=hit\tcandidates=160(s=1,align=10/20/30/40) 120(s=1,align=10/70/30/40)\n"
-                "MAESTRO tempo diag\tid=2\texpected=100.00\tgot=0.00\tstatus=no-estimate\tcandidates=100(s=1,align=10/50/30/40) 160(s=1,align=10/20/30/40)\n",
+                "MAESTRO tempo diag\tid=2\texpected=100.00\tgot=0.00\tstatus=no-estimate\tcandidates=100(s=1,align=10/50/30/40,kb=50) 160(s=1,align=10/20/30/40,kb=20)\n",
                 encoding="utf-8",
             )
             filobass_onsets = Path(temporary) / "filobass_bass_onset_diagnostics.tsv"

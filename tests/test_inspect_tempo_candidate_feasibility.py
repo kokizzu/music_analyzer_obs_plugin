@@ -18,8 +18,8 @@ def main() -> int:
         log = pathlib.Path(temporary) / "tempo.log"
         log.write_text(
             "MAESTRO tempo diag\tid=one\texpected=120\tcandidates="
-            "160(s=11,m=0.10,rep=0.10/0.10/0.10,align=10/10/10/10) "
-            "120(s=10,m=0.90,rep=0.90/0.90/0.90,align=10/90/10/10)\n"
+            "160(s=11,m=0.10,rep=0.10/0.10/0.10,align=10/10/10/10,kb=10) "
+            "120(s=10,m=0.90,rep=0.90/0.90/0.90,align=10/90/10/10,kb=90)\n"
             "MAESTRO tempo diag\tid=two\texpected=100\tcandidates="
             "160(s=12,m=0.80,align=10/80/10/10) 100(s=8,m=0.20,align=10/20/10/10)\n",
             encoding="utf-8",
@@ -33,6 +33,8 @@ def main() -> int:
     if "bass alignment selector w=0.25:1/2" not in result.stdout:
         raise AssertionError(result.stdout)
     if "recurrence selector w=0.25:1/2" not in result.stdout:
+        raise AssertionError(result.stdout)
+    if "kick+bass alignment selector w=0.25:1/2" not in result.stdout:
         raise AssertionError(result.stdout)
     return 0
 

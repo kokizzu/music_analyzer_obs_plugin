@@ -18,7 +18,8 @@ from dataclasses import dataclass
 CANDIDATE_RE = re.compile(
     r"(?P<bpm>\d+)\(s=(?P<score>[0-9.]+).*?m=(?P<meter>[0-9.]+)"
     r"(?:,rep=(?P<recurrence>[0-9.]+)/[0-9.]+/[0-9.]+)?.*?"
-    r"align=(?P<kick>[0-9.]+)/(?P<bass>[0-9.]+)/(?P<snare>[0-9.]+)/(?P<tonal>[0-9.]+)\)"
+    r"align=(?P<kick>[0-9.]+)/(?P<bass>[0-9.]+)/(?P<snare>[0-9.]+)/(?P<tonal>[0-9.]+)"
+    r"(?:,kb=(?P<kick_bass>[0-9.]+))?\)"
 )
 
 
@@ -30,6 +31,7 @@ class Candidate:
     recurrence: float
     kick_alignment: float
     bass_alignment: float
+    kick_bass_alignment: float
 
 
 @dataclass(frozen=True)
@@ -56,6 +58,7 @@ def parse_rows(path: pathlib.Path, prefix: str) -> list[Row]:
                 recurrence=float(match.group("recurrence") or 0.0),
                 kick_alignment=float(match.group("kick")) / 100.0,
                 bass_alignment=float(match.group("bass")) / 100.0,
+                kick_bass_alignment=float(match.group("kick_bass") or 0.0) / 100.0,
             )
             for match in CANDIDATE_RE.finditer(fields.get("candidates", ""))
         )
@@ -101,7 +104,9 @@ def main() -> int:
         f"expected bass-align>score-best {bass_advantage}/{len(eligible)}"
     )
     for feature, label in (("meter", "meter"), ("bass_alignment", "bass alignment"),
-                           ("kick_alignment", "kick alignment"), ("recurrence", "recurrence")):
+                           ("kick_alignment", "kick alignment"),
+                           ("kick_bass_alignment", "kick+bass alignment"),
+                           ("recurrence", "recurrence")):
         parts = []
         for weight in (0.25, 0.5, 1.0, 2.0, 4.0):
             hits = sum(near(select(row.candidates, feature, weight).bpm, row.expected, args.tolerance) for row, _ in eligible)

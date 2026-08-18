@@ -6250,6 +6250,9 @@ void check_explicit_input_mode_and_bpm(Runner &runner)
 			      snapshot.tempo_debug_candidates[0].bass_phase_energy_alignment >= 0.10f,
 			      "kick-bass downbeat phase: expected the selected grid to explain bass onset energy");
 		runner.expect(snapshot.tempo_debug_candidate_count > 0 &&
+			      snapshot.tempo_debug_candidates[0].kick_bass_phase_energy_alignment >= 0.10f,
+			      "kick-bass downbeat phase: expected same-frame kick+bass downbeat energy");
+		runner.expect(snapshot.tempo_debug_candidate_count > 0 &&
 			      snapshot.tempo_debug_candidates[0].recurrence_score > 0.0f,
 			      "kick-bass downbeat recurrence: expected normalized pulse recurrence");
 		runner.expect(snapshot.tempo_debug_candidate_count > 0 &&

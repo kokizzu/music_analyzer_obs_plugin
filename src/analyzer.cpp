@@ -28316,6 +28316,7 @@ void AnalysisEngine::update_tempo(float raw_event_strength, float raw_event_body
 	float total_recent_low_body_flux = 0.0f;
 	float total_recent_mid_body_flux = 0.0f;
 	std::array<float, 4> total_recent_source_flux = {};
+	float total_recent_kick_bass_coincidence = 0.0f;
 	for (std::size_t i = 0; i < recent_flux_count; ++i) {
 		const std::size_t index =
 			(tempo_flux_pos_ + tempo_flux_.size() - recent_flux_count + i) % tempo_flux_.size();
@@ -28336,6 +28337,8 @@ void AnalysisEngine::update_tempo(float raw_event_strength, float raw_event_body
 		total_recent_source_flux[1] += recent_bass_flux[i];
 		total_recent_source_flux[2] += recent_snare_flux[i];
 		total_recent_source_flux[3] += recent_tonal_flux[i];
+		total_recent_kick_bass_coincidence +=
+			std::sqrt(std::max(recent_kick_flux[i] * recent_bass_flux[i], 0.0f));
 	}
 	const bool enough_event_evidence = recent_count >= 3 && total_recent_strength >= 1.0f;
 	const float flux_confidence_weight = enough_event_evidence ? 0.0f : 0.50f;
@@ -28380,6 +28383,7 @@ void AnalysisEngine::update_tempo(float raw_event_strength, float raw_event_body
 	std::array<float, kTempoBpmCount> tonal_phase_coverages = {};
 	std::array<float, kTempoBpmCount> kick_phase_energy_alignments = {};
 	std::array<float, kTempoBpmCount> bass_phase_energy_alignments = {};
+	std::array<float, kTempoBpmCount> kick_bass_phase_energy_alignments = {};
 	std::array<float, kTempoBpmCount> snare_phase_energy_alignments = {};
 	std::array<float, kTempoBpmCount> tonal_phase_energy_alignments = {};
 	std::array<float, kTempoBpmCount> phase_offsets = {};
@@ -28725,6 +28729,7 @@ void AnalysisEngine::update_tempo(float raw_event_strength, float raw_event_body
 		float phase_all_coverage = 0.0f;
 		std::array<float, 4> source_phase_coverages = {};
 		std::array<float, 4> source_phase_energy_alignments = {};
+		float kick_bass_phase_energy_alignment = 0.0f;
 		float phase_offset = 0.0f;
 		float phase_rank = 0.0f;
 		const float phase_step = period / static_cast<float>(kTempoPhaseBins);
@@ -28744,6 +28749,7 @@ void AnalysisEngine::update_tempo(float raw_event_strength, float raw_event_body
 				int all_pulses = 0;
 				std::array<int, 4> source_pulses = {};
 				std::array<float, 4> source_grid_strengths = {};
+				float kick_bass_grid_strength = 0.0f;
 				float body_grid_score = 0.0f;
 				float all_grid_score = 0.0f;
 				float subdivision_grid_score = 0.0f;
@@ -28766,6 +28772,7 @@ void AnalysisEngine::update_tempo(float raw_event_strength, float raw_event_body
 					float best_low_body_flux = 0.0f;
 					float best_mid_body_flux = 0.0f;
 					float best_subdivision_flux = 0.0f;
+					float best_kick_bass_coincidence = 0.0f;
 					std::array<float, 4> best_source_flux = {};
 					for (int offset = -search_radius; offset <= search_radius; ++offset) {
 						const int flux_index = center_index + offset;
@@ -28805,6 +28812,10 @@ void AnalysisEngine::update_tempo(float raw_event_strength, float raw_event_body
 			std::max(best_source_flux[2], recent_snare_flux[index] * error_weight);
 		best_source_flux[3] =
 			std::max(best_source_flux[3], recent_tonal_flux[index] * error_weight);
+						best_kick_bass_coincidence = std::max(
+							best_kick_bass_coincidence,
+							std::sqrt(std::max(recent_kick_flux[index] * recent_bass_flux[index], 0.0f)) *
+								error_weight);
 					}
 
 					const float age = tempo_clock_seconds_ - grid_time;
@@ -28825,6 +28836,7 @@ void AnalysisEngine::update_tempo(float raw_event_strength, float raw_event_body
 							++source_pulses[source];
 						source_grid_strengths[source] += best_source_flux[source];
 					}
+					kick_bass_grid_strength += best_kick_bass_coincidence;
 					const float locked_evidence =
 						std::sqrt(std::max(best_body_flux, 0.0f)) * 1.18f +
 						std::sqrt(std::max(best_all_flux, 0.0f)) * 0.20f +
@@ -28875,6 +28887,9 @@ void AnalysisEngine::update_tempo(float raw_event_strength, float raw_event_body
 						std::clamp(source_grid_strengths[source] /
 								   std::max(total_recent_source_flux[source], 1.0e-6f),
 							   0.0f, 1.0f);
+				const float candidate_kick_bass_phase_energy_alignment = std::clamp(
+					kick_bass_grid_strength / std::max(total_recent_kick_bass_coincidence, 1.0e-6f),
+					0.0f, 1.0f);
 				const float repeated_source_coverage =
 				std::max(std::max(candidate_source_coverages[0], candidate_source_coverages[1]),
 					 std::max(candidate_source_coverages[2], candidate_source_coverages[3]));
@@ -28937,6 +28952,7 @@ void AnalysisEngine::update_tempo(float raw_event_strength, float raw_event_body
 					phase_all_coverage = all_coverage;
 					source_phase_coverages = candidate_source_coverages;
 					source_phase_energy_alignments = candidate_source_energy_alignments;
+					kick_bass_phase_energy_alignment = candidate_kick_bass_phase_energy_alignment;
 					phase_offset = candidate_offset;
 				}
 			}
@@ -28952,6 +28968,7 @@ void AnalysisEngine::update_tempo(float raw_event_strength, float raw_event_body
 		tonal_phase_coverages[score_index] = source_phase_coverages[3];
 		kick_phase_energy_alignments[score_index] = source_phase_energy_alignments[0];
 		bass_phase_energy_alignments[score_index] = source_phase_energy_alignments[1];
+		kick_bass_phase_energy_alignments[score_index] = kick_bass_phase_energy_alignment;
 		snare_phase_energy_alignments[score_index] = source_phase_energy_alignments[2];
 		tonal_phase_energy_alignments[score_index] = source_phase_energy_alignments[3];
 		phase_offsets[score_index] = phase_offset;
@@ -29471,6 +29488,7 @@ void AnalysisEngine::update_tempo(float raw_event_strength, float raw_event_body
 		candidate.tonal_phase_coverage = tonal_phase_coverages[score_index];
 		candidate.kick_phase_energy_alignment = kick_phase_energy_alignments[score_index];
 		candidate.bass_phase_energy_alignment = bass_phase_energy_alignments[score_index];
+		candidate.kick_bass_phase_energy_alignment = kick_bass_phase_energy_alignments[score_index];
 		candidate.snare_phase_energy_alignment = snare_phase_energy_alignments[score_index];
 		candidate.tonal_phase_energy_alignment = tonal_phase_energy_alignments[score_index];
 		candidate.phase_offset_seconds = phase_offsets[score_index];

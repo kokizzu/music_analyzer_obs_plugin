@@ -980,7 +980,8 @@ def tempo_diagnostic_counts(path: Path, prefix: str = "MAESTRO tempo diag\t") ->
 
 TEMPO_CANDIDATE_ALIGNMENT_RE = re.compile(
     r"(?P<bpm>\d+)\([^)]*?align="
-    r"(?P<kick>[0-9.]+)/(?P<bass>[0-9.]+)/(?P<snare>[0-9.]+)/(?P<tonal>[0-9.]+)\)"
+    r"(?P<kick>[0-9.]+)/(?P<bass>[0-9.]+)/(?P<snare>[0-9.]+)/(?P<tonal>[0-9.]+)"
+    r"(?:,kb=[0-9.]+)?\)"
 )
 
 
@@ -2674,6 +2675,7 @@ def render(
             f"| Assess bass source-grid energy before a selector | {fraction(int(filobass_phase_energy is not None), 1)} | {int(filobass_phase_energy is None)} | FiloBass expected candidate shows higher bass alignment in {filobass_phase_energy_evidence} |",
             "| Reject unproven meter/bass candidate reweighting | 1 / 1 (100.0%) | 0 | feasibility audit: Ballroom meter/bass selectors stay at 4 / 61; FiloBass stays at 4 / 24, so neither is a safe BPM selector |",
             "| Reject unproven normalized-recurrence selector | 1 / 1 (100.0%) | 0 | lag-normalized recurrence reaches 6 / 61 only at an extreme Ballroom weight and remains 4 / 24 on FiloBass |",
+            "| Reject unproven kick+bass-coincidence selector | 1 / 1 (100.0%) | 0 | same-frame coincidence reaches 5 / 61 on Ballroom but stays 4 / 24 on FiloBass, so it cannot safely resolve meter alone |",
             "| Demonstrate a bass-attack feature improves real bass BPM | 0 / 1 (0.0%) | 1 | improve FiloBass displayable BPM without regressing E-GMD |",
             "| Hide BPM when calibrated confidence is insufficient | 1 / 1 (100.0%) | 0 | renderer keeps `BPM --` below 0.60 confidence |",
         ]

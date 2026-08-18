@@ -184,6 +184,9 @@ struct TempoDebugCandidate {
 	// intersects dense subdivision activity from one that explains its attacks.
 	float kick_phase_energy_alignment = 0.0f;
 	float bass_phase_energy_alignment = 0.0f;
+	// Same-frame kick and bass onset energy. Nearby independent attacks do not
+	// count as a shared downbeat.
+	float kick_bass_phase_energy_alignment = 0.0f;
 	float snare_phase_energy_alignment = 0.0f;
 	float tonal_phase_energy_alignment = 0.0f;
 	float phase_body_coverage = 0.0f;
