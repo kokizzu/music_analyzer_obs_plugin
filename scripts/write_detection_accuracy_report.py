@@ -2676,6 +2676,7 @@ def render(
             "| Reject unproven meter/bass candidate reweighting | 1 / 1 (100.0%) | 0 | feasibility audit: Ballroom meter/bass selectors stay at 4 / 61; FiloBass stays at 4 / 24, so neither is a safe BPM selector |",
             "| Reject unproven normalized-recurrence selector | 1 / 1 (100.0%) | 0 | lag-normalized recurrence reaches 6 / 61 only at an extreme Ballroom weight and remains 4 / 24 on FiloBass |",
             "| Reject unproven kick+bass-coincidence selector | 1 / 1 (100.0%) | 0 | same-frame coincidence reaches 5 / 61 on Ballroom but stays 4 / 24 on FiloBass, so it cannot safely resolve meter alone |",
+	            "| Reject longer percussive phase history | 1 / 1 (100.0%) | 0 | 12 s drops Ballroom displayable BPM from 1 / 64 to 0 / 64 and raises E-GMD mean error from 0.21 to 0.32 BPM; retain the 8 s policy |",
             "| Local advanced beat-tracker backend available | 0 / 2 (0.0%) | 2 | `aubio` and `essentia` are unavailable through pkg-config; next step is a dependency-free tracker or an added backend |",
             "| Demonstrate a bass-attack feature improves real bass BPM | 0 / 1 (0.0%) | 1 | improve FiloBass displayable BPM without regressing E-GMD |",
             "| Hide BPM when calibrated confidence is insufficient | 1 / 1 (100.0%) | 0 | renderer keeps `BPM --` below 0.60 confidence |",
