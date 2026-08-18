@@ -1502,6 +1502,14 @@ Source: `build/egmd_bpm_diagnostics.log`. This generated aligned-MIDI fixture ex
 | --- | ---: | ---: |
 | Displayable BPM at confidence ≥ 0.50 | 20 / 20 (100.0%) | 0 |
 
+## IDMT real-bass timing-ground-truth audit
+
+Source: `build/idmt_bass_lines_tempo_metadata.tsv`. IDMT provides real bass audio and reviewed note onsets, but only corpus-supplied tempo, beat, or pattern fields qualify it as BPM ground truth.
+
+| Metric | Accurate / total | Remaining |
+| --- | ---: | ---: |
+| Tracks with corpus-supplied tempo, beat, or pattern metadata | 0 / 17 (0.0%) | 17 |
+
 ## Tempo coverage-gap checklist
 
 Tempo estimates are only displayed at calibrated confidence. Source-specific phase evidence is tested separately from corpus coverage so a synthetic regression fixture cannot be mistaken for independent real-audio validation.
@@ -1513,7 +1521,8 @@ Tempo estimates are only displayed at calibrated confidence. Source-specific pha
 | Adaptive tempo history for percussive vs sparse tonal input | 1 / 1 (100.0%) | 0 | 8 s percussion / 18 s sparse-source policy |
 | Generated drum phase regression measured | 1 / 1 (100.0%) | 0 | E-GMD x/total BPM diagnostic |
 | Rhythm-heavy real-mix beat validation measured | 0 / 1 (0.0%) | 1 | Ballroom manually corrected beat/bar annotations |
-| Independent real bass-led beat-labelled validation measured | 0 / 1 (0.0%) | 1 | public audio plus externally reviewed beat times |
+| IDMT real-bass timing metadata qualifies as beat truth | 0 / 17 (0.0%) | 17 | only corpus-supplied tempo/beat/pattern fields count; note onsets are insufficient |
+| Independent real bass-led beat-labelled validation measured | 0 / 1 (0.0%) | 1 | public audio plus externally reviewed beat times; IDMT is not substituted |
 | Hide BPM when calibrated confidence is insufficient | 1 / 1 (100.0%) | 0 | renderer keeps `BPM --` below 0.50 confidence |
 
 ## MAPS chord-miss evidence

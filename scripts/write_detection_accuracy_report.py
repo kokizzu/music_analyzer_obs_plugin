@@ -978,6 +978,26 @@ def tempo_diagnostic_counts(path: Path, prefix: str = "MAESTRO tempo diag\t") ->
     return accurate, total
 
 
+def idmt_bass_timing_metadata_counts(path: Path) -> tuple[int, int]:
+    """Count real bass tracks with corpus-supplied timing/grid metadata."""
+    with path.open(encoding="utf-8", newline="") as source:
+        reader = csv.DictReader(source, delimiter="\t")
+        required = {"track_id", "parameter", "timing_or_pattern_field"}
+        missing = required - set(reader.fieldnames or ())
+        if missing:
+            raise ValueError(f"{path}: missing IDMT timing columns: {', '.join(sorted(missing))}")
+        rows = list(reader)
+    tracks = {row["track_id"] for row in rows if row["track_id"]}
+    timing_tracks = {
+        row["track_id"]
+        for row in rows
+        if row["track_id"] and row["timing_or_pattern_field"].strip().lower() == "yes"
+    }
+    if not tracks:
+        raise ValueError(f"{path}: no IDMT metadata rows")
+    return len(timing_tracks), len(tracks)
+
+
 def vocal_exact_note_cross_corpus_rows(path: Path) -> list[tuple[str, int, int, int, int, int]]:
     with path.open(encoding="utf-8", newline="") as source:
         reader = csv.DictReader(source, delimiter="\t")
@@ -1086,6 +1106,7 @@ def render(
     kraisler_bpm_input: Path | None = None,
     ballroom_bpm_input: Path | None = None,
     egmd_bpm_input: Path | None = None,
+    idmt_bass_tempo_metadata_input: Path | None = None,
 ) -> str:
     samples = load_samples(input_path)
     dcs_rows = dagstuhl_choirset_rows(dagstuhl_choirset_input) if dagstuhl_choirset_input else []
@@ -1104,6 +1125,11 @@ def render(
     ballroom_bpm = tempo_diagnostic_counts(ballroom_bpm_input) if ballroom_bpm_input else None
     egmd_bpm = (
         tempo_diagnostic_counts(egmd_bpm_input, "E-GMD tempo diag\t") if egmd_bpm_input else None
+    )
+    idmt_bass_timing = (
+        idmt_bass_timing_metadata_counts(idmt_bass_tempo_metadata_input)
+        if idmt_bass_tempo_metadata_input
+        else None
     )
     piano_state_evidence = (
         independent_piano_state_evidence(independent_piano_chord_state_evidence_input)
@@ -2486,6 +2512,20 @@ def render(
                 f"| Displayable BPM at confidence ≥ 0.50 | {fraction(accurate, total)} | {total - accurate} |",
             ]
         )
+    if idmt_bass_timing is not None:
+        accurate, total = idmt_bass_timing
+        lines.extend(
+            [
+                "",
+                "## IDMT real-bass timing-ground-truth audit",
+                "",
+                f"Source: `{idmt_bass_tempo_metadata_input.as_posix()}`. IDMT provides real bass audio and reviewed note onsets, but only corpus-supplied tempo, beat, or pattern fields qualify it as BPM ground truth.",
+                "",
+                "| Metric | Accurate / total | Remaining |",
+                "| --- | ---: | ---: |",
+                f"| Tracks with corpus-supplied tempo, beat, or pattern metadata | {fraction(accurate, total)} | {total - accurate} |",
+            ]
+        )
     lines.extend(
         [
             "",
@@ -2500,7 +2540,8 @@ def render(
             "| Adaptive tempo history for percussive vs sparse tonal input | 1 / 1 (100.0%) | 0 | 8 s percussion / 18 s sparse-source policy |",
             f"| Generated drum phase regression measured | {fraction(int(egmd_bpm is not None), 1)} | {int(egmd_bpm is None)} | E-GMD x/total BPM diagnostic |",
             f"| Rhythm-heavy real-mix beat validation measured | {fraction(int(ballroom_bpm is not None), 1)} | {int(ballroom_bpm is None)} | Ballroom manually corrected beat/bar annotations |",
-            "| Independent real bass-led beat-labelled validation measured | 0 / 1 (0.0%) | 1 | public audio plus externally reviewed beat times |",
+            f"| IDMT real-bass timing metadata qualifies as beat truth | {fraction(idmt_bass_timing[0], idmt_bass_timing[1]) if idmt_bass_timing is not None else '0 / 1 (0.0%)'} | {idmt_bass_timing[1] - idmt_bass_timing[0] if idmt_bass_timing is not None else 1} | only corpus-supplied tempo/beat/pattern fields count; note onsets are insufficient |",
+            "| Independent real bass-led beat-labelled validation measured | 0 / 1 (0.0%) | 1 | public audio plus externally reviewed beat times; IDMT is not substituted |",
             "| Hide BPM when calibrated confidence is insufficient | 1 / 1 (100.0%) | 0 | renderer keeps `BPM --` below 0.50 confidence |",
         ]
     )
@@ -2693,6 +2734,7 @@ def main() -> int:
     parser.add_argument("--kraisler-bpm-input", type=Path)
     parser.add_argument("--ballroom-bpm-input", type=Path)
     parser.add_argument("--egmd-bpm-input", type=Path)
+    parser.add_argument("--idmt-bass-tempo-metadata-input", type=Path)
     parser.add_argument("--high-vocal-octave-audit", type=Path)
     parser.add_argument("--electronic-piano-guitar-route-audit", type=Path)
     parser.add_argument("--scms-vocal-other-route-audit", type=Path)
@@ -2791,6 +2833,7 @@ def main() -> int:
             args.kraisler_bpm_input,
             args.ballroom_bpm_input,
             args.egmd_bpm_input,
+            args.idmt_bass_tempo_metadata_input,
         )
     except (OSError, ValueError) as error:
         parser.error(str(error))

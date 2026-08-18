@@ -4,7 +4,7 @@ PYTHON ?= python3
 # Explicitly approved, resumable external corpus acquisitions. This registry
 # is task-scoped: a target belongs here only while it is an active accuracy
 # coverage gap, rather than merely being supported by the project.
-APPROVED_CORPUS_DOWNLOAD_TARGETS ?= measure-maestro-real-samples measure-kraisler measure-ballroom-bpm
+APPROVED_CORPUS_DOWNLOAD_TARGETS ?= measure-maestro-real-samples measure-kraisler measure-ballroom-bpm download-filobass
 PKG_CONFIG ?= pkg-config
 TAR ?= tar
 FFMPEG ?= ffmpeg
@@ -215,10 +215,11 @@ DETECTION_ACCURACY_MAESTRO_REAL_MANIFEST_ARG = $(if $(wildcard $(MAESTRO_REAL_SA
 DETECTION_ACCURACY_KRAISLER_ARCHIVE_ARG = $(if $(wildcard $(KRAISLER_ARCHIVE)),--kraisler-archive "$(KRAISLER_ARCHIVE)")
 DETECTION_ACCURACY_KRAISLER_EXTRACT_ARG = $(if $(wildcard $(KRAISLER_EXTRACT_DIR)),--kraisler-extraction "$(KRAISLER_EXTRACT_DIR)")
 DETECTION_ACCURACY_KRAISLER_MANIFEST_ARG = $(if $(wildcard $(KRAISLER_PREPARED_DIR)/manifest.json),--kraisler-manifest "$(KRAISLER_PREPARED_DIR)/manifest.json")
-DETECTION_ACCURACY_KRAISLER_MEASUREMENT_ARG = $(if $(wildcard $(KRAISLER_MEASUREMENT_OUTPUT)),--kraisler-measurement "$(KRAISLER_MEASUREMENT_OUTPUT)") $(DETECTION_ACCURACY_KRAISLER_BPM_ARG) $(DETECTION_ACCURACY_BALLROOM_BPM_ARG) $(DETECTION_ACCURACY_EGMD_BPM_ARG)
+DETECTION_ACCURACY_KRAISLER_MEASUREMENT_ARG = $(if $(wildcard $(KRAISLER_MEASUREMENT_OUTPUT)),--kraisler-measurement "$(KRAISLER_MEASUREMENT_OUTPUT)") $(DETECTION_ACCURACY_KRAISLER_BPM_ARG) $(DETECTION_ACCURACY_BALLROOM_BPM_ARG) $(DETECTION_ACCURACY_EGMD_BPM_ARG) $(DETECTION_ACCURACY_IDMT_BASS_TEMPO_METADATA_ARG)
 DETECTION_ACCURACY_KRAISLER_BPM_ARG = $(if $(wildcard $(KRAISLER_BPM_LOG)),--kraisler-bpm-input "$(KRAISLER_BPM_LOG)")
 DETECTION_ACCURACY_BALLROOM_BPM_ARG = $(if $(wildcard $(BALLROOM_BPM_LOG)),--ballroom-bpm-input "$(BALLROOM_BPM_LOG)")
 DETECTION_ACCURACY_EGMD_BPM_ARG = $(if $(wildcard $(EGMD_BPM_LOG)),--egmd-bpm-input "$(EGMD_BPM_LOG)")
+DETECTION_ACCURACY_IDMT_BASS_TEMPO_METADATA_ARG = $(if $(wildcard $(IDMT_BASS_LINES_TEMPO_METADATA)),--idmt-bass-tempo-metadata-input "$(IDMT_BASS_LINES_TEMPO_METADATA)")
 DETECTION_ACCURACY_CHORAL_SINGING_DATASET_ARG = $(if $(wildcard $(CHORAL_SINGING_DATASET_ARCHIVE)),--choral-singing-dataset-archive "$(CHORAL_SINGING_DATASET_ARCHIVE)")
 DETECTION_ACCURACY_CHORAL_SINGING_DATASET_EXTRACT_ARG = $(if $(wildcard $(CHORAL_SINGING_DATASET_EXTRACT_DIR)/ChoralSingingDataset/README.txt),--choral-singing-dataset-extraction "$(CHORAL_SINGING_DATASET_EXTRACT_DIR)/ChoralSingingDataset/README.txt")
 DETECTION_ACCURACY_CHORAL_SINGING_DATASET_INSPECTION_ARG = $(if $(wildcard $(CHORAL_SINGING_DATASET_INSPECTION_OUTPUT)),--choral-singing-dataset-inspection "$(CHORAL_SINGING_DATASET_INSPECTION_OUTPUT)")
@@ -906,6 +907,9 @@ BALLROOM_ANNOTATIONS_DIR ?= $(BALLROOM_SOURCE_DIR)/annotations
 BALLROOM_TEMPO_FIXTURE_DIR ?= $(BUILD_DIR)/ballroom-tempo-fixture
 BALLROOM_BPM_LOG ?= $(BUILD_DIR)/ballroom_bpm_diagnostics.log
 BALLROOM_BPM_LIMIT ?= 24
+FILOBASS_SOURCE_DIR ?= $(INSTRUMENT_SAMPLE_STORE_LINK)/filobass
+FILOBASS_ARCHIVE ?= $(FILOBASS_SOURCE_DIR)/FiloBass_v1.0.0.zip
+FILOBASS_EXTRACT_DIR ?= $(FILOBASS_SOURCE_DIR)/extracted
 IRMAS_SOURCE_DIR ?= $(INSTRUMENT_SAMPLE_STORE_LINK)/irmas
 IRMAS_TEST_PART1_ARCHIVE ?= $(IRMAS_SOURCE_DIR)/IRMAS-TestingData-Part1.zip
 IRMAS_TEST_PART2_ARCHIVE ?= $(IRMAS_SOURCE_DIR)/IRMAS-TestingData-Part2.zip
@@ -1278,6 +1282,7 @@ IDMT_BASS_LINES_SAMPLE_DIR ?= $(BUILD_DIR)/idmt_bass_lines_samples
 IDMT_BASS_LINES_ATTRIBUTE_TSV ?= $(BUILD_DIR)/idmt_bass_lines_attributes.tsv
 IDMT_BASS_LINES_DETECTED_ATTRIBUTE_ROWS ?= $(BUILD_DIR)/idmt_bass_lines_detected_attribute_rows.tsv
 IDMT_BASS_LINES_MISS_ATTRIBUTE_ROWS ?= $(BUILD_DIR)/idmt_bass_lines_miss_attribute_rows.tsv
+IDMT_BASS_LINES_TEMPO_METADATA ?= $(BUILD_DIR)/idmt_bass_lines_tempo_metadata.tsv
 IDMT_BASS_LINES_SAMPLE_LIMIT ?= 0
 IDMT_BASS_LINES_MIN_BASS ?= 600
 IDMT_BASS_LINES_MAX_FAILURES ?= 0
@@ -4380,6 +4385,13 @@ inspect-iowa-orchestra-full-debug-cached: $(BUILD_DIR)/analyzer_real_note_sample
 
 download-idmt-bass-lines-samples: $(IDMT_BASS_LINES_ARCHIVE)
 
+.PHONY: inspect-idmt-bass-tempo-metadata test-inspect-idmt-bass-tempo-metadata
+inspect-idmt-bass-tempo-metadata: $(IDMT_BASS_LINES_ARCHIVE) scripts/inspect_idmt_bass_tempo_metadata.py | $(BUILD_DIR)
+	$(PYTHON) scripts/inspect_idmt_bass_tempo_metadata.py --archive "$(IDMT_BASS_LINES_ARCHIVE)" --output "$(IDMT_BASS_LINES_TEMPO_METADATA)"
+
+test-inspect-idmt-bass-tempo-metadata: tests/test_inspect_idmt_bass_tempo_metadata.py scripts/inspect_idmt_bass_tempo_metadata.py
+	$(PYTHON) tests/test_inspect_idmt_bass_tempo_metadata.py
+
 $(IDMT_BASS_LINES_ARCHIVE): | $(BUILD_DIR)
 	mkdir -p "$(IDMT_BASS_LINES_SOURCE_DIR)"
 	if [ ! -s "$(IDMT_BASS_LINES_ARCHIVE)" ] || ! $(PYTHON) -m zipfile -t "$(IDMT_BASS_LINES_ARCHIVE)" >/dev/null 2>&1; then curl -fL -C - -o "$(IDMT_BASS_LINES_ARCHIVE)" "$(IDMT_BASS_LINES_URL)"; fi
@@ -5568,6 +5580,10 @@ summarize-kraisler-bpm: scripts/analyze_egmd_tempo.py $(KRAISLER_BPM_LOG)
 # only symlinks selected WAVs into build/ for the generic tempo harness.
 download-ballroom-tempo: configure-instrument-sample-store scripts/download_ballroom_tempo_dataset.sh
 	bash scripts/download_ballroom_tempo_dataset.sh "$(INSTRUMENT_SAMPLE_STORE)" "$(CURL)"
+
+.PHONY: download-filobass
+download-filobass: configure-instrument-sample-store scripts/download_filobass_dataset.sh
+	bash scripts/download_filobass_dataset.sh "$(INSTRUMENT_SAMPLE_STORE)" "$(CURL)"
 
 prepare-ballroom-tempo-fixture: download-ballroom-tempo scripts/prepare_ballroom_tempo_fixture.py | $(BUILD_DIR)
 	$(PYTHON) scripts/prepare_ballroom_tempo_fixture.py --audio-root "$(BALLROOM_AUDIO_DIR)" --annotations-root "$(BALLROOM_ANNOTATIONS_DIR)" --output "$(BALLROOM_TEMPO_FIXTURE_DIR)" --limit "$(BALLROOM_BPM_LIMIT)"

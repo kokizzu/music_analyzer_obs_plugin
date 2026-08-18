@@ -611,6 +611,13 @@ class DetectionAccuracyReportTest(unittest.TestCase):
                 "owner_classifier_loco: improved_corpora=8/9 current=10/20 model=14/20\n",
                 encoding="utf-8",
             )
+            idmt_bass_timing = Path(temporary) / "idmt_bass_lines_tempo_metadata.tsv"
+            idmt_bass_timing.write_text(
+                "track_id\tparameter\tvalue\ttiming_or_pattern_field\n"
+                "001\tinstrument\tBass\t\n"
+                "002\tinstrument\tBass\t\n",
+                encoding="utf-8",
+            )
             report = REPORT.render(
                 source, [chords], vocal_full_mix, [bach10_0, bach10_1], musicnet, drum, urmp,
                 vocalset_full_mix, [maps], None, route_summary, good_sounds_full_mix, irmas_labelled,
@@ -650,6 +657,7 @@ class DetectionAccuracyReportTest(unittest.TestCase):
                 kraisler_measurement=dcs_measurement,
                 harmonic_product_octave_audit_input=harmonic_product_audit,
                 owner_classifier_quality_loco_audit_input=quality_classifier_audit,
+                idmt_bass_tempo_metadata_input=idmt_bass_timing,
             )
 
         self.assertIn("| Any detected note | 2 / 3 (66.7%) | 1 |", report)
@@ -700,6 +708,9 @@ class DetectionAccuracyReportTest(unittest.TestCase):
         self.assertIn("| MAPS |", report)
         self.assertIn("| MAESTRO |", report)
         self.assertIn("## KRAISLER independent piano–violin coverage checklist", report)
+        self.assertIn("## IDMT real-bass timing-ground-truth audit", report)
+        self.assertIn("| Tracks with corpus-supplied tempo, beat, or pattern metadata | 0 / 2 (0.0%) | 2 |", report)
+        self.assertIn("| IDMT real-bass timing metadata qualifies as beat truth | 0 / 2 (0.0%) | 2 |", report)
         self.assertIn("| Validate external KRAISLER archive | 1 / 1 (100.0%) | 0 |", report)
         self.assertIn("| Complete protected KRAISLER cross-corpus rule audit | 1 / 1 (100.0%) | 0 |", report)
         self.assertIn("### KRAISLER real piano–violin measurement", report)
