@@ -30171,7 +30171,11 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 		const std::size_t pitch_class = static_cast<std::size_t>(midi % 12);
 		tempo_chroma[pitch_class] = std::max(tempo_chroma[pitch_class], level);
 		strongest_tempo_chroma_level = std::max(strongest_tempo_chroma_level, level);
-		if (midi >= kBassMinMidi && midi <= 40) {
+		// Keep the bass rhythm stream below the guitar range, but include the
+		// upper half of a normal bass line.  Restricting it to E2 discarded
+		// many played bass onsets before the tempo scorer could combine them
+		// with kick transients.
+		if (midi >= kBassMinMidi && midi <= kDefaultBassMaxMidi) {
 			tempo_bass_chroma[pitch_class] = std::max(tempo_bass_chroma[pitch_class], level);
 			strongest_tempo_bass_level = std::max(strongest_tempo_bass_level, level);
 		}

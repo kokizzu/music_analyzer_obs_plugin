@@ -5519,10 +5519,13 @@ test-analyzer-egmd: $(BUILD_DIR)/analyzer_egmd scripts/run_with_duration.sh
 .PHONY: test-bpm-regression
 test-bpm-regression: test-analyzer-cases test-egmd-fixture
 
-.PHONY: analyze-egmd-bpm analyze-real-egmd-bpm analyze-mdb-bpm analyze-maestro-bpm analyze-kraisler-bpm measure-kraisler-bpm-cached summarize-kraisler-bpm analyze-bpm-diagnostics
+.PHONY: analyze-egmd-bpm measure-egmd-bpm-cached analyze-real-egmd-bpm analyze-mdb-bpm analyze-maestro-bpm analyze-kraisler-bpm measure-kraisler-bpm-cached summarize-kraisler-bpm analyze-bpm-diagnostics
 analyze-egmd-bpm: $(BUILD_DIR)/analyzer_egmd tests/generate_egmd_fixture.py scripts/analyze_egmd_tempo.py scripts/run_with_duration.sh | $(BUILD_DIR)
 	rm -rf "$(REAL_GOAL_EGMD_FIXTURE_DIR)"
 	$(PYTHON) tests/generate_egmd_fixture.py "$(REAL_GOAL_EGMD_FIXTURE_DIR)"
+	+$(MAKE) measure-egmd-bpm-cached
+
+measure-egmd-bpm-cached: $(BUILD_DIR)/analyzer_egmd scripts/analyze_egmd_tempo.py scripts/run_with_duration.sh | $(BUILD_DIR)
 	$(RUN_WITH_DURATION) analyzer_egmd_bpm_fixture env MUSIC_ANALYZER_EGMD_ROOT="$(REAL_GOAL_EGMD_FIXTURE_DIR)" MUSIC_ANALYZER_EGMD_SOURCE_NAME="E-GMD percussion" MUSIC_ANALYZER_EGMD_REQUIRED=1 MUSIC_ANALYZER_EGMD_REQUIRED_RECORDINGS=1 MUSIC_ANALYZER_EGMD_REQUIRED_WINDOWS=1 MUSIC_ANALYZER_EGMD_MIN_RECALL_PERCENT=0 MUSIC_ANALYZER_EGMD_MIN_WINDOW_RECALL_PERCENT=0 MUSIC_ANALYZER_EGMD_MIN_PRECISION_PERCENT=0 MUSIC_ANALYZER_EGMD_MAX_FALSE_POSITIVE_WINDOWS_PERCENT=100 MUSIC_ANALYZER_EGMD_VALIDATE_BPM=1 MUSIC_ANALYZER_EGMD_REQUIRED_TEMPO_RECORDINGS=1 MUSIC_ANALYZER_EGMD_MIN_BPM_PASS_PERCENT=0 MUSIC_ANALYZER_EGMD_BPM_TOLERANCE="$(BPM_DIAG_TOLERANCE)" MUSIC_ANALYZER_EGMD_BPM_MAX_SECONDS="$(EGMD_BPM_MAX_SECONDS)" MUSIC_ANALYZER_EGMD_VERBOSE_TEMPO=1 MUSIC_ANALYZER_EGMD_VERBOSE_TEMPO_LIMIT=4000 $(BUILD_DIR)/analyzer_egmd > "$(EGMD_BPM_LOG).summary" 2> "$(EGMD_BPM_LOG)"
 	$(PYTHON) scripts/analyze_egmd_tempo.py --tolerance "$(BPM_DIAG_TOLERANCE)" "$(EGMD_BPM_LOG)"
 
