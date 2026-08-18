@@ -28,12 +28,13 @@ report-approved-corpus-downloads: scripts/report_approved_corpus_downloads.sh
 show-approved-corpus-download-log: scripts/show_approved_corpus_download_log.sh
 	$(SHELL) scripts/show_approved_corpus_download_log.sh "$(BUILD_DIR)" "$(CORPUS_DOWNLOAD_LOG_TARGET)"
 
-test-approved-corpus-download-manager: scripts/start_approved_corpus_downloads.sh scripts/stop_approved_corpus_downloads.sh scripts/report_approved_corpus_downloads.sh scripts/show_approved_corpus_download_log.sh scripts/measure_filobass_after_download.sh
+test-approved-corpus-download-manager: scripts/start_approved_corpus_downloads.sh scripts/stop_approved_corpus_downloads.sh scripts/report_approved_corpus_downloads.sh scripts/show_approved_corpus_download_log.sh scripts/measure_filobass_after_download.sh scripts/download_ballroom_annotations.sh
 	$(SHELL) -n scripts/start_approved_corpus_downloads.sh
 	$(SHELL) -n scripts/stop_approved_corpus_downloads.sh
 	$(SHELL) -n scripts/report_approved_corpus_downloads.sh
 	$(SHELL) -n scripts/show_approved_corpus_download_log.sh
 	$(SHELL) -n scripts/measure_filobass_after_download.sh
+	$(SHELL) -n scripts/download_ballroom_annotations.sh
 
 # This is deliberately separate from the download registry: it is a queued
 # measurement, not a second acquisition.  The detached manager preserves it
@@ -5558,7 +5559,7 @@ test-analyzer-egmd: $(BUILD_DIR)/analyzer_egmd scripts/run_with_duration.sh
 .PHONY: test-bpm-regression
 test-bpm-regression: test-analyzer-cases test-egmd-fixture
 
-.PHONY: analyze-egmd-bpm measure-egmd-bpm-cached summarize-egmd-bpm analyze-real-egmd-bpm analyze-mdb-bpm analyze-maestro-bpm analyze-kraisler-bpm measure-kraisler-bpm-cached summarize-kraisler-bpm download-ballroom-tempo prepare-ballroom-tempo-fixture measure-ballroom-bpm summarize-ballroom-bpm download-filobass inspect-filobass prepare-filobass-tempo-fixture measure-filobass-bpm summarize-filobass-bpm inspect-filobass-tempo-onsets analyze-bpm-diagnostics test-analyze-egmd-tempo
+.PHONY: analyze-egmd-bpm measure-egmd-bpm-cached summarize-egmd-bpm analyze-real-egmd-bpm analyze-mdb-bpm analyze-maestro-bpm analyze-kraisler-bpm measure-kraisler-bpm-cached summarize-kraisler-bpm download-ballroom-tempo download-ballroom-annotations prepare-ballroom-tempo-fixture measure-ballroom-bpm summarize-ballroom-bpm download-filobass inspect-filobass prepare-filobass-tempo-fixture measure-filobass-bpm summarize-filobass-bpm inspect-filobass-tempo-onsets analyze-bpm-diagnostics test-analyze-egmd-tempo
 
 test-analyze-egmd-tempo: tests/test_analyze_egmd_tempo.py scripts/analyze_egmd_tempo.py
 	$(PYTHON) tests/test_analyze_egmd_tempo.py
@@ -5604,6 +5605,9 @@ BALLROOM_DOWNLOAD_CONNECTIONS ?= 8
 
 download-ballroom-tempo: configure-instrument-sample-store scripts/download_ballroom_tempo_dataset.sh
 	bash scripts/download_ballroom_tempo_dataset.sh "$(INSTRUMENT_SAMPLE_STORE)" "$(CURL)" "" "" "" "$(ARIA2C)" "$(BALLROOM_DOWNLOAD_CONNECTIONS)"
+
+download-ballroom-annotations: configure-instrument-sample-store scripts/download_ballroom_annotations.sh
+	bash scripts/download_ballroom_annotations.sh "$(INSTRUMENT_SAMPLE_STORE)"
 
 .PHONY: download-filobass
 download-filobass: configure-instrument-sample-store scripts/download_filobass_dataset.sh
