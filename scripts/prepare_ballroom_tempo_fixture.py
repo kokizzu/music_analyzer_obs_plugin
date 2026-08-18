@@ -68,7 +68,7 @@ def main() -> int:
         shutil.rmtree(args.output)
     (args.output / "audio").mkdir(parents=True)
     (args.output / "midi").mkdir()
-    rows: list[dict[str, str]] = []
+    eligible_by_style: dict[str, list[tuple[Path, Path, float, float]]] = {}
     for label in sorted(args.annotations_root.rglob("*.beats")):
         wav = matching_wav(args.audio_root, label)
         if wav is None:
@@ -78,15 +78,32 @@ def main() -> int:
         if segment is None:
             continue
         offset, bpm = segment
-        identity = f"{label.parent.name}_{label.stem}".replace(" ", "_")
-        audio_name = f"audio/{identity}.wav"
-        midi_name = f"midi/{identity}.mid"
-        link = args.output / audio_name
-        os.symlink(os.path.relpath(wav, link.parent), link)
-        (args.output / midi_name).write_bytes(midi_with_tempo(bpm))
-        rows.append({"audio_filename": audio_name, "midi_filename": midi_name,
-                     "tempo_audio_offset_seconds": f"{offset:.6f}"})
-        if len(rows) >= args.limit:
+        eligible_by_style.setdefault(wav.parent.name, []).append((label, wav, offset, bpm))
+
+    # A filename-sorted prefix can accidentally measure one dance style much
+    # more than the others. Round-robin the source audio directories so each
+    # configured fixture covers the available rhythmic styles before taking a
+    # second example from any one of them.
+    rows: list[dict[str, str]] = []
+    while len(rows) < args.limit:
+        selected = False
+        for style in sorted(eligible_by_style):
+            if len(rows) >= args.limit:
+                break
+            candidates = eligible_by_style[style]
+            if not candidates:
+                continue
+            label, wav, offset, bpm = candidates.pop(0)
+            identity = f"{label.parent.name}_{label.stem}".replace(" ", "_")
+            audio_name = f"audio/{identity}.wav"
+            midi_name = f"midi/{identity}.mid"
+            link = args.output / audio_name
+            os.symlink(os.path.relpath(wav, link.parent), link)
+            (args.output / midi_name).write_bytes(midi_with_tempo(bpm))
+            rows.append({"audio_filename": audio_name, "midi_filename": midi_name,
+                         "tempo_audio_offset_seconds": f"{offset:.6f}"})
+            selected = True
+        if not selected:
             break
     if not rows:
         raise SystemExit("no matching Ballroom WAV/beat pairs with a stable interval")

@@ -2667,7 +2667,7 @@ def render(
             "| Adaptive tempo history for percussive vs sparse tonal input | 1 / 1 (100.0%) | 0 | 8 s percussion / 18 s sparse-source policy |",
             f"| Generated drum phase regression measured | {fraction(int(egmd_bpm is not None), 1)} | {int(egmd_bpm is None)} | E-GMD x/total BPM diagnostic |",
             f"| Retrieve versioned Ballroom beat/bar annotations | {fraction(ballroom_annotations_ready, 1)} | {1 - ballroom_annotations_ready} | CPJKU BallroomAnnotations checkout in InstrumentSamples |",
-            f"| Rhythm-heavy real-mix beat validation measured | {fraction(int(ballroom_bpm is not None), 1)} | {int(ballroom_bpm is None)} | Ballroom manually corrected beat/bar annotations |",
+            f"| Rhythm-heavy real-mix beat validation measured | {fraction(int(ballroom_bpm is not None), 1)} | {int(ballroom_bpm is None)} | up to 64 genre-balanced Ballroom sections with manually corrected beat/bar annotations |",
             f"| IDMT real-bass timing metadata qualifies as beat truth | {fraction(idmt_bass_timing[0], idmt_bass_timing[1]) if idmt_bass_timing is not None else '0 / 1 (0.0%)'} | {idmt_bass_timing[1] - idmt_bass_timing[0] if idmt_bass_timing is not None else 1} | only corpus-supplied tempo/beat/pattern fields count; note onsets are insufficient |",
             f"| Independent real bass-led beat-labelled validation measured | {fraction(int(filobass_bpm is not None), 1)} | {int(filobass_bpm is None)} | FiloBass real bass stems plus reviewed downbeats and MIDI time signature |",
             f"| Assess raw bass-attack BPM evidence | {fraction(int(filobass_onset_diagnostic is not None), 1)} | {int(filobass_onset_diagnostic is None)} | offline FiloBass rank-one/top-five diagnostic |",

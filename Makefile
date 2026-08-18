@@ -923,7 +923,7 @@ BALLROOM_AUDIO_DIR ?= $(BALLROOM_SOURCE_DIR)/audio
 BALLROOM_ANNOTATIONS_DIR ?= $(BALLROOM_SOURCE_DIR)/annotations
 BALLROOM_TEMPO_FIXTURE_DIR ?= $(BUILD_DIR)/ballroom-tempo-fixture
 BALLROOM_BPM_LOG ?= $(BUILD_DIR)/ballroom_bpm_diagnostics.log
-BALLROOM_BPM_LIMIT ?= 24
+BALLROOM_BPM_LIMIT ?= 64
 FILOBASS_SOURCE_DIR ?= $(INSTRUMENT_SAMPLE_STORE_LINK)/filobass
 FILOBASS_ARCHIVE ?= $(FILOBASS_SOURCE_DIR)/FiloBass_v1.0.0.zip
 FILOBASS_EXTRACT_DIR ?= $(FILOBASS_SOURCE_DIR)/extracted
@@ -5561,7 +5561,7 @@ test-analyzer-egmd: $(BUILD_DIR)/analyzer_egmd scripts/run_with_duration.sh
 .PHONY: test-bpm-regression
 test-bpm-regression: test-analyzer-cases test-egmd-fixture
 
-.PHONY: analyze-egmd-bpm measure-egmd-bpm-cached summarize-egmd-bpm analyze-real-egmd-bpm analyze-mdb-bpm analyze-maestro-bpm analyze-kraisler-bpm measure-kraisler-bpm-cached summarize-kraisler-bpm download-ballroom-tempo download-ballroom-annotations test-download-ballroom-tempo-script prepare-ballroom-tempo-fixture measure-ballroom-bpm summarize-ballroom-bpm download-filobass inspect-filobass prepare-filobass-tempo-fixture measure-filobass-bpm summarize-filobass-bpm inspect-filobass-tempo-onsets analyze-bpm-diagnostics test-analyze-egmd-tempo
+.PHONY: analyze-egmd-bpm measure-egmd-bpm-cached summarize-egmd-bpm analyze-real-egmd-bpm analyze-mdb-bpm analyze-maestro-bpm analyze-kraisler-bpm measure-kraisler-bpm-cached summarize-kraisler-bpm download-ballroom-tempo download-ballroom-annotations test-download-ballroom-tempo-script test-prepare-ballroom-tempo-fixture prepare-ballroom-tempo-fixture measure-ballroom-bpm summarize-ballroom-bpm download-filobass inspect-filobass prepare-filobass-tempo-fixture measure-filobass-bpm summarize-filobass-bpm inspect-filobass-tempo-onsets analyze-bpm-diagnostics test-analyze-egmd-tempo
 
 test-analyze-egmd-tempo: tests/test_analyze_egmd_tempo.py scripts/analyze_egmd_tempo.py
 	$(PYTHON) tests/test_analyze_egmd_tempo.py
@@ -5611,6 +5611,9 @@ download-ballroom-tempo: configure-instrument-sample-store scripts/download_ball
 
 test-download-ballroom-tempo-script: tests/test_download_ballroom_tempo_dataset.py scripts/download_ballroom_tempo_dataset.sh
 	$(PYTHON) tests/test_download_ballroom_tempo_dataset.py
+
+test-prepare-ballroom-tempo-fixture: tests/test_prepare_ballroom_tempo_fixture.py scripts/prepare_ballroom_tempo_fixture.py
+	$(PYTHON) tests/test_prepare_ballroom_tempo_fixture.py
 
 download-ballroom-annotations: configure-instrument-sample-store scripts/download_ballroom_annotations.sh
 	bash scripts/download_ballroom_annotations.sh "$(INSTRUMENT_SAMPLE_STORE)"
