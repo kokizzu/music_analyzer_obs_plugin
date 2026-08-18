@@ -911,6 +911,7 @@ BALLROOM_BPM_LIMIT ?= 24
 FILOBASS_SOURCE_DIR ?= $(INSTRUMENT_SAMPLE_STORE_LINK)/filobass
 FILOBASS_ARCHIVE ?= $(FILOBASS_SOURCE_DIR)/FiloBass_v1.0.0.zip
 FILOBASS_EXTRACT_DIR ?= $(FILOBASS_SOURCE_DIR)/extracted
+FILOBASS_INSPECTION_OUTPUT ?= $(BUILD_DIR)/filobass_inspection.tsv
 IRMAS_SOURCE_DIR ?= $(INSTRUMENT_SAMPLE_STORE_LINK)/irmas
 IRMAS_TEST_PART1_ARCHIVE ?= $(IRMAS_SOURCE_DIR)/IRMAS-TestingData-Part1.zip
 IRMAS_TEST_PART2_ARCHIVE ?= $(IRMAS_SOURCE_DIR)/IRMAS-TestingData-Part2.zip
@@ -5585,6 +5586,13 @@ download-ballroom-tempo: configure-instrument-sample-store scripts/download_ball
 .PHONY: download-filobass
 download-filobass: configure-instrument-sample-store scripts/download_filobass_dataset.sh
 	bash scripts/download_filobass_dataset.sh "$(INSTRUMENT_SAMPLE_STORE)" "$(CURL)"
+
+.PHONY: inspect-filobass test-inspect-filobass
+inspect-filobass: download-filobass scripts/inspect_filobass_dataset.py | $(BUILD_DIR)
+	$(PYTHON) scripts/inspect_filobass_dataset.py --root "$(FILOBASS_EXTRACT_DIR)" --output "$(FILOBASS_INSPECTION_OUTPUT)" --min-pairs 20
+
+test-inspect-filobass: tests/test_inspect_filobass_dataset.py scripts/inspect_filobass_dataset.py
+	$(PYTHON) tests/test_inspect_filobass_dataset.py
 
 prepare-ballroom-tempo-fixture: download-ballroom-tempo scripts/prepare_ballroom_tempo_fixture.py | $(BUILD_DIR)
 	$(PYTHON) scripts/prepare_ballroom_tempo_fixture.py --audio-root "$(BALLROOM_AUDIO_DIR)" --annotations-root "$(BALLROOM_ANNOTATIONS_DIR)" --output "$(BALLROOM_TEMPO_FIXTURE_DIR)" --limit "$(BALLROOM_BPM_LIMIT)"
