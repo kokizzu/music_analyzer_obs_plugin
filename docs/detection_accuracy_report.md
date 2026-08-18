@@ -1500,7 +1500,7 @@ Source: `build/ballroom_bpm_diagnostics.log`. Ballroom supplies manually correct
 
 | Metric | Accurate / total | Remaining |
 | --- | ---: | ---: |
-| Displayable BPM at confidence ≥ 0.60 | 1 / 64 (1.6%) | 63 |
+| Displayable BPM at confidence ≥ 0.60 | 3 / 64 (4.7%) | 61 |
 
 ## FiloBass real bass-led annotated-tempo diagnostic
 
@@ -1508,7 +1508,7 @@ Source: `build/filobass_bpm_diagnostics.log`. FiloBass pairs real jazz bass stem
 
 | Metric | Accurate / total | Remaining |
 | --- | ---: | ---: |
-| Displayable BPM at confidence ≥ 0.60 | 0 / 24 (0.0%) | 24 |
+| Displayable BPM at confidence ≥ 0.60 | 1 / 24 (4.2%) | 23 |
 
 ### FiloBass source-grid energy feasibility diagnostic
 
@@ -1583,7 +1583,7 @@ Tempo estimates are only displayed at calibrated confidence. Source-specific pha
 | Permissive tracker at 0.75 certainty — Ballroom | 13 / 15 (86.7%) | 2 | correct / displayed; 49 clips remain hidden |
 | Permissive tracker at 0.75 certainty — FiloBass | 2 / 2 (100.0%) | 0 | correct / displayed; 22 clips remain hidden |
 | Permissive tracker at 0.75 certainty — E-GMD | 3 / 3 (100.0%) | 0 | correct / displayed; generated percussion regression only |
-| Calibrate guarded live permissive-tracker handoff | 0 / 1 (0.0%) | 1 | retain `BPM --` below 0.75 candidate certainty and verify no regression in the analyzer's own phase evidence |
+| Calibrate guarded live permissive-tracker handoff | 1 / 1 (100.0%) | 0 | fallback activates only below analyzer confidence 0.60 and above tracker certainty 0.75; live results improve Ballroom 1 / 64 to 3 / 64 and FiloBass 0 / 24 to 1 / 24 while E-GMD remains 20 / 20 |
 | Demonstrate a bass-attack feature improves real bass BPM | 0 / 1 (0.0%) | 1 | improve FiloBass displayable BPM without regressing E-GMD |
 | Hide BPM when calibrated confidence is insufficient | 1 / 1 (100.0%) | 0 | renderer keeps `BPM --` below 0.60 confidence |
 

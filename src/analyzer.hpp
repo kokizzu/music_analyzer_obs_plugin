@@ -4,6 +4,8 @@
 #include <cstddef>
 #include <cstdint>
 
+struct Opaque_BTT_Struct;
+
 namespace mao {
 
 constexpr std::size_t kLegacyAnalysisWindow = 4096;
@@ -333,6 +335,7 @@ std::size_t resolve_analysis_window_samples(const AnalysisSettings &settings);
 class AnalysisEngine {
 public:
 	AnalysisEngine();
+	~AnalysisEngine();
 
 	void configure(uint32_t sample_rate);
 	void reset();
@@ -444,12 +447,15 @@ private:
 	float pending_tempo_bpm_ = 0.0f;
 	float pending_tempo_confidence_ = 0.0f;
 	float pending_tempo_seconds_ = 0.0f;
+	::Opaque_BTT_Struct *permissive_beat_tracker_ = nullptr;
 	std::size_t analysis_window_samples_ = 0;
 	AnalysisInputMode active_input_mode_ = AnalysisInputMode::Auto;
 	bool has_active_input_mode_ = false;
 	char active_source_[64] = {};
 
 	void rebuild_plans(uint32_t sample_rate);
+	void rebuild_permissive_beat_tracker();
+	void clear_permissive_beat_tracker();
 	void rebuild_window(std::size_t window_samples);
 	void reset_note_envelopes();
 	void reset_analysis_state();

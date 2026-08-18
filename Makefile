@@ -1485,10 +1485,12 @@ CXXFLAGS ?= -O2 -g
 CXXFLAGS += -std=c++17 -fPIC -Wall -Wextra
 
 RENDERER_OBJ := $(BUILD_DIR)/visualizer_renderer.o
-PLUGIN_OBJS := $(BUILD_DIR)/analyzer.o $(RENDERER_OBJ) $(BUILD_DIR)/plugin.o
-ANALYZER_TEST_OBJ := $(BUILD_DIR)/analyzer_test.o
-TEST_BINS := $(BUILD_DIR)/fret_control_tests $(BUILD_DIR)/visualizer_renderer_tests $(BUILD_DIR)/analyzer_internal $(BUILD_DIR)/analyzer_smoke $(BUILD_DIR)/analyzer_cases $(BUILD_DIR)/analyzer_midi_ranges $(BUILD_DIR)/analyzer_urmp $(BUILD_DIR)/analyzer_musicnet $(BUILD_DIR)/analyzer_multtipop $(BUILD_DIR)/analyzer_guitarset $(BUILD_DIR)/analyzer_maestro $(BUILD_DIR)/analyzer_egmd $(BUILD_DIR)/analyzer_drum_samples $(BUILD_DIR)/analyzer_instrument_samples $(BUILD_DIR)/analyzer_real_note_samples $(BUILD_DIR)/analyzer_instrument_family_samples
 BTT_SOURCE_DIR := third_party/beat_and_tempo_tracking
+BTT_C_SOURCES := $(wildcard $(BTT_SOURCE_DIR)/src/*.c)
+BTT_OBJS := $(patsubst $(BTT_SOURCE_DIR)/src/%.c,$(BUILD_DIR)/btt_%.o,$(BTT_C_SOURCES))
+PLUGIN_OBJS := $(BUILD_DIR)/analyzer.o $(RENDERER_OBJ) $(BUILD_DIR)/plugin.o $(BTT_OBJS)
+ANALYZER_TEST_OBJ := $(BUILD_DIR)/analyzer_test.o $(BTT_OBJS)
+TEST_BINS := $(BUILD_DIR)/fret_control_tests $(BUILD_DIR)/visualizer_renderer_tests $(BUILD_DIR)/analyzer_internal $(BUILD_DIR)/analyzer_smoke $(BUILD_DIR)/analyzer_cases $(BUILD_DIR)/analyzer_midi_ranges $(BUILD_DIR)/analyzer_urmp $(BUILD_DIR)/analyzer_musicnet $(BUILD_DIR)/analyzer_multtipop $(BUILD_DIR)/analyzer_guitarset $(BUILD_DIR)/analyzer_maestro $(BUILD_DIR)/analyzer_egmd $(BUILD_DIR)/analyzer_drum_samples $(BUILD_DIR)/analyzer_instrument_samples $(BUILD_DIR)/analyzer_real_note_samples $(BUILD_DIR)/analyzer_instrument_family_samples
 BTT_PROBE := $(BUILD_DIR)/btt_tempo_probe
 STANDALONE_BIN := $(BUILD_DIR)/music-analyzer-standalone
 BASS_GUITAR_STANDALONE_BIN := $(BUILD_DIR)/music-analyzer-bass-guitar
@@ -1897,8 +1899,8 @@ $(BUILD_DIR)/music-analyzer-obs.so: $(PLUGIN_OBJS)
 $(BUILD_DIR)/plugin.o: src/plugin.cpp src/analyzer.hpp src/visualizer_renderer.hpp $(SIMDE_DEP) | $(BUILD_DIR)
 	$(CXX) $(CXXFLAGS) $(OBS_CFLAGS) $(LOCAL_SIMDE_CFLAGS) -I$(OBS_INCLUDEDIR)/obs -Isrc -c $< -o $@
 
-$(BUILD_DIR)/analyzer.o: src/analyzer.cpp src/analyzer.hpp | $(BUILD_DIR)
-	$(CXX) $(CXXFLAGS) $(OBS_CFLAGS) -Isrc -c $< -o $@
+$(BUILD_DIR)/analyzer.o: src/analyzer.cpp src/analyzer.hpp $(BTT_SOURCE_DIR)/BTT.h | $(BUILD_DIR)
+	$(CXX) $(CXXFLAGS) $(OBS_CFLAGS) -Isrc -I$(BTT_SOURCE_DIR) -c $< -o $@
 
 $(BUILD_DIR)/visualizer_renderer.o: src/visualizer_renderer.cpp src/visualizer_renderer.hpp src/analyzer.hpp src/fret_control.hpp | $(BUILD_DIR)
 	$(CXX) $(CXXFLAGS) -Isrc -c $< -o $@
@@ -1915,7 +1917,7 @@ $(BUILD_DIR)/fret_control_tests: $(BUILD_DIR)/fret_control.o $(BUILD_DIR)/fret_c
 $(BUILD_DIR)/visualizer_renderer_tests.o: tests/visualizer_renderer.cpp src/visualizer_renderer.cpp src/visualizer_renderer.hpp src/analyzer.hpp src/fret_control.hpp | $(BUILD_DIR)
 	tmp="$@.$$$$.tmp"; $(CXX) $(CXXFLAGS) -Isrc -Itests -c $< -o "$$tmp" && mv "$$tmp" "$@"
 
-$(BUILD_DIR)/visualizer_renderer_tests: $(BUILD_DIR)/visualizer_renderer_tests.o $(BUILD_DIR)/analyzer_test.o $(BUILD_DIR)/fret_control.o
+$(BUILD_DIR)/visualizer_renderer_tests: $(BUILD_DIR)/visualizer_renderer_tests.o $(ANALYZER_TEST_OBJ) $(BUILD_DIR)/fret_control.o
 	tmp="$@.$$$$.tmp"; $(CXX) -o "$$tmp" $^ -lm && mv "$$tmp" "$@"
 
 $(BUILD_DIR)/standalone.o: src/standalone.cpp src/analyzer.hpp src/visualizer_renderer.hpp $(APP_ICON_HEADER) $(SDL2_DEP) FORCE | $(BUILD_DIR)
@@ -1932,14 +1934,17 @@ $(STANDALONE_BIN): $(ANALYZER_TEST_OBJ) $(RENDERER_OBJ) $(BUILD_DIR)/standalone.
 $(BASS_GUITAR_STANDALONE_BIN): $(ANALYZER_TEST_OBJ) $(RENDERER_OBJ) $(BUILD_DIR)/standalone_bass_guitar.o
 	tmp="$@.$$$$.tmp"; $(CXX) -o "$$tmp" $^ $(SDL2_LIBS) -lm -pthread && mv "$$tmp" "$@"
 
-$(BUILD_DIR)/analyzer_test.o: src/analyzer.cpp src/analyzer.hpp | $(BUILD_DIR)
-	tmp="$@.$$$$.tmp"; $(CXX) $(CXXFLAGS) -Isrc -c $< -o "$$tmp" && mv "$$tmp" "$@"
+$(BUILD_DIR)/analyzer_test.o: src/analyzer.cpp src/analyzer.hpp $(BTT_SOURCE_DIR)/BTT.h | $(BUILD_DIR)
+	tmp="$@.$$$$.tmp"; $(CXX) $(CXXFLAGS) -Isrc -I$(BTT_SOURCE_DIR) -c $< -o "$$tmp" && mv "$$tmp" "$@"
+
+$(BUILD_DIR)/btt_%.o: $(BTT_SOURCE_DIR)/src/%.c $(BTT_SOURCE_DIR)/BTT.h | $(BUILD_DIR)
+	tmp="$@.$$$$.tmp"; $(CC) $(CFLAGS) -fPIC -I$(BTT_SOURCE_DIR) -I$(BTT_SOURCE_DIR)/src -c $< -o "$$tmp" && mv "$$tmp" "$@"
 
 $(BUILD_DIR)/analyzer_smoke.o: tests/analyzer_smoke.cpp src/analyzer.hpp tests/analyzer_test_utils.hpp | $(BUILD_DIR)
 	tmp="$@.$$$$.tmp"; $(CXX) $(CXXFLAGS) -Isrc -Itests -c $< -o "$$tmp" && mv "$$tmp" "$@"
 
 $(BUILD_DIR)/analyzer_internal.o: tests/analyzer_internal.cpp src/analyzer.cpp src/analyzer.hpp | $(BUILD_DIR)
-	tmp="$@.$$$$.tmp"; $(CXX) $(CXXFLAGS) -Isrc -Itests -c $< -o "$$tmp" && mv "$$tmp" "$@"
+	tmp="$@.$$$$.tmp"; $(CXX) $(CXXFLAGS) -Isrc -Itests -I$(BTT_SOURCE_DIR) -c $< -o "$$tmp" && mv "$$tmp" "$@"
 
 $(BUILD_DIR)/analyzer_cases.o: tests/analyzer_cases.cpp src/analyzer.hpp tests/analyzer_test_utils.hpp | $(BUILD_DIR)
 	tmp="$@.$$$$.tmp"; $(CXX) $(CXXFLAGS) -Isrc -Itests -c $< -o "$$tmp" && mv "$$tmp" "$@"
@@ -1980,7 +1985,7 @@ $(BUILD_DIR)/analyzer_instrument_family_samples.o: tests/analyzer_instrument_fam
 $(BUILD_DIR)/analyzer_smoke: $(ANALYZER_TEST_OBJ) $(BUILD_DIR)/analyzer_smoke.o
 	tmp="$@.$$$$.tmp"; $(CXX) -o "$$tmp" $^ -lm -pthread && mv "$$tmp" "$@"
 
-$(BUILD_DIR)/analyzer_internal: $(BUILD_DIR)/analyzer_internal.o
+$(BUILD_DIR)/analyzer_internal: $(BUILD_DIR)/analyzer_internal.o $(BTT_OBJS)
 	tmp="$@.$$$$.tmp"; $(CXX) -o "$$tmp" $^ -lm -pthread && mv "$$tmp" "$@"
 
 $(BUILD_DIR)/analyzer_cases: $(ANALYZER_TEST_OBJ) $(BUILD_DIR)/analyzer_cases.o

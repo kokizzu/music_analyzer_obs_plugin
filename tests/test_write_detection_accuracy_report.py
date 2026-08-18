@@ -752,6 +752,7 @@ class DetectionAccuracyReportTest(unittest.TestCase):
         self.assertIn("| Benchmark permissive beat tracker on both real tempo corpora | 2 / 2 (100.0%) | 0 |", report)
         self.assertIn("| Permissive tracker raw BPM — Ballroom | 41 / 64 (64.1%) | 23 |", report)
         self.assertIn("| Permissive tracker at 0.75 certainty — FiloBass | 2 / 2 (100.0%) | 0 |", report)
+        self.assertIn("| Calibrate guarded live permissive-tracker handoff | 1 / 1 (100.0%) | 0 |", report)
         self.assertIn("| Demonstrate a bass-attack feature improves real bass BPM | 0 / 1 (0.0%) | 1 |", report)
         self.assertIn("| Validate external KRAISLER archive | 1 / 1 (100.0%) | 0 |", report)
         self.assertIn("| Complete protected KRAISLER cross-corpus rule audit | 1 / 1 (100.0%) | 0 |", report)

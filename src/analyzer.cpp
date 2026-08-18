@@ -1,4 +1,5 @@
 #include "analyzer.hpp"
+#include "BTT.h"
 
 #include <algorithm>
 #include <array>
@@ -27899,6 +27900,12 @@ AnalysisEngine::AnalysisEngine()
 	rebuild_plans(48000);
 }
 
+AnalysisEngine::~AnalysisEngine()
+{
+	if (permissive_beat_tracker_)
+		btt_destroy(permissive_beat_tracker_);
+}
+
 void AnalysisEngine::configure(uint32_t sample_rate)
 {
 	if (sample_rate == 0)
@@ -27919,6 +27926,7 @@ void AnalysisEngine::reset()
 void AnalysisEngine::rebuild_plans(uint32_t sample_rate)
 {
 	sample_rate_ = sample_rate ? sample_rate : 48000;
+	rebuild_permissive_beat_tracker();
 
 	for (int midi = kFirstMidi; midi <= kLastMidi; ++midi) {
 		Probe &probe = note_probes_[midi - kFirstMidi];
@@ -27935,6 +27943,28 @@ void AnalysisEngine::rebuild_plans(uint32_t sample_rate)
 		probe.freq = std::min(kDrumFreqs[i], static_cast<float>(sample_rate_) * 0.45f);
 		probe.coeff = 2.0f * std::cos(2.0f * kPi * probe.freq / static_cast<float>(sample_rate_));
 	}
+}
+
+void AnalysisEngine::rebuild_permissive_beat_tracker()
+{
+	if (permissive_beat_tracker_) {
+		btt_destroy(permissive_beat_tracker_);
+		permissive_beat_tracker_ = nullptr;
+	}
+	permissive_beat_tracker_ = btt_new(BTT_SUGGESTED_SPECTRAL_FLUX_STFT_LEN,
+		BTT_SUGGESTED_SPECTRAL_FLUX_STFT_OVERLAP, BTT_SUGGESTED_OSS_FILTER_ORDER,
+		BTT_SUGGESTED_OSS_LENGTH, BTT_SUGGESTED_CBSS_LENGTH,
+		BTT_SUGGESTED_ONSET_THRESHOLD_N, static_cast<double>(sample_rate_), 0, 0);
+	if (!permissive_beat_tracker_)
+		return;
+	btt_set_min_tempo(permissive_beat_tracker_, 40.0);
+	btt_set_max_tempo(permissive_beat_tracker_, 240.0);
+}
+
+void AnalysisEngine::clear_permissive_beat_tracker()
+{
+	if (permissive_beat_tracker_)
+		btt_clear(permissive_beat_tracker_);
 }
 
 std::size_t resolve_analysis_window_samples(const AnalysisSettings &settings)
@@ -28016,6 +28046,7 @@ void AnalysisEngine::reset_note_envelopes()
 
 void AnalysisEngine::reset_analysis_state()
 {
+	clear_permissive_beat_tracker();
 	reset_note_envelopes();
 	reset_root_window();
 	drum_average_.fill(0.0f);
@@ -30101,6 +30132,9 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 	}
 
 	const std::size_t usable = std::min(count, analysis_window_samples_);
+	if (permissive_beat_tracker_ && usable > 0)
+		btt_process(permissive_beat_tracker_, const_cast<dft_sample_t *>(samples),
+			static_cast<int>(usable));
 	double sum = 0.0;
 	double square_sum = 0.0;
 	std::array<double, kDrumTransientSegments> segment_square_sum = {};
@@ -34629,6 +34663,22 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 		     tempo_event_offset_seconds, interval_seconds, rms, settings.tempo_debug_probe_bpm, snapshot);
 	snapshot.estimated_bpm = estimated_bpm_;
 	snapshot.bpm_confidence = bpm_confidence_;
+	const float permissive_bpm = permissive_beat_tracker_ ?
+		static_cast<float>(btt_get_tempo_bpm(permissive_beat_tracker_)) : 0.0f;
+	const float permissive_confidence = permissive_beat_tracker_ ?
+		static_cast<float>(btt_get_tempo_certainty(permissive_beat_tracker_)) : 0.0f;
+	// The optional backend is an uncertainty-safe fallback only.  It never
+	// replaces a displayable source-separated phase estimate, and its 0.75 gate
+	// was calibrated independently on Ballroom, FiloBass, and E-GMD.
+	if (bpm_confidence_ < 0.60f && permissive_confidence >= 0.75f &&
+		permissive_bpm >= 40.0f && permissive_bpm <= 240.0f) {
+		estimated_bpm_ = permissive_bpm;
+		bpm_confidence_ = permissive_confidence;
+		snapshot.estimated_bpm = estimated_bpm_;
+		snapshot.bpm_confidence = bpm_confidence_;
+	}
+	if (tempo_silence_seconds_ >= 4.0f)
+		clear_permissive_beat_tracker();
 
 	int mixed_bass_pitch_class = -1;
 	ChordResult raw_keyboard_chord;
