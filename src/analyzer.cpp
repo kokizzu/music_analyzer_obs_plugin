@@ -30157,9 +30157,6 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 	if (permissive_beat_tracker_ && count > 0)
 		btt_process(permissive_beat_tracker_, const_cast<dft_sample_t *>(samples),
 			static_cast<int>(std::min<std::size_t>(count, 1U << 30)));
-	if (high_tempo_beat_tracker_ && count > 0)
-		btt_process(high_tempo_beat_tracker_, const_cast<dft_sample_t *>(samples),
-			static_cast<int>(std::min<std::size_t>(count, 1U << 30)));
 	double sum = 0.0;
 	double square_sum = 0.0;
 	std::array<double, kDrumTransientSegments> segment_square_sum = {};
@@ -34718,9 +34715,9 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 		   high_tempo_confidence >= 0.55f && high_tempo_bpm >= 120.0f &&
 		   high_tempo_bpm <= 240.0f) {
 		// Diagnostic-only experiment: its isolated live candidates were accurate
-		// at 0.55, but concurrent processing perturbed a phase-confidence edge
-		// into a wrong display.  Keep this compile-time-disabled until a design
-		// can isolate that work from the phase tracker.
+		// at 0.55, but even post-phase processing perturbed the following phase
+		// state into a wrong display. Keep this compile-time-disabled until its
+		// FFT/state can be isolated from the analyzer process.
 		estimated_bpm_ = high_tempo_bpm;
 		bpm_confidence_ = high_tempo_confidence;
 		snapshot.estimated_bpm = estimated_bpm_;
@@ -37063,6 +37060,14 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 	snapshot.root = track_root(detection_note_powers, rms, settings, snapshot.root_candidates,
 				   sizeof(snapshot.root_candidates), snapshot.bass_notes, snapshot.global_chord,
 				   snapshot.keyboard_chord, snapshot.guitar_chord, snapshot.other_chord);
+
+	// Keep the expensive high-tempo hypothesis outside the phase path. Its
+	// estimate becomes available on the following host buffer, which is safe
+	// because it is used only after a strict certainty and phase-uncertainty
+	// gate.
+	if (high_tempo_beat_tracker_ && rms > kSilenceRms && count > 0)
+		btt_process(high_tempo_beat_tracker_, const_cast<dft_sample_t *>(samples),
+			static_cast<int>(std::min<std::size_t>(count, 1U << 30)));
 
 	return snapshot;
 }

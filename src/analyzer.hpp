@@ -17,9 +17,9 @@ constexpr bool kEnableOtherDetection = false;
 // clears the cross-corpus no-misleading-output gate at its stricter certainty
 // threshold.  The source-separated phase tracker remains the primary path.
 constexpr bool kEnablePermissiveBeatTrackerFallback = true;
-// The constrained high-tempo tracker remains available for diagnostics, but
-// is disabled in live processing: running it beside phase tracking perturbed
-// a marginal phase confidence into one wrong Ballroom display.
+// The constrained high-tempo tracker remains available for diagnostics but
+// is disabled in live processing: even post-phase scheduling perturbed the
+// next buffer's phase state into one wrong Ballroom display.
 constexpr bool kEnableHighTempoBeatTrackerFallback = false;
 // Keep the matching visual section independently disabled.  This remains false
 // even if the detector is later enabled for diagnostics, so a deliberately
