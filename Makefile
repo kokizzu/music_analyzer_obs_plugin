@@ -5609,8 +5609,8 @@ BALLROOM_DOWNLOAD_MAX_RESUME_ATTEMPTS ?= 6
 download-ballroom-tempo: configure-instrument-sample-store scripts/download_ballroom_tempo_dataset.sh
 	bash scripts/download_ballroom_tempo_dataset.sh "$(INSTRUMENT_SAMPLE_STORE)" "$(CURL)" "" "" "" "$(ARIA2C)" "$(BALLROOM_DOWNLOAD_CONNECTIONS)" "$(BALLROOM_DOWNLOAD_MAX_RESUME_ATTEMPTS)"
 
-test-download-ballroom-tempo-script: scripts/download_ballroom_tempo_dataset.sh
-	bash -n scripts/download_ballroom_tempo_dataset.sh
+test-download-ballroom-tempo-script: tests/test_download_ballroom_tempo_dataset.py scripts/download_ballroom_tempo_dataset.sh
+	$(PYTHON) tests/test_download_ballroom_tempo_dataset.py
 
 download-ballroom-annotations: configure-instrument-sample-store scripts/download_ballroom_annotations.sh
 	bash scripts/download_ballroom_annotations.sh "$(INSTRUMENT_SAMPLE_STORE)"
