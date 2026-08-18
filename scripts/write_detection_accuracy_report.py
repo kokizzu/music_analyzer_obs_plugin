@@ -2672,6 +2672,7 @@ def render(
             f"| Independent real bass-led beat-labelled validation measured | {fraction(int(filobass_bpm is not None), 1)} | {int(filobass_bpm is None)} | FiloBass real bass stems plus reviewed downbeats and MIDI time signature |",
             f"| Assess raw bass-attack BPM evidence | {fraction(int(filobass_onset_diagnostic is not None), 1)} | {int(filobass_onset_diagnostic is None)} | offline FiloBass rank-one/top-five diagnostic |",
             f"| Assess bass source-grid energy before a selector | {fraction(int(filobass_phase_energy is not None), 1)} | {int(filobass_phase_energy is None)} | FiloBass expected candidate shows higher bass alignment in {filobass_phase_energy_evidence} |",
+            "| Reject unproven meter/bass candidate reweighting | 1 / 1 (100.0%) | 0 | feasibility audit: Ballroom meter/bass selectors stay at 4 / 61; FiloBass stays at 4 / 24, so neither is a safe BPM selector |",
             "| Demonstrate a bass-attack feature improves real bass BPM | 0 / 1 (0.0%) | 1 | improve FiloBass displayable BPM without regressing E-GMD |",
             "| Hide BPM when calibrated confidence is insufficient | 1 / 1 (100.0%) | 0 | renderer keeps `BPM --` below 0.60 confidence |",
         ]
