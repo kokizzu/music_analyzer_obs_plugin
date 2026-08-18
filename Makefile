@@ -5563,7 +5563,7 @@ test-analyzer-egmd: $(BUILD_DIR)/analyzer_egmd scripts/run_with_duration.sh
 .PHONY: test-bpm-regression
 test-bpm-regression: test-analyzer-cases test-egmd-fixture
 
-.PHONY: analyze-egmd-bpm measure-egmd-bpm-cached summarize-egmd-bpm analyze-real-egmd-bpm analyze-mdb-bpm analyze-maestro-bpm analyze-kraisler-bpm measure-kraisler-bpm-cached summarize-kraisler-bpm download-ballroom-tempo download-ballroom-annotations test-download-ballroom-tempo-script test-prepare-ballroom-tempo-fixture prepare-ballroom-tempo-fixture measure-ballroom-bpm summarize-ballroom-bpm download-filobass inspect-filobass prepare-filobass-tempo-fixture measure-filobass-bpm summarize-filobass-bpm inspect-filobass-tempo-onsets inspect-tempo-candidate-feasibility inspect-beat-tracker-backends analyze-bpm-diagnostics test-analyze-egmd-tempo test-inspect-tempo-candidate-feasibility
+.PHONY: analyze-egmd-bpm measure-egmd-bpm-cached summarize-egmd-bpm analyze-real-egmd-bpm analyze-mdb-bpm analyze-maestro-bpm analyze-kraisler-bpm measure-kraisler-bpm-cached summarize-kraisler-bpm download-ballroom-tempo download-ballroom-annotations test-download-ballroom-tempo-script test-prepare-ballroom-tempo-fixture prepare-ballroom-tempo-fixture measure-ballroom-bpm summarize-ballroom-bpm download-filobass inspect-filobass prepare-filobass-tempo-fixture measure-filobass-bpm summarize-filobass-bpm inspect-filobass-tempo-onsets inspect-tempo-candidate-feasibility inspect-tempo-confidence-calibration inspect-beat-tracker-backends analyze-bpm-diagnostics test-analyze-egmd-tempo test-inspect-tempo-candidate-feasibility
 
 test-analyze-egmd-tempo: tests/test_analyze_egmd_tempo.py scripts/analyze_egmd_tempo.py
 	$(PYTHON) tests/test_analyze_egmd_tempo.py
@@ -5668,6 +5668,10 @@ summarize-ballroom-bpm: scripts/analyze_egmd_tempo.py $(BALLROOM_BPM_LOG)
 inspect-tempo-candidate-feasibility: scripts/inspect_tempo_candidate_feasibility.py $(BALLROOM_BPM_LOG) $(FILOBASS_BPM_LOG)
 	$(PYTHON) scripts/inspect_tempo_candidate_feasibility.py --tolerance "$(BPM_DIAG_TOLERANCE)" --comparison-log "$(FILOBASS_BPM_LOG)" "$(BALLROOM_BPM_LOG)"
 	$(PYTHON) scripts/inspect_tempo_candidate_feasibility.py --tolerance "$(BPM_DIAG_TOLERANCE)" "$(FILOBASS_BPM_LOG)"
+
+inspect-tempo-confidence-calibration: scripts/inspect_tempo_confidence_calibration.py $(BALLROOM_BPM_LOG) $(FILOBASS_BPM_LOG)
+	$(PYTHON) scripts/inspect_tempo_confidence_calibration.py --tolerance "$(BPM_DIAG_TOLERANCE)" "$(BALLROOM_BPM_LOG)"
+	$(PYTHON) scripts/inspect_tempo_confidence_calibration.py --tolerance "$(BPM_DIAG_TOLERANCE)" "$(FILOBASS_BPM_LOG)"
 
 inspect-beat-tracker-backends: scripts/inspect_beat_tracker_backends.py
 	$(PYTHON) scripts/inspect_beat_tracker_backends.py

@@ -747,6 +747,7 @@ class DetectionAccuracyReportTest(unittest.TestCase):
         self.assertIn("| Preserve simultaneous kick+bass downbeat evidence | 1 / 1 (100.0%) | 0 |", report)
         self.assertIn("| Reject bass-dominant RMS attack phase feature | 1 / 1 (100.0%) | 0 |", report)
         self.assertIn("| Reject combined bass/coincidence candidate reweighting | 1 / 1 (100.0%) | 0 |", report)
+        self.assertIn("| Retain calibrated BPM display-confidence gate | 1 / 1 (100.0%) | 0 |", report)
         self.assertIn("| Demonstrate a bass-attack feature improves real bass BPM | 0 / 1 (0.0%) | 1 |", report)
         self.assertIn("| Validate external KRAISLER archive | 1 / 1 (100.0%) | 0 |", report)
         self.assertIn("| Complete protected KRAISLER cross-corpus rule audit | 1 / 1 (100.0%) | 0 |", report)
