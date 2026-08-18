@@ -227,10 +227,11 @@ DETECTION_ACCURACY_MAESTRO_REAL_MANIFEST_ARG = $(if $(wildcard $(MAESTRO_REAL_SA
 DETECTION_ACCURACY_KRAISLER_ARCHIVE_ARG = $(if $(wildcard $(KRAISLER_ARCHIVE)),--kraisler-archive "$(KRAISLER_ARCHIVE)")
 DETECTION_ACCURACY_KRAISLER_EXTRACT_ARG = $(if $(wildcard $(KRAISLER_EXTRACT_DIR)),--kraisler-extraction "$(KRAISLER_EXTRACT_DIR)")
 DETECTION_ACCURACY_KRAISLER_MANIFEST_ARG = $(if $(wildcard $(KRAISLER_PREPARED_DIR)/manifest.json),--kraisler-manifest "$(KRAISLER_PREPARED_DIR)/manifest.json")
-DETECTION_ACCURACY_KRAISLER_MEASUREMENT_ARG = $(if $(wildcard $(KRAISLER_MEASUREMENT_OUTPUT)),--kraisler-measurement "$(KRAISLER_MEASUREMENT_OUTPUT)") $(DETECTION_ACCURACY_KRAISLER_BPM_ARG) $(DETECTION_ACCURACY_BALLROOM_BPM_ARG) $(DETECTION_ACCURACY_FILOBASS_BPM_ARG) $(DETECTION_ACCURACY_EGMD_BPM_ARG) $(DETECTION_ACCURACY_IDMT_BASS_TEMPO_METADATA_ARG)
+DETECTION_ACCURACY_KRAISLER_MEASUREMENT_ARG = $(if $(wildcard $(KRAISLER_MEASUREMENT_OUTPUT)),--kraisler-measurement "$(KRAISLER_MEASUREMENT_OUTPUT)") $(DETECTION_ACCURACY_KRAISLER_BPM_ARG) $(DETECTION_ACCURACY_BALLROOM_BPM_ARG) $(DETECTION_ACCURACY_FILOBASS_BPM_ARG) $(DETECTION_ACCURACY_FILOBASS_ONSET_DIAGNOSTIC_ARG) $(DETECTION_ACCURACY_EGMD_BPM_ARG) $(DETECTION_ACCURACY_IDMT_BASS_TEMPO_METADATA_ARG)
 DETECTION_ACCURACY_KRAISLER_BPM_ARG = $(if $(wildcard $(KRAISLER_BPM_LOG)),--kraisler-bpm-input "$(KRAISLER_BPM_LOG)")
 DETECTION_ACCURACY_BALLROOM_BPM_ARG = $(if $(wildcard $(BALLROOM_BPM_LOG)),--ballroom-bpm-input "$(BALLROOM_BPM_LOG)")
 DETECTION_ACCURACY_FILOBASS_BPM_ARG = $(if $(wildcard $(FILOBASS_BPM_LOG)),--filobass-bpm-input "$(FILOBASS_BPM_LOG)")
+DETECTION_ACCURACY_FILOBASS_ONSET_DIAGNOSTIC_ARG = $(if $(wildcard $(FILOBASS_ONSET_DIAGNOSTICS)),--filobass-onset-diagnostic-input "$(FILOBASS_ONSET_DIAGNOSTICS)")
 DETECTION_ACCURACY_EGMD_BPM_ARG = $(if $(wildcard $(EGMD_BPM_LOG)),--egmd-bpm-input "$(EGMD_BPM_LOG)")
 DETECTION_ACCURACY_IDMT_BASS_TEMPO_METADATA_ARG = $(if $(wildcard $(IDMT_BASS_LINES_TEMPO_METADATA)),--idmt-bass-tempo-metadata-input "$(IDMT_BASS_LINES_TEMPO_METADATA)")
 DETECTION_ACCURACY_CHORAL_SINGING_DATASET_ARG = $(if $(wildcard $(CHORAL_SINGING_DATASET_ARCHIVE)),--choral-singing-dataset-archive "$(CHORAL_SINGING_DATASET_ARCHIVE)")
@@ -927,6 +928,7 @@ FILOBASS_INSPECTION_OUTPUT ?= $(BUILD_DIR)/filobass_inspection.tsv
 FILOBASS_TEMPO_FIXTURE_DIR ?= $(FILOBASS_SOURCE_DIR)/tempo-fixture
 FILOBASS_BPM_LOG ?= $(BUILD_DIR)/filobass_bpm_diagnostics.log
 FILOBASS_BPM_LIMIT ?= 24
+FILOBASS_ONSET_DIAGNOSTICS ?= $(BUILD_DIR)/filobass_bass_onset_diagnostics.tsv
 IRMAS_SOURCE_DIR ?= $(INSTRUMENT_SAMPLE_STORE_LINK)/irmas
 IRMAS_TEST_PART1_ARCHIVE ?= $(IRMAS_SOURCE_DIR)/IRMAS-TestingData-Part1.zip
 IRMAS_TEST_PART2_ARCHIVE ?= $(IRMAS_SOURCE_DIR)/IRMAS-TestingData-Part2.zip
@@ -5556,7 +5558,7 @@ test-analyzer-egmd: $(BUILD_DIR)/analyzer_egmd scripts/run_with_duration.sh
 .PHONY: test-bpm-regression
 test-bpm-regression: test-analyzer-cases test-egmd-fixture
 
-.PHONY: analyze-egmd-bpm measure-egmd-bpm-cached summarize-egmd-bpm analyze-real-egmd-bpm analyze-mdb-bpm analyze-maestro-bpm analyze-kraisler-bpm measure-kraisler-bpm-cached summarize-kraisler-bpm download-ballroom-tempo prepare-ballroom-tempo-fixture measure-ballroom-bpm summarize-ballroom-bpm download-filobass inspect-filobass prepare-filobass-tempo-fixture measure-filobass-bpm summarize-filobass-bpm analyze-bpm-diagnostics
+.PHONY: analyze-egmd-bpm measure-egmd-bpm-cached summarize-egmd-bpm analyze-real-egmd-bpm analyze-mdb-bpm analyze-maestro-bpm analyze-kraisler-bpm measure-kraisler-bpm-cached summarize-kraisler-bpm download-ballroom-tempo prepare-ballroom-tempo-fixture measure-ballroom-bpm summarize-ballroom-bpm download-filobass inspect-filobass prepare-filobass-tempo-fixture measure-filobass-bpm summarize-filobass-bpm inspect-filobass-tempo-onsets analyze-bpm-diagnostics
 analyze-egmd-bpm: $(BUILD_DIR)/analyzer_egmd tests/generate_egmd_fixture.py scripts/analyze_egmd_tempo.py scripts/run_with_duration.sh | $(BUILD_DIR)
 	rm -rf "$(REAL_GOAL_EGMD_FIXTURE_DIR)"
 	$(PYTHON) tests/generate_egmd_fixture.py "$(REAL_GOAL_EGMD_FIXTURE_DIR)"
@@ -5622,6 +5624,12 @@ measure-filobass-bpm: $(BUILD_DIR)/analyzer_maestro prepare-filobass-tempo-fixtu
 
 summarize-filobass-bpm: scripts/analyze_egmd_tempo.py $(FILOBASS_BPM_LOG)
 	$(PYTHON) scripts/analyze_egmd_tempo.py --prefix "MAESTRO tempo diag" --tolerance "$(BPM_DIAG_TOLERANCE)" "$(FILOBASS_BPM_LOG)"
+
+inspect-filobass-tempo-onsets: prepare-filobass-tempo-fixture scripts/inspect_bass_tempo_onsets.py | $(BUILD_DIR)
+	$(PYTHON) scripts/inspect_bass_tempo_onsets.py --root "$(FILOBASS_TEMPO_FIXTURE_DIR)" --output "$(FILOBASS_ONSET_DIAGNOSTICS)"
+
+test-inspect-bass-tempo-onsets: tests/test_inspect_bass_tempo_onsets.py scripts/inspect_bass_tempo_onsets.py
+	$(PYTHON) tests/test_inspect_bass_tempo_onsets.py
 
 prepare-ballroom-tempo-fixture: download-ballroom-tempo scripts/prepare_ballroom_tempo_fixture.py | $(BUILD_DIR)
 	$(PYTHON) scripts/prepare_ballroom_tempo_fixture.py --audio-root "$(BALLROOM_AUDIO_DIR)" --annotations-root "$(BALLROOM_ANNOTATIONS_DIR)" --output "$(BALLROOM_TEMPO_FIXTURE_DIR)" --limit "$(BALLROOM_BPM_LIMIT)"

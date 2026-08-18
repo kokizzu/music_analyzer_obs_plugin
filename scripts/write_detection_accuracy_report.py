@@ -978,6 +978,19 @@ def tempo_diagnostic_counts(path: Path, prefix: str = "MAESTRO tempo diag\t") ->
     return accurate, total
 
 
+def filobass_onset_diagnostic_counts(path: Path) -> tuple[int, int, int]:
+    """Return (rank-one, rank-five, total) from offline bass-onset evidence."""
+    with path.open(newline="", encoding="utf-8") as handle:
+        rows = list(csv.DictReader(handle, delimiter="\t"))
+    if not rows:
+        raise ValueError(f"{path}: no FiloBass onset diagnostic rows")
+    try:
+        ranks = [int(row["expected_rank"]) for row in rows]
+    except (KeyError, ValueError) as error:
+        raise ValueError(f"{path}: invalid FiloBass onset diagnostic rows") from error
+    return sum(rank == 1 for rank in ranks), sum(rank <= 5 for rank in ranks), len(ranks)
+
+
 def idmt_bass_timing_metadata_counts(path: Path) -> tuple[int, int]:
     """Count real bass tracks with corpus-supplied timing/grid metadata."""
     with path.open(encoding="utf-8", newline="") as source:
@@ -1106,6 +1119,7 @@ def render(
     kraisler_bpm_input: Path | None = None,
     ballroom_bpm_input: Path | None = None,
     filobass_bpm_input: Path | None = None,
+    filobass_onset_diagnostic_input: Path | None = None,
     egmd_bpm_input: Path | None = None,
     idmt_bass_tempo_metadata_input: Path | None = None,
 ) -> str:
@@ -1125,6 +1139,11 @@ def render(
     kraisler_bpm = tempo_diagnostic_counts(kraisler_bpm_input) if kraisler_bpm_input else None
     ballroom_bpm = tempo_diagnostic_counts(ballroom_bpm_input) if ballroom_bpm_input else None
     filobass_bpm = tempo_diagnostic_counts(filobass_bpm_input) if filobass_bpm_input else None
+    filobass_onset_diagnostic = (
+        filobass_onset_diagnostic_counts(filobass_onset_diagnostic_input)
+        if filobass_onset_diagnostic_input
+        else None
+    )
     egmd_bpm = (
         tempo_diagnostic_counts(egmd_bpm_input, "E-GMD tempo diag\t") if egmd_bpm_input else None
     )
@@ -2514,6 +2533,21 @@ def render(
                 f"| Displayable BPM at confidence ≥ 0.50 | {fraction(accurate, total)} | {total - accurate} |",
             ]
         )
+    if filobass_onset_diagnostic is not None:
+        rank_one, rank_five, total = filobass_onset_diagnostic
+        lines.extend(
+            [
+                "",
+                "### FiloBass raw bass-attack feasibility diagnostic",
+                "",
+                f"Source: `{filobass_onset_diagnostic_input.as_posix()}`. This offline analysis ranks tempos from raw bass-envelope attacks only. It is a feature-feasibility check, not a live-output result or release gate.",
+                "",
+                "| Metric | Accurate / total | Remaining |",
+                "| --- | ---: | ---: |",
+                f"| Reviewed BPM ranked first by raw bass attacks | {fraction(rank_one, total)} | {total - rank_one} |",
+                f"| Reviewed BPM ranked in top five by raw bass attacks | {fraction(rank_five, total)} | {total - rank_five} |",
+            ]
+        )
     if egmd_bpm is not None:
         accurate, total = egmd_bpm
         lines.extend(
@@ -2559,6 +2593,8 @@ def render(
             f"| Rhythm-heavy real-mix beat validation measured | {fraction(int(ballroom_bpm is not None), 1)} | {int(ballroom_bpm is None)} | Ballroom manually corrected beat/bar annotations |",
             f"| IDMT real-bass timing metadata qualifies as beat truth | {fraction(idmt_bass_timing[0], idmt_bass_timing[1]) if idmt_bass_timing is not None else '0 / 1 (0.0%)'} | {idmt_bass_timing[1] - idmt_bass_timing[0] if idmt_bass_timing is not None else 1} | only corpus-supplied tempo/beat/pattern fields count; note onsets are insufficient |",
             f"| Independent real bass-led beat-labelled validation measured | {fraction(int(filobass_bpm is not None), 1)} | {int(filobass_bpm is None)} | FiloBass real bass stems plus reviewed downbeats and MIDI time signature |",
+            f"| Assess raw bass-attack BPM evidence | {fraction(int(filobass_onset_diagnostic is not None), 1)} | {int(filobass_onset_diagnostic is None)} | offline FiloBass rank-one/top-five diagnostic |",
+            "| Demonstrate a bass-attack feature improves real bass BPM | 0 / 1 (0.0%) | 1 | improve FiloBass displayable BPM without regressing E-GMD |",
             "| Hide BPM when calibrated confidence is insufficient | 1 / 1 (100.0%) | 0 | renderer keeps `BPM --` below 0.50 confidence |",
         ]
     )
@@ -2751,6 +2787,7 @@ def main() -> int:
     parser.add_argument("--kraisler-bpm-input", type=Path)
     parser.add_argument("--ballroom-bpm-input", type=Path)
     parser.add_argument("--filobass-bpm-input", type=Path)
+    parser.add_argument("--filobass-onset-diagnostic-input", type=Path)
     parser.add_argument("--egmd-bpm-input", type=Path)
     parser.add_argument("--idmt-bass-tempo-metadata-input", type=Path)
     parser.add_argument("--high-vocal-octave-audit", type=Path)
@@ -2851,6 +2888,7 @@ def main() -> int:
             args.kraisler_bpm_input,
             args.ballroom_bpm_input,
             args.filobass_bpm_input,
+            args.filobass_onset_diagnostic_input,
             args.egmd_bpm_input,
             args.idmt_bass_tempo_metadata_input,
         )

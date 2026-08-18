@@ -1502,6 +1502,15 @@ Source: `build/filobass_bpm_diagnostics.log`. FiloBass pairs real jazz bass stem
 | --- | ---: | ---: |
 | Displayable BPM at confidence ≥ 0.50 | 0 / 24 (0.0%) | 24 |
 
+### FiloBass raw bass-attack feasibility diagnostic
+
+Source: `build/filobass_bass_onset_diagnostics.tsv`. This offline analysis ranks tempos from raw bass-envelope attacks only. It is a feature-feasibility check, not a live-output result or release gate.
+
+| Metric | Accurate / total | Remaining |
+| --- | ---: | ---: |
+| Reviewed BPM ranked first by raw bass attacks | 1 / 24 (4.2%) | 23 |
+| Reviewed BPM ranked in top five by raw bass attacks | 10 / 24 (41.7%) | 14 |
+
 ## E-GMD generated percussion tempo diagnostic
 
 Source: `build/egmd_bpm_diagnostics.log`. This generated aligned-MIDI fixture exercises kick/snare phase recovery; it is a regression benchmark, not independent real-audio evidence.
@@ -1532,6 +1541,8 @@ Tempo estimates are only displayed at calibrated confidence. Source-specific pha
 | Rhythm-heavy real-mix beat validation measured | 0 / 1 (0.0%) | 1 | Ballroom manually corrected beat/bar annotations |
 | IDMT real-bass timing metadata qualifies as beat truth | 0 / 17 (0.0%) | 17 | only corpus-supplied tempo/beat/pattern fields count; note onsets are insufficient |
 | Independent real bass-led beat-labelled validation measured | 1 / 1 (100.0%) | 0 | FiloBass real bass stems plus reviewed downbeats and MIDI time signature |
+| Assess raw bass-attack BPM evidence | 1 / 1 (100.0%) | 0 | offline FiloBass rank-one/top-five diagnostic |
+| Demonstrate a bass-attack feature improves real bass BPM | 0 / 1 (0.0%) | 1 | improve FiloBass displayable BPM without regressing E-GMD |
 | Hide BPM when calibrated confidence is insufficient | 1 / 1 (100.0%) | 0 | renderer keeps `BPM --` below 0.50 confidence |
 
 ## MAPS chord-miss evidence
