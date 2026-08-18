@@ -17,11 +17,16 @@ int main(int argc, char **argv)
         return 2;
     }
     aiffMakeMono(audio);
-    if (aiffSampleRate(audio) != BTT_SUGGESTED_SAMPLE_RATE) {
-        fprintf(stderr, "btt_tempo_probe: expected 44100 Hz, got %.0f\n", aiffSampleRate(audio));
-        return 2;
-    }
-    BTT *tracker = btt_new_default();
+    // Match the live analyzer: BTT is initialized for the source's actual
+    // sample rate.  Restricting this diagnostic probe to 44.1 kHz silently
+    // excluded valid annotated corpora such as GTZAN-Rhythm (22.05 kHz).
+    BTT *tracker = btt_new(BTT_SUGGESTED_SPECTRAL_FLUX_STFT_LEN,
+                           BTT_SUGGESTED_SPECTRAL_FLUX_STFT_OVERLAP,
+                           BTT_SUGGESTED_OSS_FILTER_ORDER,
+                           BTT_SUGGESTED_OSS_LENGTH,
+                           BTT_SUGGESTED_CBSS_LENGTH,
+                           BTT_SUGGESTED_ONSET_THRESHOLD_N,
+                           aiffSampleRate(audio), 0, 0);
     if (tracker == NULL)
         return 2;
     const double min_tempo = argc == 6 ? strtod(argv[4], NULL) : 40.0;

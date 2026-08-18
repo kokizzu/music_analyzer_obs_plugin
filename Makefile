@@ -4,7 +4,7 @@ PYTHON ?= python3
 # Explicitly approved, resumable external corpus acquisitions. This registry
 # is task-scoped: a target belongs here only while it is an active accuracy
 # coverage gap, rather than merely being supported by the project.
-APPROVED_CORPUS_DOWNLOAD_TARGETS ?= measure-maestro-real-samples measure-kraisler measure-ballroom-bpm download-filobass
+APPROVED_CORPUS_DOWNLOAD_TARGETS ?= measure-maestro-real-samples measure-kraisler measure-ballroom-bpm download-filobass download-gtzan-rhythm
 CORPUS_DOWNLOAD_LOG_TARGET ?= $(word 1,$(APPROVED_CORPUS_DOWNLOAD_TARGETS))
 PKG_CONFIG ?= pkg-config
 TAR ?= tar
@@ -28,7 +28,7 @@ report-approved-corpus-downloads: scripts/report_approved_corpus_downloads.sh
 show-approved-corpus-download-log: scripts/show_approved_corpus_download_log.sh
 	$(SHELL) scripts/show_approved_corpus_download_log.sh "$(BUILD_DIR)" "$(CORPUS_DOWNLOAD_LOG_TARGET)"
 
-test-approved-corpus-download-manager: tests/test_approved_corpus_download_manager.py scripts/start_approved_corpus_downloads.sh scripts/run_approved_corpus_download.sh scripts/stop_approved_corpus_downloads.sh scripts/report_approved_corpus_downloads.sh scripts/show_approved_corpus_download_log.sh scripts/measure_filobass_after_download.sh scripts/download_ballroom_annotations.sh
+test-approved-corpus-download-manager: tests/test_approved_corpus_download_manager.py scripts/start_approved_corpus_downloads.sh scripts/run_approved_corpus_download.sh scripts/stop_approved_corpus_downloads.sh scripts/report_approved_corpus_downloads.sh scripts/show_approved_corpus_download_log.sh scripts/measure_filobass_after_download.sh scripts/download_ballroom_annotations.sh scripts/download_gtzan_rhythm_dataset.sh
 	$(SHELL) -n scripts/start_approved_corpus_downloads.sh
 	$(SHELL) -n scripts/run_approved_corpus_download.sh
 	$(SHELL) -n scripts/stop_approved_corpus_downloads.sh
@@ -36,6 +36,7 @@ test-approved-corpus-download-manager: tests/test_approved_corpus_download_manag
 	$(SHELL) -n scripts/show_approved_corpus_download_log.sh
 	$(SHELL) -n scripts/measure_filobass_after_download.sh
 	$(SHELL) -n scripts/download_ballroom_annotations.sh
+	bash -n scripts/download_gtzan_rhythm_dataset.sh
 	$(PYTHON) tests/test_approved_corpus_download_manager.py
 
 # This is deliberately separate from the download registry: it is a queued
@@ -230,10 +231,11 @@ DETECTION_ACCURACY_MAESTRO_REAL_MANIFEST_ARG = $(if $(wildcard $(MAESTRO_REAL_SA
 DETECTION_ACCURACY_KRAISLER_ARCHIVE_ARG = $(if $(wildcard $(KRAISLER_ARCHIVE)),--kraisler-archive "$(KRAISLER_ARCHIVE)")
 DETECTION_ACCURACY_KRAISLER_EXTRACT_ARG = $(if $(wildcard $(KRAISLER_EXTRACT_DIR)),--kraisler-extraction "$(KRAISLER_EXTRACT_DIR)")
 DETECTION_ACCURACY_KRAISLER_MANIFEST_ARG = $(if $(wildcard $(KRAISLER_PREPARED_DIR)/manifest.json),--kraisler-manifest "$(KRAISLER_PREPARED_DIR)/manifest.json")
-DETECTION_ACCURACY_KRAISLER_MEASUREMENT_ARG = $(if $(wildcard $(KRAISLER_MEASUREMENT_OUTPUT)),--kraisler-measurement "$(KRAISLER_MEASUREMENT_OUTPUT)") $(DETECTION_ACCURACY_KRAISLER_BPM_ARG) $(DETECTION_ACCURACY_BALLROOM_BPM_ARG) $(DETECTION_ACCURACY_BALLROOM_ANNOTATIONS_ARG) $(DETECTION_ACCURACY_FILOBASS_BPM_ARG) $(DETECTION_ACCURACY_FILOBASS_ONSET_DIAGNOSTIC_ARG) $(DETECTION_ACCURACY_EGMD_BPM_ARG) $(DETECTION_ACCURACY_IDMT_BASS_TEMPO_METADATA_ARG)
+DETECTION_ACCURACY_KRAISLER_MEASUREMENT_ARG = $(if $(wildcard $(KRAISLER_MEASUREMENT_OUTPUT)),--kraisler-measurement "$(KRAISLER_MEASUREMENT_OUTPUT)") $(DETECTION_ACCURACY_KRAISLER_BPM_ARG) $(DETECTION_ACCURACY_BALLROOM_BPM_ARG) $(DETECTION_ACCURACY_BALLROOM_ANNOTATIONS_ARG) $(DETECTION_ACCURACY_GTZAN_RHYTHM_BPM_ARG) $(DETECTION_ACCURACY_FILOBASS_BPM_ARG) $(DETECTION_ACCURACY_FILOBASS_ONSET_DIAGNOSTIC_ARG) $(DETECTION_ACCURACY_EGMD_BPM_ARG) $(DETECTION_ACCURACY_IDMT_BASS_TEMPO_METADATA_ARG)
 DETECTION_ACCURACY_KRAISLER_BPM_ARG = $(if $(wildcard $(KRAISLER_BPM_LOG)),--kraisler-bpm-input "$(KRAISLER_BPM_LOG)")
 DETECTION_ACCURACY_BALLROOM_BPM_ARG = $(if $(wildcard $(BALLROOM_BPM_LOG)),--ballroom-bpm-input "$(BALLROOM_BPM_LOG)")
 DETECTION_ACCURACY_BALLROOM_ANNOTATIONS_ARG = $(if $(wildcard $(BALLROOM_ANNOTATIONS_DIR)/.git),--ballroom-annotations "$(BALLROOM_ANNOTATIONS_DIR)")
+DETECTION_ACCURACY_GTZAN_RHYTHM_BPM_ARG = $(if $(wildcard $(GTZAN_RHYTHM_BPM_LOG)),--gtzan-rhythm-bpm-input "$(GTZAN_RHYTHM_BPM_LOG)")
 DETECTION_ACCURACY_FILOBASS_BPM_ARG = $(if $(wildcard $(FILOBASS_BPM_LOG)),--filobass-bpm-input "$(FILOBASS_BPM_LOG)")
 DETECTION_ACCURACY_FILOBASS_ONSET_DIAGNOSTIC_ARG = $(if $(wildcard $(FILOBASS_ONSET_DIAGNOSTICS)),--filobass-onset-diagnostic-input "$(FILOBASS_ONSET_DIAGNOSTICS)")
 DETECTION_ACCURACY_EGMD_BPM_ARG = $(if $(wildcard $(EGMD_BPM_LOG)),--egmd-bpm-input "$(EGMD_BPM_LOG)")
@@ -934,8 +936,19 @@ FILOBASS_EXTRACT_DIR ?= $(FILOBASS_SOURCE_DIR)/extracted
 FILOBASS_INSPECTION_OUTPUT ?= $(BUILD_DIR)/filobass_inspection.tsv
 FILOBASS_TEMPO_FIXTURE_DIR ?= $(FILOBASS_SOURCE_DIR)/tempo-fixture
 FILOBASS_BPM_LOG ?= $(BUILD_DIR)/filobass_bpm_diagnostics.log
+GTZAN_RHYTHM_SOURCE_DIR ?= $(INSTRUMENT_SAMPLE_STORE_LINK)/gtzan_rhythm
+GTZAN_RHYTHM_AUDIO_ARCHIVE ?= $(GTZAN_RHYTHM_SOURCE_DIR)/gtzan-dataset-music-genre-classification.zip
+GTZAN_RHYTHM_ANNOTATIONS_ARCHIVE ?= $(GTZAN_RHYTHM_SOURCE_DIR)/GTZAN-Rhythm_v2_ismir2015_lbd_2015-10-28.tar_.gz
+GTZAN_RHYTHM_AUDIO_URL ?= https://huggingface.co/datasets/m-a-p/GTZAN/resolve/main/gtzan-dataset-music-genre-classification.zip?download=true
+GTZAN_RHYTHM_ANNOTATIONS_URL ?= https://huggingface.co/datasets/m-a-p/GTZAN/resolve/main/GTZAN-Rhythm_v2_ismir2015_lbd_2015-10-28.tar_.gz?download=true
+GTZAN_RHYTHM_DOWNLOAD_CONNECTIONS ?= 8
+GTZAN_RHYTHM_INSPECTION_OUTPUT ?= $(BUILD_DIR)/gtzan_rhythm_inspection.txt
+GTZAN_RHYTHM_TEMPO_FIXTURE_DIR ?= $(BUILD_DIR)/gtzan-rhythm-tempo-fixture
+GTZAN_RHYTHM_BPM_LOG ?= $(BUILD_DIR)/gtzan_rhythm_bpm_diagnostics.log
+GTZAN_RHYTHM_BPM_LIMIT ?= 100
 BTT_BALLROOM_LOG ?= $(BUILD_DIR)/btt_ballroom_bpm_diagnostics.log
 BTT_FILOBASS_LOG ?= $(BUILD_DIR)/btt_filobass_bpm_diagnostics.log
+BTT_GTZAN_RHYTHM_LOG ?= $(BUILD_DIR)/btt_gtzan_rhythm_bpm_diagnostics.log
 BTT_EGMD_LOG ?= $(BUILD_DIR)/btt_egmd_bpm_diagnostics.log
 BTT_HIGH_TEMPO_MIN ?= 120
 BTT_HIGH_TEMPO_BALLROOM_LOG ?= $(BUILD_DIR)/btt_high_tempo_ballroom_bpm_diagnostics.log
@@ -5645,6 +5658,34 @@ download-ballroom-annotations: configure-instrument-sample-store scripts/downloa
 download-filobass: configure-instrument-sample-store scripts/download_filobass_dataset.sh
 	bash scripts/download_filobass_dataset.sh "$(INSTRUMENT_SAMPLE_STORE)" "$(CURL)"
 
+.PHONY: download-gtzan-rhythm
+download-gtzan-rhythm: configure-instrument-sample-store scripts/download_gtzan_rhythm_dataset.sh
+	bash scripts/download_gtzan_rhythm_dataset.sh "$(INSTRUMENT_SAMPLE_STORE)" "$(CURL)" "$(GTZAN_RHYTHM_AUDIO_URL)" "$(GTZAN_RHYTHM_ANNOTATIONS_URL)"
+
+.PHONY: inspect-gtzan-rhythm
+inspect-gtzan-rhythm: download-gtzan-rhythm scripts/inspect_gtzan_rhythm_dataset.py | $(BUILD_DIR)
+	$(PYTHON) scripts/inspect_gtzan_rhythm_dataset.py --root "$(GTZAN_RHYTHM_SOURCE_DIR)" --output "$(GTZAN_RHYTHM_INSPECTION_OUTPUT)"
+
+.PHONY: test-inspect-gtzan-rhythm
+test-inspect-gtzan-rhythm: tests/test_inspect_gtzan_rhythm_dataset.py scripts/inspect_gtzan_rhythm_dataset.py
+	$(PYTHON) tests/test_inspect_gtzan_rhythm_dataset.py
+
+.PHONY: prepare-gtzan-rhythm-tempo-fixture measure-gtzan-rhythm-bpm summarize-gtzan-rhythm-bpm
+prepare-gtzan-rhythm-tempo-fixture: inspect-gtzan-rhythm scripts/prepare_gtzan_rhythm_tempo_fixture.py | $(BUILD_DIR)
+	$(PYTHON) scripts/prepare_gtzan_rhythm_tempo_fixture.py --audio-root "$(GTZAN_RHYTHM_SOURCE_DIR)/audio" --annotations-root "$(GTZAN_RHYTHM_SOURCE_DIR)/annotations" --output "$(GTZAN_RHYTHM_TEMPO_FIXTURE_DIR)" --limit "$(GTZAN_RHYTHM_BPM_LIMIT)"
+
+.PHONY: test-prepare-gtzan-rhythm-tempo-fixture
+test-prepare-gtzan-rhythm-tempo-fixture: tests/test_prepare_gtzan_rhythm_tempo_fixture.py scripts/prepare_gtzan_rhythm_tempo_fixture.py
+	$(PYTHON) tests/test_prepare_gtzan_rhythm_tempo_fixture.py
+
+measure-gtzan-rhythm-bpm: $(BUILD_DIR)/analyzer_maestro prepare-gtzan-rhythm-tempo-fixture scripts/analyze_egmd_tempo.py scripts/run_with_duration.sh | $(BUILD_DIR)
+	$(RUN_WITH_DURATION) analyzer_gtzan_rhythm_bpm env MUSIC_ANALYZER_MAESTRO_ROOT="$(GTZAN_RHYTHM_TEMPO_FIXTURE_DIR)" MUSIC_ANALYZER_MAESTRO_REQUIRED=1 MUSIC_ANALYZER_MAESTRO_REQUIRED_RECORDINGS=1 MUSIC_ANALYZER_MAESTRO_REQUIRED_WINDOWS=1 MUSIC_ANALYZER_MAESTRO_MIN_ACTIVE_NOTES_PER_WINDOW=1 MUSIC_ANALYZER_MAESTRO_MIN_PITCH_CLASSES_PER_WINDOW=1 MUSIC_ANALYZER_MAESTRO_INSPECT_ONLY=1 MUSIC_ANALYZER_MAESTRO_VALIDATE_BPM=1 MUSIC_ANALYZER_MAESTRO_MEASURE_ALL_TEMPO=1 MUSIC_ANALYZER_MAESTRO_REQUIRED_TEMPO_RECORDINGS=1 MUSIC_ANALYZER_MAESTRO_MIN_BPM_PASS_PERCENT=0 MUSIC_ANALYZER_MAESTRO_BPM_TOLERANCE="$(BPM_DIAG_TOLERANCE)" MUSIC_ANALYZER_MAESTRO_BPM_MAX_SECONDS="$(MAESTRO_BPM_MAX_SECONDS)" $(BUILD_DIR)/analyzer_maestro > "$(GTZAN_RHYTHM_BPM_LOG).summary" 2> "$(GTZAN_RHYTHM_BPM_LOG)"
+	+$(MAKE) summarize-gtzan-rhythm-bpm
+	+$(MAKE) update-detection-accuracy-report-cached
+
+summarize-gtzan-rhythm-bpm: scripts/analyze_egmd_tempo.py $(GTZAN_RHYTHM_BPM_LOG)
+	$(PYTHON) scripts/analyze_egmd_tempo.py --prefix "MAESTRO tempo diag" --tolerance "$(BPM_DIAG_TOLERANCE)" "$(GTZAN_RHYTHM_BPM_LOG)"
+
 .PHONY: inspect-filobass test-inspect-filobass
 inspect-filobass: download-filobass scripts/inspect_filobass_dataset.py | $(BUILD_DIR)
 	$(PYTHON) scripts/inspect_filobass_dataset.py --root "$(FILOBASS_EXTRACT_DIR)" --output "$(FILOBASS_INSPECTION_OUTPUT)" --min-pairs 20
@@ -5700,6 +5741,12 @@ measure-permissive-beat-tracker: $(BTT_PROBE) scripts/measure_permissive_beat_tr
 
 measure-permissive-beat-tracker-egmd: $(BTT_PROBE) scripts/measure_permissive_beat_tracker.py $(REAL_GOAL_EGMD_FIXTURE_DIR)/e-gmd-v1.0.0.csv
 	$(PYTHON) scripts/measure_permissive_beat_tracker.py --root "$(REAL_GOAL_EGMD_FIXTURE_DIR)" --metadata e-gmd-v1.0.0.csv --probe "$(BTT_PROBE)" --seconds 8 > "$(BTT_EGMD_LOG)"
+
+measure-permissive-beat-tracker-gtzan-rhythm: $(BTT_PROBE) scripts/measure_permissive_beat_tracker.py $(GTZAN_RHYTHM_TEMPO_FIXTURE_DIR)/maestro-v3.0.0.csv
+	$(PYTHON) scripts/measure_permissive_beat_tracker.py --root "$(GTZAN_RHYTHM_TEMPO_FIXTURE_DIR)" --probe "$(BTT_PROBE)" > "$(BTT_GTZAN_RHYTHM_LOG)"
+
+summarize-permissive-beat-tracker-gtzan-rhythm: scripts/inspect_tempo_confidence_calibration.py $(BTT_GTZAN_RHYTHM_LOG)
+	$(PYTHON) scripts/inspect_tempo_confidence_calibration.py --prefix "BTT tempo diag" --tolerance "$(BPM_DIAG_TOLERANCE)" "$(BTT_GTZAN_RHYTHM_LOG)"
 
 measure-permissive-beat-tracker-high-tempo: $(BTT_PROBE) scripts/measure_permissive_beat_tracker.py $(BALLROOM_TEMPO_FIXTURE_DIR)/maestro-v3.0.0.csv $(FILOBASS_TEMPO_FIXTURE_DIR)/maestro-v3.0.0.csv
 	$(PYTHON) scripts/measure_permissive_beat_tracker.py --root "$(BALLROOM_TEMPO_FIXTURE_DIR)" --probe "$(BTT_PROBE)" --min-tempo "$(BTT_HIGH_TEMPO_MIN)" > "$(BTT_HIGH_TEMPO_BALLROOM_LOG)"

@@ -1171,6 +1171,7 @@ def render(
     harmonic_product_octave_audit_input: Path | None = None,
     kraisler_bpm_input: Path | None = None,
     ballroom_bpm_input: Path | None = None,
+    gtzan_rhythm_bpm_input: Path | None = None,
     filobass_bpm_input: Path | None = None,
     filobass_onset_diagnostic_input: Path | None = None,
     egmd_bpm_input: Path | None = None,
@@ -1192,6 +1193,9 @@ def render(
     kraisler_audit_ready = int(bool(kraisler_rows) and route_summary is not None and route_summary.is_file())
     kraisler_bpm = tempo_diagnostic_counts(kraisler_bpm_input) if kraisler_bpm_input else None
     ballroom_bpm = tempo_diagnostic_counts(ballroom_bpm_input) if ballroom_bpm_input else None
+    gtzan_rhythm_bpm = (
+        tempo_diagnostic_counts(gtzan_rhythm_bpm_input) if gtzan_rhythm_bpm_input else None
+    )
     ballroom_annotations_ready = int(
         ballroom_annotations is not None and (ballroom_annotations / ".git").is_dir()
     )
@@ -2582,6 +2586,20 @@ def render(
                 f"| Displayable BPM at confidence ≥ 0.60 | {fraction(accurate, total)} | {total - accurate} |",
             ]
         )
+    if gtzan_rhythm_bpm is not None:
+        accurate, total = gtzan_rhythm_bpm
+        lines.extend(
+            [
+                "",
+                "## GTZAN-Rhythm annotated-tempo diagnostic",
+                "",
+                f"Source: `{gtzan_rhythm_bpm_input.as_posix()}`. GTZAN-Rhythm provides manually annotated beat/downbeat JAMS for real, genre-diverse music; stable BPM segments are derived from those repeated beat intervals.",
+                "",
+                "| Metric | Accurate / total | Remaining |",
+                "| --- | ---: | ---: |",
+                f"| Displayable BPM at confidence ≥ 0.60 | {fraction(accurate, total)} | {total - accurate} |",
+            ]
+        )
     if filobass_bpm is not None:
         accurate, total = filobass_bpm
         lines.extend(
@@ -2674,6 +2692,7 @@ def render(
             f"| Generated drum phase regression measured | {fraction(int(egmd_bpm is not None), 1)} | {int(egmd_bpm is None)} | E-GMD x/total BPM diagnostic |",
             f"| Retrieve versioned Ballroom beat/bar annotations | {fraction(ballroom_annotations_ready, 1)} | {1 - ballroom_annotations_ready} | CPJKU BallroomAnnotations checkout in InstrumentSamples |",
             f"| Rhythm-heavy real-mix beat validation measured | {fraction(int(ballroom_bpm is not None), 1)} | {int(ballroom_bpm is None)} | up to 64 genre-balanced Ballroom stable sections with manually corrected beat/bar annotations |",
+            f"| Genre-diverse real-mix beat validation measured | {fraction(int(gtzan_rhythm_bpm is not None), 1)} | {int(gtzan_rhythm_bpm is None)} | GTZAN-Rhythm WAV/JAMS pairs; stable BPM segments derived from manually annotated beats |",
             f"| IDMT real-bass timing metadata qualifies as beat truth | {fraction(idmt_bass_timing[0], idmt_bass_timing[1]) if idmt_bass_timing is not None else '0 / 1 (0.0%)'} | {idmt_bass_timing[1] - idmt_bass_timing[0] if idmt_bass_timing is not None else 1} | only corpus-supplied tempo/beat/pattern fields count; note onsets are insufficient |",
             f"| Independent real bass-led beat-labelled validation measured | {fraction(int(filobass_bpm is not None), 1)} | {int(filobass_bpm is None)} | FiloBass real bass stems plus reviewed downbeats and MIDI time signature |",
             f"| Assess raw bass-attack BPM evidence | {fraction(int(filobass_onset_diagnostic is not None), 1)} | {int(filobass_onset_diagnostic is None)} | offline FiloBass rank-one/top-five diagnostic |",
@@ -2897,6 +2916,7 @@ def main() -> int:
     parser.add_argument("--kraisler-bpm-input", type=Path)
     parser.add_argument("--ballroom-bpm-input", type=Path)
     parser.add_argument("--ballroom-annotations", type=Path)
+    parser.add_argument("--gtzan-rhythm-bpm-input", type=Path)
     parser.add_argument("--filobass-bpm-input", type=Path)
     parser.add_argument("--filobass-onset-diagnostic-input", type=Path)
     parser.add_argument("--egmd-bpm-input", type=Path)
@@ -2998,6 +3018,7 @@ def main() -> int:
             args.harmonic_product_octave_audit,
             args.kraisler_bpm_input,
             args.ballroom_bpm_input,
+            args.gtzan_rhythm_bpm_input,
             args.filobass_bpm_input,
             args.filobass_onset_diagnostic_input,
             args.egmd_bpm_input,

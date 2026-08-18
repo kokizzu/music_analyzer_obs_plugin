@@ -1502,6 +1502,14 @@ Source: `build/ballroom_bpm_diagnostics.log`. Ballroom supplies manually correct
 | --- | ---: | ---: |
 | Displayable BPM at confidence ≥ 0.60 | 12 / 64 (18.8%) | 52 |
 
+## GTZAN-Rhythm annotated-tempo diagnostic
+
+Source: `build/gtzan_rhythm_bpm_diagnostics.log`. GTZAN-Rhythm provides manually annotated beat/downbeat JAMS for real, genre-diverse music; stable BPM segments are derived from those repeated beat intervals.
+
+| Metric | Accurate / total | Remaining |
+| --- | ---: | ---: |
+| Displayable BPM at confidence ≥ 0.60 | 1 / 100 (1.0%) | 99 |
+
 ## FiloBass real bass-led annotated-tempo diagnostic
 
 Source: `build/filobass_bpm_diagnostics.log`. FiloBass pairs real jazz bass stems with reviewed downbeat syncpoints and a MIDI time signature; BPM references are derived only from those corpus annotations.
@@ -1561,6 +1569,7 @@ Tempo estimates are only displayed at calibrated confidence. Source-specific pha
 | Generated drum phase regression measured | 1 / 1 (100.0%) | 0 | E-GMD x/total BPM diagnostic |
 | Retrieve versioned Ballroom beat/bar annotations | 1 / 1 (100.0%) | 0 | CPJKU BallroomAnnotations checkout in InstrumentSamples |
 | Rhythm-heavy real-mix beat validation measured | 1 / 1 (100.0%) | 0 | up to 64 genre-balanced Ballroom stable sections with manually corrected beat/bar annotations |
+| Genre-diverse real-mix beat validation measured | 1 / 1 (100.0%) | 0 | GTZAN-Rhythm WAV/JAMS pairs; stable BPM segments derived from manually annotated beats |
 | IDMT real-bass timing metadata qualifies as beat truth | 0 / 17 (0.0%) | 17 | only corpus-supplied tempo/beat/pattern fields count; note onsets are insufficient |
 | Independent real bass-led beat-labelled validation measured | 1 / 1 (100.0%) | 0 | FiloBass real bass stems plus reviewed downbeats and MIDI time signature |
 | Assess raw bass-attack BPM evidence | 1 / 1 (100.0%) | 0 | offline FiloBass rank-one/top-five diagnostic |
