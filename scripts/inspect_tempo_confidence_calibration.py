@@ -16,6 +16,10 @@ def main() -> int:
     parser.add_argument("log", type=pathlib.Path)
     parser.add_argument("--prefix", default="MAESTRO tempo diag\t")
     parser.add_argument("--tolerance", type=float, default=8.0)
+    parser.add_argument("--estimate-field", default="raw")
+    parser.add_argument("--confidence-field", default="confidence")
+    parser.add_argument("--fallback-only-field")
+    parser.add_argument("--fallback-floor", type=float, default=0.60)
     args = parser.parse_args()
     rows = [fields(line) for line in args.log.read_text(encoding="utf-8", errors="replace").splitlines()
             if line.startswith(args.prefix)]
@@ -23,8 +27,10 @@ def main() -> int:
         print("tempo confidence calibration: no rows")
         return 0
     for gate in (0.0, 0.15, 0.25, 0.35, 0.45, 0.55, 0.60, 0.65, 0.70, 0.75, 0.80, 0.90):
-        shown = [row for row in rows if float(row.get("confidence", 0.0)) >= gate]
-        correct = sum(abs(float(row.get("raw", 0.0)) - float(row["expected"])) <= args.tolerance for row in shown)
+        shown = [row for row in rows if float(row.get(args.confidence_field, 0.0)) >= gate]
+        if args.fallback_only_field:
+            shown = [row for row in shown if float(row.get(args.fallback_only_field, 0.0)) < args.fallback_floor]
+        correct = sum(abs(float(row.get(args.estimate_field, 0.0)) - float(row["expected"])) <= args.tolerance for row in shown)
         print(f"tempo confidence calibration: gate {gate:.2f} correct {correct}/{len(shown)} total {len(rows)}")
     return 0
 

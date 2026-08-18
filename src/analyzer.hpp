@@ -13,6 +13,9 @@ constexpr std::size_t kAnalysisWindow = 8192;
 // Keep the dormant Other classifier code available without emitting a separate
 // low-confidence catch-all instrument result.
 constexpr bool kEnableOtherDetection = false;
+// Keep the optional tracker available for corpus diagnostics, but do not allow
+// it to display BPM until it clears the no-misleading-output corpus gate.
+constexpr bool kEnablePermissiveBeatTrackerFallback = false;
 // Keep the matching visual section independently disabled.  This remains false
 // even if the detector is later enabled for diagnostics, so a deliberately
 // reviewed UI change is required before OTHERS can consume visualizer space.
@@ -206,6 +209,10 @@ struct AnalysisSnapshot {
 	float high_energy = 0.0f;
 	float estimated_bpm = 0.0f;
 	float bpm_confidence = 0.0f;
+	float permissive_tracker_bpm = 0.0f;
+	float permissive_tracker_confidence = 0.0f;
+	float phase_estimated_bpm = 0.0f;
+	float phase_bpm_confidence = 0.0f;
 	float tempo_debug_event_strength = 0.0f;
 	float tempo_debug_body_strength = 0.0f;
 	float tempo_debug_subdivision_strength = 0.0f;

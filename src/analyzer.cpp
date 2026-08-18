@@ -34663,14 +34663,20 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 		     tempo_event_offset_seconds, interval_seconds, rms, settings.tempo_debug_probe_bpm, snapshot);
 	snapshot.estimated_bpm = estimated_bpm_;
 	snapshot.bpm_confidence = bpm_confidence_;
+	snapshot.phase_estimated_bpm = estimated_bpm_;
+	snapshot.phase_bpm_confidence = bpm_confidence_;
 	const float permissive_bpm = permissive_beat_tracker_ ?
 		static_cast<float>(btt_get_tempo_bpm(permissive_beat_tracker_)) : 0.0f;
 	const float permissive_confidence = permissive_beat_tracker_ ?
 		static_cast<float>(btt_get_tempo_certainty(permissive_beat_tracker_)) : 0.0f;
+	snapshot.permissive_tracker_bpm = permissive_bpm;
+	snapshot.permissive_tracker_confidence = permissive_confidence;
 	// The optional backend is an uncertainty-safe fallback only.  It never
-	// replaces a displayable source-separated phase estimate, and its 0.75 gate
-	// was calibrated independently on Ballroom, FiloBass, and E-GMD.
-	if (bpm_confidence_ < 0.60f && permissive_confidence >= 0.75f &&
+	// replaces a displayable source-separated phase estimate.  A 0.60 fallback
+	// gate produced two false Ballroom displays in the complete live pass, so
+	// retain the stricter 0.75 gate despite its lower activation rate.
+	if (kEnablePermissiveBeatTrackerFallback && bpm_confidence_ < 0.60f &&
+		permissive_confidence >= 0.75f &&
 		permissive_bpm >= 40.0f && permissive_bpm <= 240.0f) {
 		estimated_bpm_ = permissive_bpm;
 		bpm_confidence_ = permissive_confidence;

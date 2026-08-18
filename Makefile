@@ -5701,6 +5701,10 @@ summarize-permissive-beat-tracker: scripts/inspect_tempo_confidence_calibration.
 	$(PYTHON) scripts/inspect_tempo_confidence_calibration.py --prefix "BTT tempo diag" --tolerance "$(BPM_DIAG_TOLERANCE)" "$(BTT_FILOBASS_LOG)"
 	$(PYTHON) scripts/inspect_tempo_confidence_calibration.py --prefix "BTT tempo diag" --tolerance "$(BPM_DIAG_TOLERANCE)" "$(BTT_EGMD_LOG)"
 
+inspect-live-permissive-tracker: scripts/inspect_tempo_confidence_calibration.py $(BALLROOM_BPM_LOG) $(FILOBASS_BPM_LOG)
+	$(PYTHON) scripts/inspect_tempo_confidence_calibration.py --prefix "MAESTRO tempo diag" --estimate-field backend_raw --confidence-field backend_confidence --fallback-only-field phase_confidence --tolerance "$(BPM_DIAG_TOLERANCE)" "$(BALLROOM_BPM_LOG)"
+	$(PYTHON) scripts/inspect_tempo_confidence_calibration.py --prefix "MAESTRO tempo diag" --estimate-field backend_raw --confidence-field backend_confidence --fallback-only-field phase_confidence --tolerance "$(BPM_DIAG_TOLERANCE)" "$(FILOBASS_BPM_LOG)"
+
 inspect-beat-tracker-backends: scripts/inspect_beat_tracker_backends.py
 	$(PYTHON) scripts/inspect_beat_tracker_backends.py
 
