@@ -2586,6 +2586,7 @@ def render(
             "| Work item | Complete / total | Remaining | Evidence required |",
             "| --- | ---: | ---: | --- |",
             "| Separate kick, bass, snare, and tonal onset histories | 1 / 1 (100.0%) | 0 | source-specific phase coverage in debug candidates |",
+            "| Preserve simultaneous kick+bass downbeat evidence | 1 / 1 (100.0%) | 0 | analyzer case verifies both kick and bass phase coverage on the same downbeats |",
             "| Require repeated source evidence on the selected beat grid | 1 / 1 (100.0%) | 0 | confidence cap below display floor without repeated alignment |",
             "| Resolve half/double-time candidates with kick/bass downbeat evidence | 1 / 1 (100.0%) | 0 | analyzer cases retain the beat grid through sparse-kick half-time and dense-subdivision alternatives |",
             "| Adaptive tempo history for percussive vs sparse tonal input | 1 / 1 (100.0%) | 0 | 8 s percussion / 18 s sparse-source policy |",

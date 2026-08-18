@@ -34494,11 +34494,13 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 				std::max(tempo_event_subdivision_strength, onset_strength);
 		}
 	}
-	// These are deliberately not folded together. Bass/chroma onsets are only
-	// considered a tonal source when a drum transient is absent, while kick and
-	// snare inherit the post-arbitration drum decision above.
-	const float tempo_bass_source_strength =
-		!drum_transient ? musical_bass_body_strength : 0.0f;
+	// Keep source histories independent through phase scoring.  In particular,
+	// a pitched bass attack often lands exactly with a kick; suppressing it at
+	// drum-transient frames erased useful downbeat evidence and made the meter
+	// scorer treat the two sources as mutually exclusive.  The broader tonal
+	// stream remains gated below because it is not a dedicated low-register
+	// onset measurement.
+	const float tempo_bass_source_strength = musical_bass_body_strength;
 	const float tempo_tonal_source_strength =
 		!drum_transient ? std::max(musical_chroma_body_strength, tempo_band_onsets[1] * 0.30f) :
 					 0.0f;

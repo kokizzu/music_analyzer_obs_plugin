@@ -733,6 +733,7 @@ class DetectionAccuracyReportTest(unittest.TestCase):
         self.assertIn("| IDMT real-bass timing metadata qualifies as beat truth | 0 / 2 (0.0%) | 2 |", report)
         self.assertIn("| Independent real bass-led beat-labelled validation measured | 1 / 1 (100.0%) | 0 |", report)
         self.assertIn("| Assess raw bass-attack BPM evidence | 1 / 1 (100.0%) | 0 |", report)
+        self.assertIn("| Preserve simultaneous kick+bass downbeat evidence | 1 / 1 (100.0%) | 0 |", report)
         self.assertIn("| Demonstrate a bass-attack feature improves real bass BPM | 0 / 1 (0.0%) | 1 |", report)
         self.assertIn("| Validate external KRAISLER archive | 1 / 1 (100.0%) | 0 |", report)
         self.assertIn("| Complete protected KRAISLER cross-corpus rule audit | 1 / 1 (100.0%) | 0 |", report)

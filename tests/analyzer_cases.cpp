@@ -299,6 +299,7 @@ void add_tempo_fill(mao_test::Buffer &buffer)
 
 enum class TempoHitKind {
 	Kick,
+	Bass,
 	Snare,
 	HiHat,
 };
@@ -318,6 +319,19 @@ void add_tempo_kick_window(mao_test::Buffer &buffer, int64_t event_sample, int64
 				window_samples);
 	add_decayed_sine_window(buffer, 1100.0f, 0.26f * scale, 520, event_sample, window_start,
 				window_samples);
+}
+
+void add_tempo_bass_window(mao_test::Buffer &buffer, int64_t event_sample, int64_t window_start,
+			   std::size_t window_samples, float scale = 1.0f)
+{
+	// A short, pitched bass attack keeps the bass onset distinct from the kick
+	// while still representing the common mixed downbeat case.
+	add_decayed_sine_window(buffer, mao_test::midi_frequency(36), 0.34f * scale, 2100,
+				event_sample, window_start, window_samples);
+	add_decayed_sine_window(buffer, mao_test::midi_frequency(48), 0.10f * scale, 1300,
+				event_sample, window_start, window_samples);
+	add_decayed_sine_window(buffer, mao_test::midi_frequency(60), 0.045f * scale, 800,
+				event_sample, window_start, window_samples);
 }
 
 void add_tempo_snare_window(mao_test::Buffer &buffer, int64_t event_sample, int64_t window_start,
@@ -356,6 +370,9 @@ void add_tempo_hit_window(mao_test::Buffer &buffer, const TimelineTempoHit &hit,
 	switch (hit.kind) {
 	case TempoHitKind::Kick:
 		add_tempo_kick_window(buffer, hit.sample, window_start, window_samples, hit.scale);
+		break;
+	case TempoHitKind::Bass:
+		add_tempo_bass_window(buffer, hit.sample, window_start, window_samples, hit.scale);
 		break;
 	case TempoHitKind::Snare:
 		add_tempo_snare_window(buffer, hit.sample, window_start, window_samples, hit.scale);
@@ -5010,6 +5027,55 @@ mao::AnalysisSnapshot run_windowed_tempo_pattern(mao::AnalysisEngine &engine,
 	return snapshot;
 }
 
+mao::AnalysisSnapshot run_kick_bass_downbeat_tempo_pattern(mao::AnalysisEngine &engine,
+						   const mao::AnalysisSettings &settings,
+						   float bpm, int frames)
+{
+	const float beat_seconds = 60.0f / bpm;
+	const int64_t hop_samples = static_cast<int64_t>(
+		std::llround(settings.analysis_interval_seconds * static_cast<float>(settings.sample_rate)));
+	const int64_t window_samples = static_cast<int64_t>(std::clamp<std::size_t>(
+		static_cast<std::size_t>(
+			std::llround(settings.analysis_window_seconds * static_cast<float>(settings.sample_rate))),
+		1, mao::kAnalysisWindow));
+	const int64_t total_samples = static_cast<int64_t>(frames + 1) * hop_samples;
+	std::vector<TimelineTempoHit> hits;
+	int beat = 0;
+	for (double seconds = 0.0;
+	     static_cast<int64_t>(std::llround(seconds * mao_test::kSampleRate)) < total_samples;
+	     seconds += static_cast<double>(beat_seconds)) {
+		const int64_t sample = static_cast<int64_t>(std::llround(seconds * mao_test::kSampleRate));
+		if ((beat & 1) == 0) {
+			hits.push_back(TimelineTempoHit{sample, TempoHitKind::Kick, 0.80f});
+			hits.push_back(TimelineTempoHit{sample, TempoHitKind::Bass, 1.0f});
+		} else {
+			hits.push_back(TimelineTempoHit{sample, TempoHitKind::Snare, 0.84f});
+		}
+		++beat;
+	}
+	std::sort(hits.begin(), hits.end(), [](const TimelineTempoHit &a, const TimelineTempoHit &b) {
+		return a.sample < b.sample;
+	});
+
+	mao::AnalysisSnapshot snapshot = {};
+	for (int frame = 0; frame < frames; ++frame) {
+		mao_test::Buffer buffer = {};
+		const int64_t window_end = static_cast<int64_t>(frame + 1) * hop_samples;
+		const int64_t window_start = window_end - window_samples;
+		add_tempo_backing_window(buffer, window_start, static_cast<std::size_t>(window_samples));
+		for (const TimelineTempoHit &hit : hits) {
+			if (hit.sample >= window_end)
+				break;
+			if (hit.sample + 2200 < window_start)
+				continue;
+			add_tempo_hit_window(buffer, hit, window_start, static_cast<std::size_t>(window_samples));
+		}
+		snapshot = engine.analyze(buffer.data(), static_cast<std::size_t>(window_samples), settings,
+					  "kick bass downbeat tempo test", 0);
+	}
+	return snapshot;
+}
+
 mao::AnalysisSnapshot run_prehit_body_tempo_pattern(mao::AnalysisEngine &engine,
 						    const mao::AnalysisSettings &settings,
 						    float bpm, int frames)
@@ -6160,6 +6226,23 @@ void check_explicit_input_mode_and_bpm(Runner &runner)
 		expect_tempo_candidate_near(runner, snapshot, 137.0f, 3.0f,
 					    "BPM diagnostics rolling-window transient timing");
 		expect_best_tempo_phase_support(runner, snapshot, "BPM phase support rolling-window transient timing");
+	}
+
+	{
+		mao::AnalysisEngine engine;
+		const mao::AnalysisSettings settings = tempo_test_settings();
+		const mao::AnalysisSnapshot snapshot =
+			run_kick_bass_downbeat_tempo_pattern(engine, settings, 120.0f, 440);
+		expect_bpm_near(runner, snapshot, 120.0f, 6.0f,
+				"BPM estimate with simultaneous kick and bass downbeats", 0.18f);
+		expect_best_tempo_source_phase_support(
+			runner, snapshot, "kick-bass downbeat source-specific beat phase", 0.35f);
+		runner.expect(snapshot.tempo_debug_candidate_count > 0 &&
+			      snapshot.tempo_debug_candidates[0].kick_phase_coverage >= 0.35f,
+			      "kick-bass downbeat phase: expected kick to retain repeated grid coverage");
+		runner.expect(snapshot.tempo_debug_candidate_count > 0 &&
+			      snapshot.tempo_debug_candidates[0].bass_phase_coverage >= 0.35f,
+			      "kick-bass downbeat phase: expected bass to retain repeated grid coverage alongside kick");
 	}
 
 	{
