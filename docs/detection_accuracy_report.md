@@ -1574,6 +1574,7 @@ Tempo estimates are only displayed at calibrated confidence. Source-specific pha
 | Reject combined bass/coincidence candidate reweighting | 1 / 1 (100.0%) | 0 | shared feasibility grid peaks at bass alignment 0.25 plus kick+bass 4.0: Ballroom improves 4 / 64 to 7 / 64, but FiloBass stays 4 / 24, so the pair is not a safe BPM selector |
 | Retain calibrated BPM display-confidence gate | 1 / 1 (100.0%) | 0 | at 0.45 confidence, raw selection is correct only 1 / 5 Ballroom and 0 / 4 FiloBass; lowering the 0.60 display gate would expose mostly wrong BPM |
 | Local advanced beat-tracker backend available | 0 / 2 (0.0%) | 2 | `aubio` and `essentia` are unavailable through pkg-config; next step is a dependency-free tracker or an added backend |
+| Approve license-compatible advanced beat tracker | 0 / 1 (0.0%) | 1 | aubio provides causal real-time tracking but is GPL-3.0; this repository has no declared license, so it cannot be vendored without an explicit compatibility decision |
 | Demonstrate a bass-attack feature improves real bass BPM | 0 / 1 (0.0%) | 1 | improve FiloBass displayable BPM without regressing E-GMD |
 | Hide BPM when calibrated confidence is insufficient | 1 / 1 (100.0%) | 0 | renderer keeps `BPM --` below 0.60 confidence |
 
