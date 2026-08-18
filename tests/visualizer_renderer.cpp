@@ -175,6 +175,18 @@ int run_visualizer_renderer_tests()
 	expect_true(std::strcmp(renderer.stable_labels[StableKeyboard].label, "E") == 0,
 		    "sustain should prefer rendered confidence over raw level", &checks, &failures);
 
+	snapshot.sequence = 3;
+	snapshot.keyboard_notes = {};
+	render_visualizer(&renderer, snapshot, 0.0f);
+	expect_true(std::strcmp(renderer.stable_labels[StableKeyboard].label, "E") == 0,
+		    "the key display should retain its last confirmed value between detections", &checks, &failures);
+
+	snapshot.sequence = 4;
+	snapshot.rms = 0.0f;
+	render_visualizer(&renderer, snapshot, 0.0f);
+	expect_true(renderer.stable_labels[StableKeyboard].label[0] == '\0',
+		    "silence should clear the retained key display", &checks, &failures);
+
 	if (failures != 0)
 		return 1;
 
