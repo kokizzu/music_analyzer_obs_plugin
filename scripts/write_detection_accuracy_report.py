@@ -978,6 +978,54 @@ def tempo_diagnostic_counts(path: Path, prefix: str = "MAESTRO tempo diag\t") ->
     return accurate, total
 
 
+TEMPO_CANDIDATE_ALIGNMENT_RE = re.compile(
+    r"(?P<bpm>\d+)\([^)]*?align="
+    r"(?P<kick>[0-9.]+)/(?P<bass>[0-9.]+)/(?P<snare>[0-9.]+)/(?P<tonal>[0-9.]+)\)"
+)
+
+
+def filobass_phase_energy_counts(path: Path, tolerance: float = 8.0) -> tuple[int, int, int, int, int] | None:
+    """Return expected-candidate/bass-alignment evidence from FiloBass diagnostics.
+
+    The measurement remains diagnostic-only: a higher bass alignment is not a
+    reason by itself to alter a public BPM estimate.
+    """
+    total = 0
+    eligible = higher = equal = lower = 0
+    saw_alignment = False
+    for line in path.read_text(encoding="utf-8", errors="replace").splitlines():
+        if not line.startswith("MAESTRO tempo diag\t"):
+            continue
+        total += 1
+        fields = dict(field.split("=", 1) for field in line[len("MAESTRO tempo diag\t") :].split("\t") if "=" in field)
+        try:
+            expected = float(fields.get("expected", "0"))
+        except ValueError as error:
+            raise ValueError(f"{path}: invalid FiloBass expected BPM") from error
+        candidates = list(TEMPO_CANDIDATE_ALIGNMENT_RE.finditer(fields.get("candidates", "")))
+        if not candidates:
+            continue
+        saw_alignment = True
+        selected = candidates[0]
+        expected_candidate = next(
+            (candidate for candidate in candidates if abs(float(candidate["bpm"]) - expected) <= tolerance),
+            None,
+        )
+        if expected_candidate is None:
+            continue
+        eligible += 1
+        difference = float(expected_candidate["bass"]) - float(selected["bass"])
+        if difference > 1.0:
+            higher += 1
+        elif difference < -1.0:
+            lower += 1
+        else:
+            equal += 1
+    if total <= 0:
+        raise ValueError(f"{path}: no FiloBass tempo diagnostic rows")
+    return (eligible, higher, equal, lower, total) if saw_alignment else None
+
+
 def filobass_onset_diagnostic_counts(path: Path) -> tuple[int, int, int]:
     """Return (rank-one, rank-five, total) from offline bass-onset evidence."""
     with path.open(newline="", encoding="utf-8") as handle:
@@ -1139,6 +1187,12 @@ def render(
     kraisler_bpm = tempo_diagnostic_counts(kraisler_bpm_input) if kraisler_bpm_input else None
     ballroom_bpm = tempo_diagnostic_counts(ballroom_bpm_input) if ballroom_bpm_input else None
     filobass_bpm = tempo_diagnostic_counts(filobass_bpm_input) if filobass_bpm_input else None
+    filobass_phase_energy = filobass_phase_energy_counts(filobass_bpm_input) if filobass_bpm_input else None
+    filobass_phase_energy_evidence = (
+        f"{filobass_phase_energy[1]}/{filobass_phase_energy[0]} eligible rows"
+        if filobass_phase_energy is not None
+        else "diagnostic unavailable"
+    )
     filobass_onset_diagnostic = (
         filobass_onset_diagnostic_counts(filobass_onset_diagnostic_input)
         if filobass_onset_diagnostic_input
@@ -2533,6 +2587,23 @@ def render(
                 f"| Displayable BPM at confidence ≥ 0.60 | {fraction(accurate, total)} | {total - accurate} |",
             ]
         )
+    if filobass_phase_energy is not None:
+        eligible, higher, equal, lower, total = filobass_phase_energy
+        lines.extend(
+            [
+                "",
+                "### FiloBass source-grid energy feasibility diagnostic",
+                "",
+                "This compares bass energy explained by the selected candidate with an expected-BPM candidate only when that labelled candidate is already among the five exported diagnostics. It does not change BPM selection.",
+                "",
+                "| Metric | Accurate / total | Remaining |",
+                "| --- | ---: | ---: |",
+                f"| Labelled BPM present among exported candidates | {fraction(eligible, total)} | {total - eligible} |",
+                f"| Present labelled candidate has higher bass grid-energy | {fraction(higher, eligible)} | {eligible - higher} |",
+                f"| Present labelled candidate ties selected bass grid-energy | {fraction(equal, eligible)} | {eligible - equal} |",
+                f"| Present labelled candidate has lower bass grid-energy | {fraction(lower, eligible)} | {eligible - lower} |",
+            ]
+        )
     if filobass_onset_diagnostic is not None:
         rank_one, rank_five, total = filobass_onset_diagnostic
         lines.extend(
@@ -2595,6 +2666,7 @@ def render(
             f"| IDMT real-bass timing metadata qualifies as beat truth | {fraction(idmt_bass_timing[0], idmt_bass_timing[1]) if idmt_bass_timing is not None else '0 / 1 (0.0%)'} | {idmt_bass_timing[1] - idmt_bass_timing[0] if idmt_bass_timing is not None else 1} | only corpus-supplied tempo/beat/pattern fields count; note onsets are insufficient |",
             f"| Independent real bass-led beat-labelled validation measured | {fraction(int(filobass_bpm is not None), 1)} | {int(filobass_bpm is None)} | FiloBass real bass stems plus reviewed downbeats and MIDI time signature |",
             f"| Assess raw bass-attack BPM evidence | {fraction(int(filobass_onset_diagnostic is not None), 1)} | {int(filobass_onset_diagnostic is None)} | offline FiloBass rank-one/top-five diagnostic |",
+            f"| Assess bass source-grid energy before a selector | {fraction(int(filobass_phase_energy is not None), 1)} | {int(filobass_phase_energy is None)} | FiloBass expected candidate shows higher bass alignment in {filobass_phase_energy_evidence} |",
             "| Demonstrate a bass-attack feature improves real bass BPM | 0 / 1 (0.0%) | 1 | improve FiloBass displayable BPM without regressing E-GMD |",
             "| Hide BPM when calibrated confidence is insufficient | 1 / 1 (100.0%) | 0 | renderer keeps `BPM --` below 0.60 confidence |",
         ]

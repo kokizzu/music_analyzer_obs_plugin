@@ -171,6 +171,13 @@ struct TempoDebugCandidate {
 	float bass_phase_coverage = 0.0f;
 	float snare_phase_coverage = 0.0f;
 	float tonal_phase_coverage = 0.0f;
+	// Fraction of a source's recent onset energy captured by this candidate's
+	// phase grid. Unlike binary coverage, this distinguishes a grid that merely
+	// intersects dense subdivision activity from one that explains its attacks.
+	float kick_phase_energy_alignment = 0.0f;
+	float bass_phase_energy_alignment = 0.0f;
+	float snare_phase_energy_alignment = 0.0f;
+	float tonal_phase_energy_alignment = 0.0f;
 	float phase_body_coverage = 0.0f;
 	float phase_all_coverage = 0.0f;
 	float phase_offset_seconds = 0.0f;

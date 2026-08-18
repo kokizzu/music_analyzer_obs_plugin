@@ -620,8 +620,8 @@ class DetectionAccuracyReportTest(unittest.TestCase):
             )
             filobass_bpm = Path(temporary) / "filobass_bpm_diagnostics.log"
             filobass_bpm.write_text(
-                "MAESTRO tempo diag\tid=1\texpected=120.00\tgot=120.00\tstatus=hit\n"
-                "MAESTRO tempo diag\tid=2\texpected=100.00\tgot=0.00\tstatus=no-estimate\n",
+                "MAESTRO tempo diag\tid=1\texpected=120.00\tgot=120.00\tstatus=hit\tcandidates=160(s=1,align=10/20/30/40) 120(s=1,align=10/70/30/40)\n"
+                "MAESTRO tempo diag\tid=2\texpected=100.00\tgot=0.00\tstatus=no-estimate\tcandidates=100(s=1,align=10/50/30/40) 160(s=1,align=10/20/30/40)\n",
                 encoding="utf-8",
             )
             filobass_onsets = Path(temporary) / "filobass_bass_onset_diagnostics.tsv"
@@ -726,6 +726,9 @@ class DetectionAccuracyReportTest(unittest.TestCase):
         self.assertIn("## IDMT real-bass timing-ground-truth audit", report)
         self.assertIn("## FiloBass real bass-led annotated-tempo diagnostic", report)
         self.assertIn("### FiloBass raw bass-attack feasibility diagnostic", report)
+        self.assertIn("### FiloBass source-grid energy feasibility diagnostic", report)
+        self.assertIn("| Labelled BPM present among exported candidates | 2 / 2 (100.0%) | 0 |", report)
+        self.assertIn("| Present labelled candidate has higher bass grid-energy | 1 / 2 (50.0%) | 1 |", report)
         self.assertIn("| Reviewed BPM ranked first by raw bass attacks | 1 / 2 (50.0%) | 1 |", report)
         self.assertIn("| Reviewed BPM ranked in top five by raw bass attacks | 2 / 2 (100.0%) | 0 |", report)
         self.assertIn("| Displayable BPM at confidence ≥ 0.60 | 1 / 2 (50.0%) | 1 |", report)

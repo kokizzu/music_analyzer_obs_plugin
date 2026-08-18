@@ -28374,6 +28374,10 @@ void AnalysisEngine::update_tempo(float raw_event_strength, float raw_event_body
 	std::array<float, kTempoBpmCount> bass_phase_coverages = {};
 	std::array<float, kTempoBpmCount> snare_phase_coverages = {};
 	std::array<float, kTempoBpmCount> tonal_phase_coverages = {};
+	std::array<float, kTempoBpmCount> kick_phase_energy_alignments = {};
+	std::array<float, kTempoBpmCount> bass_phase_energy_alignments = {};
+	std::array<float, kTempoBpmCount> snare_phase_energy_alignments = {};
+	std::array<float, kTempoBpmCount> tonal_phase_energy_alignments = {};
 	std::array<float, kTempoBpmCount> phase_offsets = {};
 	float best_score = 0.0f;
 	int best_bpm = 0;
@@ -28676,6 +28680,7 @@ void AnalysisEngine::update_tempo(float raw_event_strength, float raw_event_body
 		float phase_body_coverage = 0.0f;
 		float phase_all_coverage = 0.0f;
 		std::array<float, 4> source_phase_coverages = {};
+		std::array<float, 4> source_phase_energy_alignments = {};
 		float phase_offset = 0.0f;
 		float phase_rank = 0.0f;
 		const float phase_step = period / static_cast<float>(kTempoPhaseBins);
@@ -28694,6 +28699,7 @@ void AnalysisEngine::update_tempo(float raw_event_strength, float raw_event_body
 				int body_pulses = 0;
 				int all_pulses = 0;
 				std::array<int, 4> source_pulses = {};
+				std::array<float, 4> source_grid_strengths = {};
 				float body_grid_score = 0.0f;
 				float all_grid_score = 0.0f;
 				float subdivision_grid_score = 0.0f;
@@ -28773,6 +28779,7 @@ void AnalysisEngine::update_tempo(float raw_event_strength, float raw_event_body
 					for (std::size_t source = 0; source < source_pulses.size(); ++source) {
 						if (best_source_flux[source] >= 0.010f)
 							++source_pulses[source];
+						source_grid_strengths[source] += best_source_flux[source];
 					}
 					const float locked_evidence =
 						std::sqrt(std::max(best_body_flux, 0.0f)) * 1.18f +
@@ -28815,9 +28822,15 @@ void AnalysisEngine::update_tempo(float raw_event_strength, float raw_event_body
 				const float all_coverage =
 					static_cast<float>(all_pulses) / static_cast<float>(expected_pulses);
 				std::array<float, 4> candidate_source_coverages = {};
+				std::array<float, 4> candidate_source_energy_alignments = {};
 				for (std::size_t source = 0; source < source_pulses.size(); ++source)
 					candidate_source_coverages[source] =
 						static_cast<float>(source_pulses[source]) / static_cast<float>(expected_pulses);
+				for (std::size_t source = 0; source < source_grid_strengths.size(); ++source)
+					candidate_source_energy_alignments[source] =
+						std::clamp(source_grid_strengths[source] /
+								   std::max(total_recent_source_flux[source], 1.0e-6f),
+							   0.0f, 1.0f);
 				const float repeated_source_coverage =
 				std::max(std::max(candidate_source_coverages[0], candidate_source_coverages[1]),
 					 std::max(candidate_source_coverages[2], candidate_source_coverages[3]));
@@ -28879,6 +28892,7 @@ void AnalysisEngine::update_tempo(float raw_event_strength, float raw_event_body
 					phase_body_coverage = body_coverage;
 					phase_all_coverage = all_coverage;
 					source_phase_coverages = candidate_source_coverages;
+					source_phase_energy_alignments = candidate_source_energy_alignments;
 					phase_offset = candidate_offset;
 				}
 			}
@@ -28892,6 +28906,10 @@ void AnalysisEngine::update_tempo(float raw_event_strength, float raw_event_body
 		bass_phase_coverages[score_index] = source_phase_coverages[1];
 		snare_phase_coverages[score_index] = source_phase_coverages[2];
 		tonal_phase_coverages[score_index] = source_phase_coverages[3];
+		kick_phase_energy_alignments[score_index] = source_phase_energy_alignments[0];
+		bass_phase_energy_alignments[score_index] = source_phase_energy_alignments[1];
+		snare_phase_energy_alignments[score_index] = source_phase_energy_alignments[2];
+		tonal_phase_energy_alignments[score_index] = source_phase_energy_alignments[3];
 		phase_offsets[score_index] = phase_offset;
 		const float locked_body_weight =
 			std::clamp(phase_body_coverage * phase_body_coverage * 1.15f +
@@ -29404,6 +29422,10 @@ void AnalysisEngine::update_tempo(float raw_event_strength, float raw_event_body
 		candidate.bass_phase_coverage = bass_phase_coverages[score_index];
 		candidate.snare_phase_coverage = snare_phase_coverages[score_index];
 		candidate.tonal_phase_coverage = tonal_phase_coverages[score_index];
+		candidate.kick_phase_energy_alignment = kick_phase_energy_alignments[score_index];
+		candidate.bass_phase_energy_alignment = bass_phase_energy_alignments[score_index];
+		candidate.snare_phase_energy_alignment = snare_phase_energy_alignments[score_index];
+		candidate.tonal_phase_energy_alignment = tonal_phase_energy_alignments[score_index];
 		candidate.phase_offset_seconds = phase_offsets[score_index];
 		snapshot.tempo_debug_candidate_count = static_cast<std::size_t>(slot + 1);
 		return true;

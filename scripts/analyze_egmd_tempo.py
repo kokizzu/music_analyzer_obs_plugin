@@ -16,6 +16,10 @@ from dataclasses import dataclass
 
 DEFAULT_DIAG_PREFIX = "E-GMD tempo diag\t"
 CANDIDATE_RE = re.compile(r"(?P<bpm>\d+)\(s=(?P<score>[0-9.]+)")
+CANDIDATE_ALIGNMENT_RE = re.compile(
+    r"(?P<bpm>\d+)\([^)]*?align="
+    r"(?P<kick>[0-9.]+)/(?P<bass>[0-9.]+)/(?P<snare>[0-9.]+)/(?P<tonal>[0-9.]+)\)"
+)
 
 
 @dataclass(frozen=True)
@@ -28,6 +32,15 @@ class TempoRow:
     error: float
     status: str
     candidates: str
+
+
+@dataclass(frozen=True)
+class CandidatePhaseAlignment:
+    bpm: int
+    kick: float
+    bass: float
+    snare: float
+    tonal: float
 
 
 def parse_key_values(line: str, prefix: str) -> dict[str, str]:
@@ -62,6 +75,19 @@ def parse_rows(path: pathlib.Path, prefix: str) -> list[TempoRow]:
 
 def candidate_bpms(row: TempoRow) -> list[int]:
     return [int(match.group("bpm")) for match in CANDIDATE_RE.finditer(row.candidates)]
+
+
+def candidate_phase_alignments(row: TempoRow) -> list[CandidatePhaseAlignment]:
+    return [
+        CandidatePhaseAlignment(
+            bpm=int(match.group("bpm")),
+            kick=float(match.group("kick")) / 100.0,
+            bass=float(match.group("bass")) / 100.0,
+            snare=float(match.group("snare")) / 100.0,
+            tonal=float(match.group("tonal")) / 100.0,
+        )
+        for match in CANDIDATE_ALIGNMENT_RE.finditer(row.candidates)
+    ]
 
 
 def near(value: float, target: float, tolerance: float) -> bool:
@@ -100,6 +126,47 @@ def percent(numerator: int, denominator: int) -> str:
     return f"{numerator * 100.0 / denominator:.1f}%"
 
 
+def print_phase_alignment_summary(rows: list[TempoRow], tolerance: float) -> None:
+    """Compare source-grid energy for a labelled candidate versus the selected one.
+
+    This is intentionally diagnostic-only. It reports whether a source-energy
+    selector would have evidence to replace the current top candidate; it does
+    not alter the BPM estimate merely because an alternative happens to align
+    more energy in one corpus row.
+    """
+    sources = ("kick", "bass", "snare", "tonal")
+    outcomes = {source: Counter() for source in sources}
+    eligible = 0
+    aligned_rows = 0
+    for row in rows:
+        candidates = candidate_phase_alignments(row)
+        if not candidates:
+            continue
+        aligned_rows += 1
+        expected = next((candidate for candidate in candidates if near(candidate.bpm, row.expected, tolerance)), None)
+        if expected is None:
+            continue
+        eligible += 1
+        selected = candidates[0]
+        for source in sources:
+            difference = getattr(expected, source) - getattr(selected, source)
+            outcomes[source]["higher" if difference > 0.01 else "lower" if difference < -0.01 else "equal"] += 1
+
+    if not aligned_rows:
+        return
+    parts = []
+    for source in sources:
+        parts.append(
+            f"{source} expected>selected {outcomes[source]['higher']}/{eligible}, "
+            f"equal {outcomes[source]['equal']}/{eligible}, lower {outcomes[source]['lower']}/{eligible}"
+        )
+    print(
+        "tempo phase-energy alignment: "
+        f"candidate diagnostics {aligned_rows}/{len(rows)}, expected candidate available {eligible}/{len(rows)}; "
+        + "; ".join(parts)
+    )
+
+
 def print_summary(rows: list[TempoRow], tolerance: float, worst: int) -> None:
     if not rows:
         print("tempo diagnostics: no rows found")
@@ -134,6 +201,7 @@ def print_summary(rows: list[TempoRow], tolerance: float, worst: int) -> None:
         rank_parts.append(f"rank{rank} {ranks[rank]}")
     rank_parts.append(f"missing {ranks[0]}")
     print("expected BPM in top candidates: " + ", ".join(rank_parts))
+    print_phase_alignment_summary(rows, tolerance)
 
     misses = [row for row in rows if miss_class(row, tolerance) != "hit"]
     misses.sort(key=lambda row: (row.error, -row.confidence), reverse=True)

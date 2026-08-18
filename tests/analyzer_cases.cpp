@@ -6243,6 +6243,12 @@ void check_explicit_input_mode_and_bpm(Runner &runner)
 		runner.expect(snapshot.tempo_debug_candidate_count > 0 &&
 			      snapshot.tempo_debug_candidates[0].bass_phase_coverage >= 0.35f,
 			      "kick-bass downbeat phase: expected bass to retain repeated grid coverage alongside kick");
+		runner.expect(snapshot.tempo_debug_candidate_count > 0 &&
+			      snapshot.tempo_debug_candidates[0].kick_phase_energy_alignment >= 0.10f,
+			      "kick-bass downbeat phase: expected the selected grid to explain kick onset energy");
+		runner.expect(snapshot.tempo_debug_candidate_count > 0 &&
+			      snapshot.tempo_debug_candidates[0].bass_phase_energy_alignment >= 0.10f,
+			      "kick-bass downbeat phase: expected the selected grid to explain bass onset energy");
 	}
 
 	{

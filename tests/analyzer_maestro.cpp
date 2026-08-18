@@ -1084,9 +1084,9 @@ std::string tempo_candidate_summary(const mao::AnalysisSnapshot &snapshot)
 	std::string text;
 	for (std::size_t index = 0; index < snapshot.tempo_debug_candidate_count; ++index) {
 		const mao::TempoDebugCandidate &candidate = snapshot.tempo_debug_candidates[index];
-		char part[320] = {};
+		char part[400] = {};
 		std::snprintf(part, sizeof(part),
-			      "%s%d(s=%.2f,a=%.2f,b=%.2f,ba=%.2f,ph=%.2f,lock=%.2f,m=%.2f,cov=%.0f/%.0f,src=%.0f/%.0f/%.0f/%.0f)",
+			      "%s%d(s=%.2f,a=%.2f,b=%.2f,ba=%.2f,ph=%.2f,lock=%.2f,m=%.2f,cov=%.0f/%.0f,src=%.0f/%.0f/%.0f/%.0f,align=%.0f/%.0f/%.0f/%.0f)",
 			      text.empty() ? "" : " ", candidate.bpm, candidate.score,
 			      candidate.adjacent_score, candidate.body_score,
 			      candidate.adjacent_body_score, candidate.phase_score,
@@ -1096,7 +1096,11 @@ std::string tempo_candidate_summary(const mao::AnalysisSnapshot &snapshot)
 			      candidate.kick_phase_coverage * 100.0f,
 			      candidate.bass_phase_coverage * 100.0f,
 			      candidate.snare_phase_coverage * 100.0f,
-			      candidate.tonal_phase_coverage * 100.0f);
+			      candidate.tonal_phase_coverage * 100.0f,
+			      candidate.kick_phase_energy_alignment * 100.0f,
+			      candidate.bass_phase_energy_alignment * 100.0f,
+			      candidate.snare_phase_energy_alignment * 100.0f,
+			      candidate.tonal_phase_energy_alignment * 100.0f);
 		text += part;
 	}
 	return text.empty() ? "-" : text;
