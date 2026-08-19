@@ -68,6 +68,18 @@ int run_visualizer_renderer_tests()
 	tempo_snapshot.bpm_confidence = kBpmDisplayConfidenceThreshold;
 	expect_true(has_displayable_bpm(tempo_snapshot),
 		    "BPM display should show estimates at the confidence threshold", &checks, &failures);
+	char bpm_value[16] = {};
+	format_bpm_value(bpm_value, sizeof(bpm_value), tempo_snapshot);
+	expect_true(std::strcmp(bpm_value, "126") == 0,
+		    "BPM formatter should show a calibrated numeric estimate", &checks, &failures);
+	tempo_snapshot.bpm_confidence = kBpmDisplayConfidenceThreshold - 0.01f;
+	format_bpm_value(bpm_value, sizeof(bpm_value), tempo_snapshot);
+	expect_true(std::strcmp(bpm_value, "?") == 0,
+		    "BPM formatter should show analysing state for a withheld estimate", &checks, &failures);
+	tempo_snapshot = {};
+	format_bpm_value(bpm_value, sizeof(bpm_value), tempo_snapshot);
+	expect_true(std::strcmp(bpm_value, "--") == 0,
+		    "BPM formatter should show unavailable state before tempo evidence", &checks, &failures);
 
 	expect_true(near(display_highlight_level(0.0f), 0.0f), "zero level should not highlight", &checks,
 		    &failures);

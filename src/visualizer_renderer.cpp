@@ -1300,6 +1300,21 @@ bool has_displayable_bpm(const AnalysisSnapshot &snapshot)
 	return snapshot.estimated_bpm > 0.0f && snapshot.bpm_confidence >= kBpmDisplayConfidenceThreshold;
 }
 
+void format_bpm_value(char *output, std::size_t output_size, const AnalysisSnapshot &snapshot)
+{
+	if (!output || output_size == 0)
+		return;
+	if (has_displayable_bpm(snapshot)) {
+		std::snprintf(output, output_size, "%.0f", snapshot.estimated_bpm);
+		return;
+	}
+	// Keep an uncertain estimate hidden, but show that the analyzer has begun
+	// collecting tempo evidence. This is UI state only; it never relaxes the
+	// calibrated confidence gate for a numeric BPM.
+	std::snprintf(output, output_size, "%s",
+		      snapshot.estimated_bpm > 0.0f || snapshot.tempo_debug_candidate_count > 0 ? "?" : "--");
+}
+
 void draw_root_and_bpm(VisualizerRenderer *visualizer, const AnalysisSnapshot &snapshot, int root_y,
 		       int bpm_y_override = -1)
 {
@@ -1308,11 +1323,11 @@ void draw_root_and_bpm(VisualizerRenderer *visualizer, const AnalysisSnapshot &s
 	char bpm_value[16] = {};
 	char bpm_confidence[16] = {};
 	if (has_displayable_bpm(snapshot)) {
-		std::snprintf(bpm_value, sizeof(bpm_value), "%.0f", snapshot.estimated_bpm);
+		format_bpm_value(bpm_value, sizeof(bpm_value), snapshot);
 		std::snprintf(bpm_confidence, sizeof(bpm_confidence), "%.0f%%",
 			      snapshot.bpm_confidence * 100.0f);
 	} else {
-		std::snprintf(bpm_value, sizeof(bpm_value), "--");
+		format_bpm_value(bpm_value, sizeof(bpm_value), snapshot);
 		bpm_confidence[0] = '\0';
 	}
 	const int bpm_y = bpm_y_override >= 0 ? bpm_y_override : std::max(0, static_cast<int>(visualizer->height) - 18);

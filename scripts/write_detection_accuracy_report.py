@@ -2778,7 +2778,8 @@ def render(
             "| Reject concurrent high-tempo tracker fallback | 1 / 1 (100.0%) | 0 | live candidates at 0.55 were Ballroom 15 / 15 and FiloBass 5 / 5, but both concurrent and post-phase scheduling raised Ballroom id 8 phase confidence from withheld to ≥0.617 and displayed wrong 158.97 BPM for 128.03; feature remains false |",
             "| Reject high-tempo-only tracker setting | 1 / 1 (100.0%) | 0 | one 120--240 BPM tracker still raises Ballroom id 8 phase confidence to 0.617 and displays wrong 158.97 BPM for 128.03; retain broad 40--240 BPM tracker at 0.80 |",
             "| Demonstrate a bass-attack feature improves real bass BPM | 0 / 1 (0.0%) | 1 | improve FiloBass displayable BPM without regressing E-GMD |",
-            "| Hide BPM when calibrated confidence is insufficient | 1 / 1 (100.0%) | 0 | renderer keeps `BPM --` below 0.60 confidence |",
+            "| Distinguish BPM analysis from unavailable BPM | 1 / 1 (100.0%) | 0 | renderer shows `BPM ?` while it has withheld tempo evidence and `BPM --` before any candidate exists |",
+            "| Hide numeric BPM when calibrated confidence is insufficient | 1 / 1 (100.0%) | 0 | renderer keeps the numeric BPM hidden below 0.60 confidence (`BPM ?` when analysis has candidates) |",
         ]
     )
     if maps_attribute_input is not None:
