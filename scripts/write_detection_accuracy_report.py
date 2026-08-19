@@ -102,7 +102,9 @@ DRUM_FALSE_POSITIVE_CONTEXT_RE = re.compile(
 )
 CHORD_PRIMARY_COMPONENT_RE = re.compile(
     r"^chord_primary_component_audit: any_hit=(?P<any>\d+)/(?P<total>\d+) "
-    r"primary_hit=(?P<primary>\d+)/(?P=total) alias_rescued=(?P<rescued>\d+)$",
+    r"primary_hit=(?P<primary>\d+)/(?P=total) alias_rescued=(?P<rescued>\d+) "
+    r"dim7_primary_hit=(?P<dim7>\d+)/(?P=total) "
+    r"dim7_promotions=(?P<promotions>\d+) dim7_regressions=(?P<regressions>\d+)$",
     re.MULTILINE,
 )
 
@@ -904,13 +906,14 @@ def drum_false_positive_context_audit(path: Path) -> tuple[int, int, int, int]:
     )
 
 
-def chord_primary_component_audit(path: Path) -> tuple[int, int, int, int]:
-    """Return any-alias and first-component chord matches."""
+def chord_primary_component_audit(path: Path) -> tuple[int, int, int, int, int, int, int]:
+    """Return any-alias, first-component, and narrow dim7-promotion matches."""
     match = CHORD_PRIMARY_COMPONENT_RE.search(path.read_text(encoding="utf-8", errors="replace"))
     if match is None:
         raise ValueError(f"{path}: missing chord primary-component audit summary")
     return (
         int(match["any"]), int(match["primary"]), int(match["total"]), int(match["rescued"]),
+        int(match["dim7"]), int(match["promotions"]), int(match["regressions"]),
     )
 
 
@@ -2021,7 +2024,7 @@ def render(
             ]
         )
     if chord_primary_components is not None:
-        any_hit, primary_hit, total, alias_rescued = chord_primary_components
+        any_hit, primary_hit, total, alias_rescued, dim7_primary_hit, dim7_promotions, dim7_regressions = chord_primary_components
         lines.extend(
             [
                 "",
@@ -2037,8 +2040,12 @@ def render(
                 f"| Correct chords with only the first displayed component | {fraction(primary_hit, total)} | {total - primary_hit} |",
                 f"| Correct chords rescued only by a later alias | {fraction(alias_rescued, any_hit)} | {any_hit - alias_rescued} |",
                 f"| Canonical-first runtime display eligible | {fraction(int(alias_rescued == 0), 1)} | {int(alias_rescued != 0)} |",
+                f"| Correct chords after same-root dim7 promotion | {fraction(dim7_primary_hit, total)} | {total - dim7_primary_hit} |",
+                f"| Same-root dim7 runtime promotions observed | {fraction(dim7_promotions, total)} | {total - dim7_promotions} |",
+                f"| Known correct-primary labels lost by promotion | {fraction(dim7_regressions, total)} | {dim7_regressions} |",
+                f"| Same-root dim7 runtime display eligible | {fraction(int(dim7_primary_hit == any_hit and dim7_regressions == 0), 1)} | {int(dim7_primary_hit != any_hit or dim7_regressions != 0)} |",
                 "",
-                "Canonical-first display is rejected: later aliases account for correct labelled outcomes in both piano corpora.",
+                "Canonical-first display is rejected: later aliases account for correct labelled outcomes in both piano corpora. The narrower same-root dim7 promotion remains eligible only when it restores every known alias hit without losing a known first-label hit.",
             ]
         )
     if violin_guitar_audit is not None:

@@ -216,6 +216,7 @@ DRUM_PRIMARY_LOCO_AUDIT ?= $(BUILD_DIR)/drum_primary_loco_audit.txt
 DRUM_FALSE_POSITIVE_CAP_AUDIT ?= $(BUILD_DIR)/drum_false_positive_cap_audit.txt
 DRUM_FALSE_POSITIVE_CONTEXT_AUDIT ?= $(BUILD_DIR)/drum_false_positive_context_audit.txt
 CHORD_PRIMARY_COMPONENT_AUDIT ?= $(BUILD_DIR)/chord_primary_component_audit.txt
+CHORD_PRIMARY_COMPONENT_ARGS ?=
 POLYPHONIC_CANDIDATE_CAPACITY_AUDIT ?= $(BUILD_DIR)/polyphonic_candidate_capacity_audit.txt
 HARMONIC_PRODUCT_OCTAVE_AUDIT ?= $(BUILD_DIR)/harmonic_product_octave_audit.txt
 DETECTION_ACCURACY_OWNER_CLASSIFIER_LOCO_AUDIT_ARG = --owner-classifier-loco-audit "$(OWNER_CLASSIFIER_LOCO_AUDIT)" --owner-classifier-quality-loco-audit "$(OWNER_CLASSIFIER_QUALITY_LOCO_AUDIT)"
@@ -5585,7 +5586,7 @@ test-independent-piano-chord-states: tests/test_summarize_independent_piano_chor
 audit-chord-primary-components: scripts/audit_chord_primary_components.py | $(BUILD_DIR)
 	@test -s "$(MAPS_PIANO_ATTRIBUTE_TSV)" || { printf '%s\n' "missing $(MAPS_PIANO_ATTRIBUTE_TSV)"; exit 2; }
 	@test -s "$(MAESTRO_REAL_ATTRIBUTE_TSV)" || { printf '%s\n' "missing $(MAESTRO_REAL_ATTRIBUTE_TSV)"; exit 2; }
-	@tmp="$(CHORD_PRIMARY_COMPONENT_AUDIT).$$$$.tmp"; $(PYTHON) scripts/audit_chord_primary_components.py "$(MAPS_PIANO_ATTRIBUTE_TSV)" "$(MAESTRO_REAL_ATTRIBUTE_TSV)" > "$$tmp" && mv "$$tmp" "$(CHORD_PRIMARY_COMPONENT_AUDIT)" && cat "$(CHORD_PRIMARY_COMPONENT_AUDIT)"
+	@tmp="$(CHORD_PRIMARY_COMPONENT_AUDIT).$$$$.tmp"; $(PYTHON) scripts/audit_chord_primary_components.py "$(MAPS_PIANO_ATTRIBUTE_TSV)" "$(MAESTRO_REAL_ATTRIBUTE_TSV)" $(CHORD_PRIMARY_COMPONENT_ARGS) > "$$tmp" && mv "$$tmp" "$(CHORD_PRIMARY_COMPONENT_AUDIT)" && cat "$(CHORD_PRIMARY_COMPONENT_AUDIT)"
 
 test-audit-chord-primary-components: tests/test_audit_chord_primary_components.py scripts/audit_chord_primary_components.py
 	$(PYTHON) tests/test_audit_chord_primary_components.py

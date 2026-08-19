@@ -298,11 +298,15 @@ Source: `build/chord_primary_component_audit.txt`
 | Metric | Accurate / total | Remaining |
 | --- | ---: | ---: |
 | Correct chords with any displayed alias | 154 / 1415 (10.9%) | 1261 |
-| Correct chords with only the first displayed component | 143 / 1415 (10.1%) | 1272 |
-| Correct chords rescued only by a later alias | 11 / 154 (7.1%) | 143 |
+| Correct chords with only the first displayed component | 152 / 1415 (10.7%) | 1263 |
+| Correct chords rescued only by a later alias | 2 / 154 (1.3%) | 152 |
 | Canonical-first runtime display eligible | 0 / 1 (0.0%) | 1 |
+| Correct chords after same-root dim7 promotion | 154 / 1415 (10.9%) | 1261 |
+| Same-root dim7 runtime promotions observed | 10 / 1415 (0.7%) | 1405 |
+| Known correct-primary labels lost by promotion | 0 / 1415 (0.0%) | 0 |
+| Same-root dim7 runtime display eligible | 1 / 1 (100.0%) | 0 |
 
-Canonical-first display is rejected: later aliases account for correct labelled outcomes in both piano corpora.
+Canonical-first display is rejected: later aliases account for correct labelled outcomes in both piano corpora. The narrower same-root dim7 promotion remains eligible only when it restores every known alias hit without losing a known first-label hit.
 
 ## Violin-to-Guitar safety audit
 

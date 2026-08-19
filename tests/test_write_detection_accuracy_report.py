@@ -653,7 +653,8 @@ class DetectionAccuracyReportTest(unittest.TestCase):
             )
             chord_primary_component_audit = Path(temporary) / "chord_primary_component_audit.txt"
             chord_primary_component_audit.write_text(
-                "chord_primary_component_audit: any_hit=17/20 primary_hit=15/20 alias_rescued=2\n",
+                "chord_primary_component_audit: any_hit=17/20 primary_hit=15/20 alias_rescued=2 "
+                "dim7_primary_hit=17/20 dim7_promotions=2 dim7_regressions=0\n",
                 encoding="utf-8",
             )
             urmp_bass_timing = Path(temporary) / "urmp_bass_timing_audit.tsv"
@@ -794,6 +795,8 @@ class DetectionAccuracyReportTest(unittest.TestCase):
         self.assertIn("| Protected one-shot runtime-safe contexts | 1 / 2 (50.0%) | 1 |", report)
         self.assertIn("## Canonical-first chord display audit", report)
         self.assertIn("| Correct chords rescued only by a later alias | 2 / 17 (11.8%) | 15 |", report)
+        self.assertIn("| Correct chords after same-root dim7 promotion | 17 / 20 (85.0%) | 3 |", report)
+        self.assertIn("| Same-root dim7 runtime display eligible | 1 / 1 (100.0%) | 0 |", report)
         self.assertIn("## URMP double-bass timing-ground-truth audit", report)
         self.assertIn("| URMP double-bass stems qualifying as tempo truth | 0 / 1 (0.0%) | 1 |", report)
         self.assertIn("## Rejected three-corpus keys-to-vocal routing trial", report)

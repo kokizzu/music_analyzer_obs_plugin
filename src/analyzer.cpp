@@ -25563,6 +25563,30 @@ void append_strict_symmetric_dim7_aliases(InstrumentState &state,
 	copy_text(current.label, sizeof(current.label), state.label);
 	for (int offset = 0; offset < 12; offset += 3)
 		append_chord_alias(current, diminished.root + offset, "dim7");
+	// The renderer deliberately shows only the first compact chord component.
+	// When the first component is an ambiguous diminished triad but the same
+	// root's symmetric diminished seventh is already supported, lead with that
+	// more specific label.  The complete alias set is retained for harnesses.
+	char same_root_dim7[16] = {};
+	std::snprintf(same_root_dim7, sizeof(same_root_dim7), "%sdim7", note_name(primary.root));
+	if (chord_label_has_exact_component(current.label, same_root_dim7)) {
+		ChordResult promoted = {};
+		promoted.root = primary.root;
+		promoted.confidence = current.confidence;
+		copy_text(promoted.label, sizeof(promoted.label), same_root_dim7);
+		const char *cursor = current.label;
+		while (cursor && *cursor) {
+			const char *end = std::strchr(cursor, '=');
+			const std::size_t len = end ? static_cast<std::size_t>(end - cursor) : std::strlen(cursor);
+			if (std::strlen(same_root_dim7) != len ||
+			    std::strncmp(cursor, same_root_dim7, len) != 0)
+				append_chord_label_component(promoted.label, sizeof(promoted.label), cursor, len);
+			if (!end)
+				break;
+			cursor = end + 1;
+		}
+		current = promoted;
+	}
 	copy_text(state.label, sizeof(state.label), current.label);
 }
 

@@ -1118,6 +1118,13 @@ void check_extended_chords(Runner &runner)
 				runner.expect(has_chord_label(instrument.chord(snapshot).label, expected_chord),
 					      context + ": expected chord label `" + expected_chord + "`, got `" +
 						      instrument.chord(snapshot).label + "`");
+				if (std::strcmp(instrument.name, "keyboard") == 0 &&
+				    std::strcmp(chord_template.suffix, "dim7") == 0) {
+					runner.expect(chord_primary_label_is(instrument.chord(snapshot).label,
+								       expected_chord.c_str()),
+					      context + ": expected same-root dim7 as the compact primary, got `" +
+						      instrument.chord(snapshot).label + "`");
+				}
 			}
 		}
 	}
