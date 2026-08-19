@@ -94,6 +94,8 @@ bool is_quiet_named_string_g4_recovery_candidate(const char *source_name, int mi
 constexpr float kFullNoteRms = 0.035f;
 constexpr float kNoteRelativeFloor = 0.36f;
 constexpr float kMixedNoteRelativeFloor = 0.08f;
+// Real-mix-only Snare cap independently verified on MDB, STAR, and BabySlakh.
+constexpr bool kEnableSourceScopedKickHeavySnareFalsePositiveCap = true;
 constexpr float kComplexTuningFallbackScale = 0.38f;
 constexpr float kMixedDominantDetunedFallbackScale = 0.62f;
 constexpr int kMixedDominantDetunedFallbackMinMidi = 73;
@@ -34040,6 +34042,16 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 			snapshot.high_energy <= 0.08f &&
 			snapshot.drum_debug_onset <= 3.27f;
 		if (final_real_mix_short_low_treble_snare_context_false_positive)
+			cap_drum_level(Snare, 0.28f);
+
+		// MDB/STAR mining found this kick-heavy, bounded-RMS Snare false-positive
+		// context across six recordings with no annotated Snare loss.  BabySlakh
+		// replay leaves its metrics unchanged, so retain the real-mix-only cap.
+		const bool source_scoped_kick_heavy_snare_false_positive =
+			kEnableSourceScopedKickHeavySnareFalsePositiveCap &&
+			drum_detection_enabled && !one_shot_drum_source &&
+			drum_level_[Snare] > 0.30f && kick_body >= 108.56f && rms <= 0.2712f;
+		if (source_scoped_kick_heavy_snare_false_positive)
 			cap_drum_level(Snare, 0.28f);
 
 		// A low-heavy frame with little Snare crack leaves an apparent HiHat
