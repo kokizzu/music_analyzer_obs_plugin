@@ -5705,7 +5705,7 @@ analyze-independent-piano-chord-evidence: scripts/summarize_cross_corpus_chord_e
 	$(PYTHON) scripts/summarize_cross_corpus_chord_evidence.py "$(MAPS_PIANO_ATTRIBUTE_TSV)" "$(MAESTRO_REAL_ATTRIBUTE_TSV)" > "$(MAESTRO_REAL_CHORD_EVIDENCE_OUTPUT)"
 	@cat "$(MAESTRO_REAL_CHORD_EVIDENCE_OUTPUT)"
 
-.PHONY: analyze-independent-piano-chord-states test-independent-piano-chord-states
+.PHONY: analyze-independent-piano-chord-states test-independent-piano-chord-states audit-independent-piano-exact-chord-fallback test-audit-independent-piano-exact-chord-fallback
 analyze-independent-piano-chord-states: scripts/summarize_independent_piano_chord_states.py
 	@test -s "$(MAPS_PIANO_ATTRIBUTE_TSV)" || { printf '%s\n' "missing $(MAPS_PIANO_ATTRIBUTE_TSV); run make analyze-maps-piano-attributes first"; exit 2; }
 	@test -s "$(MAESTRO_REAL_ATTRIBUTE_TSV)" || { printf '%s\n' "missing $(MAESTRO_REAL_ATTRIBUTE_TSV); run make measure-maestro-real-samples first"; exit 2; }
@@ -5714,6 +5714,14 @@ analyze-independent-piano-chord-states: scripts/summarize_independent_piano_chor
 
 test-independent-piano-chord-states: tests/test_summarize_independent_piano_chord_states.py scripts/summarize_independent_piano_chord_states.py
 	$(PYTHON) tests/test_summarize_independent_piano_chord_states.py
+
+audit-independent-piano-exact-chord-fallback: scripts/audit_independent_piano_exact_chord_fallback.py
+	@test -s "$(MAPS_PIANO_ATTRIBUTE_TSV)" || { printf '%s\n' "missing $(MAPS_PIANO_ATTRIBUTE_TSV)"; exit 2; }
+	@test -s "$(MAESTRO_REAL_ATTRIBUTE_TSV)" || { printf '%s\n' "missing $(MAESTRO_REAL_ATTRIBUTE_TSV)"; exit 2; }
+	$(PYTHON) scripts/audit_independent_piano_exact_chord_fallback.py "$(MAPS_PIANO_ATTRIBUTE_TSV)" "$(MAESTRO_REAL_ATTRIBUTE_TSV)"
+
+test-audit-independent-piano-exact-chord-fallback: tests/test_audit_independent_piano_exact_chord_fallback.py scripts/audit_independent_piano_exact_chord_fallback.py
+	$(PYTHON) tests/test_audit_independent_piano_exact_chord_fallback.py
 
 .PHONY: audit-chord-primary-components test-audit-chord-primary-components
 audit-chord-primary-components: scripts/audit_chord_primary_components.py | $(BUILD_DIR)
