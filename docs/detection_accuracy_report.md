@@ -1556,6 +1556,16 @@ Source: `build/three_tempo_tracker_consensus.log`. A candidate is retained only 
 | Audited rows eligible for offline three-tracker consensus | 18 / 212 (8.5%) | 194 |
 | Offline consensus candidates newly revealed beyond phase display | 11 / 212 (5.2%) | 201 |
 
+### High-tempo three-tracker offline veto audit
+
+Source: build/high_tempo_three_tempo_tracker_consensus.log. This is restricted to annotated BPM ≥150 and can only justify an offline veto/post-processing experiment; it cannot alter live BPM display.
+
+| Metric | Accurate / total | Remaining |
+| --- | ---: | ---: |
+| Correct high-tempo three-tracker consensus candidates | 0 / 0 (0.0%) | 0 wrong candidates |
+| High-tempo annotated rows eligible for consensus | 0 / 65 (0.0%) | 65 |
+| High-tempo candidates newly revealed beyond phase display | 0 / 65 (0.0%) | 65 |
+
 ## FiloBass real bass-led annotated-tempo diagnostic
 
 Source: `build/filobass_bpm_diagnostics.log`. FiloBass pairs real jazz bass stems with reviewed downbeat syncpoints and a MIDI time signature; BPM references are derived only from those corpus annotations.
@@ -1622,6 +1632,7 @@ Tempo estimates are only displayed at calibrated confidence. Source-specific pha
 | Benchmark Beat This! on independent real-tempo corpora | 2 / 2 (100.0%) | 0 | Ballroom and FiloBass annotated stable segments; CPU-only offline evidence |
 | Replay bounded trailing Beat This! windows on real-tempo corpora | 2 / 2 (100.0%) | 0 | window ends at each annotated output time; records correctness and processing budget |
 | Audit phase/BTT/Beat This! offline agreement | 1 / 1 (100.0%) | 0 | every selected candidate must be correct across Ballroom, FiloBass, and GTZAN |
+| Audit high-tempo three-tracker offline veto | 1 / 1 (100.0%) | 0 | every selected ≥150 BPM candidate must be correct across Ballroom, FiloBass, and GTZAN |
 | Demonstrate bounded causal Beat This! live use | 0 / 1 (0.0%) | 1 | prove a rolling, bounded-latency implementation cannot emit a wrong BPM in continuous replay; File2Beats remains non-causal offline inference |
 | IDMT real-bass timing metadata qualifies as beat truth | 0 / 17 (0.0%) | 17 | only corpus-supplied tempo/beat/pattern fields count; note onsets are insufficient |
 | Independent real bass-led beat-labelled validation measured | 1 / 1 (100.0%) | 0 | FiloBass real bass stems plus reviewed downbeats and MIDI time signature |

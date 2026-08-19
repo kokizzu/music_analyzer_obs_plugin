@@ -128,20 +128,32 @@ def main() -> int:
     )
     parser.add_argument("--tolerance", type=float, default=8.0)
     parser.add_argument("--phase-max", type=float, default=0.60)
+    parser.add_argument("--min-expected", type=float, default=0.0,
+                        help="restrict the audit to annotated BPM values at or above this floor")
     parser.add_argument("--btt-gates", default="0.00,0.15,0.25,0.35,0.45,0.55,0.60,0.70,0.80")
     parser.add_argument("--agreement-gates", default="2,4,8,12")
     parser.add_argument("--output", type=Path, help="write the complete audit atomically to this file")
     args = parser.parse_args()
-    if args.tolerance < 0.0 or args.phase_max <= 0.0:
-        parser.error("tolerance must be non-negative and phase-max must be positive")
+    if args.tolerance < 0.0 or args.phase_max <= 0.0 or args.min_expected < 0.0:
+        parser.error("tolerance/min-expected must be non-negative and phase-max must be positive")
     btt_gates = [float(value) for value in args.btt_gates.split(",")]
     agreement_gates = [float(value) for value in args.agreement_gates.split(",")]
     grouped = {
         name: load_rows(name, Path(phase), Path(btt), Path(beat_this))
         for name, phase, btt, beat_this in args.corpus
     }
+    if args.min_expected > 0.0:
+        grouped = {
+            name: [row for row in corpus_rows if row.expected >= args.min_expected]
+            for name, corpus_rows in grouped.items()
+        }
+    if any(not corpus_rows for corpus_rows in grouped.values()):
+        parser.error("at least one corpus has no rows in the requested expected-BPM range")
     rows = [row for corpus_rows in grouped.values() for row in corpus_rows]
-    lines = [f"three-tracker consensus sweep: corpora={len(grouped)} rows={len(rows)}"]
+    lines = [
+        f"three-tracker consensus sweep: corpora={len(grouped)} rows={len(rows)}"
+        f" min_expected={args.min_expected:.2f}"
+    ]
     viable: list[tuple[int, int, int, float, float, dict[str, tuple[int, int, int]]]] = []
     for btt_gate in btt_gates:
         for agreement in agreement_gates:

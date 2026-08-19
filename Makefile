@@ -244,6 +244,7 @@ DETECTION_ACCURACY_KRAISLER_MEASUREMENT_ARG = $(if $(wildcard $(KRAISLER_MEASURE
 DETECTION_ACCURACY_KRAISLER_MEASUREMENT_ARG += $(DETECTION_ACCURACY_CANDOMBE_BPM_ARG)
 DETECTION_ACCURACY_KRAISLER_MEASUREMENT_ARG += $(DETECTION_ACCURACY_CANDOMBE_INSPECTION_ARG)
 DETECTION_ACCURACY_KRAISLER_MEASUREMENT_ARG += $(DETECTION_ACCURACY_THREE_TEMPO_TRACKER_CONSENSUS_ARG)
+DETECTION_ACCURACY_KRAISLER_MEASUREMENT_ARG += $(DETECTION_ACCURACY_HIGH_TEMPO_THREE_TEMPO_TRACKER_CONSENSUS_ARG)
 DETECTION_ACCURACY_KRAISLER_MEASUREMENT_ARG += $(DETECTION_ACCURACY_BEAT_THIS_ROLLING_BALLROOM_ARG) $(DETECTION_ACCURACY_BEAT_THIS_ROLLING_FILOBASS_ARG)
 DETECTION_ACCURACY_KRAISLER_BPM_ARG = $(if $(wildcard $(KRAISLER_BPM_LOG)),--kraisler-bpm-input "$(KRAISLER_BPM_LOG)")
 DETECTION_ACCURACY_BALLROOM_BPM_ARG = $(if $(wildcard $(BALLROOM_BPM_LOG)),--ballroom-bpm-input "$(BALLROOM_BPM_LOG)")
@@ -255,6 +256,7 @@ DETECTION_ACCURACY_BEAT_THIS_FILOBASS_ARG = $(if $(wildcard $(BEAT_THIS_FILOBASS
 DETECTION_ACCURACY_BEAT_THIS_ROLLING_BALLROOM_ARG = $(if $(wildcard $(BEAT_THIS_ROLLING_BALLROOM_LOG)),--beat-this-rolling-ballroom-bpm-input "$(BEAT_THIS_ROLLING_BALLROOM_LOG)")
 DETECTION_ACCURACY_BEAT_THIS_ROLLING_FILOBASS_ARG = $(if $(wildcard $(BEAT_THIS_ROLLING_FILOBASS_LOG)),--beat-this-rolling-filobass-bpm-input "$(BEAT_THIS_ROLLING_FILOBASS_LOG)")
 DETECTION_ACCURACY_THREE_TEMPO_TRACKER_CONSENSUS_ARG = $(if $(wildcard $(THREE_TEMPO_TRACKER_CONSENSUS_LOG)),--three-tempo-tracker-consensus-input "$(THREE_TEMPO_TRACKER_CONSENSUS_LOG)")
+DETECTION_ACCURACY_HIGH_TEMPO_THREE_TEMPO_TRACKER_CONSENSUS_ARG = $(if $(wildcard $(HIGH_TEMPO_THREE_TEMPO_TRACKER_CONSENSUS_LOG)),--high-tempo-three-tracker-consensus-input "$(HIGH_TEMPO_THREE_TEMPO_TRACKER_CONSENSUS_LOG)")
 DETECTION_ACCURACY_CANDOMBE_BPM_ARG = $(if $(wildcard $(CANDOMBE_BPM_LOG)),--candombe-bpm-input "$(CANDOMBE_BPM_LOG)")
 DETECTION_ACCURACY_CANDOMBE_INSPECTION_ARG = $(if $(wildcard $(CANDOMBE_INSPECTION_OUTPUT)),--candombe-inspection "$(CANDOMBE_INSPECTION_OUTPUT)")
 DETECTION_ACCURACY_FILOBASS_BPM_ARG = $(if $(wildcard $(FILOBASS_BPM_LOG)),--filobass-bpm-input "$(FILOBASS_BPM_LOG)")
@@ -998,6 +1000,7 @@ BEAT_THIS_FILOBASS_LOG ?= $(BUILD_DIR)/beat_this_final0_filobass_bpm_diagnostics
 BEAT_THIS_ROLLING_BALLROOM_LOG ?= $(BUILD_DIR)/beat_this_final0_rolling_ballroom_bpm_diagnostics.log
 BEAT_THIS_ROLLING_FILOBASS_LOG ?= $(BUILD_DIR)/beat_this_final0_rolling_filobass_bpm_diagnostics.log
 THREE_TEMPO_TRACKER_CONSENSUS_LOG ?= $(BUILD_DIR)/three_tempo_tracker_consensus.log
+HIGH_TEMPO_THREE_TEMPO_TRACKER_CONSENSUS_LOG ?= $(BUILD_DIR)/high_tempo_three_tempo_tracker_consensus.log
 BEAT_THIS_DIAGNOSTIC_MODEL ?= final0
 BTT_EGMD_LOG ?= $(BUILD_DIR)/btt_egmd_bpm_diagnostics.log
 BTT_HIGH_TEMPO_MIN ?= 120
@@ -5905,7 +5908,7 @@ summarize-beat-this-rolling-tempo: scripts/summarize_beat_this_bpm.py $(BEAT_THI
 summarize-permissive-beat-tracker-gtzan-rhythm: scripts/inspect_tempo_confidence_calibration.py $(BTT_GTZAN_RHYTHM_LOG)
 	$(PYTHON) scripts/inspect_tempo_confidence_calibration.py --prefix "BTT tempo diag" --tolerance "$(BPM_DIAG_TOLERANCE)" "$(BTT_GTZAN_RHYTHM_LOG)"
 
-.PHONY: inspect-tempo-tracker-consensus test-inspect-tempo-tracker-consensus inspect-three-tempo-tracker-consensus test-inspect-three-tempo-tracker-consensus
+.PHONY: inspect-tempo-tracker-consensus test-inspect-tempo-tracker-consensus inspect-three-tempo-tracker-consensus inspect-high-tempo-three-tracker-consensus test-inspect-three-tempo-tracker-consensus
 inspect-tempo-tracker-consensus: scripts/inspect_tempo_tracker_consensus.py $(BALLROOM_BPM_LOG) $(BTT_BALLROOM_LOG) $(FILOBASS_BPM_LOG) $(BTT_FILOBASS_LOG) $(GTZAN_RHYTHM_BPM_LOG) $(BTT_GTZAN_RHYTHM_LOG)
 	$(PYTHON) scripts/inspect_tempo_tracker_consensus.py --tolerance "$(BPM_DIAG_TOLERANCE)" --phase-gates "$(TEMPO_CONSENSUS_PHASE_GATES)" --btt-gates "$(TEMPO_CONSENSUS_BTT_GATES)" --agreement-gates "$(TEMPO_CONSENSUS_AGREEMENT_GATES)" --corpus Ballroom "$(BALLROOM_BPM_LOG)" "$(BTT_BALLROOM_LOG)" --corpus FiloBass "$(FILOBASS_BPM_LOG)" "$(BTT_FILOBASS_LOG)" --corpus GTZAN "$(GTZAN_RHYTHM_BPM_LOG)" "$(BTT_GTZAN_RHYTHM_LOG)"
 
@@ -5915,6 +5918,10 @@ test-inspect-tempo-tracker-consensus: tests/test_inspect_tempo_tracker_consensus
 inspect-three-tempo-tracker-consensus: scripts/inspect_three_tempo_tracker_consensus.py $(BALLROOM_BPM_LOG) $(BTT_BALLROOM_LOG) $(BEAT_THIS_BALLROOM_LOG) $(FILOBASS_BPM_LOG) $(BTT_FILOBASS_LOG) $(BEAT_THIS_FILOBASS_LOG) $(GTZAN_RHYTHM_BPM_LOG) $(BTT_GTZAN_RHYTHM_LOG) $(BEAT_THIS_DIAGNOSTIC_LOG)
 	$(PYTHON) scripts/inspect_three_tempo_tracker_consensus.py --tolerance "$(BPM_DIAG_TOLERANCE)" --corpus Ballroom "$(BALLROOM_BPM_LOG)" "$(BTT_BALLROOM_LOG)" "$(BEAT_THIS_BALLROOM_LOG)" --corpus FiloBass "$(FILOBASS_BPM_LOG)" "$(BTT_FILOBASS_LOG)" "$(BEAT_THIS_FILOBASS_LOG)" --corpus GTZAN "$(GTZAN_RHYTHM_BPM_LOG)" "$(BTT_GTZAN_RHYTHM_LOG)" "$(BEAT_THIS_DIAGNOSTIC_LOG)" --output "$(THREE_TEMPO_TRACKER_CONSENSUS_LOG)"
 	cat "$(THREE_TEMPO_TRACKER_CONSENSUS_LOG)"
+
+inspect-high-tempo-three-tracker-consensus: scripts/inspect_three_tempo_tracker_consensus.py $(BALLROOM_BPM_LOG) $(BTT_BALLROOM_LOG) $(BEAT_THIS_BALLROOM_LOG) $(FILOBASS_BPM_LOG) $(BTT_FILOBASS_LOG) $(BEAT_THIS_FILOBASS_LOG) $(GTZAN_RHYTHM_BPM_LOG) $(BTT_GTZAN_RHYTHM_LOG) $(BEAT_THIS_DIAGNOSTIC_LOG)
+	$(PYTHON) scripts/inspect_three_tempo_tracker_consensus.py --tolerance "$(BPM_DIAG_TOLERANCE)" --min-expected 150 --corpus Ballroom "$(BALLROOM_BPM_LOG)" "$(BTT_BALLROOM_LOG)" "$(BEAT_THIS_BALLROOM_LOG)" --corpus FiloBass "$(FILOBASS_BPM_LOG)" "$(BTT_FILOBASS_LOG)" "$(BEAT_THIS_FILOBASS_LOG)" --corpus GTZAN "$(GTZAN_RHYTHM_BPM_LOG)" "$(BTT_GTZAN_RHYTHM_LOG)" "$(BEAT_THIS_DIAGNOSTIC_LOG)" --output "$(HIGH_TEMPO_THREE_TEMPO_TRACKER_CONSENSUS_LOG)"
+	cat "$(HIGH_TEMPO_THREE_TEMPO_TRACKER_CONSENSUS_LOG)"
 
 test-inspect-three-tempo-tracker-consensus: tests/test_inspect_three_tempo_tracker_consensus.py scripts/inspect_three_tempo_tracker_consensus.py
 	$(PYTHON) tests/test_inspect_three_tempo_tracker_consensus.py

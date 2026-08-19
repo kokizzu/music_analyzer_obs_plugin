@@ -1023,6 +1023,8 @@ def three_tempo_tracker_consensus_counts(path: Path) -> tuple[int, int, int, int
                 raise ValueError(f"{path}: missing three-tracker row count")
             audited = int(match.group(1))
         elif line.startswith("three-tracker consensus viable:"):
+            if line.strip() == "three-tracker consensus viable: none":
+                continue
             match = re.search(r"\bcorrect=(\d+)/(\d+)\b.*?\bnewly_revealed=(\d+)", line)
             if match is None:
                 raise ValueError(f"{path}: invalid three-tracker viable summary")
@@ -1264,6 +1266,7 @@ def render(
     beat_this_rolling_ballroom_bpm_input: Path | None = None,
     beat_this_rolling_filobass_bpm_input: Path | None = None,
     three_tempo_tracker_consensus_input: Path | None = None,
+    high_tempo_three_tracker_consensus_input: Path | None = None,
     candombe_bpm_input: Path | None = None,
     candombe_inspection: Path | None = None,
     btt_ballroom_bpm_input: Path | None = None,
@@ -1314,6 +1317,10 @@ def render(
     three_tempo_tracker_consensus = (
         three_tempo_tracker_consensus_counts(three_tempo_tracker_consensus_input)
         if three_tempo_tracker_consensus_input else None
+    )
+    high_tempo_three_tracker_consensus = (
+        three_tempo_tracker_consensus_counts(high_tempo_three_tracker_consensus_input)
+        if high_tempo_three_tracker_consensus_input else None
     )
     btt_ballroom = (
         {floor: permissive_tracker_tempo_counts(btt_ballroom_bpm_input, floor)
@@ -2831,6 +2838,22 @@ def render(
                 f"| Offline consensus candidates newly revealed beyond phase display | {fraction(newly_revealed, audited)} | {audited - newly_revealed} |",
             ]
         )
+    if high_tempo_three_tracker_consensus is not None:
+        correct, selected, newly_revealed, audited = high_tempo_three_tracker_consensus
+        lines.extend(
+            [
+                "",
+                "### High-tempo three-tracker offline veto audit",
+                "",
+                f"Source: {high_tempo_three_tracker_consensus_input.as_posix()}. This is restricted to annotated BPM ≥150 and can only justify an offline veto/post-processing experiment; it cannot alter live BPM display.",
+                "",
+                "| Metric | Accurate / total | Remaining |",
+                "| --- | ---: | ---: |",
+                f"| Correct high-tempo three-tracker consensus candidates | {fraction(correct, selected)} | {selected - correct} wrong candidates |",
+                f"| High-tempo annotated rows eligible for consensus | {fraction(selected, audited)} | {audited - selected} |",
+                f"| High-tempo candidates newly revealed beyond phase display | {fraction(newly_revealed, audited)} | {audited - newly_revealed} |",
+            ]
+        )
     if filobass_bpm is not None:
         accurate, total = filobass_bpm
         lines.extend(
@@ -2930,6 +2953,7 @@ def render(
             f"| Benchmark Beat This! on independent real-tempo corpora | {fraction(int(beat_this_ballroom_bpm is not None) + int(beat_this_filobass_bpm is not None), 2)} | {2 - int(beat_this_ballroom_bpm is not None) - int(beat_this_filobass_bpm is not None)} | Ballroom and FiloBass annotated stable segments; CPU-only offline evidence |",
             f"| Replay bounded trailing Beat This! windows on real-tempo corpora | {fraction(int(beat_this_rolling_ballroom_bpm is not None) + int(beat_this_rolling_filobass_bpm is not None), 2)} | {2 - int(beat_this_rolling_ballroom_bpm is not None) - int(beat_this_rolling_filobass_bpm is not None)} | window ends at each annotated output time; records correctness and processing budget |",
             f"| Audit phase/BTT/Beat This! offline agreement | {fraction(int(three_tempo_tracker_consensus is not None), 1)} | {int(three_tempo_tracker_consensus is None)} | every selected candidate must be correct across Ballroom, FiloBass, and GTZAN |",
+            f"| Audit high-tempo three-tracker offline veto | {fraction(int(high_tempo_three_tracker_consensus is not None), 1)} | {int(high_tempo_three_tracker_consensus is None)} | every selected ≥150 BPM candidate must be correct across Ballroom, FiloBass, and GTZAN |",
             "| Demonstrate bounded causal Beat This! live use | 0 / 1 (0.0%) | 1 | prove a rolling, bounded-latency implementation cannot emit a wrong BPM in continuous replay; File2Beats remains non-causal offline inference |",
             f"| IDMT real-bass timing metadata qualifies as beat truth | {fraction(idmt_bass_timing[0], idmt_bass_timing[1]) if idmt_bass_timing is not None else '0 / 1 (0.0%)'} | {idmt_bass_timing[1] - idmt_bass_timing[0] if idmt_bass_timing is not None else 1} | only corpus-supplied tempo/beat/pattern fields count; note onsets are insufficient |",
             f"| Independent real bass-led beat-labelled validation measured | {fraction(int(filobass_bpm is not None), 1)} | {int(filobass_bpm is None)} | FiloBass real bass stems plus reviewed downbeats and MIDI time signature |",
@@ -3179,6 +3203,7 @@ def main() -> int:
     parser.add_argument("--beat-this-rolling-ballroom-bpm-input", type=Path)
     parser.add_argument("--beat-this-rolling-filobass-bpm-input", type=Path)
     parser.add_argument("--three-tempo-tracker-consensus-input", type=Path)
+    parser.add_argument("--high-tempo-three-tracker-consensus-input", type=Path)
     parser.add_argument("--candombe-bpm-input", type=Path)
     parser.add_argument("--candombe-inspection", type=Path)
     parser.add_argument("--btt-ballroom-bpm-input", type=Path)
@@ -3299,6 +3324,7 @@ def main() -> int:
             args.beat_this_rolling_ballroom_bpm_input,
             args.beat_this_rolling_filobass_bpm_input,
             args.three_tempo_tracker_consensus_input,
+            args.high_tempo_three_tracker_consensus_input,
             args.candombe_bpm_input,
             args.candombe_inspection,
             args.btt_ballroom_bpm_input,
