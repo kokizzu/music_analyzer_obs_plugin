@@ -1864,4 +1864,16 @@ Source: `build/mdb_drums_windows.log.summary`
 | MDB Drums — detected-drum precision | 139 / 199 (69.8%) | 60 false predictions |
 | MDB Drums — windows without a false drum | 43 / 92 (46.7%) | 49 false-positive windows |
 
+## BabySlakh drum-validation checklist
+
+BabySlakh is an independently rendered 16 kHz multitrack corpus with aligned per-stem MIDI. It strengthens calibration coverage but cannot replace real-recording evidence.
+
+| Work item | Complete / total | Remaining | Evidence required |
+| --- | ---: | ---: | --- |
+| Store checksum-verified archive in InstrumentSamples | 0 / 1 (0.0%) | 1 | archive moved only after the official MD5 passes |
+| Extract archive safely in InstrumentSamples | 0 / 1 (0.0%) | 1 | traversal-safe extractor output |
+| Inspect and prepare all published drum full mixes | 0 / 20 (0.0%) | 20 | metadata-selected drum MIDI with linked mix WAV |
+| Measure rendered full-mix drum baseline | 0 / 1 (0.0%) | 1 | analyzer_egmd x/total summary |
+| Re-evaluate a drum change across real MDB/STAR and BabySlakh | 0 / 1 (0.0%) | 1 | independently measured no-regression decision |
+
 Refresh with `make update-detection-accuracy-report`. Whenever a verified detection metric changes, update this report in the same commit.

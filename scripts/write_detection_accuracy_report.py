@@ -1384,8 +1384,20 @@ def render(
     btt_high_tempo_ballroom_bpm_input: Path | None = None,
     btt_high_tempo_filobass_bpm_input: Path | None = None,
     babyslakh_drums_gate_output: Path | None = None,
+    babyslakh_archive: Path | None = None,
+    babyslakh_extraction: Path | None = None,
+    babyslakh_manifest: Path | None = None,
 ) -> str:
     samples = load_samples(input_path)
+    babyslakh_archive_ready = int(babyslakh_archive is not None and babyslakh_archive.is_file())
+    babyslakh_extraction_ready = int(babyslakh_extraction is not None and babyslakh_extraction.is_dir())
+    babyslakh_fixture_rows = 0
+    if babyslakh_manifest is not None and babyslakh_manifest.is_file():
+        with babyslakh_manifest.open(encoding="utf-8") as manifest_file:
+            babyslakh_fixture_rows = len(list(csv.DictReader(manifest_file)))
+    babyslakh_measurement_ready = int(
+        babyslakh_drums_gate_output is not None and babyslakh_drums_gate_output.is_file()
+    )
     dcs_rows = dagstuhl_choirset_rows(dagstuhl_choirset_input) if dagstuhl_choirset_input else []
     dcs_validation_ready = int(dagstuhl_choirset_validation is not None and dagstuhl_choirset_validation.is_file())
     dcs_inspection_ready = int(dagstuhl_choirset_inspection is not None and dagstuhl_choirset_inspection.is_file())
@@ -3444,6 +3456,23 @@ def render(
     lines.extend(
         [
             "",
+            "## BabySlakh drum-validation checklist",
+            "",
+            "BabySlakh is an independently rendered 16 kHz multitrack corpus with aligned per-stem MIDI. "
+            "It strengthens calibration coverage but cannot replace real-recording evidence.",
+            "",
+            "| Work item | Complete / total | Remaining | Evidence required |",
+            "| --- | ---: | ---: | --- |",
+            f"| Store checksum-verified archive in InstrumentSamples | {fraction(babyslakh_archive_ready, 1)} | {1 - babyslakh_archive_ready} | archive moved only after the official MD5 passes |",
+            f"| Extract archive safely in InstrumentSamples | {fraction(babyslakh_extraction_ready, 1)} | {1 - babyslakh_extraction_ready} | traversal-safe extractor output |",
+            f"| Inspect and prepare all published drum full mixes | {fraction(min(20, babyslakh_fixture_rows), 20)} | {max(0, 20 - babyslakh_fixture_rows)} | metadata-selected drum MIDI with linked mix WAV |",
+            f"| Measure rendered full-mix drum baseline | {fraction(babyslakh_measurement_ready, 1)} | {1 - babyslakh_measurement_ready} | analyzer_egmd x/total summary |",
+            "| Re-evaluate a drum change across real MDB/STAR and BabySlakh | 0 / 1 (0.0%) | 1 | independently measured no-regression decision |",
+        ]
+    )
+    lines.extend(
+        [
+            "",
             "Refresh with `make update-detection-accuracy-report`. Whenever a verified detection "
             "metric changes, update this report in the same commit.",
             "",
@@ -3486,6 +3515,9 @@ def main() -> int:
     parser.add_argument("--star-drums-gate-output", type=Path)
     parser.add_argument("--mdb-drums-gate-output", type=Path)
     parser.add_argument("--babyslakh-drums-gate-output", type=Path)
+    parser.add_argument("--babyslakh-archive", type=Path)
+    parser.add_argument("--babyslakh-extraction", type=Path)
+    parser.add_argument("--babyslakh-manifest", type=Path)
     parser.add_argument("--dagstuhl-choirset-input", type=Path)
     parser.add_argument("--dagstuhl-choirset-validation", type=Path)
     parser.add_argument("--dagstuhl-choirset-inspection", type=Path)
@@ -3673,6 +3705,9 @@ def main() -> int:
             args.btt_high_tempo_ballroom_bpm_input,
             args.btt_high_tempo_filobass_bpm_input,
             args.babyslakh_drums_gate_output,
+            args.babyslakh_archive,
+            args.babyslakh_extraction,
+            args.babyslakh_manifest,
         )
     except (OSError, ValueError) as error:
         parser.error(str(error))

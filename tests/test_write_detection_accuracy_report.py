@@ -572,6 +572,16 @@ class DetectionAccuracyReportTest(unittest.TestCase):
                 "recall by category kick:30/40-0, tp/fp/fn 101/65/39, hits min/avg/max 1/2.14/4)\n",
                 encoding="utf-8",
             )
+            babyslakh_archive = Path(temporary) / "babyslakh.tar.gz"
+            babyslakh_archive.write_bytes(b"verified fixture")
+            babyslakh_extraction = Path(temporary) / "babyslakh-extracted"
+            babyslakh_extraction.mkdir()
+            babyslakh_manifest = Path(temporary) / "babyslakh-e-gmd-v1.0.0.csv"
+            babyslakh_manifest.write_text(
+                "id,audio_filename,midi_filename\n" +
+                "".join(f"Track{index:05d},audio/{index}.wav,midi/{index}.mid\n" for index in range(20)),
+                encoding="utf-8",
+            )
             urmp = Path(temporary) / "urmp.out"
             urmp.write_text(
                 "URMP separated-track precision: expected >=90%, got 90/100 (isolated precision 90.00%, recall 75.00%)\n"
@@ -753,6 +763,9 @@ class DetectionAccuracyReportTest(unittest.TestCase):
                 star_drums_gate_output=star_drums,
                 mdb_drums_gate_output=mdb_drums,
                 babyslakh_drums_gate_output=babyslakh_drums,
+                babyslakh_archive=babyslakh_archive,
+                babyslakh_extraction=babyslakh_extraction,
+                babyslakh_manifest=babyslakh_manifest,
                 dagstuhl_choirset_input=dcs_measurement,
                 dagstuhl_choirset_validation=dcs_validation,
                 dagstuhl_choirset_inspection=dcs_inspection,
@@ -999,6 +1012,11 @@ class DetectionAccuracyReportTest(unittest.TestCase):
         self.assertIn("| BabySlakh rendered mixes — annotated drum events detected | 101 / 140 (72.1%) | 39 |", report)
         self.assertIn("| BabySlakh rendered mixes — detected-drum precision | 101 / 166 (60.8%) | 65 false predictions |", report)
         self.assertIn("| BabySlakh rendered mixes — windows without a false drum | 48 / 80 (60.0%) | 32 false-positive windows |", report)
+        self.assertIn("## BabySlakh drum-validation checklist", report)
+        self.assertIn("| Store checksum-verified archive in InstrumentSamples | 1 / 1 (100.0%) | 0 |", report)
+        self.assertIn("| Extract archive safely in InstrumentSamples | 1 / 1 (100.0%) | 0 |", report)
+        self.assertIn("| Inspect and prepare all published drum full mixes | 20 / 20 (100.0%) | 0 |", report)
+        self.assertIn("| Measure rendered full-mix drum baseline | 1 / 1 (100.0%) | 0 |", report)
 
 
 if __name__ == "__main__":
