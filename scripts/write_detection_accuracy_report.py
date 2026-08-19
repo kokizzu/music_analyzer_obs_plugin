@@ -3475,6 +3475,18 @@ def render(
             f"| Inspect and prepare all published drum full mixes | {fraction(min(20, babyslakh_fixture_rows), 20)} | {max(0, 20 - babyslakh_fixture_rows)} | metadata-selected drum MIDI with linked mix WAV |",
             f"| Measure rendered full-mix drum baseline | {fraction(babyslakh_measurement_ready, 1)} | {1 - babyslakh_measurement_ready} | analyzer_egmd x/total summary |",
             f"| Re-evaluate a drum change across real MDB/STAR and BabySlakh | {fraction(babyslakh_calibration_ready, 1)} | {1 - babyslakh_calibration_ready} | independently measured retain-or-change decision |",
+            ]
+        )
+    lines.extend(
+        [
+            "",
+            "## Real-drum Tom/Ride/Rim coverage checklist",
+            "",
+            "The full one-shot gate has broad category counts, but its weak Tom/Ride/Rim results need independent real-acoustic replication before a class-specific runtime rule can be trusted.",
+            "",
+            "| Work item | Complete / total | Remaining | Evidence required |",
+            "| --- | ---: | ---: | --- |",
+            "| Independently replicable real-acoustic Tom/Ride/Rim corpus available | 0 / 1 (0.0%) | 1 | ENST-Drums has suitable labelled classes but requires a signed research-use agreement; its annotation mirror alone is insufficient |",
         ]
     )
     lines.extend(

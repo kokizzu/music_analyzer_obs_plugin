@@ -823,6 +823,11 @@ class DetectionAccuracyReportTest(unittest.TestCase):
         self.assertIn("## Extended owner-classifier leave-one-corpus-out audit", report)
         self.assertIn("| LOCO corpora improved over current owner | 8 / 9 (88.9%) | 1 |", report)
         self.assertIn("## Drum-primary leave-one-corpus-out classifier audit", report)
+        self.assertIn("## Real-drum Tom/Ride/Rim coverage checklist", report)
+        self.assertIn(
+            "| Independently replicable real-acoustic Tom/Ride/Rim corpus available | 0 / 1 (0.0%) | 1 |",
+            report,
+        )
         self.assertIn("| Aggregate classifier accuracy | 10 / 30 (33.3%) | 20 |", report)
         self.assertIn("## Cross-real drum false-positive cap audit", report)
         self.assertIn("| Cross-real candidates safe on protected one-shot primaries | 0 / 2 (0.0%) | 2 |", report)

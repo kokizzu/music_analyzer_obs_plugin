@@ -254,11 +254,11 @@ Source: `build/drum_primary_loco_audit.txt`
 | Metric | Accurate / total | Remaining |
 | --- | ---: | ---: |
 | LOCO corpora improved over current primary detector | 0 / 3 (0.0%) | 3 |
-| Aggregate current-primary accuracy | 18953 / 22681 (83.6%) | 3728 |
+| Aggregate current-primary accuracy | 18952 / 22681 (83.6%) | 3729 |
 | Aggregate classifier accuracy | 14189 / 22681 (62.6%) | 8492 |
 | Runtime drum classifier eligible | 0 / 1 (0.0%) | 1 |
 
-The experiment is rejected: held-out classification regresses (tom=-2074 ride=-277 rim=-299) instead of improving the protected Tom/Ride/Rim classes.
+The experiment is rejected: held-out classification regresses (tom=-2074 ride=-276 rim=-299) instead of improving the protected Tom/Ride/Rim classes.
 
 ## Cross-real drum false-positive cap audit
 
@@ -296,8 +296,8 @@ Source: `build/mdb_full_mix_competing_active_context_audit.txt`
 
 | Metric | Accurate / total | Remaining |
 | --- | ---: | ---: |
-| Remaining competing-drum contexts examined | 19 / 19 (100.0%) | 0 |
-| Remaining contexts safe for an isolated runtime experiment | 6 / 19 (31.6%) | 13 |
+| Remaining competing-drum contexts examined | 12 / 12 (100.0%) | 0 |
+| Remaining contexts safe for an isolated runtime experiment | 3 / 12 (25.0%) | 9 |
 | Further source-scoped context work available | 1 / 1 (100.0%) | 0 |
 
 Only independently re-measured contexts may be enabled; eligible contexts can overlap and are not assumed safe in combination.
@@ -1887,5 +1887,13 @@ BabySlakh is an independently rendered 16 kHz multitrack corpus with aligned per
 | Inspect and prepare all published drum full mixes | 20 / 20 (100.0%) | 0 | metadata-selected drum MIDI with linked mix WAV |
 | Measure rendered full-mix drum baseline | 1 / 1 (100.0%) | 0 | analyzer_egmd x/total summary |
 | Re-evaluate a drum change across real MDB/STAR and BabySlakh | 1 / 1 (100.0%) | 0 | independently measured retain-or-change decision |
+
+## Real-drum Tom/Ride/Rim coverage checklist
+
+The full one-shot gate has broad category counts, but its weak Tom/Ride/Rim results need independent real-acoustic replication before a class-specific runtime rule can be trusted.
+
+| Work item | Complete / total | Remaining | Evidence required |
+| --- | ---: | ---: | --- |
+| Independently replicable real-acoustic Tom/Ride/Rim corpus available | 0 / 1 (0.0%) | 1 | ENST-Drums has suitable labelled classes but requires a signed research-use agreement; its annotation mirror alone is insufficient |
 
 Refresh with `make update-detection-accuracy-report`. Whenever a verified detection metric changes, update this report in the same commit.
