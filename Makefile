@@ -865,6 +865,9 @@ BABYSLAKH_ARCHIVE_URL ?= https://zenodo.org/record/4603870/files/babyslakh_16k.t
 BABYSLAKH_ARCHIVE_MD5 ?= 311096dc2bde7d61c97e930edbfc7f78
 BABYSLAKH_EXTRACTED_DIR ?= $(BABYSLAKH_SOURCE_DIR)/extracted
 BABYSLAKH_REQUIRED_TRACKS ?= 20
+BABYSLAKH_DRUMS_SAMPLE_DIR ?= $(INSTRUMENT_SAMPLE_STORE_LINK)/babyslakh_drums_samples
+BABYSLAKH_DRUMS_MIN_RECORDINGS ?= $(BABYSLAKH_REQUIRED_TRACKS)
+BABYSLAKH_DRUMS_LOG ?= $(BUILD_DIR)/babyslakh_drums_diagnostics.log
 BPM_DIAG_TOLERANCE ?= 8
 EGMD_BPM_MAX_SECONDS ?= 20
 MDB_BPM_MAX_SECONDS ?= 20
@@ -2521,7 +2524,7 @@ prepare-mdb-drums-samples: scripts/prepare_mdb_drums_samples.py scripts/run_with
 	+@if [ -L "$(MDB_DRUMS_SAMPLE_DIR)" ]; then :; else $(MAKE) ensure-build-sample-storage-link BUILD_SAMPLE_STORAGE_DIR="$(notdir $(MDB_DRUMS_SAMPLE_DIR))"; fi
 	$(SHELL) scripts/run_with_lock.sh "$(MDB_DRUMS_PREP_LOCK_DIR)" -- env MDB_DRUMS_SAMPLE_DIR="$(MDB_DRUMS_SAMPLE_DIR)" MDB_DRUMS_SOURCE_ROOT="$(MDB_DRUMS_SOURCE_ROOT)" MDB_DRUMS_AUDIO_FLAVOR="$(MDB_DRUMS_AUDIO_FLAVOR)" MDB_DRUMS_RECORDING_LIMIT="$(MDB_DRUMS_RECORDING_LIMIT)" MDB_DRUMS_MIN_RECORDINGS="$(MDB_DRUMS_MIN_RECORDINGS)" $(PYTHON) scripts/prepare_mdb_drums_samples.py --output "$(MDB_DRUMS_SAMPLE_DIR)" --source-root "$(MDB_DRUMS_SOURCE_ROOT)" --audio-flavor "$(MDB_DRUMS_AUDIO_FLAVOR)" --limit "$(MDB_DRUMS_RECORDING_LIMIT)" --min-recordings "$(MDB_DRUMS_MIN_RECORDINGS)"
 
-.PHONY: download-babyslakh test-download-babyslakh-script download-babyslakh-background stop-babyslakh-background inspect-babyslakh-download inspect-babyslakh-downloader test-download-babyslakh-background-scripts test-inspect-babyslakh-archive test-extract-babyslakh-archive inspect-babyslakh-archive inspect-babyslakh-archive-existing extract-babyslakh inspect-babyslakh
+.PHONY: download-babyslakh test-download-babyslakh-script download-babyslakh-background stop-babyslakh-background inspect-babyslakh-download inspect-babyslakh-downloader test-download-babyslakh-background-scripts test-inspect-babyslakh-archive test-extract-babyslakh-archive test-prepare-babyslakh-drums inspect-babyslakh-archive inspect-babyslakh-archive-existing extract-babyslakh inspect-babyslakh prepare-babyslakh-drums measure-babyslakh-drums
 download-babyslakh: scripts/download_babyslakh.sh
 	$(SHELL) scripts/download_babyslakh.sh "$(BABYSLAKH_ARCHIVE)" "$(BABYSLAKH_ARCHIVE_URL)" "$(BABYSLAKH_ARCHIVE_MD5)"
 
@@ -2552,6 +2555,9 @@ test-inspect-babyslakh-archive: tests/test_inspect_babyslakh_archive.py scripts/
 test-extract-babyslakh-archive: tests/test_extract_babyslakh_archive.py scripts/extract_babyslakh_archive.py
 	$(PYTHON) tests/test_extract_babyslakh_archive.py
 
+test-prepare-babyslakh-drums: tests/test_prepare_babyslakh_drums.py scripts/prepare_babyslakh_drums.py tests/inspect_slakh_dataset.py
+	$(PYTHON) tests/test_prepare_babyslakh_drums.py
+
 inspect-babyslakh-archive: download-babyslakh scripts/inspect_babyslakh_archive.py
 	$(PYTHON) scripts/inspect_babyslakh_archive.py "$(BABYSLAKH_ARCHIVE)"
 
@@ -2563,6 +2569,13 @@ extract-babyslakh: inspect-babyslakh-archive scripts/extract_babyslakh_archive.p
 
 inspect-babyslakh: extract-babyslakh tests/inspect_slakh_dataset.py
 	MUSIC_ANALYZER_SLAKH_ROOT="$(BABYSLAKH_EXTRACTED_DIR)" MUSIC_ANALYZER_SLAKH_REQUIRED_TRACKS="$(BABYSLAKH_REQUIRED_TRACKS)" $(PYTHON) tests/inspect_slakh_dataset.py
+
+prepare-babyslakh-drums: inspect-babyslakh scripts/prepare_babyslakh_drums.py tests/inspect_slakh_dataset.py
+	$(PYTHON) scripts/prepare_babyslakh_drums.py --root "$(BABYSLAKH_EXTRACTED_DIR)" --output "$(BABYSLAKH_DRUMS_SAMPLE_DIR)" --min-recordings "$(BABYSLAKH_DRUMS_MIN_RECORDINGS)"
+
+measure-babyslakh-drums: $(BUILD_DIR)/analyzer_egmd prepare-babyslakh-drums | $(BUILD_DIR)
+	env MUSIC_ANALYZER_EGMD_ROOT="$(BABYSLAKH_DRUMS_SAMPLE_DIR)" MUSIC_ANALYZER_EGMD_SOURCE_NAME="BabySlakh drums" MUSIC_ANALYZER_EGMD_REQUIRED_RECORDINGS="$(BABYSLAKH_DRUMS_MIN_RECORDINGS)" MUSIC_ANALYZER_EGMD_REQUIRED_WINDOWS=1 MUSIC_ANALYZER_EGMD_MIN_RECALL_PERCENT=0 MUSIC_ANALYZER_EGMD_MIN_PRECISION_PERCENT=0 MUSIC_ANALYZER_EGMD_MAX_FALSE_POSITIVE_WINDOWS_PERCENT=100 $(BUILD_DIR)/analyzer_egmd > "$(BABYSLAKH_DRUMS_LOG)" 2>&1
+	cat "$(BABYSLAKH_DRUMS_LOG)"
 
 test-mdb-drums-samples: test-mdb-drums-samples-parallel
 
