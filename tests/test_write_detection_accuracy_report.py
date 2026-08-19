@@ -653,6 +653,22 @@ class DetectionAccuracyReportTest(unittest.TestCase):
                 "two\t100\t50\t1\t3\t1\t0.8\n",
                 encoding="utf-8",
             )
+            beat_this_ballroom = Path(temporary) / "beat_this_ballroom.log"
+            beat_this_ballroom.write_text(
+                "Beat This tempo diag\tid=1\texpected=120.00\traw=120.00\terror=0.00\tstatus=hit\n",
+                encoding="utf-8",
+            )
+            beat_this_filobass = Path(temporary) / "beat_this_filobass.log"
+            beat_this_filobass.write_text(
+                "Beat This tempo diag\tid=1\texpected=100.00\traw=100.00\terror=0.00\tstatus=hit\n",
+                encoding="utf-8",
+            )
+            three_tracker_consensus = Path(temporary) / "three_tracker_consensus.log"
+            three_tracker_consensus.write_text(
+                "three-tracker consensus sweep: corpora=3 rows=3\n"
+                "three-tracker consensus viable: correct=2/2 newly_revealed=1 phase_max=0.60 btt_gate=0.00 agreement=8.00\n",
+                encoding="utf-8",
+            )
             ballroom_annotations = Path(temporary) / "ballroom-annotations"
             (ballroom_annotations / ".git").mkdir(parents=True)
             report = REPORT.render(
@@ -697,6 +713,9 @@ class DetectionAccuracyReportTest(unittest.TestCase):
                 idmt_bass_tempo_metadata_input=idmt_bass_timing,
                 filobass_bpm_input=filobass_bpm,
                 filobass_onset_diagnostic_input=filobass_onsets,
+                beat_this_ballroom_bpm_input=beat_this_ballroom,
+                beat_this_filobass_bpm_input=beat_this_filobass,
+                three_tempo_tracker_consensus_input=three_tracker_consensus,
                 ballroom_annotations=ballroom_annotations,
             )
 
@@ -753,6 +772,15 @@ class DetectionAccuracyReportTest(unittest.TestCase):
         self.assertIn("| MAESTRO |", report)
         self.assertIn("## KRAISLER independent piano–violin coverage checklist", report)
         self.assertIn("## IDMT real-bass timing-ground-truth audit", report)
+        self.assertIn("## Beat This! offline real-tempo diagnostic", report)
+        self.assertIn("| Ballroom offline stable-segment BPM within 8 BPM | 1 / 1 (100.0%) | 0 |", report)
+        self.assertIn("| FiloBass offline stable-segment BPM within 8 BPM | 1 / 1 (100.0%) | 0 |", report)
+        self.assertIn("### Three-tracker offline consensus safety audit", report)
+        self.assertIn("| Correct offline three-tracker consensus candidates | 2 / 2 (100.0%) | 0 wrong candidates |", report)
+        self.assertIn("| Audited rows eligible for offline three-tracker consensus | 2 / 3 (66.7%) | 1 |", report)
+        self.assertIn("| Benchmark Beat This! on independent real-tempo corpora | 2 / 2 (100.0%) | 0 |", report)
+        self.assertIn("| Audit phase/BTT/Beat This! offline agreement | 1 / 1 (100.0%) | 0 |", report)
+        self.assertIn("| Demonstrate bounded causal Beat This! live use | 0 / 1 (0.0%) | 1 |", report)
         self.assertIn("## FiloBass real bass-led annotated-tempo diagnostic", report)
         self.assertIn("### FiloBass raw bass-attack feasibility diagnostic", report)
         self.assertIn("### FiloBass source-grid energy feasibility diagnostic", report)

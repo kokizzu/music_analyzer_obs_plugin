@@ -1526,6 +1526,25 @@ Source: `build/beat_this_final0_gtzan_rhythm_bpm_diagnostics.log`. This is offli
 | --- | ---: | ---: |
 | Offline stable-segment BPM within 8 BPM | 87 / 100 (87.0%) | 13 |
 
+## Beat This! offline real-tempo diagnostic
+
+These CPU-only, non-causal checks use the same stable annotated windows as the live tempo audits. They establish cross-corpus accuracy only; Beat This! is not an OBS backend or release gate.
+
+| Metric | Accurate / total | Remaining |
+| --- | ---: | ---: |
+| Ballroom offline stable-segment BPM within 8 BPM | 64 / 64 (100.0%) | 0 |
+| FiloBass offline stable-segment BPM within 8 BPM | 18 / 48 (37.5%) | 30 |
+
+### Three-tracker offline consensus safety audit
+
+Source: `build/three_tempo_tracker_consensus.log`. A candidate is retained only when phase, the permissive tracker, and Beat This! agree, and every selected annotated row is within 8 BPM. This is offline evidence only: Beat This! uses non-causal full-context attention, so this audit cannot enable a live OBS path.
+
+| Metric | Accurate / total | Remaining |
+| --- | ---: | ---: |
+| Correct offline three-tracker consensus candidates | 18 / 18 (100.0%) | 0 wrong candidates |
+| Audited rows eligible for offline three-tracker consensus | 18 / 212 (8.5%) | 194 |
+| Offline consensus candidates newly revealed beyond phase display | 11 / 212 (5.2%) | 201 |
+
 ## FiloBass real bass-led annotated-tempo diagnostic
 
 Source: `build/filobass_bpm_diagnostics.log`. FiloBass pairs real jazz bass stems with reviewed downbeat syncpoints and a MIDI time signature; BPM references are derived only from those corpus annotations.
@@ -1589,6 +1608,9 @@ Tempo estimates are only displayed at calibrated confidence. Source-specific pha
 | Retrieve and validate Candombe beat/downbeat labels | 1 / 1 (100.0%) | 0 | 35 public CSVs with expert beat times and bar/beat positions |
 | Independent labelled drumming-corpus validation measured | 1 / 1 (100.0%) | 0 | Candombe FLAC/CSV pairs: 35 real performances with expert beat/downbeat labels |
 | Benchmark independent neural tracker on held-out GTZAN | 1 / 1 (100.0%) | 0 | offline Beat This! `final0` output with no OBS/runtime integration |
+| Benchmark Beat This! on independent real-tempo corpora | 2 / 2 (100.0%) | 0 | Ballroom and FiloBass annotated stable segments; CPU-only offline evidence |
+| Audit phase/BTT/Beat This! offline agreement | 1 / 1 (100.0%) | 0 | every selected candidate must be correct across Ballroom, FiloBass, and GTZAN |
+| Demonstrate bounded causal Beat This! live use | 0 / 1 (0.0%) | 1 | prove a rolling, bounded-latency implementation cannot emit a wrong BPM in continuous replay; File2Beats remains non-causal offline inference |
 | IDMT real-bass timing metadata qualifies as beat truth | 0 / 17 (0.0%) | 17 | only corpus-supplied tempo/beat/pattern fields count; note onsets are insufficient |
 | Independent real bass-led beat-labelled validation measured | 1 / 1 (100.0%) | 0 | FiloBass real bass stems plus reviewed downbeats and MIDI time signature |
 | Assess raw bass-attack BPM evidence | 1 / 1 (100.0%) | 0 | offline FiloBass rank-one/top-five diagnostic |
