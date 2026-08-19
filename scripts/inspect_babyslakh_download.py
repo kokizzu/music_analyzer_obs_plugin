@@ -40,6 +40,10 @@ def main() -> int:
             main_pid = int(line.partition("=")[2] or "0")
     if main_pid:
         try:
+            print(f"service_cwd={Path(f'/proc/{main_pid}/cwd').resolve()}")
+        except OSError:
+            print("service_cwd=unavailable")
+        try:
             command = Path(f"/proc/{main_pid}/cmdline").read_bytes().replace(b"\0", b" ").decode("utf-8").strip()
         except OSError:
             command = ""
