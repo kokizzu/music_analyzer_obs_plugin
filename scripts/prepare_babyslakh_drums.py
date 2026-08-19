@@ -201,9 +201,14 @@ def drum_stems(metadata_path: Path) -> list[str]:
 
 
 def resolve_root(root: Path) -> Path:
+    if any((root / split).is_dir() for split in inspect_slakh_dataset.SPLIT_NAMES):
+        return root
     for name in inspect_slakh_dataset.SLAKH_CHILD_NAMES:
         child = root / name
         if child.is_dir():
+            return child
+    for child in sorted(path for path in root.iterdir() if path.is_dir()):
+        if any((child / split).is_dir() for split in inspect_slakh_dataset.SPLIT_NAMES):
             return child
     return root
 

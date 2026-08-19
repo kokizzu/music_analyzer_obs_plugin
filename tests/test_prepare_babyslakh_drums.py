@@ -30,7 +30,7 @@ def midi(note: int) -> bytes:
 
 def main() -> int:
     with tempfile.TemporaryDirectory() as temporary:
-        root = Path(temporary) / "BabySlakh"
+        root = Path(temporary) / "opaque-archive-wrapper"
         track = root / "train" / "Track00001"
         (track / "MIDI").mkdir(parents=True)
         (track / "metadata.yaml").write_text(

@@ -63,6 +63,11 @@ def join_path(lhs, *children):
 def resolve_root():
     root = os.environ.get("MUSIC_ANALYZER_SLAKH_ROOT") or os.environ.get("SLAKH_PATH")
     if root:
+        if any(os.path.isdir(join_path(root, split)) for split in SPLIT_NAMES):
+            return root
+        for child in direct_child_dirs(root):
+            if any(os.path.isdir(join_path(child, split)) for split in SPLIT_NAMES):
+                return child
         return root
 
     dataset_root = os.environ.get("MUSIC_ANALYZER_DATASET_ROOT")
