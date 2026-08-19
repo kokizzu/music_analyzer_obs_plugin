@@ -14360,6 +14360,19 @@ bool chord_label_contains_all_components(const char *label, const char *required
 	return true;
 }
 
+int chord_label_component_count(const char *label);
+
+// Chord aliases are an unordered equivalence set.  Preserve the already
+// displayed primary spelling when a later frame reports precisely the same
+// components in a different order; otherwise the tracker needlessly treats
+// a stable harmony as a chord switch and the UI flickers between aliases.
+bool chord_labels_have_same_components(const char *lhs, const char *rhs)
+{
+	return chord_label_component_count(lhs) == chord_label_component_count(rhs) &&
+	       chord_label_contains_all_components(lhs, rhs) &&
+	       chord_label_contains_all_components(rhs, lhs);
+}
+
 int chord_label_component_count(const char *label)
 {
 	if (!label || !*label || label[0] == '-')
@@ -27801,7 +27814,7 @@ void stabilize_chord(InstrumentState &state, ChordTrackingState &tracking, const
 			return;
 		}
 
-		if (std::strcmp(tracking.displayed_label, candidate.label) == 0) {
+		if (chord_labels_have_same_components(tracking.displayed_label, candidate.label)) {
 			tracking.displayed_confidence = std::max(tracking.displayed_confidence, candidate.confidence);
 			tracking.pending_label[0] = '\0';
 			tracking.pending_frames = 0;
