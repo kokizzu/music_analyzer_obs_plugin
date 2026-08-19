@@ -2521,7 +2521,7 @@ prepare-mdb-drums-samples: scripts/prepare_mdb_drums_samples.py scripts/run_with
 	+@if [ -L "$(MDB_DRUMS_SAMPLE_DIR)" ]; then :; else $(MAKE) ensure-build-sample-storage-link BUILD_SAMPLE_STORAGE_DIR="$(notdir $(MDB_DRUMS_SAMPLE_DIR))"; fi
 	$(SHELL) scripts/run_with_lock.sh "$(MDB_DRUMS_PREP_LOCK_DIR)" -- env MDB_DRUMS_SAMPLE_DIR="$(MDB_DRUMS_SAMPLE_DIR)" MDB_DRUMS_SOURCE_ROOT="$(MDB_DRUMS_SOURCE_ROOT)" MDB_DRUMS_AUDIO_FLAVOR="$(MDB_DRUMS_AUDIO_FLAVOR)" MDB_DRUMS_RECORDING_LIMIT="$(MDB_DRUMS_RECORDING_LIMIT)" MDB_DRUMS_MIN_RECORDINGS="$(MDB_DRUMS_MIN_RECORDINGS)" $(PYTHON) scripts/prepare_mdb_drums_samples.py --output "$(MDB_DRUMS_SAMPLE_DIR)" --source-root "$(MDB_DRUMS_SOURCE_ROOT)" --audio-flavor "$(MDB_DRUMS_AUDIO_FLAVOR)" --limit "$(MDB_DRUMS_RECORDING_LIMIT)" --min-recordings "$(MDB_DRUMS_MIN_RECORDINGS)"
 
-.PHONY: download-babyslakh test-download-babyslakh-script download-babyslakh-background inspect-babyslakh-download test-download-babyslakh-background-scripts test-inspect-babyslakh-archive test-extract-babyslakh-archive inspect-babyslakh-archive inspect-babyslakh-archive-existing extract-babyslakh inspect-babyslakh
+.PHONY: download-babyslakh test-download-babyslakh-script download-babyslakh-background stop-babyslakh-background inspect-babyslakh-download inspect-babyslakh-downloader test-download-babyslakh-background-scripts test-inspect-babyslakh-archive test-extract-babyslakh-archive inspect-babyslakh-archive inspect-babyslakh-archive-existing extract-babyslakh inspect-babyslakh
 download-babyslakh: scripts/download_babyslakh.sh
 	$(SHELL) scripts/download_babyslakh.sh "$(BABYSLAKH_ARCHIVE)" "$(BABYSLAKH_ARCHIVE_URL)" "$(BABYSLAKH_ARCHIVE_MD5)"
 
@@ -2531,11 +2531,18 @@ test-download-babyslakh-script: scripts/download_babyslakh.sh
 download-babyslakh-background: scripts/start_babyslakh_background_download.sh scripts/download_babyslakh_background_worker.sh
 	$(SHELL) scripts/start_babyslakh_background_download.sh "$(BABYSLAKH_ARCHIVE)" "$(BABYSLAKH_ARCHIVE_URL)" "$(BABYSLAKH_ARCHIVE_MD5)" "$(CURDIR)/scripts/download_babyslakh_background_worker.sh"
 
+stop-babyslakh-background: scripts/stop_babyslakh_background_download.sh
+	$(SHELL) scripts/stop_babyslakh_background_download.sh
+
 inspect-babyslakh-download: scripts/inspect_babyslakh_download.py
 	$(PYTHON) scripts/inspect_babyslakh_download.py "$(BABYSLAKH_ARCHIVE)"
 
-test-download-babyslakh-background-scripts: scripts/start_babyslakh_background_download.sh scripts/download_babyslakh_background_worker.sh scripts/inspect_babyslakh_download.py
+inspect-babyslakh-downloader: scripts/inspect_download_accelerator.py
+	$(PYTHON) scripts/inspect_download_accelerator.py
+
+test-download-babyslakh-background-scripts: scripts/start_babyslakh_background_download.sh scripts/stop_babyslakh_background_download.sh scripts/download_babyslakh_background_worker.sh scripts/inspect_babyslakh_download.py
 	sh -n scripts/start_babyslakh_background_download.sh
+	sh -n scripts/stop_babyslakh_background_download.sh
 	sh -n scripts/download_babyslakh_background_worker.sh
 	$(PYTHON) -m py_compile scripts/inspect_babyslakh_download.py
 
