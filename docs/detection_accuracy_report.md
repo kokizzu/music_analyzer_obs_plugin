@@ -1612,8 +1612,8 @@ Tempo estimates are only displayed at calibrated confidence. Source-specific pha
 | Permissive tracker at 0.75 certainty — Ballroom | 13 / 15 (86.7%) | 2 | correct / displayed; 49 clips remain hidden |
 | Permissive tracker at 0.75 certainty — FiloBass | 3 / 3 (100.0%) | 0 | correct / displayed; 45 clips remain hidden |
 | Permissive tracker at 0.75 certainty — E-GMD | 3 / 3 (100.0%) | 0 | correct / displayed; generated percussion regression only |
-| Permissive tracker at 0.80 certainty — Ballroom | 12 / 13 (92.3%) | 1 | correct / fallback-eligible; 51 clips remain hidden |
-| Permissive tracker at 0.80 certainty — FiloBass | 3 / 3 (100.0%) | 0 | correct / fallback-eligible; 45 clips remain hidden |
+| Permissive tracker at 0.80 certainty — Ballroom | 12 / 13 (92.3%) | 1 | source-only candidates; 51 clips remain hidden; not a live-release gate |
+| Permissive tracker at 0.80 certainty — FiloBass | 3 / 3 (100.0%) | 0 | source-only candidates; 45 clips remain hidden; not a live-release gate |
 | Repair continuous PCM feed to permissive tracker | 1 / 1 (100.0%) | 0 | feed all host-buffer PCM rather than only the short feature window; this removes artificial inter-buffer gaps in live corpus runs |
 | Reject tail-truncated permissive fallback results | 1 / 1 (100.0%) | 0 | earlier 0.75/0.60 live trials omitted each host-buffer tail and produced wrong Ballroom BPM; they do not calibrate the repaired continuous feed |
 | Enable strict live permissive-tracker fallback | 3 / 3 (100.0%) | 0 | at 0.80 certainty with phase confidence below 0.60: Ballroom 12 / 64, FiloBass 2 / 24, E-GMD 20 / 20; no wrong displayed BPM observed |
