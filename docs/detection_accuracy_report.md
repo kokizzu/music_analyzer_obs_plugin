@@ -1894,6 +1894,6 @@ The full one-shot gate has broad category counts, but its weak Tom/Ride/Rim resu
 
 | Work item | Complete / total | Remaining | Evidence required |
 | --- | ---: | ---: | --- |
-| Independently replicable real-acoustic Tom/Ride/Rim corpus available | 0 / 1 (0.0%) | 1 | ENST-Drums has suitable labelled classes but requires a signed research-use agreement; its annotation mirror alone is insufficient |
+| Independently replicable real-acoustic Tom/Ride/Rim corpus available | 0 / 1 (0.0%) | 1 | ENST-Drums has suitable labelled classes and a public prepared archive, but its research-use licence must be accepted and preserved; annotations alone are insufficient |
 
 Refresh with `make update-detection-accuracy-report`. Whenever a verified detection metric changes, update this report in the same commit.
