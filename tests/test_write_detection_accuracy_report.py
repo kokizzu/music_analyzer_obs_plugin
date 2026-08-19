@@ -176,6 +176,18 @@ class DetectionAccuracyReportTest(unittest.TestCase):
             )
             self.assertEqual(REPORT.beat_this_tempo_diagnostic_counts(diagnostic), (1, 2))
 
+    def test_permissive_tracker_rows_apply_the_certainty_floor(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            diagnostic = Path(temporary) / "btt.log"
+            diagnostic.write_text(
+                "BTT tempo diag\tid=1\texpected=120.00\traw=120.00\tconfidence=0.80\terror=0.00\n"
+                "BTT tempo diag\tid=2\texpected=90.00\traw=180.00\tconfidence=0.80\terror=90.00\n"
+                "BTT tempo diag\tid=3\texpected=100.00\traw=100.00\tconfidence=0.40\terror=0.00\n",
+                encoding="utf-8",
+            )
+            self.assertEqual(REPORT.permissive_tracker_tempo_counts(diagnostic), (2, 3))
+            self.assertEqual(REPORT.permissive_tracker_tempo_counts(diagnostic, 0.75), (1, 2))
+
     def test_polyphonic_candidate_capacity_audit_tracks_saturation_explanation(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             audit = Path(temporary) / "polyphonic_candidate_capacity_audit.txt"

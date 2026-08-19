@@ -1532,7 +1532,7 @@ Source: `build/filobass_bpm_diagnostics.log`. FiloBass pairs real jazz bass stem
 
 | Metric | Accurate / total | Remaining |
 | --- | ---: | ---: |
-| Displayable BPM at confidence ≥ 0.60 | 2 / 24 (8.3%) | 22 |
+| Displayable BPM at confidence ≥ 0.60 | 3 / 48 (6.2%) | 45 |
 
 ### FiloBass source-grid energy feasibility diagnostic
 
@@ -1540,10 +1540,10 @@ The corpus harness forces the labelled BPM into the final diagnostic slot, then 
 
 | Metric | Accurate / total | Remaining |
 | --- | ---: | ---: |
-| Labelled BPM exported through harness-only probe | 24 / 24 (100.0%) | 0 |
-| Present labelled candidate has higher bass grid-energy | 4 / 24 (16.7%) | 20 |
-| Present labelled candidate ties selected bass grid-energy | 4 / 24 (16.7%) | 20 |
-| Present labelled candidate has lower bass grid-energy | 16 / 24 (66.7%) | 8 |
+| Labelled BPM exported through harness-only probe | 47 / 48 (97.9%) | 1 |
+| Present labelled candidate has higher bass grid-energy | 7 / 47 (14.9%) | 40 |
+| Present labelled candidate ties selected bass grid-energy | 6 / 47 (12.8%) | 41 |
+| Present labelled candidate has lower bass grid-energy | 34 / 47 (72.3%) | 13 |
 
 ### FiloBass raw bass-attack feasibility diagnostic
 
@@ -1592,7 +1592,7 @@ Tempo estimates are only displayed at calibrated confidence. Source-specific pha
 | IDMT real-bass timing metadata qualifies as beat truth | 0 / 17 (0.0%) | 17 | only corpus-supplied tempo/beat/pattern fields count; note onsets are insufficient |
 | Independent real bass-led beat-labelled validation measured | 1 / 1 (100.0%) | 0 | FiloBass real bass stems plus reviewed downbeats and MIDI time signature |
 | Assess raw bass-attack BPM evidence | 1 / 1 (100.0%) | 0 | offline FiloBass rank-one/top-five diagnostic |
-| Assess bass source-grid energy before a selector | 1 / 1 (100.0%) | 0 | FiloBass expected candidate shows higher bass alignment in 4/24 eligible rows |
+| Assess bass source-grid energy before a selector | 1 / 1 (100.0%) | 0 | FiloBass expected candidate shows higher bass alignment in 7/47 eligible rows |
 | Reject unproven meter/bass candidate reweighting | 1 / 1 (100.0%) | 0 | feasibility audit: Ballroom meter/bass selectors stay at 4 / 61; FiloBass stays at 4 / 24, so neither is a safe BPM selector |
 | Reject unproven normalized-recurrence selector | 1 / 1 (100.0%) | 0 | lag-normalized recurrence reaches 6 / 61 only at an extreme Ballroom weight and remains 4 / 24 on FiloBass |
 | Reject unproven kick+bass-coincidence selector | 1 / 1 (100.0%) | 0 | same-frame coincidence reaches 5 / 61 on Ballroom but stays 4 / 24 on FiloBass, so it cannot safely resolve meter alone |
@@ -1606,18 +1606,18 @@ Tempo estimates are only displayed at calibrated confidence. Source-specific pha
 | Retrieve license-compatible advanced beat tracker | 1 / 1 (100.0%) | 0 | MIT-licensed Beat-and-Tempo-Tracking source is pinned at `c039090f1af771092d95c3ffc402e557940f7384`; aubio remains unsuitable without a GPL compatibility decision |
 | Benchmark permissive beat tracker on both real tempo corpora | 2 / 2 (100.0%) | 0 | source-only MIT tracker measured on the same 20 s annotated stable segments as the analyzer |
 | Permissive tracker raw BPM — Ballroom | 41 / 64 (64.1%) | 23 | within 8 BPM; diagnostic source `build/btt_ballroom_bpm_diagnostics.log` |
-| Permissive tracker raw BPM — FiloBass | 13 / 24 (54.2%) | 11 | within 8 BPM; diagnostic source `build/btt_filobass_bpm_diagnostics.log` |
+| Permissive tracker raw BPM — FiloBass | 21 / 48 (43.8%) | 27 | within 8 BPM; diagnostic source `build/btt_filobass_bpm_diagnostics.log` |
 | Permissive tracker at 0.60 certainty — Ballroom | 19 / 24 (79.2%) | 5 | correct / displayed; 40 clips remain hidden |
-| Permissive tracker at 0.60 certainty — FiloBass | 4 / 6 (66.7%) | 2 | correct / displayed; precision calibration remains required |
+| Permissive tracker at 0.60 certainty — FiloBass | 5 / 12 (41.7%) | 7 | correct / displayed; precision calibration remains required |
 | Permissive tracker at 0.75 certainty — Ballroom | 13 / 15 (86.7%) | 2 | correct / displayed; 49 clips remain hidden |
-| Permissive tracker at 0.75 certainty — FiloBass | 2 / 2 (100.0%) | 0 | correct / displayed; 22 clips remain hidden |
+| Permissive tracker at 0.75 certainty — FiloBass | 3 / 3 (100.0%) | 0 | correct / displayed; 45 clips remain hidden |
 | Permissive tracker at 0.75 certainty — E-GMD | 3 / 3 (100.0%) | 0 | correct / displayed; generated percussion regression only |
-| Permissive tracker at 0.80 certainty — Ballroom | 11 / 11 (100.0%) | 0 | correct / fallback-eligible; 53 clips remain hidden |
-| Permissive tracker at 0.80 certainty — FiloBass | 2 / 2 (100.0%) | 0 | correct / fallback-eligible; 22 clips remain hidden |
+| Permissive tracker at 0.80 certainty — Ballroom | 12 / 13 (92.3%) | 1 | correct / fallback-eligible; 51 clips remain hidden |
+| Permissive tracker at 0.80 certainty — FiloBass | 3 / 3 (100.0%) | 0 | correct / fallback-eligible; 45 clips remain hidden |
 | Repair continuous PCM feed to permissive tracker | 1 / 1 (100.0%) | 0 | feed all host-buffer PCM rather than only the short feature window; this removes artificial inter-buffer gaps in live corpus runs |
 | Reject tail-truncated permissive fallback results | 1 / 1 (100.0%) | 0 | earlier 0.75/0.60 live trials omitted each host-buffer tail and produced wrong Ballroom BPM; they do not calibrate the repaired continuous feed |
 | Enable strict live permissive-tracker fallback | 3 / 3 (100.0%) | 0 | at 0.80 certainty with phase confidence below 0.60: Ballroom 12 / 64, FiloBass 2 / 24, E-GMD 20 / 20; no wrong displayed BPM observed |
-| Benchmark constrained high-tempo beat tracker | 2 / 2 (100.0%) | 0 | 120--240 BPM source-only tracker at 0.55 certainty: Ballroom 17 / 17 and FiloBass 5 / 5 correct |
+| Benchmark constrained high-tempo beat tracker | 2 / 2 (100.0%) | 0 | 120--240 BPM source-only tracker at 0.55 certainty: Ballroom 17 / 17 and FiloBass 7 / 7 correct |
 | Reject concurrent high-tempo tracker fallback | 1 / 1 (100.0%) | 0 | live candidates at 0.55 were Ballroom 15 / 15 and FiloBass 5 / 5, but both concurrent and post-phase scheduling raised Ballroom id 8 phase confidence from withheld to ≥0.617 and displayed wrong 158.97 BPM for 128.03; feature remains false |
 | Reject high-tempo-only tracker setting | 1 / 1 (100.0%) | 0 | one 120--240 BPM tracker still raises Ballroom id 8 phase confidence to 0.617 and displays wrong 158.97 BPM for 128.03; retain broad 40--240 BPM tracker at 0.80 |
 | Demonstrate a bass-attack feature improves real bass BPM | 0 / 1 (0.0%) | 1 | improve FiloBass displayable BPM without regressing E-GMD |
@@ -1660,12 +1660,12 @@ Source: `build/drum_full_exact_attribute_rows.tsv`
 
 | Metric | Accurate / total | Remaining |
 | --- | ---: | ---: |
-| Full drum gate — primary kick | 6213 / 6505 (95.5%) | 292 |
-| Full drum gate — primary snare | 4015 / 5390 (74.5%) | 1375 |
+| Full drum gate — primary kick | 6206 / 6505 (95.4%) | 299 |
+| Full drum gate — primary snare | 4016 / 5390 (74.5%) | 1374 |
 | Full drum gate — primary hihat | 1990 / 2358 (84.4%) | 368 |
 | Full drum gate — primary crash | 569 / 788 (72.2%) | 219 |
-| Full drum gate — primary tom | 1936 / 2861 (67.7%) | 925 |
-| Full drum gate — primary ride | 241 / 352 (68.5%) | 111 |
+| Full drum gate — primary tom | 1946 / 2861 (68.0%) | 915 |
+| Full drum gate — primary ride | 239 / 352 (67.9%) | 113 |
 | Full drum gate — primary rim | 332 / 504 (65.9%) | 172 |
 
 ## High-fidelity drum-kit primary-classification gate

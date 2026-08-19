@@ -993,6 +993,29 @@ def beat_this_tempo_diagnostic_counts(path: Path) -> tuple[int, int]:
     return accurate, total
 
 
+def permissive_tracker_tempo_counts(path: Path, confidence_floor: float = 0.0) -> tuple[int, int]:
+    """Return within-eight-BPM tracker outcomes at a certainty floor."""
+    accurate = 0
+    total = 0
+    for line in path.read_text(encoding="utf-8", errors="replace").splitlines():
+        if not line.startswith("BTT tempo diag\t"):
+            continue
+        fields = dict(field.split("=", 1) for field in line.split("\t")[1:] if "=" in field)
+        try:
+            confidence = float(fields["confidence"])
+            error = float(fields["error"])
+        except (KeyError, ValueError) as error:
+            raise ValueError(f"{path}: invalid permissive-tracker diagnostic row") from error
+        if confidence < confidence_floor:
+            continue
+        total += 1
+        if error <= 8.0:
+            accurate += 1
+    if total <= 0:
+        raise ValueError(f"{path}: no permissive-tracker rows at {confidence_floor:.2f}")
+    return accurate, total
+
+
 TEMPO_CANDIDATE_ALIGNMENT_RE = re.compile(
     r"(?P<bpm>\d+)\([^)]*?align="
     r"(?P<kick>[0-9.]+)/(?P<bass>[0-9.]+)/(?P<snare>[0-9.]+)/(?P<tonal>[0-9.]+)"
@@ -1195,6 +1218,11 @@ def render(
     beat_this_gtzan_bpm_input: Path | None = None,
     candombe_bpm_input: Path | None = None,
     candombe_inspection: Path | None = None,
+    btt_ballroom_bpm_input: Path | None = None,
+    btt_filobass_bpm_input: Path | None = None,
+    btt_egmd_bpm_input: Path | None = None,
+    btt_high_tempo_ballroom_bpm_input: Path | None = None,
+    btt_high_tempo_filobass_bpm_input: Path | None = None,
 ) -> str:
     samples = load_samples(input_path)
     dcs_rows = dagstuhl_choirset_rows(dagstuhl_choirset_input) if dagstuhl_choirset_input else []
@@ -1218,6 +1246,29 @@ def render(
         beat_this_tempo_diagnostic_counts(beat_this_gtzan_bpm_input)
         if beat_this_gtzan_bpm_input
         else None
+    )
+    btt_ballroom = (
+        {floor: permissive_tracker_tempo_counts(btt_ballroom_bpm_input, floor)
+         for floor in (0.0, 0.60, 0.75, 0.80)}
+        if btt_ballroom_bpm_input else {0.0: (41, 64), 0.60: (19, 24), 0.75: (13, 15), 0.80: (11, 11)}
+    )
+    btt_filobass = (
+        {floor: permissive_tracker_tempo_counts(btt_filobass_bpm_input, floor)
+         for floor in (0.0, 0.60, 0.75, 0.80)}
+        if btt_filobass_bpm_input else {0.0: (13, 24), 0.60: (4, 6), 0.75: (2, 2), 0.80: (2, 2)}
+    )
+    btt_egmd = (
+        {floor: permissive_tracker_tempo_counts(btt_egmd_bpm_input, floor)
+         for floor in (0.75,)}
+        if btt_egmd_bpm_input else {0.75: (3, 3)}
+    )
+    btt_high_tempo_ballroom = (
+        permissive_tracker_tempo_counts(btt_high_tempo_ballroom_bpm_input, 0.55)
+        if btt_high_tempo_ballroom_bpm_input else (17, 17)
+    )
+    btt_high_tempo_filobass = (
+        permissive_tracker_tempo_counts(btt_high_tempo_filobass_bpm_input, 0.55)
+        if btt_high_tempo_filobass_bpm_input else (5, 5)
     )
     candombe_bpm = tempo_diagnostic_counts(candombe_bpm_input) if candombe_bpm_input else None
     candombe_annotations_ready = int(
@@ -2769,19 +2820,19 @@ def render(
             "| Local advanced beat-tracker backend available | 0 / 2 (0.0%) | 2 | `aubio` and `essentia` are unavailable through pkg-config; next step is a dependency-free tracker or an added backend |",
             "| Retrieve license-compatible advanced beat tracker | 1 / 1 (100.0%) | 0 | MIT-licensed Beat-and-Tempo-Tracking source is pinned at `c039090f1af771092d95c3ffc402e557940f7384`; aubio remains unsuitable without a GPL compatibility decision |",
             "| Benchmark permissive beat tracker on both real tempo corpora | 2 / 2 (100.0%) | 0 | source-only MIT tracker measured on the same 20 s annotated stable segments as the analyzer |",
-            "| Permissive tracker raw BPM — Ballroom | 41 / 64 (64.1%) | 23 | within 8 BPM; diagnostic source `build/btt_ballroom_bpm_diagnostics.log` |",
-            "| Permissive tracker raw BPM — FiloBass | 13 / 24 (54.2%) | 11 | within 8 BPM; diagnostic source `build/btt_filobass_bpm_diagnostics.log` |",
-            "| Permissive tracker at 0.60 certainty — Ballroom | 19 / 24 (79.2%) | 5 | correct / displayed; 40 clips remain hidden |",
-            "| Permissive tracker at 0.60 certainty — FiloBass | 4 / 6 (66.7%) | 2 | correct / displayed; precision calibration remains required |",
-            "| Permissive tracker at 0.75 certainty — Ballroom | 13 / 15 (86.7%) | 2 | correct / displayed; 49 clips remain hidden |",
-            "| Permissive tracker at 0.75 certainty — FiloBass | 2 / 2 (100.0%) | 0 | correct / displayed; 22 clips remain hidden |",
-            "| Permissive tracker at 0.75 certainty — E-GMD | 3 / 3 (100.0%) | 0 | correct / displayed; generated percussion regression only |",
-            "| Permissive tracker at 0.80 certainty — Ballroom | 11 / 11 (100.0%) | 0 | correct / fallback-eligible; 53 clips remain hidden |",
-            "| Permissive tracker at 0.80 certainty — FiloBass | 2 / 2 (100.0%) | 0 | correct / fallback-eligible; 22 clips remain hidden |",
+            f"| Permissive tracker raw BPM — Ballroom | {fraction(*btt_ballroom[0.0])} | {btt_ballroom[0.0][1] - btt_ballroom[0.0][0]} | within 8 BPM; diagnostic source `build/btt_ballroom_bpm_diagnostics.log` |",
+            f"| Permissive tracker raw BPM — FiloBass | {fraction(*btt_filobass[0.0])} | {btt_filobass[0.0][1] - btt_filobass[0.0][0]} | within 8 BPM; diagnostic source `build/btt_filobass_bpm_diagnostics.log` |",
+            f"| Permissive tracker at 0.60 certainty — Ballroom | {fraction(*btt_ballroom[0.60])} | {btt_ballroom[0.60][1] - btt_ballroom[0.60][0]} | correct / displayed; {btt_ballroom[0.0][1] - btt_ballroom[0.60][1]} clips remain hidden |",
+            f"| Permissive tracker at 0.60 certainty — FiloBass | {fraction(*btt_filobass[0.60])} | {btt_filobass[0.60][1] - btt_filobass[0.60][0]} | correct / displayed; precision calibration remains required |",
+            f"| Permissive tracker at 0.75 certainty — Ballroom | {fraction(*btt_ballroom[0.75])} | {btt_ballroom[0.75][1] - btt_ballroom[0.75][0]} | correct / displayed; {btt_ballroom[0.0][1] - btt_ballroom[0.75][1]} clips remain hidden |",
+            f"| Permissive tracker at 0.75 certainty — FiloBass | {fraction(*btt_filobass[0.75])} | {btt_filobass[0.75][1] - btt_filobass[0.75][0]} | correct / displayed; {btt_filobass[0.0][1] - btt_filobass[0.75][1]} clips remain hidden |",
+            f"| Permissive tracker at 0.75 certainty — E-GMD | {fraction(*btt_egmd[0.75])} | {btt_egmd[0.75][1] - btt_egmd[0.75][0]} | correct / displayed; generated percussion regression only |",
+            f"| Permissive tracker at 0.80 certainty — Ballroom | {fraction(*btt_ballroom[0.80])} | {btt_ballroom[0.80][1] - btt_ballroom[0.80][0]} | correct / fallback-eligible; {btt_ballroom[0.0][1] - btt_ballroom[0.80][1]} clips remain hidden |",
+            f"| Permissive tracker at 0.80 certainty — FiloBass | {fraction(*btt_filobass[0.80])} | {btt_filobass[0.80][1] - btt_filobass[0.80][0]} | correct / fallback-eligible; {btt_filobass[0.0][1] - btt_filobass[0.80][1]} clips remain hidden |",
             "| Repair continuous PCM feed to permissive tracker | 1 / 1 (100.0%) | 0 | feed all host-buffer PCM rather than only the short feature window; this removes artificial inter-buffer gaps in live corpus runs |",
             "| Reject tail-truncated permissive fallback results | 1 / 1 (100.0%) | 0 | earlier 0.75/0.60 live trials omitted each host-buffer tail and produced wrong Ballroom BPM; they do not calibrate the repaired continuous feed |",
             "| Enable strict live permissive-tracker fallback | 3 / 3 (100.0%) | 0 | at 0.80 certainty with phase confidence below 0.60: Ballroom 12 / 64, FiloBass 2 / 24, E-GMD 20 / 20; no wrong displayed BPM observed |",
-            "| Benchmark constrained high-tempo beat tracker | 2 / 2 (100.0%) | 0 | 120--240 BPM source-only tracker at 0.55 certainty: Ballroom 17 / 17 and FiloBass 5 / 5 correct |",
+            f"| Benchmark constrained high-tempo beat tracker | 2 / 2 (100.0%) | 0 | 120--240 BPM source-only tracker at 0.55 certainty: Ballroom {btt_high_tempo_ballroom[0]} / {btt_high_tempo_ballroom[1]} and FiloBass {btt_high_tempo_filobass[0]} / {btt_high_tempo_filobass[1]} correct |",
             "| Reject concurrent high-tempo tracker fallback | 1 / 1 (100.0%) | 0 | live candidates at 0.55 were Ballroom 15 / 15 and FiloBass 5 / 5, but both concurrent and post-phase scheduling raised Ballroom id 8 phase confidence from withheld to ≥0.617 and displayed wrong 158.97 BPM for 128.03; feature remains false |",
             "| Reject high-tempo-only tracker setting | 1 / 1 (100.0%) | 0 | one 120--240 BPM tracker still raises Ballroom id 8 phase confidence to 0.617 and displays wrong 158.97 BPM for 128.03; retain broad 40--240 BPM tracker at 0.80 |",
             "| Demonstrate a bass-attack feature improves real bass BPM | 0 / 1 (0.0%) | 1 | improve FiloBass displayable BPM without regressing E-GMD |",
@@ -2982,6 +3033,11 @@ def main() -> int:
     parser.add_argument("--beat-this-gtzan-bpm-input", type=Path)
     parser.add_argument("--candombe-bpm-input", type=Path)
     parser.add_argument("--candombe-inspection", type=Path)
+    parser.add_argument("--btt-ballroom-bpm-input", type=Path)
+    parser.add_argument("--btt-filobass-bpm-input", type=Path)
+    parser.add_argument("--btt-egmd-bpm-input", type=Path)
+    parser.add_argument("--btt-high-tempo-ballroom-bpm-input", type=Path)
+    parser.add_argument("--btt-high-tempo-filobass-bpm-input", type=Path)
     parser.add_argument("--filobass-bpm-input", type=Path)
     parser.add_argument("--filobass-onset-diagnostic-input", type=Path)
     parser.add_argument("--egmd-bpm-input", type=Path)
@@ -3092,6 +3148,11 @@ def main() -> int:
             args.beat_this_gtzan_bpm_input,
             args.candombe_bpm_input,
             args.candombe_inspection,
+            args.btt_ballroom_bpm_input,
+            args.btt_filobass_bpm_input,
+            args.btt_egmd_bpm_input,
+            args.btt_high_tempo_ballroom_bpm_input,
+            args.btt_high_tempo_filobass_bpm_input,
         )
     except (OSError, ValueError) as error:
         parser.error(str(error))
