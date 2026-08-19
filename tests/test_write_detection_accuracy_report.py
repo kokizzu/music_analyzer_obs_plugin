@@ -645,6 +645,12 @@ class DetectionAccuracyReportTest(unittest.TestCase):
                 "protected_runtime_safe=0/2\n",
                 encoding="utf-8",
             )
+            mdb_full_mix_false_positive_cap_audit = Path(temporary) / "mdb_full_mix_false_positive_cap_audit.txt"
+            mdb_full_mix_false_positive_cap_audit.write_text(
+                "drum_false_positive_cap_audit: real_candidates=101 cross_real_candidates=101 "
+                "protected_runtime_safe=0/101\n",
+                encoding="utf-8",
+            )
             drum_false_positive_context_audit = Path(temporary) / "drum_false_positive_context_audit.txt"
             drum_false_positive_context_audit.write_text(
                 "drum_false_positive_context_audit: primitives=102 cross_real_contexts=2 "
@@ -758,6 +764,7 @@ class DetectionAccuracyReportTest(unittest.TestCase):
                 owner_classifier_quality_loco_audit_input=quality_classifier_audit,
                 drum_primary_loco_audit_input=drum_classifier_audit,
                 drum_false_positive_cap_audit_input=drum_false_positive_cap_audit,
+                mdb_full_mix_false_positive_cap_audit_input=mdb_full_mix_false_positive_cap_audit,
                 drum_false_positive_context_audit_input=drum_false_positive_context_audit,
                 chord_primary_component_audit_input=chord_primary_component_audit,
                 urmp_bass_timing_audit_input=urmp_bass_timing,
@@ -791,6 +798,8 @@ class DetectionAccuracyReportTest(unittest.TestCase):
         self.assertIn("| Aggregate classifier accuracy | 10 / 30 (33.3%) | 20 |", report)
         self.assertIn("## Cross-real drum false-positive cap audit", report)
         self.assertIn("| Cross-real candidates safe on protected one-shot primaries | 0 / 2 (0.0%) | 2 |", report)
+        self.assertIn("## MDB full-mix drum false-positive cap audit", report)
+        self.assertIn("| MDB caps safe on protected one-shot primaries | 0 / 101 (0.0%) | 101 |", report)
         self.assertIn("## Two-feature cross-real drum false-positive context audit", report)
         self.assertIn("| Protected one-shot runtime-safe contexts | 1 / 2 (50.0%) | 1 |", report)
         self.assertIn("## Canonical-first chord display audit", report)

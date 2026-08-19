@@ -2,6 +2,7 @@
 
 import argparse
 import csv
+import errno
 import json
 import os
 from pathlib import Path
@@ -16,7 +17,7 @@ import urllib.request
 DATASET = "CarlSouthall/MDBDrums"
 TREE_URL = f"https://api.github.com/repos/{DATASET}/git/trees/master?recursive=1"
 RAW_BASE_URL = f"https://raw.githubusercontent.com/{DATASET}/master"
-FIXTURE_VERSION = "mdb-drums-egmd-shaped-v1"
+FIXTURE_VERSION = "mdb-drums-egmd-shaped-v2"
 DIVISION = 480
 TEMPO_US_PER_QUARTER = 500000
 
@@ -147,8 +148,11 @@ def file_resource(path, source_root):
 
 def track_id_from_audio_path(path):
     name = Path(path).name
-    suffix = "_Drum.wav"
-    return name[:-len(suffix)] if name.endswith(suffix) else Path(path).stem
+    stem = Path(name).stem
+    for suffix in ("_Drum", "_FullMix", "_Full_Mix", "_MIX", "_Mix"):
+        if stem.endswith(suffix):
+            return stem[:-len(suffix)]
+    return stem
 
 
 def track_id_from_annotation_path(path, suffix):
@@ -156,13 +160,14 @@ def track_id_from_annotation_path(path, suffix):
     return name[:-len(suffix)] if name.endswith(suffix) else Path(path).stem
 
 
-def discover_tracks(entries):
+def discover_tracks(entries, audio_flavor="drum_only"):
+    audio_prefix = f"MDB Drums/audio/{audio_flavor}/"
     audio_by_track = {}
     subclass_by_track = {}
     class_by_track = {}
     for entry in entries:
         path = entry.get("path", "")
-        if path.startswith("MDB Drums/audio/drum_only/") and path.endswith("_Drum.wav"):
+        if path.startswith(audio_prefix) and path.lower().endswith(".wav"):
             audio_by_track[track_id_from_audio_path(path)] = path
         elif path.startswith("MDB Drums/annotations/subclass/") and path.endswith("_subclass.txt"):
             subclass_by_track[track_id_from_annotation_path(path, "_subclass.txt")] = path
@@ -259,6 +264,7 @@ def signature_text(args):
     return "|".join([
         FIXTURE_VERSION,
         f"source={args.source_root or RAW_BASE_URL}",
+        f"audio_flavor={args.audio_flavor}",
         f"limit={args.limit}",
     ])
 
@@ -281,6 +287,35 @@ def cached_manifest_ok(output, signature, min_recordings):
     return True
 
 
+def reset_output(output):
+    """Clear a normal directory or an external sample-store symlink safely."""
+    root = output.resolve(strict=True) if output.is_symlink() else output
+    if output.is_symlink() and not root.is_dir():
+        raise SystemExit(
+            f"prepare_mdb_drums_samples: output symlink target is not a directory: {root}"
+        )
+    if not root.exists():
+        return
+    for attempt in range(4):
+        try:
+            for child in list(root.iterdir()):
+                if child.is_dir() and not child.is_symlink():
+                    shutil.rmtree(child)
+                else:
+                    child.unlink()
+            if not any(root.iterdir()):
+                return
+        except OSError as exc:
+            if exc.errno != errno.ENOTEMPTY:
+                raise
+        if attempt < 3:
+            time.sleep(0.25 * (attempt + 1))
+    remaining = ", ".join(child.name for child in root.iterdir()) or "(none)"
+    raise OSError(
+        f"prepare_mdb_drums_samples: could not clear {root} after retries; remaining: {remaining}"
+    )
+
+
 def prepare(args):
     output = Path(args.output)
     output.mkdir(parents=True, exist_ok=True)
@@ -291,7 +326,7 @@ def prepare(args):
         return len(rows)
 
     entries = tree_entries(args.source_root, args.tree_json, args.timeout)
-    tracks = discover_tracks(entries)
+    tracks = discover_tracks(entries, args.audio_flavor)
     if args.limit > 0:
         tracks = tracks[:args.limit]
     if len(tracks) < args.min_recordings:
@@ -299,8 +334,7 @@ def prepare(args):
             f"prepare_mdb_drums_samples: expected at least {args.min_recordings} tracks, got {len(tracks)}"
         )
 
-    if output.exists():
-        shutil.rmtree(output)
+    reset_output(output)
     (output / "audio").mkdir(parents=True, exist_ok=True)
     (output / "midi").mkdir(parents=True, exist_ok=True)
 
@@ -343,6 +377,8 @@ def main():
     parser.add_argument("--output", default=os.environ.get("MDB_DRUMS_SAMPLE_DIR", "build/mdb_drums_samples"))
     parser.add_argument("--source-root", default=os.environ.get("MDB_DRUMS_SOURCE_ROOT", ""))
     parser.add_argument("--tree-json", default=os.environ.get("MDB_DRUMS_TREE_JSON", ""))
+    parser.add_argument("--audio-flavor", choices=("drum_only", "full_mix"),
+                        default=os.environ.get("MDB_DRUMS_AUDIO_FLAVOR", "full_mix"))
     parser.add_argument("--limit", type=int, default=int(os.environ.get("MDB_DRUMS_RECORDING_LIMIT", "0")))
     parser.add_argument("--min-recordings", type=int,
                         default=int(os.environ.get("MDB_DRUMS_MIN_RECORDINGS", "20")))

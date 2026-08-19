@@ -268,11 +268,25 @@ Source: `build/drum_false_positive_cap_audit.txt`
 
 | Metric | Accurate / total | Remaining |
 | --- | ---: | ---: |
-| Non-dominated real-mix false-positive cap candidates | 0 / 48 (0.0%) | 48 |
+| Non-dominated real-mix false-positive cap candidates | 0 / 90 (0.0%) | 90 |
 | Cross-real candidates safe on protected one-shot primaries | 0 / 0 (0.0%) | 0 |
 | Runtime false-positive cap eligible | 0 / 1 (0.0%) | 1 |
 
 No simple cross-real cap remains after the qualified Ride energy-context guard.
+
+## MDB full-mix drum false-positive cap audit
+
+This probes every non-dominated simple cap that suppresses a false window in the annotated MDB full mixes, then replays it against protected one-shot primary hits.
+
+Source: `build/mdb_full_mix_false_positive_cap_audit.txt`
+
+| Metric | Accurate / total | Remaining |
+| --- | ---: | ---: |
+| MDB full-mix false-positive caps examined | 101 / 101 (100.0%) | 0 |
+| MDB caps safe on protected one-shot primaries | 0 / 101 (0.0%) | 101 |
+| MDB full-mix runtime cap eligible | 0 / 1 (0.0%) | 1 |
+
+No MDB-only simple cap is eligible: every candidate that suppresses a full-mix false positive also removes a protected correct primary hit.
 
 ## Two-feature cross-real drum false-positive context audit
 
@@ -282,8 +296,8 @@ Source: `build/drum_false_positive_context_audit.txt`
 
 | Metric | Accurate / total | Remaining |
 | --- | ---: | ---: |
-| Zero-true source primitives considered | 73 / 73 (100.0%) | 0 |
-| Cross-real two-feature contexts | 0 / 73 (0.0%) | 73 |
+| Zero-true source primitives considered | 133 / 133 (100.0%) | 0 |
+| Cross-real two-feature contexts | 0 / 133 (0.0%) | 133 |
 | Protected one-shot runtime-safe contexts | 0 / 0 (0.0%) | 0 |
 | Remaining runtime context eligible | 0 / 1 (0.0%) | 1 |
 
@@ -1785,7 +1799,7 @@ Source: `build/drum_full_exact_attribute_rows.tsv`
 | Full drum gate — primary hihat | 1990 / 2358 (84.4%) | 368 |
 | Full drum gate — primary crash | 569 / 788 (72.2%) | 219 |
 | Full drum gate — primary tom | 1946 / 2861 (68.0%) | 915 |
-| Full drum gate — primary ride | 239 / 352 (67.9%) | 113 |
+| Full drum gate — primary ride | 238 / 352 (67.6%) | 114 |
 | Full drum gate — primary rim | 332 / 504 (65.9%) | 172 |
 
 ## Tom/rim/ride protected-selector audit
@@ -1826,14 +1840,14 @@ Source: `build/star_drums_misses.log.windows.summary`
 
 ## MDB Drums multitrack gate
 
-This independent real-music fixture measures annotated drum-event recall and false activations across a larger variety of mixed recordings.
+This independent real-music full-mix fixture measures annotated drum-event recall and false activations across a larger variety of accompanied recordings.
 
 Source: `build/mdb_drums_windows.log.summary`
 
 | Metric | Accurate / total | Remaining |
 | --- | ---: | ---: |
-| MDB Drums — annotated drum events detected | 191 / 192 (99.5%) | 1 |
-| MDB Drums — detected-drum precision | 191 / 253 (75.5%) | 62 false predictions |
-| MDB Drums — windows without a false drum | 50 / 92 (54.3%) | 42 false-positive windows |
+| MDB Drums — annotated drum events detected | 139 / 192 (72.4%) | 53 |
+| MDB Drums — detected-drum precision | 139 / 241 (57.7%) | 102 false predictions |
+| MDB Drums — windows without a false drum | 23 / 92 (25.0%) | 69 false-positive windows |
 
 Refresh with `make update-detection-accuracy-report`. Whenever a verified detection metric changes, update this report in the same commit.

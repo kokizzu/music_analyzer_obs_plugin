@@ -33,6 +33,7 @@ def main():
     with tempfile.TemporaryDirectory() as tmp:
         root = Path(tmp) / "MDB Drums"
         write_wav(root / "audio/drum_only/MusicDelta_Test_Drum.wav")
+        write_wav(root / "audio/full_mix/MusicDelta_Test_MIX.wav")
         annotation = root / "annotations/subclass/MusicDelta_Test_subclass.txt"
         annotation.parent.mkdir(parents=True, exist_ok=True)
         annotation.write_text(
@@ -48,11 +49,17 @@ def main():
             encoding="utf-8",
         )
 
+        entries = prep.tree_entries(str(root), {}, 1.0)
+        assert [track["id"] for track in prep.discover_tracks(entries, "drum_only")] == [
+            track["id"] for track in prep.discover_tracks(entries, "full_mix")
+        ]
+
         out = Path(tmp) / "out"
         args = type("Args", (), {
             "output": str(out),
             "source_root": str(root),
             "tree_json": "",
+            "audio_flavor": "full_mix",
             "limit": 0,
             "min_recordings": 1,
             "retries": 1,
@@ -71,6 +78,9 @@ def main():
 
         reused = prep.prepare(args)
         assert reused == 1
+        args.refresh = True
+        refreshed = prep.prepare(args)
+        assert refreshed == 1
 
     print("test_prepare_mdb_drums_samples: ok")
 
