@@ -1194,6 +1194,7 @@ def render(
     ballroom_annotations: Path | None = None,
     beat_this_gtzan_bpm_input: Path | None = None,
     candombe_bpm_input: Path | None = None,
+    candombe_inspection: Path | None = None,
 ) -> str:
     samples = load_samples(input_path)
     dcs_rows = dagstuhl_choirset_rows(dagstuhl_choirset_input) if dagstuhl_choirset_input else []
@@ -1219,6 +1220,11 @@ def render(
         else None
     )
     candombe_bpm = tempo_diagnostic_counts(candombe_bpm_input) if candombe_bpm_input else None
+    candombe_annotations_ready = int(
+        candombe_inspection is not None
+        and candombe_inspection.is_file()
+        and "annotation files: 35" in candombe_inspection.read_text(encoding="utf-8")
+    )
     ballroom_annotations_ready = int(
         ballroom_annotations is not None and (ballroom_annotations / ".git").is_dir()
     )
@@ -2744,6 +2750,7 @@ def render(
             f"| Retrieve versioned Ballroom beat/bar annotations | {fraction(ballroom_annotations_ready, 1)} | {1 - ballroom_annotations_ready} | CPJKU BallroomAnnotations checkout in InstrumentSamples |",
             f"| Rhythm-heavy real-mix beat validation measured | {fraction(int(ballroom_bpm is not None), 1)} | {int(ballroom_bpm is None)} | up to 64 genre-balanced Ballroom stable sections with manually corrected beat/bar annotations |",
             f"| Genre-diverse real-mix beat validation measured | {fraction(int(gtzan_rhythm_bpm is not None), 1)} | {int(gtzan_rhythm_bpm is None)} | GTZAN-Rhythm WAV/JAMS pairs; stable BPM segments derived from manually annotated beats |",
+            f"| Retrieve and validate Candombe beat/downbeat labels | {fraction(candombe_annotations_ready, 1)} | {1 - candombe_annotations_ready} | 35 public CSVs with expert beat times and bar/beat positions |",
             f"| Independent labelled drumming-corpus validation measured | {fraction(int(candombe_bpm is not None), 1)} | {int(candombe_bpm is None)} | Candombe FLAC/CSV pairs: 35 real performances with expert beat/downbeat labels |",
             f"| Benchmark independent neural tracker on held-out GTZAN | {fraction(int(beat_this_gtzan_bpm is not None), 1)} | {int(beat_this_gtzan_bpm is None)} | offline Beat This! `final0` output with no OBS/runtime integration |",
             f"| IDMT real-bass timing metadata qualifies as beat truth | {fraction(idmt_bass_timing[0], idmt_bass_timing[1]) if idmt_bass_timing is not None else '0 / 1 (0.0%)'} | {idmt_bass_timing[1] - idmt_bass_timing[0] if idmt_bass_timing is not None else 1} | only corpus-supplied tempo/beat/pattern fields count; note onsets are insufficient |",
@@ -2974,6 +2981,7 @@ def main() -> int:
     parser.add_argument("--gtzan-rhythm-bpm-input", type=Path)
     parser.add_argument("--beat-this-gtzan-bpm-input", type=Path)
     parser.add_argument("--candombe-bpm-input", type=Path)
+    parser.add_argument("--candombe-inspection", type=Path)
     parser.add_argument("--filobass-bpm-input", type=Path)
     parser.add_argument("--filobass-onset-diagnostic-input", type=Path)
     parser.add_argument("--egmd-bpm-input", type=Path)
@@ -3083,6 +3091,7 @@ def main() -> int:
             args.ballroom_annotations,
             args.beat_this_gtzan_bpm_input,
             args.candombe_bpm_input,
+            args.candombe_inspection,
         )
     except (OSError, ValueError) as error:
         parser.error(str(error))

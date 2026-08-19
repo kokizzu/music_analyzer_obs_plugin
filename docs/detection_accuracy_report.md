@@ -1578,6 +1578,7 @@ Tempo estimates are only displayed at calibrated confidence. Source-specific pha
 | Retrieve versioned Ballroom beat/bar annotations | 1 / 1 (100.0%) | 0 | CPJKU BallroomAnnotations checkout in InstrumentSamples |
 | Rhythm-heavy real-mix beat validation measured | 1 / 1 (100.0%) | 0 | up to 64 genre-balanced Ballroom stable sections with manually corrected beat/bar annotations |
 | Genre-diverse real-mix beat validation measured | 1 / 1 (100.0%) | 0 | GTZAN-Rhythm WAV/JAMS pairs; stable BPM segments derived from manually annotated beats |
+| Retrieve and validate Candombe beat/downbeat labels | 1 / 1 (100.0%) | 0 | 35 public CSVs with expert beat times and bar/beat positions |
 | Independent labelled drumming-corpus validation measured | 0 / 1 (0.0%) | 1 | Candombe FLAC/CSV pairs: 35 real performances with expert beat/downbeat labels |
 | Benchmark independent neural tracker on held-out GTZAN | 1 / 1 (100.0%) | 0 | offline Beat This! `final0` output with no OBS/runtime integration |
 | IDMT real-bass timing metadata qualifies as beat truth | 0 / 17 (0.0%) | 17 | only corpus-supplied tempo/beat/pattern fields count; note onsets are insufficient |
