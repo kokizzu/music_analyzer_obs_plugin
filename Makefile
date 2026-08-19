@@ -1874,7 +1874,7 @@ GUITARSET_ATTRIBUTE_GATE_ENV ?= MUSIC_ANALYZER_GUITARSET_ATTRIBUTE_ONLY=1 MUSIC_
 .PHONY: prepare-real-goal-fixtures-parallel $(REAL_GOAL_FIXTURE_PREP_TARGETS)
 .PHONY: test-drum-real-world-samples-parallel test-drum-real-world-samples-full-parallel test-real-world-samples-parallel test-real-world-samples-full-parallel test-real-world-samples-max-parallel test-drum-samples-optional test-drum-samples-spread-optional test-drum-machine-samples-optional test-drum-samples-full-optional test-idmt-bass-lines-samples-optional test-idmt-guitar-samples-optional test-good-sounds-samples-optional test-medley-solos-samples-optional test-medley-solos-samples-serial test-medley-solos-samples-parallel test-medley-solos-samples-parallel-unlocked test-medley-solos-samples-shard-% test-maps-piano-samples-optional test-maps-piano-note-samples-optional test-bach10-mf0-synth-samples-optional test-bach10-mf0-synth-samples-serial test-bach10-mf0-synth-samples-parallel test-bach10-mf0-synth-samples-parallel-unlocked test-bach10-mf0-synth-samples-shard-% analyze-bach10-mf0-synth-chord-misses analyze-bach10-mf0-synth-pitch-misses test-vocalset-samples-optional test-vocalset-samples-full-mix-optional
 .PHONY: test-drum-samples-full-serial test-drum-samples-full-parallel test-drum-samples-full-parallel-unlocked test-drum-samples-full-shard-% test-drum-machine-samples-serial test-drum-machine-samples-parallel test-drum-machine-samples-parallel-unlocked test-drum-machine-samples-shard-% test-hf-drum-kit-samples-serial test-hf-drum-kit-samples-parallel test-hf-drum-kit-samples-parallel-unlocked test-hf-drum-kit-samples-shard-% test-idmt-drums-samples-serial test-idmt-drums-samples-parallel test-idmt-drums-samples-parallel-unlocked test-idmt-drums-samples-shard-% test-drum-samples-full-parallel-optional test-drum-sample-shard-check
-.PHONY: test-iowa-piano-samples-max test-iowa-orchestra-full-samples-max test-good-sounds-samples-max test-medley-solos-samples-max test-maps-piano-samples-max test-maps-piano-note-samples-max measure-maps-piano-cached measure-maps-piano-cached-shard-% measure-maps-piano-note-cached measure-maps-piano-note-cached-shard-% refresh-maps-piano-note-attributes-cached refresh-maps-piano-note-attributes-cached-shard-%
+.PHONY: test-iowa-piano-samples-max test-iowa-orchestra-full-samples-max test-good-sounds-samples-max test-medley-solos-samples-max test-maps-piano-samples-max test-maps-piano-note-samples-max measure-maps-piano-cached measure-maps-piano-cached-shard-% measure-maps-piano-note-cached measure-maps-piano-note-cached-shard-% refresh-maps-piano-note-attributes-cached refresh-maps-piano-note-attributes-cached-shard-% analyze-maps-piano-attributes-cached analyze-maps-piano-note-attributes-cached
 .PHONY: capture-analyzer-cases
 .PHONY: detector-improvement-samples detector-improvement-patterns detector-improvement-patterns-cached detector-improvement-patterns-cached-summary detector-improvement-routes detector-improvement-route-report detector-improvement-route-report-refresh detector-improvement-route-summary detector-improvement-route-summary-cached detector-improvement-route-summary-from-cached-report detector-improvement-route-summary-refresh detector-improvement-coverage-cached detector-improvement-status-cached detector-improvement-samples-full detector-improvement-patterns-full detector-improvement-audit detector-improvement-audit-cached detector-improvement-audit-report detector-improvement-audit-report-cached analyze-detector-improvements analyze-detector-improvement-routes analyze-detector-improvements-full
 
@@ -3042,6 +3042,11 @@ $(BUILD_DIR)/maps_piano_attributes.shard-%.tsv: $(BUILD_DIR)/analyzer_maestro pr
 analyze-maps-piano-attributes: $(MAPS_PIANO_ATTRIBUTE_TSV)
 	$(PYTHON) scripts/analyze_maps_piano_attributes.py "$(MAPS_PIANO_ATTRIBUTE_TSV)"
 
+# Inspect already generated MAPS traits without entering the preparation graph.
+analyze-maps-piano-attributes-cached: scripts/analyze_maps_piano_attributes.py
+	@test -s "$(MAPS_PIANO_ATTRIBUTE_TSV)" || { printf '%s\n' "missing cached $(MAPS_PIANO_ATTRIBUTE_TSV)"; exit 2; }
+	$(PYTHON) scripts/analyze_maps_piano_attributes.py "$(MAPS_PIANO_ATTRIBUTE_TSV)"
+
 summarize-maps-piano-attributes: scripts/analyze_maps_piano_attributes.py
 	$(PYTHON) scripts/analyze_maps_piano_attributes.py "$(MAPS_PIANO_ATTRIBUTE_TSV)"
 
@@ -3098,6 +3103,11 @@ $(BUILD_DIR)/maps_piano_note_attributes.shard-%.tsv: $(BUILD_DIR)/analyzer_maest
 	env MUSIC_ANALYZER_MAESTRO_ROOT="$(MAPS_PIANO_NOTE_SAMPLE_DIR)" MUSIC_ANALYZER_MAESTRO_REQUIRED=1 MUSIC_ANALYZER_MAESTRO_REQUIRED_RECORDINGS=1 MUSIC_ANALYZER_MAESTRO_REQUIRED_WINDOWS=1 MUSIC_ANALYZER_MAESTRO_MAX_WINDOWS_PER_RECORDING="$(MAPS_PIANO_NOTE_MAX_WINDOWS_PER_RECORDING)" MUSIC_ANALYZER_MAESTRO_MIN_ACTIVE_NOTES_PER_WINDOW=1 MUSIC_ANALYZER_MAESTRO_MIN_PITCH_CLASSES_PER_WINDOW=1 MUSIC_ANALYZER_MAESTRO_MIN_RECALL_PERCENT=0 MUSIC_ANALYZER_MAESTRO_MIN_PRECISION_PERCENT=0 MUSIC_ANALYZER_MAESTRO_MIN_KEYBOARD_RECALL_PERCENT=0 MUSIC_ANALYZER_MAESTRO_MAX_CONTAMINATION_PERCENT=100 MUSIC_ANALYZER_MAESTRO_MAX_FALSE_NON_KEYBOARD_PERCENT=100 MUSIC_ANALYZER_MAESTRO_MIN_CHORD_CHECKS=100000 MUSIC_ANALYZER_MAESTRO_SHARD_COUNT="$(MAPS_PIANO_NOTE_SHARDS)" MUSIC_ANALYZER_MAESTRO_SHARD_INDEX="$*" MUSIC_ANALYZER_MAESTRO_ATTRIBUTE_TSV="$@" $(BUILD_DIR)/analyzer_maestro > "$(BUILD_DIR)/maps_piano_note_attributes.shard-$*.out"
 
 analyze-maps-piano-note-attributes: $(MAPS_PIANO_NOTE_ATTRIBUTE_TSV)
+	$(PYTHON) scripts/analyze_maps_piano_attributes.py "$(MAPS_PIANO_NOTE_ATTRIBUTE_TSV)"
+
+# Inspect already generated isolated-piano traits without preparing or downloading.
+analyze-maps-piano-note-attributes-cached: scripts/analyze_maps_piano_attributes.py
+	@test -s "$(MAPS_PIANO_NOTE_ATTRIBUTE_TSV)" || { printf '%s\n' "missing cached $(MAPS_PIANO_NOTE_ATTRIBUTE_TSV)"; exit 2; }
 	$(PYTHON) scripts/analyze_maps_piano_attributes.py "$(MAPS_PIANO_NOTE_ATTRIBUTE_TSV)"
 
 download-bach10-mf0-synth-samples: $(BACH10_MF0_SYNTH_ARCHIVE)
