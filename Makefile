@@ -875,6 +875,11 @@ BABYSLAKH_DRUMS_SAMPLE_DIR ?= $(INSTRUMENT_SAMPLE_STORE_LINK)/babyslakh_drums_sa
 BABYSLAKH_DRUMS_MIN_RECORDINGS ?= $(BABYSLAKH_REQUIRED_TRACKS)
 BABYSLAKH_DRUMS_LOG ?= $(BUILD_DIR)/babyslakh_drums_diagnostics.log
 BABYSLAKH_DRUM_CALIBRATION_AUDIT ?= $(BUILD_DIR)/babyslakh_drum_calibration_audit.txt
+ENST_DRUMS_SOURCE_DIR ?= $(INSTRUMENT_SAMPLE_STORE_LINK)/enst_drums
+ENST_DRUMS_ARCHIVE ?= $(ENST_DRUMS_SOURCE_DIR)/enstdrums_yourmt3_16k.tar.gz
+ENST_DRUMS_ARCHIVE_URL ?= https://zenodo.org/record/7831843/files/enstdrums_yourmt3_16k.tar.gz?download=1
+ENST_DRUMS_ARCHIVE_MD5 ?= 7e28c2a923e4f4162b3d83877cedb5eb
+ENST_DRUMS_LICENSE_ACCEPTED ?= 0
 BPM_DIAG_TOLERANCE ?= 8
 EGMD_BPM_MAX_SECONDS ?= 20
 MDB_BPM_MAX_SECONDS ?= 20
@@ -2532,6 +2537,14 @@ prepare-mdb-drums-samples: scripts/prepare_mdb_drums_samples.py scripts/run_with
 	$(SHELL) scripts/run_with_lock.sh "$(MDB_DRUMS_PREP_LOCK_DIR)" -- env MDB_DRUMS_SAMPLE_DIR="$(MDB_DRUMS_SAMPLE_DIR)" MDB_DRUMS_SOURCE_ROOT="$(MDB_DRUMS_SOURCE_ROOT)" MDB_DRUMS_AUDIO_FLAVOR="$(MDB_DRUMS_AUDIO_FLAVOR)" MDB_DRUMS_RECORDING_LIMIT="$(MDB_DRUMS_RECORDING_LIMIT)" MDB_DRUMS_MIN_RECORDINGS="$(MDB_DRUMS_MIN_RECORDINGS)" $(PYTHON) scripts/prepare_mdb_drums_samples.py --output "$(MDB_DRUMS_SAMPLE_DIR)" --source-root "$(MDB_DRUMS_SOURCE_ROOT)" --audio-flavor "$(MDB_DRUMS_AUDIO_FLAVOR)" --limit "$(MDB_DRUMS_RECORDING_LIMIT)" --min-recordings "$(MDB_DRUMS_MIN_RECORDINGS)"
 
 .PHONY: download-babyslakh probe-babyslakh-download test-download-babyslakh-script download-babyslakh-background stop-babyslakh-background reset-babyslakh-download-control finalize-babyslakh-download discard-babyslakh-corrupt-partial inspect-babyslakh-download inspect-babyslakh-downloader test-download-babyslakh-background-scripts test-babyslakh-background-extraction-scripts inspect-babyslakh-extraction extract-babyslakh-background test-inspect-babyslakh-archive test-extract-babyslakh-archive test-prepare-babyslakh-drums inspect-babyslakh-archive inspect-babyslakh-archive-existing extract-babyslakh inspect-babyslakh prepare-babyslakh-drums measure-babyslakh-drums
+.PHONY: download-enst-drums test-download-enst-drums-script
+download-enst-drums: scripts/download_enst_drums.sh
+	$(SHELL) scripts/download_enst_drums.sh "$(ENST_DRUMS_ARCHIVE)" "$(ENST_DRUMS_ARCHIVE_URL)" "$(ENST_DRUMS_ARCHIVE_MD5)" "$(ENST_DRUMS_LICENSE_ACCEPTED)"
+
+test-download-enst-drums-script: scripts/download_enst_drums.sh tests/test_download_enst_drums_script.py
+	sh -n scripts/download_enst_drums.sh
+	$(PYTHON) tests/test_download_enst_drums_script.py
+
 download-babyslakh: scripts/download_babyslakh.sh
 	$(SHELL) scripts/download_babyslakh.sh "$(BABYSLAKH_ARCHIVE)" "$(BABYSLAKH_ARCHIVE_URL)" "$(BABYSLAKH_ARCHIVE_MD5)" "$(BABYSLAKH_DOWNLOAD_CONNECTIONS)"
 
