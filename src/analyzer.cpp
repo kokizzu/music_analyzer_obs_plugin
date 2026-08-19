@@ -33993,6 +33993,29 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 		if (final_real_mix_snare_dominant_tom_context_false_positive)
 			cap_drum_level(Tom, 0.28f);
 
+		// The remaining annotated full-mix Tom bleeds all occur in a weak-mid
+		// frame.  No MDB or independent STAR annotated Tom shares this context.
+		// Keep it source-scoped so it cannot alter the one-shot classifier.
+		const bool final_real_mix_weak_mid_tom_context_false_positive =
+			drum_detection_enabled &&
+			!one_shot_drum_source &&
+			drum_level_[Tom] > 0.30f &&
+			snapshot.mid_energy <= 0.37f;
+		if (final_real_mix_weak_mid_tom_context_false_positive)
+			cap_drum_level(Tom, 0.28f);
+
+		// A modest active HiHat with an unusually large HiHat band is a
+		// cross-recording accompaniment bleed context in MDB and STAR.  Its two
+		// limits deliberately keep normal strong HiHat hits untouched.
+		const bool final_real_mix_broad_modest_hihat_context_false_positive =
+			drum_detection_enabled &&
+			!one_shot_drum_source &&
+			drum_level_[HiHat] > 0.30f &&
+			drum_level_[HiHat] <= 0.67f &&
+			drum_bands[HiHat] >= 3.28f;
+		if (final_real_mix_broad_modest_hihat_context_false_positive)
+			cap_drum_level(HiHat, 0.28f);
+
 		const bool final_one_shot_measured_snare_hihat_active_bleed =
 			drum_detection_enabled && one_shot_drum_source &&
 			drum_level_[HiHat] > 0.30f &&

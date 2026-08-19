@@ -222,6 +222,8 @@ DRUM_PRIMARY_LOCO_AUDIT ?= $(BUILD_DIR)/drum_primary_loco_audit.txt
 DRUM_FALSE_POSITIVE_CAP_AUDIT ?= $(BUILD_DIR)/drum_false_positive_cap_audit.txt
 MDB_FULL_MIX_FALSE_POSITIVE_CAP_AUDIT ?= $(BUILD_DIR)/mdb_full_mix_false_positive_cap_audit.txt
 MDB_FULL_MIX_COMPETING_ACTIVE_CONTEXT_AUDIT ?= $(BUILD_DIR)/mdb_full_mix_competing_active_context_audit.txt
+MDB_SOURCE_SCOPED_CONTEXT_AUDIT ?= $(BUILD_DIR)/mdb_source_scoped_context_audit.txt
+MDB_SOURCE_SCOPED_CONTEXT_ARGS ?=
 DRUM_FALSE_POSITIVE_CONTEXT_AUDIT ?= $(BUILD_DIR)/drum_false_positive_context_audit.txt
 CHORD_PRIMARY_COMPONENT_AUDIT ?= $(BUILD_DIR)/chord_primary_component_audit.txt
 CHORD_PRIMARY_COMPONENT_ARGS ?=
@@ -2593,7 +2595,7 @@ audit-drum-false-positive-caps: analyze-mdb-drum-windows analyze-star-drum-windo
 test-audit-drum-false-positive-caps: tests/test_audit_drum_false_positive_caps.py scripts/audit_drum_false_positive_caps.py
 	$(PYTHON) tests/test_audit_drum_false_positive_caps.py
 
-.PHONY: audit-mdb-full-mix-false-positive-caps audit-mdb-full-mix-competing-active-contexts test-audit-drum-competing-active-contexts
+.PHONY: audit-mdb-full-mix-false-positive-caps audit-mdb-full-mix-competing-active-contexts test-audit-drum-competing-active-contexts audit-mdb-source-scoped-contexts test-audit-drum-source-scoped-contexts
 audit-mdb-full-mix-false-positive-caps: analyze-mdb-drum-windows scripts/audit_drum_false_positive_caps.py scripts/search_egmd_false_positive_caps.py $(DRUM_FULL_EXACT_ATTRIBUTE_ROWS) $(HF_DRUM_KIT_PRIMARY_ATTRIBUTE_ROWS) $(IDMT_DRUMS_PRIMARY_ATTRIBUTE_ROWS) | $(BUILD_DIR)
 	$(PYTHON) scripts/audit_drum_false_positive_caps.py --real-input "MDB=$(MDB_DRUMS_WINDOW_LOG)" --protected "$(DRUM_FULL_EXACT_ATTRIBUTE_ROWS)" --protected "$(HF_DRUM_KIT_PRIMARY_ATTRIBUTE_ROWS)" --protected "$(IDMT_DRUMS_PRIMARY_ATTRIBUTE_ROWS)" --output "$(MDB_FULL_MIX_FALSE_POSITIVE_CAP_AUDIT)"
 
@@ -2602,6 +2604,12 @@ audit-mdb-full-mix-competing-active-contexts: analyze-mdb-drum-windows analyze-s
 
 test-audit-drum-competing-active-contexts: tests/test_audit_drum_competing_active_contexts.py scripts/audit_drum_competing_active_contexts.py scripts/evaluate_egmd_drum_recovery.py
 	$(PYTHON) tests/test_audit_drum_competing_active_contexts.py
+
+audit-mdb-source-scoped-contexts: analyze-mdb-drum-windows analyze-star-drum-windows scripts/audit_drum_source_scoped_contexts.py scripts/evaluate_egmd_drum_recovery.py | $(BUILD_DIR)
+	$(PYTHON) scripts/audit_drum_source_scoped_contexts.py --real-input "$(MDB_DRUMS_WINDOW_LOG)" --real-input "$(STAR_DRUMS_MISS_LOG).windows" --output "$(MDB_SOURCE_SCOPED_CONTEXT_AUDIT)" $(MDB_SOURCE_SCOPED_CONTEXT_ARGS)
+
+test-audit-drum-source-scoped-contexts: tests/test_audit_drum_source_scoped_contexts.py scripts/audit_drum_source_scoped_contexts.py scripts/evaluate_egmd_drum_recovery.py
+	$(PYTHON) tests/test_audit_drum_source_scoped_contexts.py
 
 .PHONY: audit-drum-false-positive-contexts test-audit-drum-false-positive-contexts
 audit-drum-false-positive-contexts: analyze-mdb-drum-windows analyze-star-drum-windows scripts/audit_drum_false_positive_contexts.py scripts/search_egmd_false_positive_caps.py $(DRUM_FULL_EXACT_ATTRIBUTE_ROWS) $(HF_DRUM_KIT_PRIMARY_ATTRIBUTE_ROWS) $(IDMT_DRUMS_PRIMARY_ATTRIBUTE_ROWS) | $(BUILD_DIR)
