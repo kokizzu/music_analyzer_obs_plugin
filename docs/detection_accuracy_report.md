@@ -1510,6 +1510,14 @@ Source: `build/gtzan_rhythm_bpm_diagnostics.log`. GTZAN-Rhythm provides manually
 | --- | ---: | ---: |
 | Displayable BPM at confidence ≥ 0.60 | 1 / 100 (1.0%) | 99 |
 
+## Candombe annotated-tempo diagnostic
+
+Source: `build/candombe_bpm_diagnostics.log`. Candombe supplies expert beat/downbeat annotations for real Uruguayan drum ensembles; stable BPM segments are derived from repeated labelled beat intervals.
+
+| Metric | Accurate / total | Remaining |
+| --- | ---: | ---: |
+| Displayable BPM at confidence ≥ 0.60 | 20 / 35 (57.1%) | 15 |
+
 ## Beat This! independent neural GTZAN diagnostic
 
 Source: `build/beat_this_final0_gtzan_rhythm_bpm_diagnostics.log`. This is offline-only CPU inference with the MIT-licensed Beat This! `final0` model; its published training excludes GTZAN. It is independent calibration evidence, not a live OBS backend or release gate.
@@ -1579,7 +1587,7 @@ Tempo estimates are only displayed at calibrated confidence. Source-specific pha
 | Rhythm-heavy real-mix beat validation measured | 1 / 1 (100.0%) | 0 | up to 64 genre-balanced Ballroom stable sections with manually corrected beat/bar annotations |
 | Genre-diverse real-mix beat validation measured | 1 / 1 (100.0%) | 0 | GTZAN-Rhythm WAV/JAMS pairs; stable BPM segments derived from manually annotated beats |
 | Retrieve and validate Candombe beat/downbeat labels | 1 / 1 (100.0%) | 0 | 35 public CSVs with expert beat times and bar/beat positions |
-| Independent labelled drumming-corpus validation measured | 0 / 1 (0.0%) | 1 | Candombe FLAC/CSV pairs: 35 real performances with expert beat/downbeat labels |
+| Independent labelled drumming-corpus validation measured | 1 / 1 (100.0%) | 0 | Candombe FLAC/CSV pairs: 35 real performances with expert beat/downbeat labels |
 | Benchmark independent neural tracker on held-out GTZAN | 1 / 1 (100.0%) | 0 | offline Beat This! `final0` output with no OBS/runtime integration |
 | IDMT real-bass timing metadata qualifies as beat truth | 0 / 17 (0.0%) | 17 | only corpus-supplied tempo/beat/pattern fields count; note onsets are insufficient |
 | Independent real bass-led beat-labelled validation measured | 1 / 1 (100.0%) | 0 | FiloBass real bass stems plus reviewed downbeats and MIDI time signature |
