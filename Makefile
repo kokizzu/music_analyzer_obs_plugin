@@ -5719,8 +5719,9 @@ summarize-candombe-bpm: scripts/analyze_egmd_tempo.py $(CANDOMBE_BPM_LOG)
 	$(PYTHON) scripts/analyze_egmd_tempo.py --prefix "MAESTRO tempo diag" --tolerance "$(BPM_DIAG_TOLERANCE)" "$(CANDOMBE_BPM_LOG)"
 
 .PHONY: test-download-candombe-script test-inspect-candombe test-prepare-candombe-tempo-fixture
-test-download-candombe-script: scripts/download_candombe_dataset.sh
+test-download-candombe-script: scripts/download_candombe_dataset.sh scripts/validate_zip_archive.py
 	bash -n scripts/download_candombe_dataset.sh
+	$(PYTHON) tests/test_validate_zip_archive.py
 
 test-inspect-candombe: tests/test_inspect_candombe_dataset.py scripts/inspect_candombe_dataset.py
 	$(PYTHON) tests/test_inspect_candombe_dataset.py
