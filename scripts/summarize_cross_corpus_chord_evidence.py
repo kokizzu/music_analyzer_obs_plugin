@@ -9,8 +9,8 @@ import csv
 from pathlib import Path
 
 
-def labels(value: str) -> set[str]:
-    return {item for item in value.replace("=", ",").split(",") if item and item != "--"}
+def labels(value: str | None) -> set[str]:
+    return {item for item in (value or "").replace("=", ",").split(",") if item and item != "--"}
 
 
 def instrument_column(fieldnames: set[str]) -> str:

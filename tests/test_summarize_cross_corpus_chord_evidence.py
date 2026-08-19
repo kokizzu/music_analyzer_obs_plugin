@@ -29,6 +29,23 @@ class CrossCorpusChordEvidenceTest(unittest.TestCase):
         self.assertIn("replicated_miss_no_label: 2/2 (100.0%)", result.stdout)
         self.assertIn("replicated_miss_wrong_label: 2/2 (100.0%)", result.stdout)
 
+    def test_ignores_blank_expected_chord_cell(self):
+        with tempfile.TemporaryDirectory() as directory:
+            directory = pathlib.Path(directory)
+            maps = directory / "maps.tsv"
+            guitar = directory / "guitar.tsv"
+            # The two-field MAPS row intentionally leaves keyboard_chord blank;
+            # DictReader represents that trailing cell as None.
+            self.write_tsv(maps, "keyboard_chord", [("", "0"), ("C", "1", "C")])
+            self.write_tsv(guitar, "guitar_chord", [("G", "1", "G")])
+            result = subprocess.run(
+                ["python3", str(SCRIPT), str(maps), str(guitar)],
+                text=True,
+                capture_output=True,
+                check=True,
+            )
+        self.assertIn("maps.tsv: hit=1/1 (100.0%)", result.stdout)
+
 
 if __name__ == "__main__":
     unittest.main()
