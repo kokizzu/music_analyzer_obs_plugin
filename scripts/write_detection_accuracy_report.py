@@ -1383,6 +1383,7 @@ def render(
     btt_egmd_bpm_input: Path | None = None,
     btt_high_tempo_ballroom_bpm_input: Path | None = None,
     btt_high_tempo_filobass_bpm_input: Path | None = None,
+    babyslakh_drums_gate_output: Path | None = None,
 ) -> str:
     samples = load_samples(input_path)
     dcs_rows = dagstuhl_choirset_rows(dagstuhl_choirset_input) if dagstuhl_choirset_input else []
@@ -3420,6 +3421,26 @@ def render(
         for label, accurate, total, remainder_unit in egmd_drum_rows(mdb_drums_gate_output, "MDB Drums"):
             remainder = f"{total - accurate} {remainder_unit}" if remainder_unit else str(total - accurate)
             lines.append(f"| {label} | {fraction(accurate, total)} | {remainder} |")
+    if babyslakh_drums_gate_output is not None:
+        lines.extend(
+            [
+                "",
+                "## BabySlakh rendered full-mix drum baseline",
+                "",
+                "These 16 kHz rendered multitracks have aligned per-stem MIDI drum truth. They broaden "
+                "the calibration set, but remain separately reported from real-recording MDB and STAR evidence.",
+                "",
+                f"Source: `{babyslakh_drums_gate_output.as_posix()}`",
+                "",
+                "| Metric | Accurate / total | Remaining |",
+                "| --- | ---: | ---: |",
+            ]
+        )
+        for label, accurate, total, remainder_unit in egmd_drum_rows(
+            babyslakh_drums_gate_output, "BabySlakh rendered mixes"
+        ):
+            remainder = f"{total - accurate} {remainder_unit}" if remainder_unit else str(total - accurate)
+            lines.append(f"| {label} | {fraction(accurate, total)} | {remainder} |")
     lines.extend(
         [
             "",
@@ -3464,6 +3485,7 @@ def main() -> int:
     parser.add_argument("--urmp-sax-full-mix-input", type=Path)
     parser.add_argument("--star-drums-gate-output", type=Path)
     parser.add_argument("--mdb-drums-gate-output", type=Path)
+    parser.add_argument("--babyslakh-drums-gate-output", type=Path)
     parser.add_argument("--dagstuhl-choirset-input", type=Path)
     parser.add_argument("--dagstuhl-choirset-validation", type=Path)
     parser.add_argument("--dagstuhl-choirset-inspection", type=Path)
@@ -3650,6 +3672,7 @@ def main() -> int:
             args.btt_egmd_bpm_input,
             args.btt_high_tempo_ballroom_bpm_input,
             args.btt_high_tempo_filobass_bpm_input,
+            args.babyslakh_drums_gate_output,
         )
     except (OSError, ValueError) as error:
         parser.error(str(error))

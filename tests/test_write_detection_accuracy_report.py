@@ -564,6 +564,14 @@ class DetectionAccuracyReportTest(unittest.TestCase):
                 "recall by category kick:55/55-0, tp/fp/fn 192/79/0, hits min/avg/max 1/2.14/3)\n",
                 encoding="utf-8",
             )
+            babyslakh_drums = Path(temporary) / "babyslakh_drums.log"
+            babyslakh_drums.write_text(
+                "analyzer_egmd: 41 checks passed (recordings 20/20, windows 80, read failures 0, "
+                "no-candidate recordings 0, unusable 0, drum hits 101/140, drum precision 60.84%, "
+                "drum recall 72.14%, F1 65.75%, false-positive windows 40.00% (32/80), "
+                "recall by category kick:30/40-0, tp/fp/fn 101/65/39, hits min/avg/max 1/2.14/4)\n",
+                encoding="utf-8",
+            )
             urmp = Path(temporary) / "urmp.out"
             urmp.write_text(
                 "URMP separated-track precision: expected >=90%, got 90/100 (isolated precision 90.00%, recall 75.00%)\n"
@@ -744,6 +752,7 @@ class DetectionAccuracyReportTest(unittest.TestCase):
                 urmp_sax_full_mix_input=urmp_sax_full_mix,
                 star_drums_gate_output=star_drums,
                 mdb_drums_gate_output=mdb_drums,
+                babyslakh_drums_gate_output=babyslakh_drums,
                 dagstuhl_choirset_input=dcs_measurement,
                 dagstuhl_choirset_validation=dcs_validation,
                 dagstuhl_choirset_inspection=dcs_inspection,
@@ -986,6 +995,10 @@ class DetectionAccuracyReportTest(unittest.TestCase):
         self.assertIn("| MDB Drums — annotated drum events detected | 192 / 192 (100.0%) | 0 |", report)
         self.assertIn("| MDB Drums — detected-drum precision | 192 / 271 (70.8%) | 79 false predictions |", report)
         self.assertIn("| MDB Drums — windows without a false drum | 41 / 92 (44.6%) | 51 false-positive windows |", report)
+        self.assertIn("## BabySlakh rendered full-mix drum baseline", report)
+        self.assertIn("| BabySlakh rendered mixes — annotated drum events detected | 101 / 140 (72.1%) | 39 |", report)
+        self.assertIn("| BabySlakh rendered mixes — detected-drum precision | 101 / 166 (60.8%) | 65 false predictions |", report)
+        self.assertIn("| BabySlakh rendered mixes — windows without a false drum | 48 / 80 (60.0%) | 32 false-positive windows |", report)
 
 
 if __name__ == "__main__":
