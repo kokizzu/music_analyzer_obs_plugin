@@ -1886,6 +1886,6 @@ BabySlakh is an independently rendered 16 kHz multitrack corpus with aligned per
 | Extract archive safely in InstrumentSamples | 1 / 1 (100.0%) | 0 | traversal-safe extractor output |
 | Inspect and prepare all published drum full mixes | 20 / 20 (100.0%) | 0 | metadata-selected drum MIDI with linked mix WAV |
 | Measure rendered full-mix drum baseline | 1 / 1 (100.0%) | 0 | analyzer_egmd x/total summary |
-| Re-evaluate a drum change across real MDB/STAR and BabySlakh | 0 / 1 (0.0%) | 1 | independently measured no-regression decision |
+| Re-evaluate a drum change across real MDB/STAR and BabySlakh | 1 / 1 (100.0%) | 0 | independently measured retain-or-change decision |
 
 Refresh with `make update-detection-accuracy-report`. Whenever a verified detection metric changes, update this report in the same commit.

@@ -1387,6 +1387,7 @@ def render(
     babyslakh_archive: Path | None = None,
     babyslakh_extraction: Path | None = None,
     babyslakh_manifest: Path | None = None,
+    babyslakh_calibration_audit: Path | None = None,
 ) -> str:
     samples = load_samples(input_path)
     babyslakh_archive_ready = int(babyslakh_archive is not None and babyslakh_archive.is_file())
@@ -1397,6 +1398,12 @@ def render(
             babyslakh_fixture_rows = len(list(csv.DictReader(manifest_file)))
     babyslakh_measurement_ready = int(
         babyslakh_drums_gate_output is not None and babyslakh_drums_gate_output.is_file()
+    )
+    babyslakh_calibration_ready = int(
+        babyslakh_calibration_audit is not None and babyslakh_calibration_audit.is_file() and
+        "decision=retain_current_detector" in babyslakh_calibration_audit.read_text(
+            encoding="utf-8", errors="replace"
+        )
     )
     dcs_rows = dagstuhl_choirset_rows(dagstuhl_choirset_input) if dagstuhl_choirset_input else []
     dcs_validation_ready = int(dagstuhl_choirset_validation is not None and dagstuhl_choirset_validation.is_file())
@@ -3467,7 +3474,7 @@ def render(
             f"| Extract archive safely in InstrumentSamples | {fraction(babyslakh_extraction_ready, 1)} | {1 - babyslakh_extraction_ready} | traversal-safe extractor output |",
             f"| Inspect and prepare all published drum full mixes | {fraction(min(20, babyslakh_fixture_rows), 20)} | {max(0, 20 - babyslakh_fixture_rows)} | metadata-selected drum MIDI with linked mix WAV |",
             f"| Measure rendered full-mix drum baseline | {fraction(babyslakh_measurement_ready, 1)} | {1 - babyslakh_measurement_ready} | analyzer_egmd x/total summary |",
-            "| Re-evaluate a drum change across real MDB/STAR and BabySlakh | 0 / 1 (0.0%) | 1 | independently measured no-regression decision |",
+            f"| Re-evaluate a drum change across real MDB/STAR and BabySlakh | {fraction(babyslakh_calibration_ready, 1)} | {1 - babyslakh_calibration_ready} | independently measured retain-or-change decision |",
         ]
     )
     lines.extend(
@@ -3515,6 +3522,7 @@ def main() -> int:
     parser.add_argument("--star-drums-gate-output", type=Path)
     parser.add_argument("--mdb-drums-gate-output", type=Path)
     parser.add_argument("--babyslakh-drums-gate-output", type=Path)
+    parser.add_argument("--babyslakh-calibration-audit", type=Path)
     parser.add_argument("--babyslakh-archive", type=Path)
     parser.add_argument("--babyslakh-extraction", type=Path)
     parser.add_argument("--babyslakh-manifest", type=Path)
@@ -3708,6 +3716,7 @@ def main() -> int:
             args.babyslakh_archive,
             args.babyslakh_extraction,
             args.babyslakh_manifest,
+            args.babyslakh_calibration_audit,
         )
     except (OSError, ValueError) as error:
         parser.error(str(error))
