@@ -639,6 +639,12 @@ class DetectionAccuracyReportTest(unittest.TestCase):
                 "target_delta=tom=-5 ride=-3 rim=-2\n",
                 encoding="utf-8",
             )
+            urmp_bass_timing = Path(temporary) / "urmp_bass_timing_audit.tsv"
+            urmp_bass_timing.write_text(
+                "piece\tnotes\taudio_aligned_notes\tscore_midi\texplicit_beat_grid\tqualifies_as_tempo_truth\ttiming_files\n"
+                "35\tNotes_04_db.txt\t1\t1\t0\t0\t\n",
+                encoding="utf-8",
+            )
             idmt_bass_timing = Path(temporary) / "idmt_bass_lines_tempo_metadata.tsv"
             idmt_bass_timing.write_text(
                 "track_id\tparameter\tvalue\ttiming_or_pattern_field\n"
@@ -733,6 +739,7 @@ class DetectionAccuracyReportTest(unittest.TestCase):
                 harmonic_product_octave_audit_input=harmonic_product_audit,
                 owner_classifier_quality_loco_audit_input=quality_classifier_audit,
                 drum_primary_loco_audit_input=drum_classifier_audit,
+                urmp_bass_timing_audit_input=urmp_bass_timing,
                 idmt_bass_tempo_metadata_input=idmt_bass_timing,
                 filobass_bpm_input=filobass_bpm,
                 filobass_onset_diagnostic_input=filobass_onsets,
@@ -761,6 +768,8 @@ class DetectionAccuracyReportTest(unittest.TestCase):
         self.assertIn("| LOCO corpora improved over current owner | 8 / 9 (88.9%) | 1 |", report)
         self.assertIn("## Drum-primary leave-one-corpus-out classifier audit", report)
         self.assertIn("| Aggregate classifier accuracy | 10 / 30 (33.3%) | 20 |", report)
+        self.assertIn("## URMP double-bass timing-ground-truth audit", report)
+        self.assertIn("| URMP double-bass stems qualifying as tempo truth | 0 / 1 (0.0%) | 1 |", report)
         self.assertIn("## Rejected three-corpus keys-to-vocal routing trial", report)
         self.assertIn(
             "| Protected full-mix first-row accuracy during trial | 771 / 2212 (34.9%) | 1441 |",

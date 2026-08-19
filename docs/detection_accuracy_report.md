@@ -1346,25 +1346,25 @@ Instrument rows below show exact isolated-note recall for each measured instrume
 | --- | ---: | ---: |
 | URMP — real pieces loadable | 44 / 44 (100.0%) | 0 |
 | URMP — selected annotated windows | 528 / 528 (100.0%) | 0 |
-| URMP — isolated-track exact notes | 1689 / 1788 (94.5%) | 99 |
-| URMP — isolated-track detected notes | 1715 / 1788 (95.9%) | 73 |
-| URMP — isolated-track precision | 1689 / 1783 (94.7%) | 94 false notes |
-| URMP — provided-mix exact chords | 190 / 527 (36.1%) | 337 |
-| URMP — provided stream chord windows | 224 / 527 (42.5%) | 303 |
-| URMP — provided sequence chord windows | 214 / 527 (40.6%) | 313 |
-| URMP — bassoon isolated exact notes | 35 / 36 (97.2%) | 1 |
-| URMP — clarinet isolated exact notes | 120 / 120 (100.0%) | 0 |
+| URMP — isolated-track exact notes | 88 / 1788 (4.9%) | 1700 |
+| URMP — isolated-track detected notes | 90 / 1788 (5.0%) | 1698 |
+| URMP — isolated-track precision | 88 / 94 (93.6%) | 6 false notes |
+| URMP — provided-mix exact chords | 172 / 527 (32.6%) | 355 |
+| URMP — provided stream chord windows | 193 / 527 (36.6%) | 334 |
+| URMP — provided sequence chord windows | 201 / 527 (38.1%) | 326 |
+| URMP — bassoon isolated exact notes | 0 / 36 (0.0%) | 36 |
+| URMP — clarinet isolated exact notes | 0 / 120 (0.0%) | 120 |
 | URMP — double bass isolated exact notes | 31 / 36 (86.1%) | 5 |
-| URMP — flute isolated exact notes | 202 / 216 (93.5%) | 14 |
-| URMP — horn isolated exact notes | 59 / 60 (98.3%) | 1 |
-| URMP — oboe isolated exact notes | 69 / 72 (95.8%) | 3 |
-| URMP — saxophone isolated exact notes | 129 / 132 (97.7%) | 3 |
+| URMP — flute isolated exact notes | 0 / 216 (0.0%) | 216 |
+| URMP — horn isolated exact notes | 0 / 60 (0.0%) | 60 |
+| URMP — oboe isolated exact notes | 0 / 72 (0.0%) | 72 |
+| URMP — saxophone isolated exact notes | 0 / 132 (0.0%) | 132 |
 | URMP — tuba isolated exact notes | 57 / 60 (95.0%) | 3 |
-| URMP — trombone isolated exact notes | 83 / 96 (86.5%) | 13 |
-| URMP — trumpet isolated exact notes | 253 / 264 (95.8%) | 11 |
-| URMP — viola isolated exact notes | 145 / 156 (92.9%) | 11 |
-| URMP — cello isolated exact notes | 121 / 132 (91.7%) | 11 |
-| URMP — violin isolated exact notes | 385 / 408 (94.4%) | 23 |
+| URMP — trombone isolated exact notes | 0 / 96 (0.0%) | 96 |
+| URMP — trumpet isolated exact notes | 0 / 264 (0.0%) | 264 |
+| URMP — viola isolated exact notes | 0 / 156 (0.0%) | 156 |
+| URMP — cello isolated exact notes | 0 / 132 (0.0%) | 132 |
+| URMP — violin isolated exact notes | 0 / 408 (0.0%) | 408 |
 
 ## Bach10-mf0-synth multitrack stress gate
 
@@ -1626,6 +1626,16 @@ Source: `build/idmt_bass_lines_tempo_metadata.tsv`. IDMT provides real bass audi
 | --- | ---: | ---: |
 | Tracks with corpus-supplied tempo, beat, or pattern metadata | 0 / 17 (0.0%) | 17 |
 
+## URMP double-bass timing-ground-truth audit
+
+Source: `build/urmp_bass_timing_audit.tsv`. URMP supplies real double-bass stems and audio-aligned note annotations, but its original score MIDI is not an audio-aligned metrical grid. Only an explicit official beat/downbeat/bar annotation would qualify a stem for BPM validation.
+
+| Metric | Accurate / total | Remaining |
+| --- | ---: | ---: |
+| Double-bass stems with aligned audio and note annotations | 3 / 3 (100.0%) | 0 |
+| Double-bass stems with an explicit official beat/downbeat grid | 0 / 3 (0.0%) | 3 |
+| URMP double-bass stems qualifying as tempo truth | 0 / 3 (0.0%) | 3 |
+
 ## Tempo coverage-gap checklist
 
 Tempo estimates are only displayed at calibrated confidence. Source-specific phase evidence is tested separately from corpus coverage so a synthetic regression fixture cannot be mistaken for independent real-audio validation.
@@ -1650,6 +1660,8 @@ Tempo estimates are only displayed at calibrated confidence. Source-specific pha
 | Audit high-tempo three-tracker offline veto | 1 / 1 (100.0%) | 0 | every selected ≥150 BPM candidate must be correct across Ballroom, FiloBass, and GTZAN |
 | Demonstrate bounded causal Beat This! live use | 0 / 1 (0.0%) | 1 | prove a rolling, bounded-latency implementation cannot emit a wrong BPM in continuous replay; File2Beats remains non-causal offline inference |
 | IDMT real-bass timing metadata qualifies as beat truth | 0 / 17 (0.0%) | 17 | only corpus-supplied tempo/beat/pattern fields count; note onsets are insufficient |
+| Audit URMP double-bass timing provenance | 1 / 1 (100.0%) | 0 | distinguish audio-aligned note annotations from explicit metrical grids |
+| URMP double-bass stems qualify as beat truth | 0 / 3 (0.0%) | 3 | original score MIDI alone is not audio-aligned timing evidence |
 | Independent real bass-led beat-labelled validation measured | 1 / 1 (100.0%) | 0 | FiloBass real bass stems plus reviewed downbeats and MIDI time signature |
 | Assess raw bass-attack BPM evidence | 1 / 1 (100.0%) | 0 | offline FiloBass rank-one/top-five diagnostic |
 | Assess bass source-grid energy before a selector | 1 / 1 (100.0%) | 0 | FiloBass expected candidate shows higher bass alignment in 7/47 eligible rows |

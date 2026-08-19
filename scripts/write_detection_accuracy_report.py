@@ -1164,6 +1164,26 @@ def idmt_bass_timing_metadata_counts(path: Path) -> tuple[int, int]:
     return len(timing_tracks), len(tracks)
 
 
+def urmp_bass_timing_counts(path: Path) -> tuple[int, int, int, int]:
+    """Count URMP double-bass audio/note pairs and explicit metrical grids."""
+    with path.open(encoding="utf-8", newline="") as source:
+        reader = csv.DictReader(source, delimiter="\t")
+        required = {"audio_aligned_notes", "score_midi", "explicit_beat_grid", "qualifies_as_tempo_truth"}
+        missing = required - set(reader.fieldnames or ())
+        if missing:
+            raise ValueError(f"{path}: missing URMP bass timing columns: {', '.join(sorted(missing))}")
+        rows = list(reader)
+    if not rows:
+        raise ValueError(f"{path}: no URMP double-bass timing rows")
+    try:
+        pairs = sum(int(row["audio_aligned_notes"]) for row in rows)
+        grids = sum(int(row["explicit_beat_grid"]) for row in rows)
+        qualified = sum(int(row["qualifies_as_tempo_truth"]) for row in rows)
+    except ValueError as error:
+        raise ValueError(f"{path}: invalid URMP bass timing rows") from error
+    return pairs, grids, qualified, len(rows)
+
+
 def vocal_exact_note_cross_corpus_rows(path: Path) -> list[tuple[str, int, int, int, int, int]]:
     with path.open(encoding="utf-8", newline="") as source:
         reader = csv.DictReader(source, delimiter="\t")
@@ -1258,6 +1278,7 @@ def render(
     guitar_chord_primary_display_audit_input: Path | None = None,
     guitar_chord_tone_recovery_audit_input: Path | None = None,
     urmp_good_sounds_sax_shared_pattern_audit_input: Path | None = None,
+    urmp_bass_timing_audit_input: Path | None = None,
     octave_correction_cross_corpus_audit_input: Path | None = None,
     dominant_seventh_extension_audit_input: Path | None = None,
     global_chord_confidence_audit_input: Path | None = None,
@@ -1390,6 +1411,11 @@ def render(
     idmt_bass_timing = (
         idmt_bass_timing_metadata_counts(idmt_bass_tempo_metadata_input)
         if idmt_bass_tempo_metadata_input
+        else None
+    )
+    urmp_bass_timing = (
+        urmp_bass_timing_counts(urmp_bass_timing_audit_input)
+        if urmp_bass_timing_audit_input is not None
         else None
     )
     piano_state_evidence = (
@@ -2973,6 +2999,22 @@ def render(
                 f"| Tracks with corpus-supplied tempo, beat, or pattern metadata | {fraction(accurate, total)} | {total - accurate} |",
             ]
         )
+    if urmp_bass_timing is not None:
+        pairs, grids, qualified, total = urmp_bass_timing
+        lines.extend(
+            [
+                "",
+                "## URMP double-bass timing-ground-truth audit",
+                "",
+                f"Source: `{urmp_bass_timing_audit_input.as_posix()}`. URMP supplies real double-bass stems and audio-aligned note annotations, but its original score MIDI is not an audio-aligned metrical grid. Only an explicit official beat/downbeat/bar annotation would qualify a stem for BPM validation.",
+                "",
+                "| Metric | Accurate / total | Remaining |",
+                "| --- | ---: | ---: |",
+                f"| Double-bass stems with aligned audio and note annotations | {fraction(pairs, total)} | {total - pairs} |",
+                f"| Double-bass stems with an explicit official beat/downbeat grid | {fraction(grids, total)} | {total - grids} |",
+                f"| URMP double-bass stems qualifying as tempo truth | {fraction(qualified, total)} | {total - qualified} |",
+            ]
+        )
     lines.extend(
         [
             "",
@@ -3000,6 +3042,8 @@ def render(
             f"| Audit high-tempo three-tracker offline veto | {fraction(int(high_tempo_three_tracker_consensus is not None), 1)} | {int(high_tempo_three_tracker_consensus is None)} | every selected ≥150 BPM candidate must be correct across Ballroom, FiloBass, and GTZAN |",
             "| Demonstrate bounded causal Beat This! live use | 0 / 1 (0.0%) | 1 | prove a rolling, bounded-latency implementation cannot emit a wrong BPM in continuous replay; File2Beats remains non-causal offline inference |",
             f"| IDMT real-bass timing metadata qualifies as beat truth | {fraction(idmt_bass_timing[0], idmt_bass_timing[1]) if idmt_bass_timing is not None else '0 / 1 (0.0%)'} | {idmt_bass_timing[1] - idmt_bass_timing[0] if idmt_bass_timing is not None else 1} | only corpus-supplied tempo/beat/pattern fields count; note onsets are insufficient |",
+            f"| Audit URMP double-bass timing provenance | {fraction(1, 1) if urmp_bass_timing is not None else '0 / 1 (0.0%)'} | {0 if urmp_bass_timing is not None else 1} | distinguish audio-aligned note annotations from explicit metrical grids |",
+            f"| URMP double-bass stems qualify as beat truth | {fraction(urmp_bass_timing[2], urmp_bass_timing[3]) if urmp_bass_timing is not None else '0 / 1 (0.0%)'} | {urmp_bass_timing[3] - urmp_bass_timing[2] if urmp_bass_timing is not None else 1} | original score MIDI alone is not audio-aligned timing evidence |",
             f"| Independent real bass-led beat-labelled validation measured | {fraction(int(filobass_bpm is not None), 1)} | {int(filobass_bpm is None)} | FiloBass real bass stems plus reviewed downbeats and MIDI time signature |",
             f"| Assess raw bass-attack BPM evidence | {fraction(int(filobass_onset_diagnostic is not None), 1)} | {int(filobass_onset_diagnostic is None)} | offline FiloBass rank-one/top-five diagnostic |",
             f"| Assess bass source-grid energy before a selector | {fraction(int(filobass_phase_energy is not None), 1)} | {int(filobass_phase_energy is None)} | FiloBass expected candidate shows higher bass alignment in {filobass_phase_energy_evidence} |",
@@ -3267,6 +3311,7 @@ def main() -> int:
     parser.add_argument("--guitar-chord-primary-display-audit", type=Path)
     parser.add_argument("--guitar-chord-tone-recovery-audit", type=Path)
     parser.add_argument("--urmp-good-sounds-sax-shared-pattern-audit", type=Path)
+    parser.add_argument("--urmp-bass-timing-audit", type=Path)
     parser.add_argument("--octave-correction-cross-corpus-audit", type=Path)
     parser.add_argument("--dominant-seventh-extension-audit", type=Path)
     parser.add_argument("--global-chord-confidence-audit", type=Path)
@@ -3344,6 +3389,7 @@ def main() -> int:
             args.guitar_chord_primary_display_audit,
             args.guitar_chord_tone_recovery_audit,
             args.urmp_good_sounds_sax_shared_pattern_audit,
+            args.urmp_bass_timing_audit,
             args.octave_correction_cross_corpus_audit,
             args.dominant_seventh_extension_audit,
             args.global_chord_confidence_audit,
