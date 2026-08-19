@@ -5766,6 +5766,10 @@ test-summarize-btt-tempo-sweep: tests/test_summarize_btt_tempo_sweep.py scripts/
 inspect-beat-this-environment: scripts/inspect_beat_this_environment.py
 	$(PYTHON) scripts/inspect_beat_this_environment.py
 
+.PHONY: report-beat-this-gtzan-job
+report-beat-this-gtzan-job: scripts/inspect_beat_this_environment.py
+	$(PYTHON) scripts/inspect_beat_this_environment.py --model-cache-root "$(BEAT_THIS_DIAGNOSTIC_ROOT)" --diagnostic-log "$(BEAT_THIS_DIAGNOSTIC_LOG)"
+
 .PHONY: install-beat-this-diagnostic test-measure-beat-this-bpm measure-beat-this-gtzan-rhythm summarize-beat-this-gtzan-rhythm
 install-beat-this-diagnostic: configure-instrument-sample-store scripts/setup_beat_this_diagnostic.sh
 	bash scripts/setup_beat_this_diagnostic.sh "$(BEAT_THIS_DIAGNOSTIC_ROOT)" "$(BEAT_THIS_RUNTIME_ROOT)" "$(PYTHON)"
