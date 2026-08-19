@@ -633,6 +633,12 @@ class DetectionAccuracyReportTest(unittest.TestCase):
                 "owner_classifier_loco: improved_corpora=8/9 current=10/20 model=14/20\n",
                 encoding="utf-8",
             )
+            drum_classifier_audit = Path(temporary) / "drum_primary_loco_audit.txt"
+            drum_classifier_audit.write_text(
+                "drum_primary_loco: improved_corpora=0/3 current=20/30 model=10/30 "
+                "target_delta=tom=-5 ride=-3 rim=-2\n",
+                encoding="utf-8",
+            )
             idmt_bass_timing = Path(temporary) / "idmt_bass_lines_tempo_metadata.tsv"
             idmt_bass_timing.write_text(
                 "track_id\tparameter\tvalue\ttiming_or_pattern_field\n"
@@ -726,6 +732,7 @@ class DetectionAccuracyReportTest(unittest.TestCase):
                 kraisler_measurement=dcs_measurement,
                 harmonic_product_octave_audit_input=harmonic_product_audit,
                 owner_classifier_quality_loco_audit_input=quality_classifier_audit,
+                drum_primary_loco_audit_input=drum_classifier_audit,
                 idmt_bass_tempo_metadata_input=idmt_bass_timing,
                 filobass_bpm_input=filobass_bpm,
                 filobass_onset_diagnostic_input=filobass_onsets,
@@ -752,6 +759,8 @@ class DetectionAccuracyReportTest(unittest.TestCase):
         self.assertIn("| Zero-regression harmonic-product thresholds across all SATB corpora | 0 / 6 (0.0%) | 6 |", report)
         self.assertIn("## Extended owner-classifier leave-one-corpus-out audit", report)
         self.assertIn("| LOCO corpora improved over current owner | 8 / 9 (88.9%) | 1 |", report)
+        self.assertIn("## Drum-primary leave-one-corpus-out classifier audit", report)
+        self.assertIn("| Aggregate classifier accuracy | 10 / 30 (33.3%) | 20 |", report)
         self.assertIn("## Rejected three-corpus keys-to-vocal routing trial", report)
         self.assertIn(
             "| Protected full-mix first-row accuracy during trial | 771 / 2212 (34.9%) | 1441 |",

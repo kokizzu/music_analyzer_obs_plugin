@@ -82,6 +82,12 @@ OWNER_SCORE_CALIBRATION_LOCO_RE = re.compile(
     r"current=(?P<current>\d+)/(?P<count>\d+) model=(?P<model>\d+)/(?P=count)$",
     re.MULTILINE,
 )
+DRUM_PRIMARY_LOCO_RE = re.compile(
+    r"^drum_primary_loco: improved_corpora=(?P<supported>\d+)/(?P<total>\d+) "
+    r"current=(?P<current>\d+)/(?P<count>\d+) model=(?P<model>\d+)/(?P=count) "
+    r"target_delta=(?P<targets>.*)$",
+    re.MULTILINE,
+)
 
 # Analyzer TSV evidence can legitimately retain long comma-separated note
 # histories.  Keep a finite but practical cap instead of csv's 128 KiB default.
@@ -848,6 +854,17 @@ def owner_score_calibration_loco_audit(path: Path) -> tuple[int, int, int, int, 
     )
 
 
+def drum_primary_loco_audit(path: Path) -> tuple[int, int, int, int, int, str]:
+    """Return cross-corpus support for the diagnostic drum classifier."""
+    match = DRUM_PRIMARY_LOCO_RE.search(path.read_text(encoding="utf-8", errors="replace"))
+    if match is None:
+        raise ValueError(f"{path}: missing drum-primary LOCO summary")
+    return (
+        int(match["supported"]), int(match["total"]), int(match["current"]),
+        int(match["model"]), int(match["count"]), match["targets"],
+    )
+
+
 def polyphonic_candidate_capacity_audit(path: Path) -> tuple[int, int, int, int]:
     """Return whether full-mix candidate capacity explains SATB pitch misses."""
     match = POLYPHONIC_CANDIDATE_CAPACITY_RE.search(path.read_text(encoding="utf-8", errors="replace"))
@@ -1249,6 +1266,7 @@ def render(
     owner_classifier_loco_audit_input: Path | None = None,
     owner_classifier_quality_loco_audit_input: Path | None = None,
     owner_score_calibration_loco_audit_input: Path | None = None,
+    drum_primary_loco_audit_input: Path | None = None,
     other_detection_disabled: bool = False,
     polyphonic_candidate_capacity_audit_input: Path | None = None,
     harmonic_product_octave_audit_input: Path | None = None,
@@ -1463,6 +1481,11 @@ def render(
     owner_score_calibration_loco = (
         owner_score_calibration_loco_audit(owner_score_calibration_loco_audit_input)
         if owner_score_calibration_loco_audit_input is not None
+        else None
+    )
+    drum_primary_loco = (
+        drum_primary_loco_audit(drum_primary_loco_audit_input)
+        if drum_primary_loco_audit_input is not None
         else None
     )
     polyphonic_candidate_capacity = (
@@ -1832,6 +1855,27 @@ def render(
                 f"| Runtime score calibration eligible | {fraction(int(supported == total), 1)} | {int(supported != total)} |",
                 "",
                 "The calibration remains offline unless it improves every independently held-out corpus.",
+            ]
+        )
+    if drum_primary_loco is not None:
+        supported, total, current, model, count, targets = drum_primary_loco
+        lines.extend(
+            [
+                "",
+                "## Drum-primary leave-one-corpus-out classifier audit",
+                "",
+                "A normalized nearest-centroid classifier is trained from the other drum corpora's existing detector evidence and evaluated on one held-out corpus at a time. It is diagnostic-only and cannot change runtime selection unless every held-out corpus improves.",
+                "",
+                f"Source: `{drum_primary_loco_audit_input.as_posix()}`",
+                "",
+                "| Metric | Accurate / total | Remaining |",
+                "| --- | ---: | ---: |",
+                f"| LOCO corpora improved over current primary detector | {fraction(supported, total)} | {total - supported} |",
+                f"| Aggregate current-primary accuracy | {fraction(current, count)} | {count - current} |",
+                f"| Aggregate classifier accuracy | {fraction(model, count)} | {count - model} |",
+                f"| Runtime drum classifier eligible | {fraction(int(supported == total), 1)} | {int(supported != total)} |",
+                "",
+                f"The experiment is rejected: held-out classification regresses ({targets}) instead of improving the protected Tom/Ride/Rim classes.",
             ]
         )
     if violin_guitar_audit is not None:
@@ -3231,6 +3275,7 @@ def main() -> int:
     parser.add_argument("--owner-classifier-loco-audit", type=Path)
     parser.add_argument("--owner-classifier-quality-loco-audit", type=Path)
     parser.add_argument("--owner-score-calibration-loco-audit", type=Path)
+    parser.add_argument("--drum-primary-loco-audit", type=Path)
     parser.add_argument("--other-detection-disabled", action="store_true")
     parser.add_argument("--polyphonic-candidate-capacity-audit", type=Path)
     parser.add_argument("--harmonic-product-octave-audit", type=Path)
@@ -3307,6 +3352,7 @@ def main() -> int:
             args.owner_classifier_loco_audit,
             args.owner_classifier_quality_loco_audit,
             args.owner_score_calibration_loco_audit,
+            args.drum_primary_loco_audit,
             args.other_detection_disabled,
             args.polyphonic_candidate_capacity_audit,
             args.harmonic_product_octave_audit,

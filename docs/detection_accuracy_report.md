@@ -245,6 +245,21 @@ Source: `build/owner_score_calibration_loco_audit.txt`
 
 The calibration remains offline unless it improves every independently held-out corpus.
 
+## Drum-primary leave-one-corpus-out classifier audit
+
+A normalized nearest-centroid classifier is trained from the other drum corpora's existing detector evidence and evaluated on one held-out corpus at a time. It is diagnostic-only and cannot change runtime selection unless every held-out corpus improves.
+
+Source: `build/drum_primary_loco_audit.txt`
+
+| Metric | Accurate / total | Remaining |
+| --- | ---: | ---: |
+| LOCO corpora improved over current primary detector | 0 / 3 (0.0%) | 3 |
+| Aggregate current-primary accuracy | 18953 / 22681 (83.6%) | 3728 |
+| Aggregate classifier accuracy | 14189 / 22681 (62.6%) | 8492 |
+| Runtime drum classifier eligible | 0 / 1 (0.0%) | 1 |
+
+The experiment is rejected: held-out classification regresses (tom=-2074 ride=-277 rim=-299) instead of improving the protected Tom/Ride/Rim classes.
+
 ## Violin-to-Guitar safety audit
 
 The leading Good Sounds violin routing profile is audited against independent Iowa strings and KRAISLER piano--violin mixture evidence before any reroute.
