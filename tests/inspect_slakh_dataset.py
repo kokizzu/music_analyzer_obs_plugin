@@ -16,6 +16,8 @@ SLAKH_CHILD_NAMES = (
     "slakh",
     "BabySlakh",
     "babyslakh",
+    "BabySlakh_16k",
+    "babyslakh_16k",
     "baby_slakh",
     "baby-slakh",
 )
@@ -66,6 +68,8 @@ def resolve_root():
         if any(os.path.isdir(join_path(root, split)) for split in SPLIT_NAMES):
             return root
         for child in direct_child_dirs(root):
+            if lower_name(child) in {name.lower() for name in SLAKH_CHILD_NAMES}:
+                return child
             if any(os.path.isdir(join_path(child, split)) for split in SPLIT_NAMES):
                 return child
         return root

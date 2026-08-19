@@ -30,6 +30,11 @@ def midi(note: int) -> bytes:
 
 def main() -> int:
     with tempfile.TemporaryDirectory() as temporary:
+        wrapper = Path(temporary) / "published-wrapper"
+        published_root = wrapper / "babyslakh_16k"
+        published_root.mkdir(parents=True)
+        assert MODULE.resolve_root(wrapper) == published_root
+
         root = Path(temporary) / "opaque-archive-wrapper"
         track = root / "train" / "Track00001"
         (track / "MIDI").mkdir(parents=True)

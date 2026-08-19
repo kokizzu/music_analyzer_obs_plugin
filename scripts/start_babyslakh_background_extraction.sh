@@ -17,6 +17,6 @@ if systemctl --user is-active --quiet "$unit_name"; then
     printf '%s\n' "extract_babyslakh_background: already running unit=$unit_name"
     exit 0
 fi
-systemd-run --user --unit=music-analyzer-babyslakh-extract --collect --quiet \
+systemd-run --user --unit=music-analyzer-babyslakh-extract --collect --quiet --same-dir \
     sh "$worker" "$archive_path" "$destination" "$python" "$extractor"
 printf '%s\n' "extract_babyslakh_background: started unit=$unit_name"

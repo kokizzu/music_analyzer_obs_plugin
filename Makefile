@@ -2601,7 +2601,7 @@ inspect-babyslakh-extraction: scripts/inspect_babyslakh_extraction.py
 inspect-babyslakh: extract-babyslakh tests/inspect_slakh_dataset.py
 	MUSIC_ANALYZER_SLAKH_ROOT="$(BABYSLAKH_EXTRACTED_DIR)" MUSIC_ANALYZER_SLAKH_REQUIRED_TRACKS="$(BABYSLAKH_REQUIRED_TRACKS)" $(PYTHON) tests/inspect_slakh_dataset.py
 
-prepare-babyslakh-drums: inspect-babyslakh scripts/prepare_babyslakh_drums.py tests/inspect_slakh_dataset.py
+prepare-babyslakh-drums: inspect-babyslakh-archive-existing scripts/prepare_babyslakh_drums.py tests/inspect_slakh_dataset.py
 	$(PYTHON) scripts/prepare_babyslakh_drums.py --root "$(BABYSLAKH_EXTRACTED_DIR)" --output "$(BABYSLAKH_DRUMS_SAMPLE_DIR)" --min-recordings "$(BABYSLAKH_DRUMS_MIN_RECORDINGS)"
 
 measure-babyslakh-drums: $(BUILD_DIR)/analyzer_egmd prepare-babyslakh-drums | $(BUILD_DIR)

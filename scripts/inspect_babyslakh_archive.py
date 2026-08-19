@@ -32,6 +32,7 @@ def main() -> int:
 
     suffixes = Counter()
     top_levels = Counter()
+    member_samples: list[str] = []
     regular_members = 0
     with tarfile.open(archive, "r:gz") as contents:
         for member in contents:
@@ -39,6 +40,8 @@ def main() -> int:
                 continue
             regular_members += 1
             path = Path(member.name)
+            if len(member_samples) < 12:
+                member_samples.append(member.name)
             suffixes[path.suffix.lower() or "<none>"] += 1
             if path.parts:
                 top_levels[path.parts[0]] += 1
@@ -53,6 +56,7 @@ def main() -> int:
     print(f"midi_members={midi_count}")
     print("top_levels=" + ",".join(f"{name}:{count}" for name, count in sorted(top_levels.items())))
     print("suffixes=" + ",".join(f"{name}:{count}" for name, count in sorted(suffixes.items())))
+    print("member_samples=" + ",".join(member_samples))
     return 0
 
 
