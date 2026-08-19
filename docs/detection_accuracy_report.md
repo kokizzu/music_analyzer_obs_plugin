@@ -1535,6 +1535,17 @@ These CPU-only, non-causal checks use the same stable annotated windows as the l
 | Ballroom offline stable-segment BPM within 8 BPM | 64 / 64 (100.0%) | 0 |
 | FiloBass offline stable-segment BPM within 8 BPM | 18 / 48 (37.5%) | 30 |
 
+### Beat This! bounded rolling-window replay
+
+Each estimate receives only the trailing window ending at the annotated stable-window endpoint. This evaluates input causality and CPU throughput, but still does not authorize OBS integration until continuous replay shows zero wrong displayed BPM values.
+
+| Metric | Accurate / total | Remaining |
+| --- | ---: | ---: |
+| Ballroom rolling BPM within 8 BPM | 64 / 64 (100.0%) | 0 |
+| Ballroom rolling windows processed within their audio duration | 64 / 64 (100.0%) | 0 |
+| FiloBass rolling BPM within 8 BPM | 16 / 48 (33.3%) | 32 |
+| FiloBass rolling windows processed within their audio duration | 48 / 48 (100.0%) | 0 |
+
 ### Three-tracker offline consensus safety audit
 
 Source: `build/three_tempo_tracker_consensus.log`. A candidate is retained only when phase, the permissive tracker, and Beat This! agree, and every selected annotated row is within 8 BPM. This is offline evidence only: Beat This! uses non-causal full-context attention, so this audit cannot enable a live OBS path.
@@ -1609,6 +1620,7 @@ Tempo estimates are only displayed at calibrated confidence. Source-specific pha
 | Independent labelled drumming-corpus validation measured | 1 / 1 (100.0%) | 0 | Candombe FLAC/CSV pairs: 35 real performances with expert beat/downbeat labels |
 | Benchmark independent neural tracker on held-out GTZAN | 1 / 1 (100.0%) | 0 | offline Beat This! `final0` output with no OBS/runtime integration |
 | Benchmark Beat This! on independent real-tempo corpora | 2 / 2 (100.0%) | 0 | Ballroom and FiloBass annotated stable segments; CPU-only offline evidence |
+| Replay bounded trailing Beat This! windows on real-tempo corpora | 2 / 2 (100.0%) | 0 | window ends at each annotated output time; records correctness and processing budget |
 | Audit phase/BTT/Beat This! offline agreement | 1 / 1 (100.0%) | 0 | every selected candidate must be correct across Ballroom, FiloBass, and GTZAN |
 | Demonstrate bounded causal Beat This! live use | 0 / 1 (0.0%) | 1 | prove a rolling, bounded-latency implementation cannot emit a wrong BPM in continuous replay; File2Beats remains non-causal offline inference |
 | IDMT real-bass timing metadata qualifies as beat truth | 0 / 17 (0.0%) | 17 | only corpus-supplied tempo/beat/pattern fields count; note onsets are insufficient |

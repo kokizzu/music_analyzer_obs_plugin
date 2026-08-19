@@ -244,6 +244,7 @@ DETECTION_ACCURACY_KRAISLER_MEASUREMENT_ARG = $(if $(wildcard $(KRAISLER_MEASURE
 DETECTION_ACCURACY_KRAISLER_MEASUREMENT_ARG += $(DETECTION_ACCURACY_CANDOMBE_BPM_ARG)
 DETECTION_ACCURACY_KRAISLER_MEASUREMENT_ARG += $(DETECTION_ACCURACY_CANDOMBE_INSPECTION_ARG)
 DETECTION_ACCURACY_KRAISLER_MEASUREMENT_ARG += $(DETECTION_ACCURACY_THREE_TEMPO_TRACKER_CONSENSUS_ARG)
+DETECTION_ACCURACY_KRAISLER_MEASUREMENT_ARG += $(DETECTION_ACCURACY_BEAT_THIS_ROLLING_BALLROOM_ARG) $(DETECTION_ACCURACY_BEAT_THIS_ROLLING_FILOBASS_ARG)
 DETECTION_ACCURACY_KRAISLER_BPM_ARG = $(if $(wildcard $(KRAISLER_BPM_LOG)),--kraisler-bpm-input "$(KRAISLER_BPM_LOG)")
 DETECTION_ACCURACY_BALLROOM_BPM_ARG = $(if $(wildcard $(BALLROOM_BPM_LOG)),--ballroom-bpm-input "$(BALLROOM_BPM_LOG)")
 DETECTION_ACCURACY_BALLROOM_ANNOTATIONS_ARG = $(if $(wildcard $(BALLROOM_ANNOTATIONS_DIR)/.git),--ballroom-annotations "$(BALLROOM_ANNOTATIONS_DIR)")
@@ -251,6 +252,8 @@ DETECTION_ACCURACY_GTZAN_RHYTHM_BPM_ARG = $(if $(wildcard $(GTZAN_RHYTHM_BPM_LOG
 DETECTION_ACCURACY_BEAT_THIS_GTZAN_ARG = $(if $(wildcard $(BEAT_THIS_DIAGNOSTIC_LOG)),--beat-this-gtzan-bpm-input "$(BEAT_THIS_DIAGNOSTIC_LOG)")
 DETECTION_ACCURACY_BEAT_THIS_BALLROOM_ARG = $(if $(wildcard $(BEAT_THIS_BALLROOM_LOG)),--beat-this-ballroom-bpm-input "$(BEAT_THIS_BALLROOM_LOG)")
 DETECTION_ACCURACY_BEAT_THIS_FILOBASS_ARG = $(if $(wildcard $(BEAT_THIS_FILOBASS_LOG)),--beat-this-filobass-bpm-input "$(BEAT_THIS_FILOBASS_LOG)")
+DETECTION_ACCURACY_BEAT_THIS_ROLLING_BALLROOM_ARG = $(if $(wildcard $(BEAT_THIS_ROLLING_BALLROOM_LOG)),--beat-this-rolling-ballroom-bpm-input "$(BEAT_THIS_ROLLING_BALLROOM_LOG)")
+DETECTION_ACCURACY_BEAT_THIS_ROLLING_FILOBASS_ARG = $(if $(wildcard $(BEAT_THIS_ROLLING_FILOBASS_LOG)),--beat-this-rolling-filobass-bpm-input "$(BEAT_THIS_ROLLING_FILOBASS_LOG)")
 DETECTION_ACCURACY_THREE_TEMPO_TRACKER_CONSENSUS_ARG = $(if $(wildcard $(THREE_TEMPO_TRACKER_CONSENSUS_LOG)),--three-tempo-tracker-consensus-input "$(THREE_TEMPO_TRACKER_CONSENSUS_LOG)")
 DETECTION_ACCURACY_CANDOMBE_BPM_ARG = $(if $(wildcard $(CANDOMBE_BPM_LOG)),--candombe-bpm-input "$(CANDOMBE_BPM_LOG)")
 DETECTION_ACCURACY_CANDOMBE_INSPECTION_ARG = $(if $(wildcard $(CANDOMBE_INSPECTION_OUTPUT)),--candombe-inspection "$(CANDOMBE_INSPECTION_OUTPUT)")
@@ -992,6 +995,8 @@ BEAT_THIS_RUNTIME_ROOT ?= $(BUILD_DIR)/beat_this_runtime
 BEAT_THIS_DIAGNOSTIC_LOG ?= $(BUILD_DIR)/beat_this_final0_gtzan_rhythm_bpm_diagnostics.log
 BEAT_THIS_BALLROOM_LOG ?= $(BUILD_DIR)/beat_this_final0_ballroom_bpm_diagnostics.log
 BEAT_THIS_FILOBASS_LOG ?= $(BUILD_DIR)/beat_this_final0_filobass_bpm_diagnostics.log
+BEAT_THIS_ROLLING_BALLROOM_LOG ?= $(BUILD_DIR)/beat_this_final0_rolling_ballroom_bpm_diagnostics.log
+BEAT_THIS_ROLLING_FILOBASS_LOG ?= $(BUILD_DIR)/beat_this_final0_rolling_filobass_bpm_diagnostics.log
 THREE_TEMPO_TRACKER_CONSENSUS_LOG ?= $(BUILD_DIR)/three_tempo_tracker_consensus.log
 BEAT_THIS_DIAGNOSTIC_MODEL ?= final0
 BTT_EGMD_LOG ?= $(BUILD_DIR)/btt_egmd_bpm_diagnostics.log
@@ -5858,12 +5863,15 @@ inspect-beat-this-environment: scripts/inspect_beat_this_environment.py
 report-beat-this-gtzan-job: scripts/inspect_beat_this_environment.py
 	$(PYTHON) scripts/inspect_beat_this_environment.py --model-cache-root "$(BEAT_THIS_DIAGNOSTIC_ROOT)" --diagnostic-log "$(BEAT_THIS_DIAGNOSTIC_LOG)"
 
-.PHONY: install-beat-this-diagnostic test-measure-beat-this-bpm measure-beat-this-gtzan-rhythm measure-beat-this-ballroom measure-beat-this-filobass summarize-beat-this-gtzan-rhythm summarize-beat-this-real-tempo
+.PHONY: install-beat-this-diagnostic test-measure-beat-this-bpm test-measure-beat-this-rolling-bpm measure-beat-this-gtzan-rhythm measure-beat-this-ballroom measure-beat-this-filobass measure-beat-this-rolling-ballroom measure-beat-this-rolling-filobass summarize-beat-this-gtzan-rhythm summarize-beat-this-real-tempo summarize-beat-this-rolling-tempo
 install-beat-this-diagnostic: configure-instrument-sample-store scripts/setup_beat_this_diagnostic.sh
 	bash scripts/setup_beat_this_diagnostic.sh "$(BEAT_THIS_DIAGNOSTIC_ROOT)" "$(BEAT_THIS_RUNTIME_ROOT)" "$(PYTHON)"
 
 test-measure-beat-this-bpm: tests/test_measure_beat_this_bpm.py scripts/measure_beat_this_bpm.py
 	$(PYTHON) tests/test_measure_beat_this_bpm.py
+
+test-measure-beat-this-rolling-bpm: tests/test_measure_beat_this_rolling_bpm.py scripts/measure_beat_this_rolling_bpm.py scripts/measure_beat_this_bpm.py
+	$(PYTHON) tests/test_measure_beat_this_rolling_bpm.py
 
 test-summarize-beat-this-bpm: tests/test_summarize_beat_this_bpm.py scripts/summarize_beat_this_bpm.py
 	$(PYTHON) tests/test_summarize_beat_this_bpm.py
@@ -5877,12 +5885,22 @@ measure-beat-this-ballroom: install-beat-this-diagnostic prepare-ballroom-tempo-
 measure-beat-this-filobass: install-beat-this-diagnostic prepare-filobass-tempo-fixture scripts/measure_beat_this_bpm.py
 	env TORCH_HOME="$(BEAT_THIS_DIAGNOSTIC_ROOT)/cache" XDG_CACHE_HOME="$(BEAT_THIS_DIAGNOSTIC_ROOT)/cache" $(PYTHON) scripts/measure_beat_this_bpm.py --root "$(FILOBASS_TEMPO_FIXTURE_DIR)" --output "$(BEAT_THIS_FILOBASS_LOG)" --runtime-root "$(BEAT_THIS_RUNTIME_ROOT)" --model-cache-root "$(BEAT_THIS_DIAGNOSTIC_ROOT)" --checkpoint "$(BEAT_THIS_DIAGNOSTIC_MODEL)"
 
+measure-beat-this-rolling-ballroom: install-beat-this-diagnostic prepare-ballroom-tempo-fixture scripts/measure_beat_this_rolling_bpm.py
+	env TORCH_HOME="$(BEAT_THIS_DIAGNOSTIC_ROOT)/cache" XDG_CACHE_HOME="$(BEAT_THIS_DIAGNOSTIC_ROOT)/cache" $(PYTHON) scripts/measure_beat_this_rolling_bpm.py --root "$(BALLROOM_TEMPO_FIXTURE_DIR)" --output "$(BEAT_THIS_ROLLING_BALLROOM_LOG)" --runtime-root "$(BEAT_THIS_RUNTIME_ROOT)" --model-cache-root "$(BEAT_THIS_DIAGNOSTIC_ROOT)" --checkpoint "$(BEAT_THIS_DIAGNOSTIC_MODEL)"
+
+measure-beat-this-rolling-filobass: install-beat-this-diagnostic prepare-filobass-tempo-fixture scripts/measure_beat_this_rolling_bpm.py
+	env TORCH_HOME="$(BEAT_THIS_DIAGNOSTIC_ROOT)/cache" XDG_CACHE_HOME="$(BEAT_THIS_DIAGNOSTIC_ROOT)/cache" $(PYTHON) scripts/measure_beat_this_rolling_bpm.py --root "$(FILOBASS_TEMPO_FIXTURE_DIR)" --output "$(BEAT_THIS_ROLLING_FILOBASS_LOG)" --runtime-root "$(BEAT_THIS_RUNTIME_ROOT)" --model-cache-root "$(BEAT_THIS_DIAGNOSTIC_ROOT)" --checkpoint "$(BEAT_THIS_DIAGNOSTIC_MODEL)"
+
 summarize-beat-this-gtzan-rhythm: scripts/summarize_beat_this_bpm.py $(BEAT_THIS_DIAGNOSTIC_LOG)
 	$(PYTHON) scripts/summarize_beat_this_bpm.py --tolerance "$(BPM_DIAG_TOLERANCE)" "$(BEAT_THIS_DIAGNOSTIC_LOG)"
 
 summarize-beat-this-real-tempo: scripts/summarize_beat_this_bpm.py $(BEAT_THIS_BALLROOM_LOG) $(BEAT_THIS_FILOBASS_LOG)
 	$(PYTHON) scripts/summarize_beat_this_bpm.py --tolerance "$(BPM_DIAG_TOLERANCE)" "$(BEAT_THIS_BALLROOM_LOG)"
 	$(PYTHON) scripts/summarize_beat_this_bpm.py --tolerance "$(BPM_DIAG_TOLERANCE)" "$(BEAT_THIS_FILOBASS_LOG)"
+
+summarize-beat-this-rolling-tempo: scripts/summarize_beat_this_bpm.py $(BEAT_THIS_ROLLING_BALLROOM_LOG) $(BEAT_THIS_ROLLING_FILOBASS_LOG)
+	$(PYTHON) scripts/summarize_beat_this_bpm.py --prefix "Beat This rolling tempo diag" --tolerance "$(BPM_DIAG_TOLERANCE)" "$(BEAT_THIS_ROLLING_BALLROOM_LOG)"
+	$(PYTHON) scripts/summarize_beat_this_bpm.py --prefix "Beat This rolling tempo diag" --tolerance "$(BPM_DIAG_TOLERANCE)" "$(BEAT_THIS_ROLLING_FILOBASS_LOG)"
 
 summarize-permissive-beat-tracker-gtzan-rhythm: scripts/inspect_tempo_confidence_calibration.py $(BTT_GTZAN_RHYTHM_LOG)
 	$(PYTHON) scripts/inspect_tempo_confidence_calibration.py --prefix "BTT tempo diag" --tolerance "$(BPM_DIAG_TOLERANCE)" "$(BTT_GTZAN_RHYTHM_LOG)"

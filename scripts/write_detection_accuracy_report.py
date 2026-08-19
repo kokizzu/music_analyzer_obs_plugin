@@ -978,19 +978,38 @@ def tempo_diagnostic_counts(path: Path, prefix: str = "MAESTRO tempo diag\t") ->
     return accurate, total
 
 
-def beat_this_tempo_diagnostic_counts(path: Path) -> tuple[int, int]:
+def beat_this_tempo_diagnostic_counts(
+    path: Path, prefix: str = "Beat This tempo diag\t"
+) -> tuple[int, int]:
     accurate = 0
     total = 0
     for line in path.read_text(encoding="utf-8", errors="replace").splitlines():
-        if not line.startswith("Beat This tempo diag\t"):
+        if not line.startswith(prefix):
             continue
-        fields = dict(field.split("=", 1) for field in line.split("\t")[1:] if "=" in field)
+        fields = dict(field.split("=", 1) for field in line[len(prefix):].split("\t") if "=" in field)
         total += 1
         if float(fields.get("error", "inf")) <= 8.0:
             accurate += 1
     if total <= 0:
         raise ValueError(f"{path}: no Beat This tempo diagnostic rows")
     return accurate, total
+
+
+def beat_this_rolling_tempo_counts(path: Path) -> tuple[int, int, int]:
+    """Return accurate, total, and on-budget bounded-window Beat This outcomes."""
+    prefix = "Beat This rolling tempo diag\t"
+    accurate, total = beat_this_tempo_diagnostic_counts(path, prefix)
+    on_budget = 0
+    for line in path.read_text(encoding="utf-8", errors="replace").splitlines():
+        if not line.startswith(prefix):
+            continue
+        fields = dict(field.split("=", 1) for field in line[len(prefix):].split("\t") if "=" in field)
+        try:
+            if float(fields["wall_seconds"]) <= float(fields["window_seconds"]):
+                on_budget += 1
+        except (KeyError, ValueError) as error:
+            raise ValueError(f"{path}: invalid Beat This rolling timing row") from error
+    return accurate, total, on_budget
 
 
 def three_tempo_tracker_consensus_counts(path: Path) -> tuple[int, int, int, int]:
@@ -1242,6 +1261,8 @@ def render(
     beat_this_gtzan_bpm_input: Path | None = None,
     beat_this_ballroom_bpm_input: Path | None = None,
     beat_this_filobass_bpm_input: Path | None = None,
+    beat_this_rolling_ballroom_bpm_input: Path | None = None,
+    beat_this_rolling_filobass_bpm_input: Path | None = None,
     three_tempo_tracker_consensus_input: Path | None = None,
     candombe_bpm_input: Path | None = None,
     candombe_inspection: Path | None = None,
@@ -1281,6 +1302,14 @@ def render(
     beat_this_filobass_bpm = (
         beat_this_tempo_diagnostic_counts(beat_this_filobass_bpm_input)
         if beat_this_filobass_bpm_input else None
+    )
+    beat_this_rolling_ballroom_bpm = (
+        beat_this_rolling_tempo_counts(beat_this_rolling_ballroom_bpm_input)
+        if beat_this_rolling_ballroom_bpm_input else None
+    )
+    beat_this_rolling_filobass_bpm = (
+        beat_this_rolling_tempo_counts(beat_this_rolling_filobass_bpm_input)
+        if beat_this_rolling_filobass_bpm_input else None
     )
     three_tempo_tracker_consensus = (
         three_tempo_tracker_consensus_counts(three_tempo_tracker_consensus_input)
@@ -2765,6 +2794,27 @@ def render(
         if beat_this_filobass_bpm is not None:
             accurate, total = beat_this_filobass_bpm
             lines.append(f"| FiloBass offline stable-segment BPM within 8 BPM | {fraction(accurate, total)} | {total - accurate} |")
+    if beat_this_rolling_ballroom_bpm is not None or beat_this_rolling_filobass_bpm is not None:
+        lines.extend(
+            [
+                "",
+                "### Beat This! bounded rolling-window replay",
+                "",
+                "Each estimate receives only the trailing window ending at the annotated stable-window endpoint. This evaluates input causality and CPU throughput, but still does not authorize OBS integration until continuous replay shows zero wrong displayed BPM values.",
+                "",
+                "| Metric | Accurate / total | Remaining |",
+                "| --- | ---: | ---: |",
+            ]
+        )
+        for name, values in (
+            ("Ballroom", beat_this_rolling_ballroom_bpm),
+            ("FiloBass", beat_this_rolling_filobass_bpm),
+        ):
+            if values is None:
+                continue
+            accurate, total, on_budget = values
+            lines.append(f"| {name} rolling BPM within 8 BPM | {fraction(accurate, total)} | {total - accurate} |")
+            lines.append(f"| {name} rolling windows processed within their audio duration | {fraction(on_budget, total)} | {total - on_budget} |")
     if three_tempo_tracker_consensus is not None:
         correct, selected, newly_revealed, audited = three_tempo_tracker_consensus
         lines.extend(
@@ -2878,6 +2928,7 @@ def render(
             f"| Independent labelled drumming-corpus validation measured | {fraction(int(candombe_bpm is not None), 1)} | {int(candombe_bpm is None)} | Candombe FLAC/CSV pairs: 35 real performances with expert beat/downbeat labels |",
             f"| Benchmark independent neural tracker on held-out GTZAN | {fraction(int(beat_this_gtzan_bpm is not None), 1)} | {int(beat_this_gtzan_bpm is None)} | offline Beat This! `final0` output with no OBS/runtime integration |",
             f"| Benchmark Beat This! on independent real-tempo corpora | {fraction(int(beat_this_ballroom_bpm is not None) + int(beat_this_filobass_bpm is not None), 2)} | {2 - int(beat_this_ballroom_bpm is not None) - int(beat_this_filobass_bpm is not None)} | Ballroom and FiloBass annotated stable segments; CPU-only offline evidence |",
+            f"| Replay bounded trailing Beat This! windows on real-tempo corpora | {fraction(int(beat_this_rolling_ballroom_bpm is not None) + int(beat_this_rolling_filobass_bpm is not None), 2)} | {2 - int(beat_this_rolling_ballroom_bpm is not None) - int(beat_this_rolling_filobass_bpm is not None)} | window ends at each annotated output time; records correctness and processing budget |",
             f"| Audit phase/BTT/Beat This! offline agreement | {fraction(int(three_tempo_tracker_consensus is not None), 1)} | {int(three_tempo_tracker_consensus is None)} | every selected candidate must be correct across Ballroom, FiloBass, and GTZAN |",
             "| Demonstrate bounded causal Beat This! live use | 0 / 1 (0.0%) | 1 | prove a rolling, bounded-latency implementation cannot emit a wrong BPM in continuous replay; File2Beats remains non-causal offline inference |",
             f"| IDMT real-bass timing metadata qualifies as beat truth | {fraction(idmt_bass_timing[0], idmt_bass_timing[1]) if idmt_bass_timing is not None else '0 / 1 (0.0%)'} | {idmt_bass_timing[1] - idmt_bass_timing[0] if idmt_bass_timing is not None else 1} | only corpus-supplied tempo/beat/pattern fields count; note onsets are insufficient |",
@@ -3125,6 +3176,8 @@ def main() -> int:
     parser.add_argument("--beat-this-gtzan-bpm-input", type=Path)
     parser.add_argument("--beat-this-ballroom-bpm-input", type=Path)
     parser.add_argument("--beat-this-filobass-bpm-input", type=Path)
+    parser.add_argument("--beat-this-rolling-ballroom-bpm-input", type=Path)
+    parser.add_argument("--beat-this-rolling-filobass-bpm-input", type=Path)
     parser.add_argument("--three-tempo-tracker-consensus-input", type=Path)
     parser.add_argument("--candombe-bpm-input", type=Path)
     parser.add_argument("--candombe-inspection", type=Path)
@@ -3243,6 +3296,8 @@ def main() -> int:
             args.beat_this_gtzan_bpm_input,
             args.beat_this_ballroom_bpm_input,
             args.beat_this_filobass_bpm_input,
+            args.beat_this_rolling_ballroom_bpm_input,
+            args.beat_this_rolling_filobass_bpm_input,
             args.three_tempo_tracker_consensus_input,
             args.candombe_bpm_input,
             args.candombe_inspection,

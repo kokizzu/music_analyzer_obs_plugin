@@ -9,8 +9,8 @@ from pathlib import Path
 PREFIX = "Beat This tempo diag\t"
 
 
-def fields(line: str) -> dict[str, str]:
-    return dict(item.split("=", 1) for item in line[len(PREFIX) :].split("\t") if "=" in item)
+def fields(line: str, prefix: str) -> dict[str, str]:
+    return dict(item.split("=", 1) for item in line[len(prefix) :].split("\t") if "=" in item)
 
 
 def fraction(numerator: int, denominator: int) -> str:
@@ -23,9 +23,10 @@ def main() -> int:
     parser.add_argument("log", type=Path)
     parser.add_argument("--tolerance", type=float, default=8.0)
     parser.add_argument("--high-tempo-floor", type=float, default=150.0)
+    parser.add_argument("--prefix", default=PREFIX)
     args = parser.parse_args()
-    rows = [fields(line) for line in args.log.read_text(encoding="utf-8", errors="replace").splitlines()
-            if line.startswith(PREFIX)]
+    rows = [fields(line, args.prefix) for line in args.log.read_text(encoding="utf-8", errors="replace").splitlines()
+            if line.startswith(args.prefix)]
     if not rows:
         raise SystemExit("Beat This tempo summary: no rows")
     high = [row for row in rows if float(row["expected"]) >= args.high_tempo_floor]
