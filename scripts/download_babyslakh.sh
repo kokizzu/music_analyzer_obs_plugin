@@ -5,6 +5,7 @@ set -eu
 archive_path=${1:?usage: download_babyslakh.sh ARCHIVE URL MD5}
 download_url=${2:?usage: download_babyslakh.sh ARCHIVE URL MD5}
 expected_md5=${3:?usage: download_babyslakh.sh ARCHIVE URL MD5}
+download_connections=${4:-8}
 
 if [ -s "$archive_path" ] && printf '%s  %s\n' "$expected_md5" "$archive_path" | md5sum -c - >/dev/null 2>&1; then
     printf '%s\n' "download_babyslakh: reused $archive_path"
@@ -24,7 +25,7 @@ case "$download_url" in
         exit 1
         ;;
 esac
-aria2c --continue=true --max-connection-per-server=8 --split=8 --min-split-size=1M \
+aria2c --continue=true --max-connection-per-server="$download_connections" --split="$download_connections" --min-split-size=1M \
     --file-allocation=none --allow-overwrite=true --retry-wait=5 --max-tries=20 \
     --summary-interval=0 --console-log-level=warn --dir "$(dirname "$temporary_path")" \
     --out "$(basename "$temporary_path")" "$download_url"

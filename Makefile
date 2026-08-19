@@ -867,6 +867,7 @@ BABYSLAKH_SOURCE_DIR ?= $(INSTRUMENT_SAMPLE_STORE_LINK)/baby_slakh
 BABYSLAKH_ARCHIVE ?= $(BABYSLAKH_SOURCE_DIR)/babyslakh_16k.tar.gz
 BABYSLAKH_ARCHIVE_URL ?= https://zenodo.org/api/records/4603870/files/babyslakh_16k.tar.gz/content
 BABYSLAKH_ARCHIVE_MD5 ?= 311096dc2bde7d61c97e930edbfc7f78
+BABYSLAKH_DOWNLOAD_CONNECTIONS ?= 8
 BABYSLAKH_EXTRACTED_DIR ?= $(BABYSLAKH_SOURCE_DIR)/extracted
 BABYSLAKH_REQUIRED_TRACKS ?= 20
 BABYSLAKH_DRUMS_SAMPLE_DIR ?= $(INSTRUMENT_SAMPLE_STORE_LINK)/babyslakh_drums_samples
@@ -2530,7 +2531,7 @@ prepare-mdb-drums-samples: scripts/prepare_mdb_drums_samples.py scripts/run_with
 
 .PHONY: download-babyslakh probe-babyslakh-download test-download-babyslakh-script download-babyslakh-background stop-babyslakh-background reset-babyslakh-download-control finalize-babyslakh-download discard-babyslakh-corrupt-partial inspect-babyslakh-download inspect-babyslakh-downloader test-download-babyslakh-background-scripts test-babyslakh-background-extraction-scripts inspect-babyslakh-extraction extract-babyslakh-background test-inspect-babyslakh-archive test-extract-babyslakh-archive test-prepare-babyslakh-drums inspect-babyslakh-archive inspect-babyslakh-archive-existing extract-babyslakh inspect-babyslakh prepare-babyslakh-drums measure-babyslakh-drums
 download-babyslakh: scripts/download_babyslakh.sh
-	$(SHELL) scripts/download_babyslakh.sh "$(BABYSLAKH_ARCHIVE)" "$(BABYSLAKH_ARCHIVE_URL)" "$(BABYSLAKH_ARCHIVE_MD5)"
+	$(SHELL) scripts/download_babyslakh.sh "$(BABYSLAKH_ARCHIVE)" "$(BABYSLAKH_ARCHIVE_URL)" "$(BABYSLAKH_ARCHIVE_MD5)" "$(BABYSLAKH_DOWNLOAD_CONNECTIONS)"
 
 probe-babyslakh-download: scripts/probe_babyslakh_download.sh
 	$(SHELL) scripts/probe_babyslakh_download.sh "$(BABYSLAKH_ARCHIVE_URL)"
@@ -2539,7 +2540,7 @@ test-download-babyslakh-script: scripts/download_babyslakh.sh
 	sh -n scripts/download_babyslakh.sh
 
 download-babyslakh-background: scripts/start_babyslakh_background_download.sh scripts/download_babyslakh_background_worker.sh
-	$(SHELL) scripts/start_babyslakh_background_download.sh "$(BABYSLAKH_ARCHIVE)" "$(BABYSLAKH_ARCHIVE_URL)" "$(BABYSLAKH_ARCHIVE_MD5)" "$(CURDIR)/scripts/download_babyslakh_background_worker.sh"
+	$(SHELL) scripts/start_babyslakh_background_download.sh "$(BABYSLAKH_ARCHIVE)" "$(BABYSLAKH_ARCHIVE_URL)" "$(BABYSLAKH_ARCHIVE_MD5)" "$(CURDIR)/scripts/download_babyslakh_background_worker.sh" "$(BABYSLAKH_DOWNLOAD_CONNECTIONS)"
 
 stop-babyslakh-background: scripts/stop_babyslakh_background_download.sh
 	$(SHELL) scripts/stop_babyslakh_background_download.sh
