@@ -978,6 +978,21 @@ def tempo_diagnostic_counts(path: Path, prefix: str = "MAESTRO tempo diag\t") ->
     return accurate, total
 
 
+def beat_this_tempo_diagnostic_counts(path: Path) -> tuple[int, int]:
+    accurate = 0
+    total = 0
+    for line in path.read_text(encoding="utf-8", errors="replace").splitlines():
+        if not line.startswith("Beat This tempo diag\t"):
+            continue
+        fields = dict(field.split("=", 1) for field in line.split("\t")[1:] if "=" in field)
+        total += 1
+        if float(fields.get("error", "inf")) <= 8.0:
+            accurate += 1
+    if total <= 0:
+        raise ValueError(f"{path}: no Beat This tempo diagnostic rows")
+    return accurate, total
+
+
 TEMPO_CANDIDATE_ALIGNMENT_RE = re.compile(
     r"(?P<bpm>\d+)\([^)]*?align="
     r"(?P<kick>[0-9.]+)/(?P<bass>[0-9.]+)/(?P<snare>[0-9.]+)/(?P<tonal>[0-9.]+)"
@@ -1177,6 +1192,7 @@ def render(
     egmd_bpm_input: Path | None = None,
     idmt_bass_tempo_metadata_input: Path | None = None,
     ballroom_annotations: Path | None = None,
+    beat_this_gtzan_bpm_input: Path | None = None,
 ) -> str:
     samples = load_samples(input_path)
     dcs_rows = dagstuhl_choirset_rows(dagstuhl_choirset_input) if dagstuhl_choirset_input else []
@@ -1195,6 +1211,11 @@ def render(
     ballroom_bpm = tempo_diagnostic_counts(ballroom_bpm_input) if ballroom_bpm_input else None
     gtzan_rhythm_bpm = (
         tempo_diagnostic_counts(gtzan_rhythm_bpm_input) if gtzan_rhythm_bpm_input else None
+    )
+    beat_this_gtzan_bpm = (
+        beat_this_tempo_diagnostic_counts(beat_this_gtzan_bpm_input)
+        if beat_this_gtzan_bpm_input
+        else None
     )
     ballroom_annotations_ready = int(
         ballroom_annotations is not None and (ballroom_annotations / ".git").is_dir()
@@ -2600,6 +2621,20 @@ def render(
                 f"| Displayable BPM at confidence ≥ 0.60 | {fraction(accurate, total)} | {total - accurate} |",
             ]
         )
+    if beat_this_gtzan_bpm is not None:
+        accurate, total = beat_this_gtzan_bpm
+        lines.extend(
+            [
+                "",
+                "## Beat This! independent neural GTZAN diagnostic",
+                "",
+                f"Source: `{beat_this_gtzan_bpm_input.as_posix()}`. This is offline-only CPU inference with the MIT-licensed `small0` model; its published training excludes GTZAN. It is independent calibration evidence, not a live OBS backend or release gate.",
+                "",
+                "| Metric | Accurate / total | Remaining |",
+                "| --- | ---: | ---: |",
+                f"| Offline stable-segment BPM within 8 BPM | {fraction(accurate, total)} | {total - accurate} |",
+            ]
+        )
     if filobass_bpm is not None:
         accurate, total = filobass_bpm
         lines.extend(
@@ -2693,6 +2728,7 @@ def render(
             f"| Retrieve versioned Ballroom beat/bar annotations | {fraction(ballroom_annotations_ready, 1)} | {1 - ballroom_annotations_ready} | CPJKU BallroomAnnotations checkout in InstrumentSamples |",
             f"| Rhythm-heavy real-mix beat validation measured | {fraction(int(ballroom_bpm is not None), 1)} | {int(ballroom_bpm is None)} | up to 64 genre-balanced Ballroom stable sections with manually corrected beat/bar annotations |",
             f"| Genre-diverse real-mix beat validation measured | {fraction(int(gtzan_rhythm_bpm is not None), 1)} | {int(gtzan_rhythm_bpm is None)} | GTZAN-Rhythm WAV/JAMS pairs; stable BPM segments derived from manually annotated beats |",
+            f"| Benchmark independent neural tracker on held-out GTZAN | {fraction(int(beat_this_gtzan_bpm is not None), 1)} | {int(beat_this_gtzan_bpm is None)} | offline Beat This! `small0` output with no OBS/runtime integration |",
             f"| IDMT real-bass timing metadata qualifies as beat truth | {fraction(idmt_bass_timing[0], idmt_bass_timing[1]) if idmt_bass_timing is not None else '0 / 1 (0.0%)'} | {idmt_bass_timing[1] - idmt_bass_timing[0] if idmt_bass_timing is not None else 1} | only corpus-supplied tempo/beat/pattern fields count; note onsets are insufficient |",
             f"| Independent real bass-led beat-labelled validation measured | {fraction(int(filobass_bpm is not None), 1)} | {int(filobass_bpm is None)} | FiloBass real bass stems plus reviewed downbeats and MIDI time signature |",
             f"| Assess raw bass-attack BPM evidence | {fraction(int(filobass_onset_diagnostic is not None), 1)} | {int(filobass_onset_diagnostic is None)} | offline FiloBass rank-one/top-five diagnostic |",
@@ -2917,6 +2953,7 @@ def main() -> int:
     parser.add_argument("--ballroom-bpm-input", type=Path)
     parser.add_argument("--ballroom-annotations", type=Path)
     parser.add_argument("--gtzan-rhythm-bpm-input", type=Path)
+    parser.add_argument("--beat-this-gtzan-bpm-input", type=Path)
     parser.add_argument("--filobass-bpm-input", type=Path)
     parser.add_argument("--filobass-onset-diagnostic-input", type=Path)
     parser.add_argument("--egmd-bpm-input", type=Path)
@@ -3024,6 +3061,7 @@ def main() -> int:
             args.egmd_bpm_input,
             args.idmt_bass_tempo_metadata_input,
             args.ballroom_annotations,
+            args.beat_this_gtzan_bpm_input,
         )
     except (OSError, ValueError) as error:
         parser.error(str(error))

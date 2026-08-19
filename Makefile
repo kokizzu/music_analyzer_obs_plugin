@@ -231,11 +231,12 @@ DETECTION_ACCURACY_MAESTRO_REAL_MANIFEST_ARG = $(if $(wildcard $(MAESTRO_REAL_SA
 DETECTION_ACCURACY_KRAISLER_ARCHIVE_ARG = $(if $(wildcard $(KRAISLER_ARCHIVE)),--kraisler-archive "$(KRAISLER_ARCHIVE)")
 DETECTION_ACCURACY_KRAISLER_EXTRACT_ARG = $(if $(wildcard $(KRAISLER_EXTRACT_DIR)),--kraisler-extraction "$(KRAISLER_EXTRACT_DIR)")
 DETECTION_ACCURACY_KRAISLER_MANIFEST_ARG = $(if $(wildcard $(KRAISLER_PREPARED_DIR)/manifest.json),--kraisler-manifest "$(KRAISLER_PREPARED_DIR)/manifest.json")
-DETECTION_ACCURACY_KRAISLER_MEASUREMENT_ARG = $(if $(wildcard $(KRAISLER_MEASUREMENT_OUTPUT)),--kraisler-measurement "$(KRAISLER_MEASUREMENT_OUTPUT)") $(DETECTION_ACCURACY_KRAISLER_BPM_ARG) $(DETECTION_ACCURACY_BALLROOM_BPM_ARG) $(DETECTION_ACCURACY_BALLROOM_ANNOTATIONS_ARG) $(DETECTION_ACCURACY_GTZAN_RHYTHM_BPM_ARG) $(DETECTION_ACCURACY_FILOBASS_BPM_ARG) $(DETECTION_ACCURACY_FILOBASS_ONSET_DIAGNOSTIC_ARG) $(DETECTION_ACCURACY_EGMD_BPM_ARG) $(DETECTION_ACCURACY_IDMT_BASS_TEMPO_METADATA_ARG)
+DETECTION_ACCURACY_KRAISLER_MEASUREMENT_ARG = $(if $(wildcard $(KRAISLER_MEASUREMENT_OUTPUT)),--kraisler-measurement "$(KRAISLER_MEASUREMENT_OUTPUT)") $(DETECTION_ACCURACY_KRAISLER_BPM_ARG) $(DETECTION_ACCURACY_BALLROOM_BPM_ARG) $(DETECTION_ACCURACY_BALLROOM_ANNOTATIONS_ARG) $(DETECTION_ACCURACY_GTZAN_RHYTHM_BPM_ARG) $(DETECTION_ACCURACY_BEAT_THIS_GTZAN_ARG) $(DETECTION_ACCURACY_FILOBASS_BPM_ARG) $(DETECTION_ACCURACY_FILOBASS_ONSET_DIAGNOSTIC_ARG) $(DETECTION_ACCURACY_EGMD_BPM_ARG) $(DETECTION_ACCURACY_IDMT_BASS_TEMPO_METADATA_ARG)
 DETECTION_ACCURACY_KRAISLER_BPM_ARG = $(if $(wildcard $(KRAISLER_BPM_LOG)),--kraisler-bpm-input "$(KRAISLER_BPM_LOG)")
 DETECTION_ACCURACY_BALLROOM_BPM_ARG = $(if $(wildcard $(BALLROOM_BPM_LOG)),--ballroom-bpm-input "$(BALLROOM_BPM_LOG)")
 DETECTION_ACCURACY_BALLROOM_ANNOTATIONS_ARG = $(if $(wildcard $(BALLROOM_ANNOTATIONS_DIR)/.git),--ballroom-annotations "$(BALLROOM_ANNOTATIONS_DIR)")
 DETECTION_ACCURACY_GTZAN_RHYTHM_BPM_ARG = $(if $(wildcard $(GTZAN_RHYTHM_BPM_LOG)),--gtzan-rhythm-bpm-input "$(GTZAN_RHYTHM_BPM_LOG)")
+DETECTION_ACCURACY_BEAT_THIS_GTZAN_ARG = $(if $(wildcard $(BEAT_THIS_DIAGNOSTIC_LOG)),--beat-this-gtzan-bpm-input "$(BEAT_THIS_DIAGNOSTIC_LOG)")
 DETECTION_ACCURACY_FILOBASS_BPM_ARG = $(if $(wildcard $(FILOBASS_BPM_LOG)),--filobass-bpm-input "$(FILOBASS_BPM_LOG)")
 DETECTION_ACCURACY_FILOBASS_ONSET_DIAGNOSTIC_ARG = $(if $(wildcard $(FILOBASS_ONSET_DIAGNOSTICS)),--filobass-onset-diagnostic-input "$(FILOBASS_ONSET_DIAGNOSTICS)")
 DETECTION_ACCURACY_EGMD_BPM_ARG = $(if $(wildcard $(EGMD_BPM_LOG)),--egmd-bpm-input "$(EGMD_BPM_LOG)")
@@ -949,6 +950,12 @@ GTZAN_RHYTHM_BPM_LIMIT ?= 100
 BTT_BALLROOM_LOG ?= $(BUILD_DIR)/btt_ballroom_bpm_diagnostics.log
 BTT_FILOBASS_LOG ?= $(BUILD_DIR)/btt_filobass_bpm_diagnostics.log
 BTT_GTZAN_RHYTHM_LOG ?= $(BUILD_DIR)/btt_gtzan_rhythm_bpm_diagnostics.log
+BTT_GTZAN_RHYTHM_RANGE_SWEEP_LOG ?= $(BUILD_DIR)/btt_gtzan_rhythm_range_sweep.log
+BTT_GTZAN_RHYTHM_RANGE_SWEEP_MINS ?= 40,100,120,140,160
+BEAT_THIS_DIAGNOSTIC_ROOT ?= $(INSTRUMENT_SAMPLE_STORE_LINK)/beat_this_diagnostic
+BEAT_THIS_RUNTIME_ROOT ?= $(BUILD_DIR)/beat_this_runtime
+BEAT_THIS_DIAGNOSTIC_LOG ?= $(BUILD_DIR)/beat_this_gtzan_rhythm_bpm_diagnostics.log
+BEAT_THIS_DIAGNOSTIC_MODEL ?= small0
 BTT_EGMD_LOG ?= $(BUILD_DIR)/btt_egmd_bpm_diagnostics.log
 BTT_HIGH_TEMPO_MIN ?= 120
 BTT_HIGH_TEMPO_BALLROOM_LOG ?= $(BUILD_DIR)/btt_high_tempo_ballroom_bpm_diagnostics.log
@@ -5744,6 +5751,36 @@ measure-permissive-beat-tracker-egmd: $(BTT_PROBE) scripts/measure_permissive_be
 
 measure-permissive-beat-tracker-gtzan-rhythm: $(BTT_PROBE) scripts/measure_permissive_beat_tracker.py $(GTZAN_RHYTHM_TEMPO_FIXTURE_DIR)/maestro-v3.0.0.csv
 	$(PYTHON) scripts/measure_permissive_beat_tracker.py --root "$(GTZAN_RHYTHM_TEMPO_FIXTURE_DIR)" --probe "$(BTT_PROBE)" > "$(BTT_GTZAN_RHYTHM_LOG)"
+
+.PHONY: measure-permissive-beat-tracker-gtzan-rhythm-range-sweep summarize-permissive-beat-tracker-gtzan-rhythm-range-sweep test-summarize-btt-tempo-sweep
+measure-permissive-beat-tracker-gtzan-rhythm-range-sweep: $(BTT_PROBE) scripts/sweep_permissive_beat_tracker.py $(GTZAN_RHYTHM_TEMPO_FIXTURE_DIR)/maestro-v3.0.0.csv
+	$(PYTHON) scripts/sweep_permissive_beat_tracker.py --root "$(GTZAN_RHYTHM_TEMPO_FIXTURE_DIR)" --probe "$(BTT_PROBE)" --min-tempos "$(BTT_GTZAN_RHYTHM_RANGE_SWEEP_MINS)" > "$(BTT_GTZAN_RHYTHM_RANGE_SWEEP_LOG)"
+
+summarize-permissive-beat-tracker-gtzan-rhythm-range-sweep: scripts/summarize_btt_tempo_sweep.py $(BTT_GTZAN_RHYTHM_RANGE_SWEEP_LOG)
+	$(PYTHON) scripts/summarize_btt_tempo_sweep.py --tolerance "$(BPM_DIAG_TOLERANCE)" "$(BTT_GTZAN_RHYTHM_RANGE_SWEEP_LOG)"
+
+test-summarize-btt-tempo-sweep: tests/test_summarize_btt_tempo_sweep.py scripts/summarize_btt_tempo_sweep.py
+	$(PYTHON) tests/test_summarize_btt_tempo_sweep.py
+
+.PHONY: inspect-beat-this-environment
+inspect-beat-this-environment: scripts/inspect_beat_this_environment.py
+	$(PYTHON) scripts/inspect_beat_this_environment.py
+
+.PHONY: install-beat-this-diagnostic test-measure-beat-this-bpm measure-beat-this-gtzan-rhythm summarize-beat-this-gtzan-rhythm
+install-beat-this-diagnostic: configure-instrument-sample-store scripts/setup_beat_this_diagnostic.sh
+	bash scripts/setup_beat_this_diagnostic.sh "$(BEAT_THIS_DIAGNOSTIC_ROOT)" "$(BEAT_THIS_RUNTIME_ROOT)" "$(PYTHON)"
+
+test-measure-beat-this-bpm: tests/test_measure_beat_this_bpm.py scripts/measure_beat_this_bpm.py
+	$(PYTHON) tests/test_measure_beat_this_bpm.py
+
+test-summarize-beat-this-bpm: tests/test_summarize_beat_this_bpm.py scripts/summarize_beat_this_bpm.py
+	$(PYTHON) tests/test_summarize_beat_this_bpm.py
+
+measure-beat-this-gtzan-rhythm: install-beat-this-diagnostic prepare-gtzan-rhythm-tempo-fixture scripts/measure_beat_this_bpm.py
+	env TORCH_HOME="$(BEAT_THIS_DIAGNOSTIC_ROOT)/cache" XDG_CACHE_HOME="$(BEAT_THIS_DIAGNOSTIC_ROOT)/cache" $(PYTHON) scripts/measure_beat_this_bpm.py --root "$(GTZAN_RHYTHM_TEMPO_FIXTURE_DIR)" --output "$(BEAT_THIS_DIAGNOSTIC_LOG)" --runtime-root "$(BEAT_THIS_RUNTIME_ROOT)" --model-cache-root "$(BEAT_THIS_DIAGNOSTIC_ROOT)" --checkpoint "$(BEAT_THIS_DIAGNOSTIC_MODEL)"
+
+summarize-beat-this-gtzan-rhythm: scripts/summarize_beat_this_bpm.py $(BEAT_THIS_DIAGNOSTIC_LOG)
+	$(PYTHON) scripts/summarize_beat_this_bpm.py --tolerance "$(BPM_DIAG_TOLERANCE)" "$(BEAT_THIS_DIAGNOSTIC_LOG)"
 
 summarize-permissive-beat-tracker-gtzan-rhythm: scripts/inspect_tempo_confidence_calibration.py $(BTT_GTZAN_RHYTHM_LOG)
 	$(PYTHON) scripts/inspect_tempo_confidence_calibration.py --prefix "BTT tempo diag" --tolerance "$(BPM_DIAG_TOLERANCE)" "$(BTT_GTZAN_RHYTHM_LOG)"

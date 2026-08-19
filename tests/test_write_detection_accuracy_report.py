@@ -166,6 +166,16 @@ class DetectionAccuracyReportTest(unittest.TestCase):
                 (5, 9, 12807, 12211, 61501),
             )
 
+    def test_beat_this_tempo_rows_use_the_offline_error_field(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            diagnostic = Path(temporary) / "beat_this.log"
+            diagnostic.write_text(
+                "Beat This tempo diag\tid=1\texpected=120.00\traw=120.00\terror=0.00\n"
+                "Beat This tempo diag\tid=2\texpected=90.00\traw=180.00\terror=90.00\n",
+                encoding="utf-8",
+            )
+            self.assertEqual(REPORT.beat_this_tempo_diagnostic_counts(diagnostic), (1, 2))
+
     def test_polyphonic_candidate_capacity_audit_tracks_saturation_explanation(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             audit = Path(temporary) / "polyphonic_candidate_capacity_audit.txt"

@@ -1510,6 +1510,14 @@ Source: `build/gtzan_rhythm_bpm_diagnostics.log`. GTZAN-Rhythm provides manually
 | --- | ---: | ---: |
 | Displayable BPM at confidence ≥ 0.60 | 1 / 100 (1.0%) | 99 |
 
+## Beat This! independent neural GTZAN diagnostic
+
+Source: `build/beat_this_gtzan_rhythm_bpm_diagnostics.log`. This is offline-only CPU inference with the MIT-licensed `small0` model; its published training excludes GTZAN. It is independent calibration evidence, not a live OBS backend or release gate.
+
+| Metric | Accurate / total | Remaining |
+| --- | ---: | ---: |
+| Offline stable-segment BPM within 8 BPM | 82 / 100 (82.0%) | 18 |
+
 ## FiloBass real bass-led annotated-tempo diagnostic
 
 Source: `build/filobass_bpm_diagnostics.log`. FiloBass pairs real jazz bass stems with reviewed downbeat syncpoints and a MIDI time signature; BPM references are derived only from those corpus annotations.
@@ -1570,6 +1578,7 @@ Tempo estimates are only displayed at calibrated confidence. Source-specific pha
 | Retrieve versioned Ballroom beat/bar annotations | 1 / 1 (100.0%) | 0 | CPJKU BallroomAnnotations checkout in InstrumentSamples |
 | Rhythm-heavy real-mix beat validation measured | 1 / 1 (100.0%) | 0 | up to 64 genre-balanced Ballroom stable sections with manually corrected beat/bar annotations |
 | Genre-diverse real-mix beat validation measured | 1 / 1 (100.0%) | 0 | GTZAN-Rhythm WAV/JAMS pairs; stable BPM segments derived from manually annotated beats |
+| Benchmark independent neural tracker on held-out GTZAN | 1 / 1 (100.0%) | 0 | offline Beat This! `small0` output with no OBS/runtime integration |
 | IDMT real-bass timing metadata qualifies as beat truth | 0 / 17 (0.0%) | 17 | only corpus-supplied tempo/beat/pattern fields count; note onsets are insufficient |
 | Independent real bass-led beat-labelled validation measured | 1 / 1 (100.0%) | 0 | FiloBass real bass stems plus reviewed downbeats and MIDI time signature |
 | Assess raw bass-attack BPM evidence | 1 / 1 (100.0%) | 0 | offline FiloBass rank-one/top-five diagnostic |
