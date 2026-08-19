@@ -2528,6 +2528,18 @@ analyze-star-drums-misses: $(BUILD_DIR)/analyzer_egmd prepare-star-drums-samples
 	env MUSIC_ANALYZER_EGMD_ROOT="$(STAR_DRUMS_SAMPLE_DIR)" MUSIC_ANALYZER_EGMD_REQUIRED=1 MUSIC_ANALYZER_EGMD_REQUIRED_RECORDINGS="$(STAR_DRUMS_MIN_RECORDINGS)" MUSIC_ANALYZER_EGMD_REQUIRED_WINDOWS="$(STAR_DRUMS_REQUIRED_WINDOWS)" MUSIC_ANALYZER_EGMD_MIN_RECALL_PERCENT=0 MUSIC_ANALYZER_EGMD_MIN_WINDOW_RECALL_PERCENT=0 MUSIC_ANALYZER_EGMD_MIN_PRECISION_PERCENT=0 MUSIC_ANALYZER_EGMD_MAX_FALSE_POSITIVE_WINDOWS_PERCENT=100 MUSIC_ANALYZER_EGMD_VERBOSE_MISSES=1 MUSIC_ANALYZER_EGMD_VERBOSE_MISS_LIMIT=120 MUSIC_ANALYZER_EGMD_VERBOSE_FALSE_POSITIVES=1 MUSIC_ANALYZER_EGMD_VERBOSE_FALSE_POSITIVE_LIMIT=120 $(BUILD_DIR)/analyzer_egmd > "$(STAR_DRUMS_MISS_LOG).summary" 2> "$(STAR_DRUMS_MISS_LOG)"
 	$(PYTHON) scripts/analyze_egmd_misses.py "$(STAR_DRUMS_MISS_LOG)"
 
+.PHONY: analyze-star-drum-windows evaluate-star-drum-windows
+analyze-star-drum-windows: $(BUILD_DIR)/analyzer_egmd prepare-star-drums-samples
+	env MUSIC_ANALYZER_EGMD_ROOT="$(STAR_DRUMS_SAMPLE_DIR)" MUSIC_ANALYZER_EGMD_REQUIRED=1 MUSIC_ANALYZER_EGMD_REQUIRED_RECORDINGS="$(STAR_DRUMS_MIN_RECORDINGS)" MUSIC_ANALYZER_EGMD_REQUIRED_WINDOWS="$(STAR_DRUMS_REQUIRED_WINDOWS)" MUSIC_ANALYZER_EGMD_MIN_RECALL_PERCENT=0 MUSIC_ANALYZER_EGMD_MIN_WINDOW_RECALL_PERCENT=0 MUSIC_ANALYZER_EGMD_MIN_PRECISION_PERCENT=0 MUSIC_ANALYZER_EGMD_MAX_FALSE_POSITIVE_WINDOWS_PERCENT=100 MUSIC_ANALYZER_EGMD_VERBOSE_WINDOWS=1 MUSIC_ANALYZER_EGMD_VERBOSE_WINDOW_LIMIT=4000 $(BUILD_DIR)/analyzer_egmd > "$(STAR_DRUMS_MISS_LOG).windows.summary" 2> "$(STAR_DRUMS_MISS_LOG).windows"
+	@printf '%s\n' "STAR drum all-window log: $(STAR_DRUMS_MISS_LOG).windows"
+
+evaluate-star-drum-windows: analyze-star-drum-windows scripts/evaluate_egmd_drum_recovery.py
+	$(PYTHON) scripts/evaluate_egmd_drum_recovery.py "$(STAR_DRUMS_MISS_LOG).windows" $(DRUM_RECOVERY_ARGS)
+
+.PHONY: search-drum-false-positive-caps
+search-drum-false-positive-caps: analyze-mdb-drum-windows analyze-star-drum-windows scripts/search_egmd_false_positive_caps.py
+	$(PYTHON) scripts/search_egmd_false_positive_caps.py --input "MDB=$(MDB_DRUMS_WINDOW_LOG)" --input "STAR=$(STAR_DRUMS_MISS_LOG).windows"
+
 analyze-star-drum-attributes: analyze-star-drums-misses scripts/summarize_egmd_drum_attributes.py
 	$(PYTHON) scripts/summarize_egmd_drum_attributes.py "$(STAR_DRUMS_MISS_LOG)" $(DRUM_ATTRIBUTE_ARGS)
 
@@ -5907,6 +5919,7 @@ ANALYSIS_SCRIPT_TEST_TARGETS += test-inspect-detector-coverage-candidates test-c
 ANALYSIS_SCRIPT_TEST_TARGETS += test-inspect-good-sounds-archive-coverage
 ANALYSIS_SCRIPT_TEST_TARGETS += test-inspect-polyphonic-candidate-capacity test-inspect-harmonic-product-octave-evidence test-detection-accuracy-report
 ANALYSIS_SCRIPT_TEST_TARGETS += test-inspect-tempo-candidate-feasibility
+ANALYSIS_SCRIPT_TEST_TARGETS += test-search-egmd-false-positive-caps
 
 test-drum-sample-shard-check: tests/test_check_drum_sample_shards.py scripts/check_drum_sample_shards.py
 	$(PYTHON) tests/test_check_drum_sample_shards.py
@@ -6255,6 +6268,10 @@ test-egmd-drum-attribute-summary: tests/test_summarize_egmd_drum_attributes.py s
 .PHONY: test-egmd-drum-recovery-eval evaluate-mdb-drum-recovery evaluate-star-drum-recovery
 test-egmd-drum-recovery-eval: tests/test_evaluate_egmd_drum_recovery.py scripts/evaluate_egmd_drum_recovery.py scripts/summarize_egmd_drum_attributes.py
 	$(PYTHON) tests/test_evaluate_egmd_drum_recovery.py
+
+.PHONY: test-search-egmd-false-positive-caps
+test-search-egmd-false-positive-caps: tests/test_search_egmd_false_positive_caps.py scripts/search_egmd_false_positive_caps.py scripts/evaluate_egmd_drum_recovery.py
+	$(PYTHON) tests/test_search_egmd_false_positive_caps.py
 
 evaluate-mdb-drum-recovery: analyze-mdb-drums-misses scripts/evaluate_egmd_drum_recovery.py scripts/summarize_egmd_drum_attributes.py
 	$(PYTHON) scripts/evaluate_egmd_drum_recovery.py "$(MDB_DRUMS_MISS_LOG)" $(DRUM_RECOVERY_ARGS)

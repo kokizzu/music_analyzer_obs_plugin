@@ -31175,6 +31175,27 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 		}
 	};
 
+	// Real-mix calibration: across both independent MDB and STAR windows, an
+	// active kick with a strongly mid-dominant spectrum was never annotated as
+	// kick.  It is shell bleed rather than a low-frequency kick body.  Keep the
+	// cap out of one-shot mode, whose deliberately isolated samples use a
+	// different calibration path.
+	const bool mixed_mid_dominant_kick_bleed =
+		drum_detection_enabled && !one_shot_drum_source && drum_level_[Kick] > 0.30f &&
+		snapshot.mid_energy >= 0.39f;
+	if (mixed_mid_dominant_kick_bleed)
+		cap_drum_level(Kick, 0.28f);
+
+	// A large upper-tom harmonic during a mixed hit similarly identified
+	// non-tom shell bleed in both corpora.  This is intentionally separate from
+	// the lower-body tom rules so genuine tom fundamentals keep their existing
+	// recovery path.
+	const bool mixed_upper_tom_bleed =
+		drum_detection_enabled && !one_shot_drum_source && drum_level_[Tom] > 0.30f &&
+		upper_tom_body >= 25.48f;
+	if (mixed_upper_tom_bleed)
+		cap_drum_level(Tom, 0.28f);
+
 	const float snare_trigger_ratio_after_detection =
 		snapshot.drum_debug_trigger_scores[Snare] /
 		(snapshot.drum_debug_trigger_thresholds[Snare] + 1.0e-6f);

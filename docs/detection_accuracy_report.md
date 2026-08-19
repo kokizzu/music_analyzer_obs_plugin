@@ -1674,11 +1674,11 @@ These independent one-shot samples are sharded by expected instrument; the seven
 
 | Metric | Accurate / total | Remaining |
 | --- | ---: | ---: |
-| High-fidelity drum kit — primary kick | 288 / 300 (96.0%) | 12 |
+| High-fidelity drum kit — primary kick | 286 / 300 (95.3%) | 14 |
 | High-fidelity drum kit — primary snare | 295 / 300 (98.3%) | 5 |
 | High-fidelity drum kit — primary hihat | 299 / 300 (99.7%) | 1 |
-| High-fidelity drum kit — primary crash | 283 / 300 (94.3%) | 17 |
-| High-fidelity drum kit — primary tom | 282 / 300 (94.0%) | 18 |
+| High-fidelity drum kit — primary crash | 282 / 300 (94.0%) | 18 |
+| High-fidelity drum kit — primary tom | 283 / 300 (94.3%) | 17 |
 | High-fidelity drum kit — primary ride | 295 / 300 (98.3%) | 5 |
 | High-fidelity drum kit — primary rim | 283 / 300 (94.3%) | 17 |
 
@@ -1691,8 +1691,8 @@ Source: `build/star_drums_misses.log.summary`
 | Metric | Accurate / total | Remaining |
 | --- | ---: | ---: |
 | STAR Drums preview — annotated drum events detected | 39 / 56 (69.6%) | 17 |
-| STAR Drums preview — detected-drum precision | 39 / 51 (76.5%) | 12 false predictions |
-| STAR Drums preview — windows without a false drum | 6 / 16 (37.5%) | 10 false-positive windows |
+| STAR Drums preview — detected-drum precision | 39 / 41 (95.1%) | 2 false predictions |
+| STAR Drums preview — windows without a false drum | 15 / 16 (93.8%) | 1 false-positive windows |
 
 ## MDB Drums multitrack gate
 
@@ -1702,8 +1702,8 @@ Source: `build/mdb_drums_misses.log.summary`
 
 | Metric | Accurate / total | Remaining |
 | --- | ---: | ---: |
-| MDB Drums — annotated drum events detected | 192 / 192 (100.0%) | 0 |
-| MDB Drums — detected-drum precision | 192 / 271 (70.8%) | 79 false predictions |
-| MDB Drums — windows without a false drum | 41 / 92 (44.6%) | 51 false-positive windows |
+| MDB Drums — annotated drum events detected | 191 / 192 (99.5%) | 1 |
+| MDB Drums — detected-drum precision | 191 / 256 (74.6%) | 65 false predictions |
+| MDB Drums — windows without a false drum | 49 / 92 (53.3%) | 43 false-positive windows |
 
 Refresh with `make update-detection-accuracy-report`. Whenever a verified detection metric changes, update this report in the same commit.
