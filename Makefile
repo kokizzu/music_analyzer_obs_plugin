@@ -5692,12 +5692,18 @@ download-filobass: configure-instrument-sample-store scripts/download_filobass_d
 download-gtzan-rhythm: configure-instrument-sample-store scripts/download_gtzan_rhythm_dataset.sh
 	bash scripts/download_gtzan_rhythm_dataset.sh "$(INSTRUMENT_SAMPLE_STORE)" "$(CURL)" "$(GTZAN_RHYTHM_AUDIO_URL)" "$(GTZAN_RHYTHM_ANNOTATIONS_URL)"
 
-.PHONY: download-candombe inspect-candombe prepare-candombe-tempo-fixture measure-candombe-bpm summarize-candombe-bpm
+.PHONY: download-candombe download-candombe-annotations inspect-candombe inspect-candombe-annotations prepare-candombe-tempo-fixture measure-candombe-bpm summarize-candombe-bpm
 download-candombe: configure-instrument-sample-store scripts/download_candombe_dataset.sh
 	bash scripts/download_candombe_dataset.sh "$(INSTRUMENT_SAMPLE_STORE)" "$(CURL)" "$(CANDOMBE_AUDIO_URL)" "$(CANDOMBE_ANNOTATIONS_URL)"
 
+download-candombe-annotations: configure-instrument-sample-store scripts/download_candombe_dataset.sh
+	bash scripts/download_candombe_dataset.sh "$(INSTRUMENT_SAMPLE_STORE)" "$(CURL)" "$(CANDOMBE_AUDIO_URL)" "$(CANDOMBE_ANNOTATIONS_URL)" annotations-only
+
 inspect-candombe: download-candombe scripts/inspect_candombe_dataset.py | $(BUILD_DIR)
 	$(PYTHON) scripts/inspect_candombe_dataset.py --root "$(CANDOMBE_SOURCE_DIR)" --output "$(CANDOMBE_INSPECTION_OUTPUT)"
+
+inspect-candombe-annotations: download-candombe-annotations scripts/inspect_candombe_dataset.py | $(BUILD_DIR)
+	$(PYTHON) scripts/inspect_candombe_dataset.py --root "$(CANDOMBE_SOURCE_DIR)" --annotations-only --output "$(CANDOMBE_INSPECTION_OUTPUT)"
 
 prepare-candombe-tempo-fixture: inspect-candombe scripts/prepare_candombe_tempo_fixture.py
 	$(PYTHON) scripts/prepare_candombe_tempo_fixture.py --root "$(CANDOMBE_SOURCE_DIR)" --output "$(CANDOMBE_TEMPO_FIXTURE_DIR)" --ffmpeg "$(FFMPEG)" --limit "$(CANDOMBE_BPM_LIMIT)"

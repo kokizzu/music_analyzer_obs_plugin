@@ -169,7 +169,7 @@ Source: `build/global_chord_confidence_audit.txt`
 
 | Metric | Accurate / total | Remaining |
 | --- | ---: | ---: |
-| Corpora with zero-regression suppression at best floor (0.45) | 1 / 4 (25.0%) | 3 |
+| Corpora with zero-regression suppression at best floor (0.00) | 0 / 4 (0.0%) | 4 |
 | Common zero-regression confidence floor found | 0 / 1 (0.0%) | 1 |
 | Runtime global-chord confidence gate eligible | 0 / 1 (0.0%) | 1 |
 
@@ -208,8 +208,8 @@ Source: `build/owner_classifier_loco_audit.txt`
 | Metric | Accurate / total | Remaining |
 | --- | ---: | ---: |
 | LOCO corpora improved over current owner | 4 / 9 (44.4%) | 5 |
-| Aggregate current-owner accuracy | 12807 / 61501 (20.8%) | 48694 |
-| Aggregate centroid-model accuracy | 11176 / 61501 (18.2%) | 50325 |
+| Aggregate current-owner accuracy | 13057 / 62546 (20.9%) | 49489 |
+| Aggregate centroid-model accuracy | 11535 / 62546 (18.4%) | 51011 |
 | Runtime owner classifier eligible | 0 / 1 (0.0%) | 1 |
 
 The model is retained only as an offline baseline because it regresses at least one held-out corpus.
@@ -223,8 +223,8 @@ Source: `build/owner_classifier_quality_loco_audit.txt`
 | Metric | Accurate / total | Remaining |
 | --- | ---: | ---: |
 | LOCO corpora improved over current owner | 8 / 9 (88.9%) | 1 |
-| Aggregate current-owner accuracy | 12807 / 61643 (20.8%) | 48836 |
-| Aggregate quality-model accuracy | 16088 / 61643 (26.1%) | 45555 |
+| Aggregate current-owner accuracy | 13057 / 62546 (20.9%) | 49489 |
+| Aggregate quality-model accuracy | 15741 / 62546 (25.2%) | 46805 |
 | Runtime quality-model classifier eligible | 0 / 1 (0.0%) | 1 |
 | Shared confidence-margin overrides with a protected gain | 0 / 11 (0.0%) | 11 |
 
@@ -299,17 +299,17 @@ Source: `build/high_vocal_octave_evidence.txt`
 high-vocal octave safety audit: midi=77,78
 | Lower-octave ratio cap | DCS candidates | CSD candidates | ESMUC candidates | Corpora with candidates | Protected risks |
 | --- | ---: | ---: | ---: | ---: | ---: |
-| <= 0.05 | 13 / 15 | 0 / 0 | 6 / 7 | 2 / 3 | 107 / 115 |
-| <= 0.10 | 14 / 15 | 0 / 0 | 6 / 7 | 2 / 3 | 107 / 115 |
-| <= 0.20 | 14 / 15 | 0 / 0 | 6 / 7 | 2 / 3 | 113 / 115 |
-| <= 0.35 | 15 / 15 | 0 / 0 | 7 / 7 | 2 / 3 | 114 / 115 |
-| <= 0.50 | 15 / 15 | 0 / 0 | 7 / 7 | 2 / 3 | 114 / 115 |
-| <= 0.75 | 15 / 15 | 0 / 0 | 7 / 7 | 2 / 3 | 114 / 115 |
-| <= 1.00 | 15 / 15 | 0 / 0 | 7 / 7 | 2 / 3 | 115 / 115 |
+| <= 0.05 | 13 / 16 | 0 / 0 | 6 / 7 | 2 / 3 | 114 / 123 |
+| <= 0.10 | 14 / 16 | 0 / 0 | 6 / 7 | 2 / 3 | 115 / 123 |
+| <= 0.20 | 14 / 16 | 0 / 0 | 6 / 7 | 2 / 3 | 121 / 123 |
+| <= 0.35 | 16 / 16 | 0 / 0 | 7 / 7 | 2 / 3 | 122 / 123 |
+| <= 0.50 | 16 / 16 | 0 / 0 | 7 / 7 | 2 / 3 | 122 / 123 |
+| <= 0.75 | 16 / 16 | 0 / 0 | 7 / 7 | 2 / 3 | 122 / 123 |
+| <= 1.00 | 16 / 16 | 0 / 0 | 7 / 7 | 2 / 3 | 123 / 123 |
 
 | Multi-signal route profile | DCS candidates | CSD candidates | ESMUC candidates | Corpora with candidates | Protected risks |
 | --- | ---: | ---: | ---: | ---: | ---: |
-| upper-adjacent >= 0.053; centroid 0.013..0.116 | 8 / 15 | 0 / 0 | 1 / 7 | 2 / 3 | 0 / 115 |
+| upper-adjacent >= 0.053; centroid 0.013..0.116 | 9 / 16 | 0 / 0 | 1 / 7 | 2 / 3 | 0 / 123 |
 
 ## Rejected three-corpus keys-to-vocal routing trial
 
@@ -1059,13 +1059,13 @@ The cached Good Sounds archive has been inventoried without extraction: all 1,31
 | Good Sounds — Any detected note | 1316 / 1318 (99.8%) | 2 |
 | Good Sounds — Expected instrument row | 143 / 1318 (10.8%) | 1175 |
 | Good Sounds — Lit expected pitch class | 142 / 1318 (10.8%) | 1176 |
-| Good Sounds — Primary display row | 3 / 1318 (0.2%) | 1315 |
-| Good Sounds — Visual primary row | 7 / 1318 (0.5%) | 1311 |
+| Good Sounds — Primary display row | 2 / 1318 (0.2%) | 1316 |
+| Good Sounds — Visual primary row | 4 / 1318 (0.3%) | 1314 |
 | Good Sounds — Bass — Any detected note | 159 / 159 (100.0%) | 0 |
 | Good Sounds — Bass — Expected instrument row | 143 / 159 (89.9%) | 16 |
 | Good Sounds — Bass — Lit expected pitch class | 142 / 159 (89.3%) | 17 |
-| Good Sounds — Bass — Primary display row | 3 / 159 (1.9%) | 156 |
-| Good Sounds — Bass — Visual primary row | 7 / 159 (4.4%) | 152 |
+| Good Sounds — Bass — Primary display row | 2 / 159 (1.3%) | 157 |
+| Good Sounds — Bass — Visual primary row | 4 / 159 (2.5%) | 155 |
 | Good Sounds — Other — Any detected note | 1157 / 1159 (99.8%) | 2 |
 | Good Sounds — Other — Expected instrument row | 0 / 1159 (0.0%) | 1159 |
 | Good Sounds — Other — Lit expected pitch class | 0 / 1159 (0.0%) | 1159 |
