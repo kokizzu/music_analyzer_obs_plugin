@@ -1,0 +1,18 @@
+#!/bin/sh
+# Start one resumable BabySlakh archive worker as a persistent user service.
+set -eu
+
+archive_path=${1:?usage: start_babyslakh_background_download.sh ARCHIVE URL MD5}
+download_url=${2:?usage: start_babyslakh_background_download.sh ARCHIVE URL MD5}
+expected_md5=${3:?usage: start_babyslakh_background_download.sh ARCHIVE URL MD5}
+worker_path=${4:?usage: start_babyslakh_background_download.sh ARCHIVE URL MD5 WORKER}
+unit_name=music-analyzer-babyslakh-download.service
+
+if systemctl --user is-active --quiet "$unit_name"; then
+    printf '%s\n' "download_babyslakh_background: already running unit=$unit_name"
+    exit 0
+fi
+
+systemd-run --user --unit=music-analyzer-babyslakh-download --collect --quiet \
+    sh "$worker_path" "$archive_path" "$download_url" "$expected_md5"
+printf '%s\n' "download_babyslakh_background: started unit=$unit_name"

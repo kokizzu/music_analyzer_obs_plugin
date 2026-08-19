@@ -859,6 +859,10 @@ MDB_DRUMS_SHARD_OUTS := $(addprefix $(BUILD_DIR)/mdb_drums_samples_shard_,$(adds
 MDB_DRUMS_LOCK_DIR ?= $(BUILD_DIR)/mdb_drums_samples.lock
 MDB_DRUMS_PREP_LOCK_DIR ?= $(BUILD_DIR)/mdb_drums_prepare.lock
 MDB_DRUMS_TEST_MAKE_JOBS = $(if $(filter -j%,$(MAKEFLAGS)),,-j$(words $(MDB_DRUMS_SHARD_INDEXES)))
+BABYSLAKH_SOURCE_DIR ?= $(INSTRUMENT_SAMPLE_STORE_LINK)/baby_slakh
+BABYSLAKH_ARCHIVE ?= $(BABYSLAKH_SOURCE_DIR)/babyslakh_16k.tar.gz
+BABYSLAKH_ARCHIVE_URL ?= https://zenodo.org/record/4603870/files/babyslakh_16k.tar.gz?download=1
+BABYSLAKH_ARCHIVE_MD5 ?= 311096dc2bde7d61c97e930edbfc7f78
 BPM_DIAG_TOLERANCE ?= 8
 EGMD_BPM_MAX_SECONDS ?= 20
 MDB_BPM_MAX_SECONDS ?= 20
@@ -2514,6 +2518,33 @@ find-protected-drum-primary-attribute-patterns: $(BUILD_DIR)/analyzer_drum_sampl
 prepare-mdb-drums-samples: scripts/prepare_mdb_drums_samples.py scripts/run_with_lock.sh | $(BUILD_DIR)
 	+@if [ -L "$(MDB_DRUMS_SAMPLE_DIR)" ]; then :; else $(MAKE) ensure-build-sample-storage-link BUILD_SAMPLE_STORAGE_DIR="$(notdir $(MDB_DRUMS_SAMPLE_DIR))"; fi
 	$(SHELL) scripts/run_with_lock.sh "$(MDB_DRUMS_PREP_LOCK_DIR)" -- env MDB_DRUMS_SAMPLE_DIR="$(MDB_DRUMS_SAMPLE_DIR)" MDB_DRUMS_SOURCE_ROOT="$(MDB_DRUMS_SOURCE_ROOT)" MDB_DRUMS_AUDIO_FLAVOR="$(MDB_DRUMS_AUDIO_FLAVOR)" MDB_DRUMS_RECORDING_LIMIT="$(MDB_DRUMS_RECORDING_LIMIT)" MDB_DRUMS_MIN_RECORDINGS="$(MDB_DRUMS_MIN_RECORDINGS)" $(PYTHON) scripts/prepare_mdb_drums_samples.py --output "$(MDB_DRUMS_SAMPLE_DIR)" --source-root "$(MDB_DRUMS_SOURCE_ROOT)" --audio-flavor "$(MDB_DRUMS_AUDIO_FLAVOR)" --limit "$(MDB_DRUMS_RECORDING_LIMIT)" --min-recordings "$(MDB_DRUMS_MIN_RECORDINGS)"
+
+.PHONY: download-babyslakh test-download-babyslakh-script download-babyslakh-background inspect-babyslakh-download test-download-babyslakh-background-scripts test-inspect-babyslakh-archive inspect-babyslakh-archive inspect-babyslakh-archive-existing
+download-babyslakh: scripts/download_babyslakh.sh
+	$(SHELL) scripts/download_babyslakh.sh "$(BABYSLAKH_ARCHIVE)" "$(BABYSLAKH_ARCHIVE_URL)" "$(BABYSLAKH_ARCHIVE_MD5)"
+
+test-download-babyslakh-script: scripts/download_babyslakh.sh
+	sh -n scripts/download_babyslakh.sh
+
+download-babyslakh-background: scripts/start_babyslakh_background_download.sh scripts/download_babyslakh_background_worker.sh
+	$(SHELL) scripts/start_babyslakh_background_download.sh "$(BABYSLAKH_ARCHIVE)" "$(BABYSLAKH_ARCHIVE_URL)" "$(BABYSLAKH_ARCHIVE_MD5)" "$(CURDIR)/scripts/download_babyslakh_background_worker.sh"
+
+inspect-babyslakh-download: scripts/inspect_babyslakh_download.py
+	$(PYTHON) scripts/inspect_babyslakh_download.py "$(BABYSLAKH_ARCHIVE)"
+
+test-download-babyslakh-background-scripts: scripts/start_babyslakh_background_download.sh scripts/download_babyslakh_background_worker.sh scripts/inspect_babyslakh_download.py
+	sh -n scripts/start_babyslakh_background_download.sh
+	sh -n scripts/download_babyslakh_background_worker.sh
+	$(PYTHON) -m py_compile scripts/inspect_babyslakh_download.py
+
+test-inspect-babyslakh-archive: tests/test_inspect_babyslakh_archive.py scripts/inspect_babyslakh_archive.py
+	$(PYTHON) tests/test_inspect_babyslakh_archive.py
+
+inspect-babyslakh-archive: download-babyslakh scripts/inspect_babyslakh_archive.py
+	$(PYTHON) scripts/inspect_babyslakh_archive.py "$(BABYSLAKH_ARCHIVE)"
+
+inspect-babyslakh-archive-existing: scripts/inspect_babyslakh_archive.py
+	$(PYTHON) scripts/inspect_babyslakh_archive.py "$(BABYSLAKH_ARCHIVE)"
 
 test-mdb-drums-samples: test-mdb-drums-samples-parallel
 
