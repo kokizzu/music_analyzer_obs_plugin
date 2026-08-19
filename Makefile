@@ -5696,10 +5696,10 @@ download-gtzan-rhythm: configure-instrument-sample-store scripts/download_gtzan_
 
 .PHONY: download-candombe download-candombe-annotations inspect-candombe inspect-candombe-annotations prepare-candombe-tempo-fixture measure-candombe-bpm summarize-candombe-bpm
 download-candombe: configure-instrument-sample-store scripts/download_candombe_dataset.sh
-	bash scripts/download_candombe_dataset.sh "$(INSTRUMENT_SAMPLE_STORE)" "$(CURL)" "$(CANDOMBE_AUDIO_URL)" "$(CANDOMBE_ANNOTATIONS_URL)"
+	bash scripts/download_candombe_dataset.sh "$(INSTRUMENT_SAMPLE_STORE)" "$(CURL)" "$(ARIA2C)" "$(CANDOMBE_AUDIO_URL)" "$(CANDOMBE_ANNOTATIONS_URL)"
 
 download-candombe-annotations: configure-instrument-sample-store scripts/download_candombe_dataset.sh
-	bash scripts/download_candombe_dataset.sh "$(INSTRUMENT_SAMPLE_STORE)" "$(CURL)" "$(CANDOMBE_AUDIO_URL)" "$(CANDOMBE_ANNOTATIONS_URL)" annotations-only
+	bash scripts/download_candombe_dataset.sh "$(INSTRUMENT_SAMPLE_STORE)" "$(CURL)" "$(ARIA2C)" "$(CANDOMBE_AUDIO_URL)" "$(CANDOMBE_ANNOTATIONS_URL)" annotations-only
 
 inspect-candombe: download-candombe scripts/inspect_candombe_dataset.py | $(BUILD_DIR)
 	$(PYTHON) scripts/inspect_candombe_dataset.py --root "$(CANDOMBE_SOURCE_DIR)" --output "$(CANDOMBE_INSPECTION_OUTPUT)"
