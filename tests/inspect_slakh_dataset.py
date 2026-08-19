@@ -14,6 +14,10 @@ SLAKH_CHILD_NAMES = (
     "slakh2100",
     "Slakh",
     "slakh",
+    "BabySlakh",
+    "babyslakh",
+    "baby_slakh",
+    "baby-slakh",
 )
 SPLIT_NAMES = ("train", "validation", "valid", "test")
 DEFAULT_REQUIRED_CLASSES = ("piano", "bass", "guitar", "drum")
