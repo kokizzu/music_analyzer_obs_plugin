@@ -13,12 +13,21 @@ fi
 
 mkdir -p "$(dirname "$archive_path")"
 temporary_path="$archive_path.part"
-# Zenodo's legacy record endpoint can answer a ranged resume request with a
-# complete response.  Appending that response corrupts the archive, so this
-# command deliberately starts a clean stream.  The background target keeps
-# that one stream alive beyond the foreground command window.
-rm -f "$temporary_path"
-curl --fail --location --retry 12 --retry-delay 5 --silent --show-error --output "$temporary_path" "$download_url"
+# The current API endpoint has been verified to return 206 plus an exact
+# Content-Range.  Do not use the legacy /record endpoint: it can append a full
+# response to a resume request.  aria2 keeps independently ranged chunks in a
+# control file and the publisher MD5 below remains the acceptance gate.
+case "$download_url" in
+    https://zenodo.org/api/records/*/files/*/content) ;;
+    *)
+        printf '%s\n' "download_babyslakh: refusing unverified range endpoint=$download_url" >&2
+        exit 1
+        ;;
+esac
+aria2c --continue=true --max-connection-per-server=8 --split=8 --min-split-size=1M \
+    --file-allocation=none --allow-overwrite=true --retry-wait=5 --max-tries=20 \
+    --summary-interval=0 --console-log-level=warn --dir "$(dirname "$temporary_path")" \
+    --out "$(basename "$temporary_path")" "$download_url"
 printf '%s  %s\n' "$expected_md5" "$temporary_path" | md5sum -c -
 mv "$temporary_path" "$archive_path"
 printf '%s\n' "download_babyslakh: downloaded $archive_path"

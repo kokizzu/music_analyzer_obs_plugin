@@ -16,7 +16,7 @@ fi
 # A transient user unit does not automatically inherit the terminal's proxy
 # environment.  Preserve only the conventional proxy variables so its curl
 # request uses the same network path as the verified foreground downloader.
-set -- --user --unit=music-analyzer-babyslakh-download --collect --quiet
+set -- --user --unit=music-analyzer-babyslakh-download --collect --quiet --same-dir
 for proxy_name in http_proxy https_proxy HTTP_PROXY HTTPS_PROXY no_proxy NO_PROXY; do
     eval "proxy_value=\${$proxy_name-}"
     if [ -n "$proxy_value" ]; then
