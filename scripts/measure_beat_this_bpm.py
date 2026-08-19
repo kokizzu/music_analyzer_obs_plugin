@@ -77,7 +77,8 @@ def main() -> int:
         result_lines.append(
             "Beat This tempo diag"
             f"\tid={index}\texpected={expected:.2f}\traw={raw:.2f}\tintervals={intervals}"
-            f"\toffset={start:.3f}\tduration={duration:.3f}\terror={error:.2f}\tstatus={status}"
+            f"\toffset={start:.3f}\tduration={duration:.3f}\tmodel={args.checkpoint}"
+            f"\terror={error:.2f}\tstatus={status}"
         )
     args.output.parent.mkdir(parents=True, exist_ok=True)
     with tempfile.NamedTemporaryFile("w", encoding="utf-8", dir=args.output.parent, delete=False) as handle:

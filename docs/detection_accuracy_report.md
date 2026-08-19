@@ -1512,11 +1512,11 @@ Source: `build/gtzan_rhythm_bpm_diagnostics.log`. GTZAN-Rhythm provides manually
 
 ## Beat This! independent neural GTZAN diagnostic
 
-Source: `build/beat_this_gtzan_rhythm_bpm_diagnostics.log`. This is offline-only CPU inference with the MIT-licensed `small0` model; its published training excludes GTZAN. It is independent calibration evidence, not a live OBS backend or release gate.
+Source: `build/beat_this_final0_gtzan_rhythm_bpm_diagnostics.log`. This is offline-only CPU inference with the MIT-licensed Beat This! `final0` model; its published training excludes GTZAN. It is independent calibration evidence, not a live OBS backend or release gate.
 
 | Metric | Accurate / total | Remaining |
 | --- | ---: | ---: |
-| Offline stable-segment BPM within 8 BPM | 82 / 100 (82.0%) | 18 |
+| Offline stable-segment BPM within 8 BPM | 87 / 100 (87.0%) | 13 |
 
 ## FiloBass real bass-led annotated-tempo diagnostic
 

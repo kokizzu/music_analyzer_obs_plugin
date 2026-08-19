@@ -2628,7 +2628,7 @@ def render(
                 "",
                 "## Beat This! independent neural GTZAN diagnostic",
                 "",
-                f"Source: `{beat_this_gtzan_bpm_input.as_posix()}`. This is offline-only CPU inference with the MIT-licensed `small0` model; its published training excludes GTZAN. It is independent calibration evidence, not a live OBS backend or release gate.",
+                f"Source: `{beat_this_gtzan_bpm_input.as_posix()}`. This is offline-only CPU inference with the MIT-licensed Beat This! `final0` model; its published training excludes GTZAN. It is independent calibration evidence, not a live OBS backend or release gate.",
                 "",
                 "| Metric | Accurate / total | Remaining |",
                 "| --- | ---: | ---: |",
