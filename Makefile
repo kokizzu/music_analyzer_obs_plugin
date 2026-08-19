@@ -4,7 +4,7 @@ PYTHON ?= python3
 # Explicitly approved, resumable external corpus acquisitions. This registry
 # is task-scoped: a target belongs here only while it is an active accuracy
 # coverage gap, rather than merely being supported by the project.
-APPROVED_CORPUS_DOWNLOAD_TARGETS ?= measure-maestro-real-samples measure-kraisler measure-ballroom-bpm download-filobass download-gtzan-rhythm
+APPROVED_CORPUS_DOWNLOAD_TARGETS ?= measure-maestro-real-samples measure-kraisler measure-ballroom-bpm download-filobass download-gtzan-rhythm download-candombe
 CORPUS_DOWNLOAD_LOG_TARGET ?= $(word 1,$(APPROVED_CORPUS_DOWNLOAD_TARGETS))
 PKG_CONFIG ?= pkg-config
 TAR ?= tar
@@ -28,7 +28,7 @@ report-approved-corpus-downloads: scripts/report_approved_corpus_downloads.sh
 show-approved-corpus-download-log: scripts/show_approved_corpus_download_log.sh
 	$(SHELL) scripts/show_approved_corpus_download_log.sh "$(BUILD_DIR)" "$(CORPUS_DOWNLOAD_LOG_TARGET)"
 
-test-approved-corpus-download-manager: tests/test_approved_corpus_download_manager.py scripts/start_approved_corpus_downloads.sh scripts/run_approved_corpus_download.sh scripts/stop_approved_corpus_downloads.sh scripts/report_approved_corpus_downloads.sh scripts/show_approved_corpus_download_log.sh scripts/measure_filobass_after_download.sh scripts/download_ballroom_annotations.sh scripts/download_gtzan_rhythm_dataset.sh
+test-approved-corpus-download-manager: tests/test_approved_corpus_download_manager.py scripts/start_approved_corpus_downloads.sh scripts/run_approved_corpus_download.sh scripts/stop_approved_corpus_downloads.sh scripts/report_approved_corpus_downloads.sh scripts/show_approved_corpus_download_log.sh scripts/measure_filobass_after_download.sh scripts/download_ballroom_annotations.sh scripts/download_gtzan_rhythm_dataset.sh scripts/download_candombe_dataset.sh
 	$(SHELL) -n scripts/start_approved_corpus_downloads.sh
 	$(SHELL) -n scripts/run_approved_corpus_download.sh
 	$(SHELL) -n scripts/stop_approved_corpus_downloads.sh
@@ -37,6 +37,7 @@ test-approved-corpus-download-manager: tests/test_approved_corpus_download_manag
 	$(SHELL) -n scripts/measure_filobass_after_download.sh
 	$(SHELL) -n scripts/download_ballroom_annotations.sh
 	bash -n scripts/download_gtzan_rhythm_dataset.sh
+	bash -n scripts/download_candombe_dataset.sh
 	$(PYTHON) tests/test_approved_corpus_download_manager.py
 
 # This is deliberately separate from the download registry: it is a queued
@@ -232,11 +233,13 @@ DETECTION_ACCURACY_KRAISLER_ARCHIVE_ARG = $(if $(wildcard $(KRAISLER_ARCHIVE)),-
 DETECTION_ACCURACY_KRAISLER_EXTRACT_ARG = $(if $(wildcard $(KRAISLER_EXTRACT_DIR)),--kraisler-extraction "$(KRAISLER_EXTRACT_DIR)")
 DETECTION_ACCURACY_KRAISLER_MANIFEST_ARG = $(if $(wildcard $(KRAISLER_PREPARED_DIR)/manifest.json),--kraisler-manifest "$(KRAISLER_PREPARED_DIR)/manifest.json")
 DETECTION_ACCURACY_KRAISLER_MEASUREMENT_ARG = $(if $(wildcard $(KRAISLER_MEASUREMENT_OUTPUT)),--kraisler-measurement "$(KRAISLER_MEASUREMENT_OUTPUT)") $(DETECTION_ACCURACY_KRAISLER_BPM_ARG) $(DETECTION_ACCURACY_BALLROOM_BPM_ARG) $(DETECTION_ACCURACY_BALLROOM_ANNOTATIONS_ARG) $(DETECTION_ACCURACY_GTZAN_RHYTHM_BPM_ARG) $(DETECTION_ACCURACY_BEAT_THIS_GTZAN_ARG) $(DETECTION_ACCURACY_FILOBASS_BPM_ARG) $(DETECTION_ACCURACY_FILOBASS_ONSET_DIAGNOSTIC_ARG) $(DETECTION_ACCURACY_EGMD_BPM_ARG) $(DETECTION_ACCURACY_IDMT_BASS_TEMPO_METADATA_ARG)
+DETECTION_ACCURACY_KRAISLER_MEASUREMENT_ARG += $(DETECTION_ACCURACY_CANDOMBE_BPM_ARG)
 DETECTION_ACCURACY_KRAISLER_BPM_ARG = $(if $(wildcard $(KRAISLER_BPM_LOG)),--kraisler-bpm-input "$(KRAISLER_BPM_LOG)")
 DETECTION_ACCURACY_BALLROOM_BPM_ARG = $(if $(wildcard $(BALLROOM_BPM_LOG)),--ballroom-bpm-input "$(BALLROOM_BPM_LOG)")
 DETECTION_ACCURACY_BALLROOM_ANNOTATIONS_ARG = $(if $(wildcard $(BALLROOM_ANNOTATIONS_DIR)/.git),--ballroom-annotations "$(BALLROOM_ANNOTATIONS_DIR)")
 DETECTION_ACCURACY_GTZAN_RHYTHM_BPM_ARG = $(if $(wildcard $(GTZAN_RHYTHM_BPM_LOG)),--gtzan-rhythm-bpm-input "$(GTZAN_RHYTHM_BPM_LOG)")
 DETECTION_ACCURACY_BEAT_THIS_GTZAN_ARG = $(if $(wildcard $(BEAT_THIS_DIAGNOSTIC_LOG)),--beat-this-gtzan-bpm-input "$(BEAT_THIS_DIAGNOSTIC_LOG)")
+DETECTION_ACCURACY_CANDOMBE_BPM_ARG = $(if $(wildcard $(CANDOMBE_BPM_LOG)),--candombe-bpm-input "$(CANDOMBE_BPM_LOG)")
 DETECTION_ACCURACY_FILOBASS_BPM_ARG = $(if $(wildcard $(FILOBASS_BPM_LOG)),--filobass-bpm-input "$(FILOBASS_BPM_LOG)")
 DETECTION_ACCURACY_FILOBASS_ONSET_DIAGNOSTIC_ARG = $(if $(wildcard $(FILOBASS_ONSET_DIAGNOSTICS)),--filobass-onset-diagnostic-input "$(FILOBASS_ONSET_DIAGNOSTICS)")
 DETECTION_ACCURACY_EGMD_BPM_ARG = $(if $(wildcard $(EGMD_BPM_LOG)),--egmd-bpm-input "$(EGMD_BPM_LOG)")
@@ -947,6 +950,15 @@ GTZAN_RHYTHM_INSPECTION_OUTPUT ?= $(BUILD_DIR)/gtzan_rhythm_inspection.txt
 GTZAN_RHYTHM_TEMPO_FIXTURE_DIR ?= $(BUILD_DIR)/gtzan-rhythm-tempo-fixture
 GTZAN_RHYTHM_BPM_LOG ?= $(BUILD_DIR)/gtzan_rhythm_bpm_diagnostics.log
 GTZAN_RHYTHM_BPM_LIMIT ?= 100
+CANDOMBE_SOURCE_DIR ?= $(INSTRUMENT_SAMPLE_STORE_LINK)/candombe
+CANDOMBE_AUDIO_ARCHIVE ?= $(CANDOMBE_SOURCE_DIR)/candombe_audio.zip
+CANDOMBE_ANNOTATIONS_ARCHIVE ?= $(CANDOMBE_SOURCE_DIR)/candombe_annotations.zip
+CANDOMBE_AUDIO_URL ?= https://zenodo.org/records/6533068/files/candombe_audio.zip?download=1
+CANDOMBE_ANNOTATIONS_URL ?= https://zenodo.org/records/6533068/files/candombe_annotations.zip?download=1
+CANDOMBE_INSPECTION_OUTPUT ?= $(BUILD_DIR)/candombe_inspection.txt
+CANDOMBE_TEMPO_FIXTURE_DIR ?= $(CANDOMBE_SOURCE_DIR)/tempo-fixture
+CANDOMBE_BPM_LOG ?= $(BUILD_DIR)/candombe_bpm_diagnostics.log
+CANDOMBE_BPM_LIMIT ?= 35
 BTT_BALLROOM_LOG ?= $(BUILD_DIR)/btt_ballroom_bpm_diagnostics.log
 BTT_FILOBASS_LOG ?= $(BUILD_DIR)/btt_filobass_bpm_diagnostics.log
 BTT_GTZAN_RHYTHM_LOG ?= $(BUILD_DIR)/btt_gtzan_rhythm_bpm_diagnostics.log
@@ -5671,6 +5683,34 @@ download-filobass: configure-instrument-sample-store scripts/download_filobass_d
 .PHONY: download-gtzan-rhythm
 download-gtzan-rhythm: configure-instrument-sample-store scripts/download_gtzan_rhythm_dataset.sh
 	bash scripts/download_gtzan_rhythm_dataset.sh "$(INSTRUMENT_SAMPLE_STORE)" "$(CURL)" "$(GTZAN_RHYTHM_AUDIO_URL)" "$(GTZAN_RHYTHM_ANNOTATIONS_URL)"
+
+.PHONY: download-candombe inspect-candombe prepare-candombe-tempo-fixture measure-candombe-bpm summarize-candombe-bpm
+download-candombe: configure-instrument-sample-store scripts/download_candombe_dataset.sh
+	bash scripts/download_candombe_dataset.sh "$(INSTRUMENT_SAMPLE_STORE)" "$(CURL)" "$(CANDOMBE_AUDIO_URL)" "$(CANDOMBE_ANNOTATIONS_URL)"
+
+inspect-candombe: download-candombe scripts/inspect_candombe_dataset.py | $(BUILD_DIR)
+	$(PYTHON) scripts/inspect_candombe_dataset.py --root "$(CANDOMBE_SOURCE_DIR)" --output "$(CANDOMBE_INSPECTION_OUTPUT)"
+
+prepare-candombe-tempo-fixture: inspect-candombe scripts/prepare_candombe_tempo_fixture.py
+	$(PYTHON) scripts/prepare_candombe_tempo_fixture.py --root "$(CANDOMBE_SOURCE_DIR)" --output "$(CANDOMBE_TEMPO_FIXTURE_DIR)" --ffmpeg "$(FFMPEG)" --limit "$(CANDOMBE_BPM_LIMIT)"
+
+measure-candombe-bpm: $(BUILD_DIR)/analyzer_maestro prepare-candombe-tempo-fixture scripts/analyze_egmd_tempo.py scripts/run_with_duration.sh | $(BUILD_DIR)
+	$(RUN_WITH_DURATION) analyzer_candombe_bpm env MUSIC_ANALYZER_MAESTRO_ROOT="$(CANDOMBE_TEMPO_FIXTURE_DIR)" MUSIC_ANALYZER_MAESTRO_REQUIRED=1 MUSIC_ANALYZER_MAESTRO_REQUIRED_RECORDINGS=1 MUSIC_ANALYZER_MAESTRO_REQUIRED_WINDOWS=1 MUSIC_ANALYZER_MAESTRO_MIN_ACTIVE_NOTES_PER_WINDOW=1 MUSIC_ANALYZER_MAESTRO_MIN_PITCH_CLASSES_PER_WINDOW=1 MUSIC_ANALYZER_MAESTRO_INSPECT_ONLY=1 MUSIC_ANALYZER_MAESTRO_VALIDATE_BPM=1 MUSIC_ANALYZER_MAESTRO_MEASURE_ALL_TEMPO=1 MUSIC_ANALYZER_MAESTRO_REQUIRED_TEMPO_RECORDINGS=1 MUSIC_ANALYZER_MAESTRO_MIN_BPM_PASS_PERCENT=0 MUSIC_ANALYZER_MAESTRO_BPM_TOLERANCE="$(BPM_DIAG_TOLERANCE)" MUSIC_ANALYZER_MAESTRO_BPM_MAX_SECONDS="$(MAESTRO_BPM_MAX_SECONDS)" $(BUILD_DIR)/analyzer_maestro > "$(CANDOMBE_BPM_LOG).summary" 2> "$(CANDOMBE_BPM_LOG)"
+	+$(MAKE) summarize-candombe-bpm
+	+$(MAKE) update-detection-accuracy-report-cached
+
+summarize-candombe-bpm: scripts/analyze_egmd_tempo.py $(CANDOMBE_BPM_LOG)
+	$(PYTHON) scripts/analyze_egmd_tempo.py --prefix "MAESTRO tempo diag" --tolerance "$(BPM_DIAG_TOLERANCE)" "$(CANDOMBE_BPM_LOG)"
+
+.PHONY: test-download-candombe-script test-inspect-candombe test-prepare-candombe-tempo-fixture
+test-download-candombe-script: scripts/download_candombe_dataset.sh
+	bash -n scripts/download_candombe_dataset.sh
+
+test-inspect-candombe: tests/test_inspect_candombe_dataset.py scripts/inspect_candombe_dataset.py
+	$(PYTHON) tests/test_inspect_candombe_dataset.py
+
+test-prepare-candombe-tempo-fixture: tests/test_prepare_candombe_tempo_fixture.py scripts/prepare_candombe_tempo_fixture.py
+	$(PYTHON) tests/test_prepare_candombe_tempo_fixture.py
 
 .PHONY: inspect-gtzan-rhythm
 inspect-gtzan-rhythm: download-gtzan-rhythm scripts/inspect_gtzan_rhythm_dataset.py | $(BUILD_DIR)

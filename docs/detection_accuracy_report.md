@@ -16,19 +16,19 @@ The catch-all OTHERS detector and renderer are intentionally disabled. Its histo
 | --- | ---: | ---: |
 | Any detected note | 2212 / 2212 (100.0%) | 0 |
 | Expected instrument row | 1622 / 2212 (73.3%) | 590 |
-| Lit expected pitch class | 1496 / 2212 (67.6%) | 716 |
-| Primary display row | 699 / 2212 (31.6%) | 1513 |
-| Visual primary row | 745 / 2212 (33.7%) | 1467 |
+| Lit expected pitch class | 1501 / 2212 (67.9%) | 711 |
+| Primary display row | 685 / 2212 (31.0%) | 1527 |
+| Visual primary row | 758 / 2212 (34.3%) | 1454 |
 | Bass — Any detected note | 137 / 137 (100.0%) | 0 |
 | Bass — Expected instrument row | 137 / 137 (100.0%) | 0 |
 | Bass — Lit expected pitch class | 137 / 137 (100.0%) | 0 |
 | Bass — Primary display row | 46 / 137 (33.6%) | 91 |
-| Bass — Visual primary row | 57 / 137 (41.6%) | 80 |
+| Bass — Visual primary row | 54 / 137 (39.4%) | 83 |
 | Guitar — Any detected note | 346 / 346 (100.0%) | 0 |
 | Guitar — Expected instrument row | 346 / 346 (100.0%) | 0 |
-| Guitar — Lit expected pitch class | 288 / 346 (83.2%) | 58 |
-| Guitar — Primary display row | 159 / 346 (46.0%) | 187 |
-| Guitar — Visual primary row | 71 / 346 (20.5%) | 275 |
+| Guitar — Lit expected pitch class | 289 / 346 (83.5%) | 57 |
+| Guitar — Primary display row | 156 / 346 (45.1%) | 190 |
+| Guitar — Visual primary row | 69 / 346 (19.9%) | 277 |
 | Other — Any detected note | 590 / 590 (100.0%) | 0 |
 | Other — Expected instrument row | 0 / 590 (0.0%) | 590 |
 | Other — Lit expected pitch class | 0 / 590 (0.0%) | 590 |
@@ -36,13 +36,13 @@ The catch-all OTHERS detector and renderer are intentionally disabled. Its histo
 | Other — Visual primary row | 0 / 590 (0.0%) | 590 |
 | Piano — Any detected note | 1117 / 1117 (100.0%) | 0 |
 | Piano — Expected instrument row | 1117 / 1117 (100.0%) | 0 |
-| Piano — Lit expected pitch class | 1050 / 1117 (94.0%) | 67 |
-| Piano — Primary display row | 488 / 1117 (43.7%) | 629 |
-| Piano — Visual primary row | 611 / 1117 (54.7%) | 506 |
+| Piano — Lit expected pitch class | 1054 / 1117 (94.4%) | 63 |
+| Piano — Primary display row | 476 / 1117 (42.6%) | 641 |
+| Piano — Visual primary row | 629 / 1117 (56.3%) | 488 |
 | Vocals — Any detected note | 22 / 22 (100.0%) | 0 |
 | Vocals — Expected instrument row | 22 / 22 (100.0%) | 0 |
 | Vocals — Lit expected pitch class | 21 / 22 (95.5%) | 1 |
-| Vocals — Primary display row | 6 / 22 (27.3%) | 16 |
+| Vocals — Primary display row | 7 / 22 (31.8%) | 15 |
 | Vocals — Visual primary row | 6 / 22 (27.3%) | 16 |
 
 ## SATB multi-pitch candidate-capacity audit
@@ -1578,7 +1578,8 @@ Tempo estimates are only displayed at calibrated confidence. Source-specific pha
 | Retrieve versioned Ballroom beat/bar annotations | 1 / 1 (100.0%) | 0 | CPJKU BallroomAnnotations checkout in InstrumentSamples |
 | Rhythm-heavy real-mix beat validation measured | 1 / 1 (100.0%) | 0 | up to 64 genre-balanced Ballroom stable sections with manually corrected beat/bar annotations |
 | Genre-diverse real-mix beat validation measured | 1 / 1 (100.0%) | 0 | GTZAN-Rhythm WAV/JAMS pairs; stable BPM segments derived from manually annotated beats |
-| Benchmark independent neural tracker on held-out GTZAN | 1 / 1 (100.0%) | 0 | offline Beat This! `small0` output with no OBS/runtime integration |
+| Independent labelled drumming-corpus validation measured | 0 / 1 (0.0%) | 1 | Candombe FLAC/CSV pairs: 35 real performances with expert beat/downbeat labels |
+| Benchmark independent neural tracker on held-out GTZAN | 1 / 1 (100.0%) | 0 | offline Beat This! `final0` output with no OBS/runtime integration |
 | IDMT real-bass timing metadata qualifies as beat truth | 0 / 17 (0.0%) | 17 | only corpus-supplied tempo/beat/pattern fields count; note onsets are insufficient |
 | Independent real bass-led beat-labelled validation measured | 1 / 1 (100.0%) | 0 | FiloBass real bass stems plus reviewed downbeats and MIDI time signature |
 | Assess raw bass-attack BPM evidence | 1 / 1 (100.0%) | 0 | offline FiloBass rank-one/top-five diagnostic |
