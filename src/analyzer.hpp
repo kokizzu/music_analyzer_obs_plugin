@@ -17,6 +17,15 @@ constexpr bool kEnableOtherDetection = false;
 // clears the cross-corpus no-misleading-output gate at its stricter certainty
 // threshold.  The source-separated phase tracker remains the primary path.
 constexpr bool kEnablePermissiveBeatTrackerFallback = true;
+// A second, conservative BTT path needs agreement with the independent phase
+// estimate, rather than standalone tracker certainty. Its 0.30 phase floor
+// and 2 BPM agreement were calibrated offline across Ballroom, FiloBass, and
+// GTZAN before it can reveal a previously withheld BPM.
+// Offline BTT probe agreement was insufficiently identical to the live BTT
+// state: the live Ballroom replay exposed a double-time display. Keep the
+// calibrated path available for diagnostics, but disabled until the live
+// source can reproduce zero wrong displays across every corpus.
+constexpr bool kEnablePhaseBeatTrackerConsensus = false;
 // A high-range-only BTT setting remains diagnostic-only: it independently
 // reproduces the same marginal phase regression as the concurrent experiment.
 constexpr bool kUseHighTempoPermissiveTracker = false;

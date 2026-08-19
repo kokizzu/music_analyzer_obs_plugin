@@ -952,6 +952,9 @@ BTT_FILOBASS_LOG ?= $(BUILD_DIR)/btt_filobass_bpm_diagnostics.log
 BTT_GTZAN_RHYTHM_LOG ?= $(BUILD_DIR)/btt_gtzan_rhythm_bpm_diagnostics.log
 BTT_GTZAN_RHYTHM_RANGE_SWEEP_LOG ?= $(BUILD_DIR)/btt_gtzan_rhythm_range_sweep.log
 BTT_GTZAN_RHYTHM_RANGE_SWEEP_MINS ?= 40,100,120,140,160
+TEMPO_CONSENSUS_PHASE_GATES ?= 0.00,0.20,0.30,0.40,0.50,0.60
+TEMPO_CONSENSUS_BTT_GATES ?= 0.00,0.15,0.25,0.35,0.45,0.55,0.60,0.70,0.80
+TEMPO_CONSENSUS_AGREEMENT_GATES ?= 2,4,8,12
 BEAT_THIS_DIAGNOSTIC_ROOT ?= $(INSTRUMENT_SAMPLE_STORE_LINK)/beat_this_diagnostic
 BEAT_THIS_RUNTIME_ROOT ?= $(BUILD_DIR)/beat_this_runtime
 BEAT_THIS_DIAGNOSTIC_LOG ?= $(BUILD_DIR)/beat_this_final0_gtzan_rhythm_bpm_diagnostics.log
@@ -5788,6 +5791,13 @@ summarize-beat-this-gtzan-rhythm: scripts/summarize_beat_this_bpm.py $(BEAT_THIS
 
 summarize-permissive-beat-tracker-gtzan-rhythm: scripts/inspect_tempo_confidence_calibration.py $(BTT_GTZAN_RHYTHM_LOG)
 	$(PYTHON) scripts/inspect_tempo_confidence_calibration.py --prefix "BTT tempo diag" --tolerance "$(BPM_DIAG_TOLERANCE)" "$(BTT_GTZAN_RHYTHM_LOG)"
+
+.PHONY: inspect-tempo-tracker-consensus test-inspect-tempo-tracker-consensus
+inspect-tempo-tracker-consensus: scripts/inspect_tempo_tracker_consensus.py $(BALLROOM_BPM_LOG) $(BTT_BALLROOM_LOG) $(FILOBASS_BPM_LOG) $(BTT_FILOBASS_LOG) $(GTZAN_RHYTHM_BPM_LOG) $(BTT_GTZAN_RHYTHM_LOG)
+	$(PYTHON) scripts/inspect_tempo_tracker_consensus.py --tolerance "$(BPM_DIAG_TOLERANCE)" --phase-gates "$(TEMPO_CONSENSUS_PHASE_GATES)" --btt-gates "$(TEMPO_CONSENSUS_BTT_GATES)" --agreement-gates "$(TEMPO_CONSENSUS_AGREEMENT_GATES)" --corpus Ballroom "$(BALLROOM_BPM_LOG)" "$(BTT_BALLROOM_LOG)" --corpus FiloBass "$(FILOBASS_BPM_LOG)" "$(BTT_FILOBASS_LOG)" --corpus GTZAN "$(GTZAN_RHYTHM_BPM_LOG)" "$(BTT_GTZAN_RHYTHM_LOG)"
+
+test-inspect-tempo-tracker-consensus: tests/test_inspect_tempo_tracker_consensus.py scripts/inspect_tempo_tracker_consensus.py
+	$(PYTHON) tests/test_inspect_tempo_tracker_consensus.py
 
 measure-permissive-beat-tracker-high-tempo: $(BTT_PROBE) scripts/measure_permissive_beat_tracker.py $(BALLROOM_TEMPO_FIXTURE_DIR)/maestro-v3.0.0.csv $(FILOBASS_TEMPO_FIXTURE_DIR)/maestro-v3.0.0.csv
 	$(PYTHON) scripts/measure_permissive_beat_tracker.py --root "$(BALLROOM_TEMPO_FIXTURE_DIR)" --probe "$(BTT_PROBE)" --min-tempo "$(BTT_HIGH_TEMPO_MIN)" > "$(BTT_HIGH_TEMPO_BALLROOM_LOG)"

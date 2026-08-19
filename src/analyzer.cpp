@@ -34700,6 +34700,10 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 	snapshot.high_tempo_tracker_bpm = high_tempo_bpm;
 	snapshot.high_tempo_tracker_confidence = high_tempo_confidence;
 	const bool phase_tempo_uncertain = bpm_confidence_ < 0.60f;
+	const bool phase_tracker_consensus =
+		phase_tempo_uncertain && snapshot.phase_bpm_confidence >= 0.30f &&
+		permissive_bpm >= 40.0f && permissive_bpm <= 240.0f &&
+		std::abs(snapshot.phase_estimated_bpm - permissive_bpm) <= 2.0f;
 	// The optional backend is an uncertainty-safe fallback only.  It never
 	// replaces a displayable source-separated phase estimate.  With continuous
 	// PCM input, the broad backend needs 0.80 certainty (Ballroom 11/11,
@@ -34713,6 +34717,15 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 		permissive_bpm <= 240.0f) {
 		estimated_bpm_ = permissive_bpm;
 		bpm_confidence_ = permissive_confidence;
+		snapshot.estimated_bpm = estimated_bpm_;
+		snapshot.bpm_confidence = bpm_confidence_;
+	} else if (kEnablePhaseBeatTrackerConsensus && phase_tracker_consensus) {
+		// This remains compile-time-disabled: the offline agreement sweep looked
+		// perfect, but its corresponding live Ballroom replay showed a wrong
+		// double-time output. Preserve the branch only for future, live-identical
+		// calibration rather than allowing a proxy result to weaken the gate.
+		estimated_bpm_ = permissive_bpm;
+		bpm_confidence_ = kBpmDisplayConfidenceThreshold;
 		snapshot.estimated_bpm = estimated_bpm_;
 		snapshot.bpm_confidence = bpm_confidence_;
 	} else if (kEnableHighTempoBeatTrackerFallback && phase_tempo_uncertain &&
