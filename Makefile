@@ -2528,7 +2528,7 @@ prepare-mdb-drums-samples: scripts/prepare_mdb_drums_samples.py scripts/run_with
 	+@if [ -L "$(MDB_DRUMS_SAMPLE_DIR)" ]; then :; else $(MAKE) ensure-build-sample-storage-link BUILD_SAMPLE_STORAGE_DIR="$(notdir $(MDB_DRUMS_SAMPLE_DIR))"; fi
 	$(SHELL) scripts/run_with_lock.sh "$(MDB_DRUMS_PREP_LOCK_DIR)" -- env MDB_DRUMS_SAMPLE_DIR="$(MDB_DRUMS_SAMPLE_DIR)" MDB_DRUMS_SOURCE_ROOT="$(MDB_DRUMS_SOURCE_ROOT)" MDB_DRUMS_AUDIO_FLAVOR="$(MDB_DRUMS_AUDIO_FLAVOR)" MDB_DRUMS_RECORDING_LIMIT="$(MDB_DRUMS_RECORDING_LIMIT)" MDB_DRUMS_MIN_RECORDINGS="$(MDB_DRUMS_MIN_RECORDINGS)" $(PYTHON) scripts/prepare_mdb_drums_samples.py --output "$(MDB_DRUMS_SAMPLE_DIR)" --source-root "$(MDB_DRUMS_SOURCE_ROOT)" --audio-flavor "$(MDB_DRUMS_AUDIO_FLAVOR)" --limit "$(MDB_DRUMS_RECORDING_LIMIT)" --min-recordings "$(MDB_DRUMS_MIN_RECORDINGS)"
 
-.PHONY: download-babyslakh test-download-babyslakh-script download-babyslakh-background stop-babyslakh-background inspect-babyslakh-download inspect-babyslakh-downloader test-download-babyslakh-background-scripts test-babyslakh-background-extraction-scripts inspect-babyslakh-extraction extract-babyslakh-background test-inspect-babyslakh-archive test-extract-babyslakh-archive test-prepare-babyslakh-drums inspect-babyslakh-archive inspect-babyslakh-archive-existing extract-babyslakh inspect-babyslakh prepare-babyslakh-drums measure-babyslakh-drums
+.PHONY: download-babyslakh test-download-babyslakh-script download-babyslakh-background stop-babyslakh-background reset-babyslakh-download-control finalize-babyslakh-download discard-babyslakh-corrupt-partial inspect-babyslakh-download inspect-babyslakh-downloader test-download-babyslakh-background-scripts test-babyslakh-background-extraction-scripts inspect-babyslakh-extraction extract-babyslakh-background test-inspect-babyslakh-archive test-extract-babyslakh-archive test-prepare-babyslakh-drums inspect-babyslakh-archive inspect-babyslakh-archive-existing extract-babyslakh inspect-babyslakh prepare-babyslakh-drums measure-babyslakh-drums
 download-babyslakh: scripts/download_babyslakh.sh
 	$(SHELL) scripts/download_babyslakh.sh "$(BABYSLAKH_ARCHIVE)" "$(BABYSLAKH_ARCHIVE_URL)" "$(BABYSLAKH_ARCHIVE_MD5)"
 
@@ -2541,15 +2541,27 @@ download-babyslakh-background: scripts/start_babyslakh_background_download.sh sc
 stop-babyslakh-background: scripts/stop_babyslakh_background_download.sh
 	$(SHELL) scripts/stop_babyslakh_background_download.sh
 
+reset-babyslakh-download-control: scripts/reset_babyslakh_download_control.sh
+	$(SHELL) scripts/reset_babyslakh_download_control.sh "$(BABYSLAKH_ARCHIVE)"
+
+finalize-babyslakh-download: scripts/finalize_babyslakh_partial.sh
+	$(SHELL) scripts/finalize_babyslakh_partial.sh "$(BABYSLAKH_ARCHIVE)" "$(BABYSLAKH_ARCHIVE_MD5)"
+
+discard-babyslakh-corrupt-partial: scripts/discard_babyslakh_corrupt_partial.sh
+	$(SHELL) scripts/discard_babyslakh_corrupt_partial.sh "$(BABYSLAKH_ARCHIVE)" "$(BABYSLAKH_ARCHIVE_MD5)"
+
 inspect-babyslakh-download: scripts/inspect_babyslakh_download.py
 	$(PYTHON) scripts/inspect_babyslakh_download.py "$(BABYSLAKH_ARCHIVE)"
 
 inspect-babyslakh-downloader: scripts/inspect_download_accelerator.py
 	$(PYTHON) scripts/inspect_download_accelerator.py
 
-test-download-babyslakh-background-scripts: scripts/start_babyslakh_background_download.sh scripts/stop_babyslakh_background_download.sh scripts/download_babyslakh_background_worker.sh scripts/inspect_babyslakh_download.py
+test-download-babyslakh-background-scripts: scripts/start_babyslakh_background_download.sh scripts/stop_babyslakh_background_download.sh scripts/reset_babyslakh_download_control.sh scripts/finalize_babyslakh_partial.sh scripts/discard_babyslakh_corrupt_partial.sh scripts/download_babyslakh_background_worker.sh scripts/inspect_babyslakh_download.py
 	sh -n scripts/start_babyslakh_background_download.sh
 	sh -n scripts/stop_babyslakh_background_download.sh
+	sh -n scripts/reset_babyslakh_download_control.sh
+	sh -n scripts/finalize_babyslakh_partial.sh
+	sh -n scripts/discard_babyslakh_corrupt_partial.sh
 	sh -n scripts/download_babyslakh_background_worker.sh
 	$(PYTHON) -m py_compile scripts/inspect_babyslakh_download.py
 

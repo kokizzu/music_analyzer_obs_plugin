@@ -24,7 +24,44 @@ def main() -> int:
         check=False,
     )
     print("state=running" if service.returncode == 0 else "state=not_running")
-    print(f"partial_bytes={part.stat().st_size if part.is_file() else 0}")
+    details = subprocess.run(
+        [
+            "systemctl", "--user", "show", "music-analyzer-babyslakh-download.service",
+            "--property=ActiveState", "--property=SubState", "--property=ExecMainStatus", "--property=MainPID",
+        ],
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+    main_pid = 0
+    for line in details.stdout.splitlines():
+        print(f"service_{line}")
+        if line.startswith("MainPID="):
+            main_pid = int(line.partition("=")[2] or "0")
+    if main_pid:
+        try:
+            command = Path(f"/proc/{main_pid}/cmdline").read_bytes().replace(b"\0", b" ").decode("utf-8").strip()
+        except OSError:
+            command = ""
+        if command:
+            print(f"service_command={command}")
+        try:
+            children = Path(f"/proc/{main_pid}/task/{main_pid}/children").read_text(encoding="utf-8").split()
+        except OSError:
+            children = []
+        for child in children:
+            try:
+                command = Path(f"/proc/{child}/cmdline").read_bytes().replace(b"\0", b" ").decode("utf-8").strip()
+            except OSError:
+                command = ""
+            print(f"service_child_pid={child} command={command or 'unavailable'}")
+    if part.is_file():
+        partial_stat = part.stat()
+        print(f"partial_bytes={partial_stat.st_size}")
+        print(f"allocated_bytes={partial_stat.st_blocks * 512}")
+    else:
+        print("partial_bytes=0")
+        print("allocated_bytes=0")
     return 0
 
 
