@@ -268,11 +268,26 @@ Source: `build/drum_false_positive_cap_audit.txt`
 
 | Metric | Accurate / total | Remaining |
 | --- | ---: | ---: |
-| Non-dominated real-mix false-positive cap candidates | 2 / 53 (3.8%) | 51 |
-| Cross-real candidates safe on protected one-shot primaries | 0 / 2 (0.0%) | 2 |
+| Non-dominated real-mix false-positive cap candidates | 0 / 48 (0.0%) | 48 |
+| Cross-real candidates safe on protected one-shot primaries | 0 / 0 (0.0%) | 0 |
 | Runtime false-positive cap eligible | 0 / 1 (0.0%) | 1 |
 
-The two cross-real Ride caps are rejected: each removes correct protected Ride primary detections, so neither may change runtime thresholds.
+No simple cross-real cap remains after the qualified Ride energy-context guard.
+
+## Two-feature cross-real drum false-positive context audit
+
+This bounded search combines two detector features for a single active drum category. It requires a false suppression in both MDB and STAR, no annotated real-mix event loss, and then replays each context against every protected one-shot primary row.
+
+Source: `build/drum_false_positive_context_audit.txt`
+
+| Metric | Accurate / total | Remaining |
+| --- | ---: | ---: |
+| Zero-true source primitives considered | 73 / 73 (100.0%) | 0 |
+| Cross-real two-feature contexts | 0 / 73 (0.0%) | 73 |
+| Protected one-shot runtime-safe contexts | 0 / 0 (0.0%) | 0 |
+| Remaining runtime context eligible | 0 / 1 (0.0%) | 1 |
+
+The current Ride high/low-energy guard removed the two previously qualified false windows; no additional two-feature context remains.
 
 ## Violin-to-Guitar safety audit
 
@@ -1787,8 +1802,8 @@ Source: `build/star_drums_misses.log.windows.summary`
 | Metric | Accurate / total | Remaining |
 | --- | ---: | ---: |
 | STAR Drums preview — annotated drum events detected | 39 / 56 (69.6%) | 17 |
-| STAR Drums preview — detected-drum precision | 39 / 40 (97.5%) | 1 false predictions |
-| STAR Drums preview — windows without a false drum | 15 / 16 (93.8%) | 1 false-positive windows |
+| STAR Drums preview — detected-drum precision | 39 / 39 (100.0%) | 0 false predictions |
+| STAR Drums preview — windows without a false drum | 16 / 16 (100.0%) | 0 false-positive windows |
 
 ## MDB Drums multitrack gate
 
@@ -1799,7 +1814,7 @@ Source: `build/mdb_drums_windows.log.summary`
 | Metric | Accurate / total | Remaining |
 | --- | ---: | ---: |
 | MDB Drums — annotated drum events detected | 191 / 192 (99.5%) | 1 |
-| MDB Drums — detected-drum precision | 191 / 255 (74.9%) | 64 false predictions |
-| MDB Drums — windows without a false drum | 49 / 92 (53.3%) | 43 false-positive windows |
+| MDB Drums — detected-drum precision | 191 / 253 (75.5%) | 62 false predictions |
+| MDB Drums — windows without a false drum | 50 / 92 (54.3%) | 42 false-positive windows |
 
 Refresh with `make update-detection-accuracy-report`. Whenever a verified detection metric changes, update this report in the same commit.

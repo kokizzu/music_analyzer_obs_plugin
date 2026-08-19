@@ -94,6 +94,12 @@ DRUM_FALSE_POSITIVE_CAP_RE = re.compile(
     r"protected_runtime_safe=(?P<safe>\d+)/(?P<total>\d+)$",
     re.MULTILINE,
 )
+DRUM_FALSE_POSITIVE_CONTEXT_RE = re.compile(
+    r"^drum_false_positive_context_audit: primitives=(?P<primitives>\d+) "
+    r"cross_real_contexts=(?P<contexts>\d+) "
+    r"protected_runtime_safe=(?P<safe>\d+)/(?P<total>\d+)$",
+    re.MULTILINE,
+)
 
 # Analyzer TSV evidence can legitimately retain long comma-separated note
 # histories.  Keep a finite but practical cap instead of csv's 128 KiB default.
@@ -882,6 +888,17 @@ def drum_false_positive_cap_audit(path: Path) -> tuple[int, int, int, int]:
     )
 
 
+def drum_false_positive_context_audit(path: Path) -> tuple[int, int, int, int]:
+    """Return two-feature real-mix candidates and protected safety."""
+    match = DRUM_FALSE_POSITIVE_CONTEXT_RE.search(path.read_text(encoding="utf-8", errors="replace"))
+    if match is None:
+        raise ValueError(f"{path}: missing drum false-positive-context audit summary")
+    return (
+        int(match["primitives"]), int(match["contexts"]),
+        int(match["safe"]), int(match["total"]),
+    )
+
+
 def polyphonic_candidate_capacity_audit(path: Path) -> tuple[int, int, int, int]:
     """Return whether full-mix candidate capacity explains SATB pitch misses."""
     match = POLYPHONIC_CANDIDATE_CAPACITY_RE.search(path.read_text(encoding="utf-8", errors="replace"))
@@ -1306,6 +1323,7 @@ def render(
     owner_score_calibration_loco_audit_input: Path | None = None,
     drum_primary_loco_audit_input: Path | None = None,
     drum_false_positive_cap_audit_input: Path | None = None,
+    drum_false_positive_context_audit_input: Path | None = None,
     other_detection_disabled: bool = False,
     polyphonic_candidate_capacity_audit_input: Path | None = None,
     harmonic_product_octave_audit_input: Path | None = None,
@@ -1535,6 +1553,11 @@ def render(
     drum_false_positive_caps = (
         drum_false_positive_cap_audit(drum_false_positive_cap_audit_input)
         if drum_false_positive_cap_audit_input is not None
+        else None
+    )
+    drum_false_positive_contexts = (
+        drum_false_positive_context_audit(drum_false_positive_context_audit_input)
+        if drum_false_positive_context_audit_input is not None
         else None
     )
     polyphonic_candidate_capacity = (
@@ -1944,7 +1967,36 @@ def render(
                 f"| Cross-real candidates safe on protected one-shot primaries | {fraction(safe, total)} | {total - safe} |",
                 f"| Runtime false-positive cap eligible | {fraction(int(safe == total and total > 0), 1)} | {int(not (safe == total and total > 0))} |",
                 "",
-                "The two cross-real Ride caps are rejected: each removes correct protected Ride primary detections, so neither may change runtime thresholds.",
+                (
+                    "No simple cross-real cap remains after the qualified Ride energy-context guard."
+                    if total == 0 else
+                    "The remaining cross-real caps are rejected: each removes correct protected Ride primary detections, so none may change runtime thresholds."
+                ),
+            ]
+        )
+    if drum_false_positive_contexts is not None:
+        primitives, contexts, safe, total = drum_false_positive_contexts
+        lines.extend(
+            [
+                "",
+                "## Two-feature cross-real drum false-positive context audit",
+                "",
+                "This bounded search combines two detector features for a single active drum category. It requires a false suppression in both MDB and STAR, no annotated real-mix event loss, and then replays each context against every protected one-shot primary row.",
+                "",
+                f"Source: `{drum_false_positive_context_audit_input.as_posix()}`",
+                "",
+                "| Metric | Accurate / total | Remaining |",
+                "| --- | ---: | ---: |",
+                f"| Zero-true source primitives considered | {primitives} / {primitives} (100.0%) | 0 |",
+                f"| Cross-real two-feature contexts | {fraction(contexts, primitives)} | {primitives - contexts} |",
+                f"| Protected one-shot runtime-safe contexts | {fraction(safe, total)} | {total - safe} |",
+                f"| Remaining runtime context eligible | {fraction(int(safe > 0), 1)} | {int(safe == 0)} |",
+                "",
+                (
+                    "The current Ride high/low-energy guard removed the two previously qualified false windows; no additional two-feature context remains."
+                    if contexts == 0 else
+                    "Any candidate remains audit-only until the full real-mix gates and protected one-shot replay both pass."
+                ),
             ]
         )
     if violin_guitar_audit is not None:
@@ -3365,6 +3417,7 @@ def main() -> int:
     parser.add_argument("--owner-score-calibration-loco-audit", type=Path)
     parser.add_argument("--drum-primary-loco-audit", type=Path)
     parser.add_argument("--drum-false-positive-cap-audit", type=Path)
+    parser.add_argument("--drum-false-positive-context-audit", type=Path)
     parser.add_argument("--other-detection-disabled", action="store_true")
     parser.add_argument("--polyphonic-candidate-capacity-audit", type=Path)
     parser.add_argument("--harmonic-product-octave-audit", type=Path)
@@ -3444,6 +3497,7 @@ def main() -> int:
             args.owner_score_calibration_loco_audit,
             args.drum_primary_loco_audit,
             args.drum_false_positive_cap_audit,
+            args.drum_false_positive_context_audit,
             args.other_detection_disabled,
             args.polyphonic_candidate_capacity_audit,
             args.harmonic_product_octave_audit,

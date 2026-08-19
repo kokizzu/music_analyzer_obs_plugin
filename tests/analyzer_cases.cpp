@@ -1005,7 +1005,6 @@ const std::vector<HarmonicInstrument> &harmonic_instruments()
 	static const std::vector<HarmonicInstrument> kInstruments = {
 		{"guitar", 40, 88, 60, guitar_notes, guitar_chord},
 		{"keyboard", 21, 108, 60, keyboard_notes, keyboard_chord},
-		{"other", 21, 108, 72, other_notes, other_chord},
 	};
 	return kInstruments;
 }
@@ -2428,9 +2427,8 @@ void check_layered_midi_instrument_voices(Runner &runner)
 		const std::vector<float> other_profile = {1.0f, 0.55f, 0.36f, 0.20f, 0.11f};
 		const auto buffer = make_harmonic_notes({55, 59, 62, 65, 67, 71, 74, 77}, 0.16f, other_profile);
 		const auto snapshot = analyze_buffer(buffer, "synth pad");
-		expect_label(runner, snapshot.other_chord.label, "G7", "layered other voices chord");
-		for (const char *note : {"G3", "B3", "D4", "F4", "G4", "B4", "D5", "F5"})
-			expect_note_token(runner, snapshot.other.label, note, "layered other voices");
+		expect_label(runner, snapshot.other.label, "--", "layered other voices disabled notes");
+		expect_no_chord(runner, snapshot.other_chord, "layered other voices disabled chord");
 	}
 }
 
@@ -2478,9 +2476,8 @@ void check_same_instrument_timbre_variants(Runner &runner)
 			const auto buffer = make_harmonic_notes({60, 64, 67}, 0.18f, other_profiles[i]);
 			const auto snapshot = analyze_buffer(buffer, "synth lead");
 			const std::string context = "other timbre variant " + std::to_string(i);
-			expect_note_token(runner, snapshot.other.label, "C4", context);
-			expect_note_token(runner, snapshot.other.label, "E4", context);
-			expect_note_token(runner, snapshot.other.label, "G4", context);
+			expect_label(runner, snapshot.other.label, "--", context + " disabled notes");
+			expect_no_chord(runner, snapshot.other_chord, context + " disabled chord");
 		}
 	}
 }
@@ -4947,12 +4944,11 @@ void check_sparse_full_mix_other_requires_temporal_confirmation(Runner &runner)
 	mao::AnalysisSnapshot snapshot = engine.analyze(buffer.data(), buffer.size(), settings, "Mic/Aux", 0);
 	expect_global_pitch_class(runner, snapshot, 2, "sparse full-mix other confirmation first-frame global");
 	expect_no_pitch_class(runner, snapshot.other_notes, 2, "sparse full-mix other confirmation first-frame other");
-	runner.expect(grid_pitch_active(snapshot.ambiguous_notes, 2),
-		      "sparse full-mix other confirmation: expected first D5 candidate to stay ambiguous");
+	expect_no_chord(runner, snapshot.other_chord, "sparse full-mix other confirmation first-frame chord");
 
 	snapshot = engine.analyze(buffer.data(), buffer.size(), settings, "Mic/Aux", 0);
-	expect_pitch_class(runner, snapshot.other_notes, 2, "sparse full-mix other confirmation second-frame other");
-	expect_midi_not_duplicated_across_rows(runner, snapshot, 74, "sparse full-mix other confirmation ownership");
+	expect_no_pitch_class(runner, snapshot.other_notes, 2, "sparse full-mix other confirmation second-frame other");
+	expect_no_chord(runner, snapshot.other_chord, "sparse full-mix other confirmation second-frame chord");
 }
 
 mao::AnalysisSettings tempo_test_settings()
@@ -7540,7 +7536,8 @@ void check_other_source_hints(Runner &runner)
 		mao_test::add_midi_note(buffer, 60, 0.42f);
 		const auto snapshot = analyze_buffer(buffer, source);
 		const std::string context = std::string("other source hint ") + source;
-		expect_note_token(runner, snapshot.other.label, "C4", context);
+		expect_label(runner, snapshot.other.label, "--", context + " disabled other");
+		expect_no_chord(runner, snapshot.other_chord, context + " disabled chord");
 		expect_label(runner, snapshot.keyboard.label, "--", context + " keyboard");
 		expect_label(runner, snapshot.guitar.label, "--", context + " guitar");
 	}
@@ -8757,6 +8754,7 @@ int main()
 	check_mixed_keyboard_guitar_note_bounds(runner);
 	check_sparse_full_mix_other_requires_temporal_confirmation(runner);
 	check_explicit_input_mode_and_bpm(runner);
+	check_other_source_hints(runner);
 	check_frontend_full_mix_equivalence(runner);
 	check_urmp_real_piece_metadata_regressions(runner);
 	check_slakh_style_multitrack_song_regressions(runner);
@@ -8773,7 +8771,6 @@ int main()
 	check_ambiguous_same_note_full_mix_chord_ownership(runner);
 	check_full_mix_global_chord_guides_root_with_inversion(runner);
 	check_full_mix_keyboard_chord_ignores_bass_inversion(runner);
-	check_other_source_hints(runner);
 	check_note_sub_rows(runner);
 	check_bass_pure_tone_stays_out_of_harmonic_rows(runner);
 	check_full_mix_bass_harmonic_note_not_duplicated(runner);
