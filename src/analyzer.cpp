@@ -96,6 +96,8 @@ constexpr float kNoteRelativeFloor = 0.36f;
 constexpr float kMixedNoteRelativeFloor = 0.08f;
 // Real-mix-only Snare cap independently verified on MDB, STAR, and BabySlakh.
 constexpr bool kEnableSourceScopedKickHeavySnareFalsePositiveCap = true;
+// Real-mix-only Rim cap independently verified on MDB, STAR, and BabySlakh.
+constexpr bool kEnableSourceScopedHighBandRimFalsePositiveCap = true;
 constexpr float kComplexTuningFallbackScale = 0.38f;
 constexpr float kMixedDominantDetunedFallbackScale = 0.62f;
 constexpr int kMixedDominantDetunedFallbackMinMidi = 73;
@@ -34053,6 +34055,13 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 			drum_level_[Snare] > 0.30f && kick_body >= 108.56f && rms <= 0.2712f;
 		if (source_scoped_kick_heavy_snare_false_positive)
 			cap_drum_level(Snare, 0.28f);
+
+		const bool source_scoped_high_band_rim_false_positive =
+			kEnableSourceScopedHighBandRimFalsePositiveCap &&
+			drum_detection_enabled && !one_shot_drum_source &&
+			drum_level_[Rim] > 0.30f && drum_bands[Rim] >= 15.25f;
+		if (source_scoped_high_band_rim_false_positive)
+			cap_drum_level(Rim, 0.28f);
 
 		// A low-heavy frame with little Snare crack leaves an apparent HiHat
 		// without the upper-band evidence of an annotated HiHat hit.  This
