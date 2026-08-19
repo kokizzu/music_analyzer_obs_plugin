@@ -865,7 +865,7 @@ MDB_DRUMS_PREP_LOCK_DIR ?= $(BUILD_DIR)/mdb_drums_prepare.lock
 MDB_DRUMS_TEST_MAKE_JOBS = $(if $(filter -j%,$(MAKEFLAGS)),,-j$(words $(MDB_DRUMS_SHARD_INDEXES)))
 BABYSLAKH_SOURCE_DIR ?= $(INSTRUMENT_SAMPLE_STORE_LINK)/baby_slakh
 BABYSLAKH_ARCHIVE ?= $(BABYSLAKH_SOURCE_DIR)/babyslakh_16k.tar.gz
-BABYSLAKH_ARCHIVE_URL ?= https://zenodo.org/record/4603870/files/babyslakh_16k.tar.gz?download=1
+BABYSLAKH_ARCHIVE_URL ?= https://zenodo.org/api/records/4603870/files/babyslakh_16k.tar.gz/content
 BABYSLAKH_ARCHIVE_MD5 ?= 311096dc2bde7d61c97e930edbfc7f78
 BABYSLAKH_EXTRACTED_DIR ?= $(BABYSLAKH_SOURCE_DIR)/extracted
 BABYSLAKH_REQUIRED_TRACKS ?= 20

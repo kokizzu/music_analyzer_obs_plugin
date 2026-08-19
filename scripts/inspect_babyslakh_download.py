@@ -55,6 +55,13 @@ def main() -> int:
             except OSError:
                 command = ""
             print(f"service_child_pid={child} command={command or 'unavailable'}")
+        try:
+            environment = Path(f"/proc/{main_pid}/environ").read_bytes().split(b"\0")
+        except OSError:
+            environment = []
+        for variable in (b"http_proxy=", b"https_proxy=", b"HTTP_PROXY=", b"HTTPS_PROXY="):
+            if any(item.startswith(variable) for item in environment):
+                print(f"service_proxy_env={variable[:-1].decode('ascii')}:present")
     if part.is_file():
         partial_stat = part.stat()
         print(f"partial_bytes={partial_stat.st_size}")
@@ -62,6 +69,17 @@ def main() -> int:
     else:
         print("partial_bytes=0")
         print("allocated_bytes=0")
+    journal = subprocess.run(
+        [
+            "journalctl", "--user", "--unit=music-analyzer-babyslakh-download.service",
+            "--no-pager", "--output=cat", "--lines=8",
+        ],
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+    for line in journal.stdout.splitlines():
+        print(f"service_journal={line}")
     return 0
 
 
