@@ -15,7 +15,7 @@ BUILD_DIR ?= build
 INSTRUMENT_SAMPLE_STORE ?= /media/kyz/sshflashtor/InstrumentSamples
 INSTRUMENT_SAMPLE_STORE_LINK ?= $(BUILD_DIR)/InstrumentSamples
 
-.PHONY: start-approved-corpus-downloads stop-approved-corpus-downloads report-approved-corpus-downloads show-approved-corpus-download-log test-approved-corpus-download-manager queue-filobass-bpm-after-download test-validate-maestro-subset-archive
+.PHONY: start-approved-corpus-downloads stop-approved-corpus-downloads report-approved-corpus-downloads show-approved-corpus-download-log test-approved-corpus-download-manager queue-filobass-bpm-after-download queue-candombe-bpm-after-download test-validate-maestro-subset-archive
 start-approved-corpus-downloads: scripts/start_approved_corpus_downloads.sh scripts/run_approved_corpus_download.sh
 	$(SHELL) scripts/start_approved_corpus_downloads.sh "$(MAKE)" "$(BUILD_DIR)" $(APPROVED_CORPUS_DOWNLOAD_TARGETS)
 
@@ -28,13 +28,14 @@ report-approved-corpus-downloads: scripts/report_approved_corpus_downloads.sh
 show-approved-corpus-download-log: scripts/show_approved_corpus_download_log.sh
 	$(SHELL) scripts/show_approved_corpus_download_log.sh "$(BUILD_DIR)" "$(CORPUS_DOWNLOAD_LOG_TARGET)"
 
-test-approved-corpus-download-manager: tests/test_approved_corpus_download_manager.py scripts/start_approved_corpus_downloads.sh scripts/run_approved_corpus_download.sh scripts/stop_approved_corpus_downloads.sh scripts/report_approved_corpus_downloads.sh scripts/show_approved_corpus_download_log.sh scripts/measure_filobass_after_download.sh scripts/download_ballroom_annotations.sh scripts/download_gtzan_rhythm_dataset.sh scripts/download_candombe_dataset.sh
+test-approved-corpus-download-manager: tests/test_approved_corpus_download_manager.py scripts/start_approved_corpus_downloads.sh scripts/run_approved_corpus_download.sh scripts/stop_approved_corpus_downloads.sh scripts/report_approved_corpus_downloads.sh scripts/show_approved_corpus_download_log.sh scripts/measure_filobass_after_download.sh scripts/measure_candombe_after_download.sh scripts/download_ballroom_annotations.sh scripts/download_gtzan_rhythm_dataset.sh scripts/download_candombe_dataset.sh
 	$(SHELL) -n scripts/start_approved_corpus_downloads.sh
 	$(SHELL) -n scripts/run_approved_corpus_download.sh
 	$(SHELL) -n scripts/stop_approved_corpus_downloads.sh
 	$(SHELL) -n scripts/report_approved_corpus_downloads.sh
 	$(SHELL) -n scripts/show_approved_corpus_download_log.sh
 	$(SHELL) -n scripts/measure_filobass_after_download.sh
+	$(SHELL) -n scripts/measure_candombe_after_download.sh
 	$(SHELL) -n scripts/download_ballroom_annotations.sh
 	bash -n scripts/download_gtzan_rhythm_dataset.sh
 	bash -n scripts/download_candombe_dataset.sh
@@ -46,9 +47,16 @@ test-approved-corpus-download-manager: tests/test_approved_corpus_download_manag
 queue-filobass-bpm-after-download: scripts/measure_filobass_after_download.sh
 	$(SHELL) scripts/start_approved_corpus_downloads.sh "$(MAKE)" "$(BUILD_DIR)" measure-filobass-bpm-after-download
 
+queue-candombe-bpm-after-download: scripts/measure_candombe_after_download.sh
+	$(SHELL) scripts/start_approved_corpus_downloads.sh "$(MAKE)" "$(BUILD_DIR)" measure-candombe-bpm-after-download
+
 .PHONY: measure-filobass-bpm-after-download
 measure-filobass-bpm-after-download: scripts/measure_filobass_after_download.sh
 	$(SHELL) scripts/measure_filobass_after_download.sh "$(MAKE)" "$(BUILD_DIR)"
+
+.PHONY: measure-candombe-bpm-after-download
+measure-candombe-bpm-after-download: scripts/measure_candombe_after_download.sh
+	$(SHELL) scripts/measure_candombe_after_download.sh "$(MAKE)" "$(BUILD_DIR)"
 
 test-validate-maestro-subset-archive: tests/test_validate_maestro_subset_archive.py scripts/validate_maestro_subset_archive.py scripts/prepare_maps_piano_samples.py
 	$(PYTHON) tests/test_validate_maestro_subset_archive.py
