@@ -260,6 +260,20 @@ Source: `build/drum_primary_loco_audit.txt`
 
 The experiment is rejected: held-out classification regresses (tom=-2074 ride=-277 rim=-299) instead of improving the protected Tom/Ride/Rim classes.
 
+## Cross-real drum false-positive cap audit
+
+This replays each simple cap that suppresses a false drum window in both MDB and STAR against protected one-shot primary rows. A cap is runtime-safe only when every required detector feature is available and no correct protected primary hit is removed.
+
+Source: `build/drum_false_positive_cap_audit.txt`
+
+| Metric | Accurate / total | Remaining |
+| --- | ---: | ---: |
+| Non-dominated real-mix false-positive cap candidates | 2 / 53 (3.8%) | 51 |
+| Cross-real candidates safe on protected one-shot primaries | 0 / 2 (0.0%) | 2 |
+| Runtime false-positive cap eligible | 0 / 1 (0.0%) | 1 |
+
+The two cross-real Ride caps are rejected: each removes correct protected Ride primary detections, so neither may change runtime thresholds.
+
 ## Violin-to-Guitar safety audit
 
 The leading Good Sounds violin routing profile is audited against independent Iowa strings and KRAISLER piano--violin mixture evidence before any reroute.

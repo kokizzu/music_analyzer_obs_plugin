@@ -88,6 +88,12 @@ DRUM_PRIMARY_LOCO_RE = re.compile(
     r"target_delta=(?P<targets>.*)$",
     re.MULTILINE,
 )
+DRUM_FALSE_POSITIVE_CAP_RE = re.compile(
+    r"^drum_false_positive_cap_audit: real_candidates=(?P<candidates>\d+) "
+    r"cross_real_candidates=(?P<cross>\d+) "
+    r"protected_runtime_safe=(?P<safe>\d+)/(?P<total>\d+)$",
+    re.MULTILINE,
+)
 
 # Analyzer TSV evidence can legitimately retain long comma-separated note
 # histories.  Keep a finite but practical cap instead of csv's 128 KiB default.
@@ -865,6 +871,17 @@ def drum_primary_loco_audit(path: Path) -> tuple[int, int, int, int, int, str]:
     )
 
 
+def drum_false_positive_cap_audit(path: Path) -> tuple[int, int, int, int]:
+    """Return cross-real false-positive cap candidates and protected safety."""
+    match = DRUM_FALSE_POSITIVE_CAP_RE.search(path.read_text(encoding="utf-8", errors="replace"))
+    if match is None:
+        raise ValueError(f"{path}: missing drum false-positive-cap audit summary")
+    return (
+        int(match["candidates"]), int(match["cross"]),
+        int(match["safe"]), int(match["total"]),
+    )
+
+
 def polyphonic_candidate_capacity_audit(path: Path) -> tuple[int, int, int, int]:
     """Return whether full-mix candidate capacity explains SATB pitch misses."""
     match = POLYPHONIC_CANDIDATE_CAPACITY_RE.search(path.read_text(encoding="utf-8", errors="replace"))
@@ -1288,6 +1305,7 @@ def render(
     owner_classifier_quality_loco_audit_input: Path | None = None,
     owner_score_calibration_loco_audit_input: Path | None = None,
     drum_primary_loco_audit_input: Path | None = None,
+    drum_false_positive_cap_audit_input: Path | None = None,
     other_detection_disabled: bool = False,
     polyphonic_candidate_capacity_audit_input: Path | None = None,
     harmonic_product_octave_audit_input: Path | None = None,
@@ -1512,6 +1530,11 @@ def render(
     drum_primary_loco = (
         drum_primary_loco_audit(drum_primary_loco_audit_input)
         if drum_primary_loco_audit_input is not None
+        else None
+    )
+    drum_false_positive_caps = (
+        drum_false_positive_cap_audit(drum_false_positive_cap_audit_input)
+        if drum_false_positive_cap_audit_input is not None
         else None
     )
     polyphonic_candidate_capacity = (
@@ -1902,6 +1925,26 @@ def render(
                 f"| Runtime drum classifier eligible | {fraction(int(supported == total), 1)} | {int(supported != total)} |",
                 "",
                 f"The experiment is rejected: held-out classification regresses ({targets}) instead of improving the protected Tom/Ride/Rim classes.",
+            ]
+        )
+    if drum_false_positive_caps is not None:
+        candidates, cross, safe, total = drum_false_positive_caps
+        lines.extend(
+            [
+                "",
+                "## Cross-real drum false-positive cap audit",
+                "",
+                "This replays each simple cap that suppresses a false drum window in both MDB and STAR against protected one-shot primary rows. A cap is runtime-safe only when every required detector feature is available and no correct protected primary hit is removed.",
+                "",
+                f"Source: `{drum_false_positive_cap_audit_input.as_posix()}`",
+                "",
+                "| Metric | Accurate / total | Remaining |",
+                "| --- | ---: | ---: |",
+                f"| Non-dominated real-mix false-positive cap candidates | {fraction(cross, candidates)} | {candidates - cross} |",
+                f"| Cross-real candidates safe on protected one-shot primaries | {fraction(safe, total)} | {total - safe} |",
+                f"| Runtime false-positive cap eligible | {fraction(int(safe == total and total > 0), 1)} | {int(not (safe == total and total > 0))} |",
+                "",
+                "The two cross-real Ride caps are rejected: each removes correct protected Ride primary detections, so neither may change runtime thresholds.",
             ]
         )
     if violin_guitar_audit is not None:
@@ -3321,6 +3364,7 @@ def main() -> int:
     parser.add_argument("--owner-classifier-quality-loco-audit", type=Path)
     parser.add_argument("--owner-score-calibration-loco-audit", type=Path)
     parser.add_argument("--drum-primary-loco-audit", type=Path)
+    parser.add_argument("--drum-false-positive-cap-audit", type=Path)
     parser.add_argument("--other-detection-disabled", action="store_true")
     parser.add_argument("--polyphonic-candidate-capacity-audit", type=Path)
     parser.add_argument("--harmonic-product-octave-audit", type=Path)
@@ -3399,6 +3443,7 @@ def main() -> int:
             args.owner_classifier_quality_loco_audit,
             args.owner_score_calibration_loco_audit,
             args.drum_primary_loco_audit,
+            args.drum_false_positive_cap_audit,
             args.other_detection_disabled,
             args.polyphonic_candidate_capacity_audit,
             args.harmonic_product_octave_audit,
