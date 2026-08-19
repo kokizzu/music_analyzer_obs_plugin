@@ -34016,6 +34016,19 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 		if (final_real_mix_broad_modest_hihat_context_false_positive)
 			cap_drum_level(HiHat, 0.28f);
 
+		// A short, low-treble frame cannot distinguish a Snare from the
+		// accompaniment bleed seen in five independent MDB recordings.  It is
+		// absent from annotated Snares in MDB and STAR, so retain the real-mix
+		// source guard rather than changing one-shot Snare behavior.
+		const bool final_real_mix_short_low_treble_snare_context_false_positive =
+			drum_detection_enabled &&
+			!one_shot_drum_source &&
+			drum_level_[Snare] > 0.30f &&
+			snapshot.high_energy <= 0.08f &&
+			snapshot.drum_debug_onset <= 3.27f;
+		if (final_real_mix_short_low_treble_snare_context_false_positive)
+			cap_drum_level(Snare, 0.28f);
+
 		const bool final_one_shot_measured_snare_hihat_active_bleed =
 			drum_detection_enabled && one_shot_drum_source &&
 			drum_level_[HiHat] > 0.30f &&
