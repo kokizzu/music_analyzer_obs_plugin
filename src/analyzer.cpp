@@ -34029,6 +34029,19 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 		if (final_real_mix_short_low_treble_snare_context_false_positive)
 			cap_drum_level(Snare, 0.28f);
 
+		// A low-heavy frame with little Snare crack leaves an apparent HiHat
+		// without the upper-band evidence of an annotated HiHat hit.  This
+		// context recurs in three MDB recordings and none of MDB or STAR's
+		// annotated HiHat events enters it.
+		const bool final_real_mix_low_heavy_weak_crack_hihat_context_false_positive =
+			drum_detection_enabled &&
+			!one_shot_drum_source &&
+			drum_level_[HiHat] > 0.30f &&
+			snapshot.low_energy >= 0.86f &&
+			snare_crack <= 6.02f;
+		if (final_real_mix_low_heavy_weak_crack_hihat_context_false_positive)
+			cap_drum_level(HiHat, 0.28f);
+
 		const bool final_one_shot_measured_snare_hihat_active_bleed =
 			drum_detection_enabled && one_shot_drum_source &&
 			drum_level_[HiHat] > 0.30f &&

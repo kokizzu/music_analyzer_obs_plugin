@@ -1861,7 +1861,7 @@ Source: `build/mdb_drums_windows.log.summary`
 | Metric | Accurate / total | Remaining |
 | --- | ---: | ---: |
 | MDB Drums — annotated drum events detected | 139 / 192 (72.4%) | 53 |
-| MDB Drums — detected-drum precision | 139 / 204 (68.1%) | 65 false predictions |
-| MDB Drums — windows without a false drum | 39 / 92 (42.4%) | 53 false-positive windows |
+| MDB Drums — detected-drum precision | 139 / 199 (69.8%) | 60 false predictions |
+| MDB Drums — windows without a false drum | 43 / 92 (46.7%) | 49 false-positive windows |
 
 Refresh with `make update-detection-accuracy-report`. Whenever a verified detection metric changes, update this report in the same commit.
