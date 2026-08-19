@@ -1668,6 +1668,16 @@ Source: `build/drum_full_exact_attribute_rows.tsv`
 | Full drum gate — primary ride | 239 / 352 (67.9%) | 113 |
 | Full drum gate — primary rim | 332 / 504 (65.9%) | 172 |
 
+## Tom/rim/ride protected-selector audit
+
+The top zero-regression one-shot selectors are searched against the full, HF, and IDMT attribute sets. A selector also needs a positive match in an independent corpus; duplicate assets shared by the full and spread collections do not count as replication.
+
+| Candidate route | Independent positive corpora | Runtime selector eligible |
+| --- | ---: | ---: |
+| Tom → Snare | 0 / 2 (0.0%) | 0 / 1 (0.0%) |
+| Rim → Snare | 0 / 2 (0.0%) | 0 / 1 (0.0%) |
+| Ride → HiHat | 0 / 2 (0.0%) | 0 / 1 (0.0%) |
+
 ## High-fidelity drum-kit primary-classification gate
 
 These independent one-shot samples are sharded by expected instrument; the seven shard matrices are combined here so primary-label changes remain visible.

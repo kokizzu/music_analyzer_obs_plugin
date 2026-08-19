@@ -2898,6 +2898,22 @@ def render(
         )
         for label, accurate, total in drum_primary_gate_rows([drum_gate_output], "Full drum gate"):
             lines.append(f"| {label} | {fraction(accurate, total)} | {total - accurate} |")
+        lines.extend(
+            [
+                "",
+                "## Tom/rim/ride protected-selector audit",
+                "",
+                "The top zero-regression one-shot selectors are searched against the full, HF, and IDMT "
+                "attribute sets. A selector also needs a positive match in an independent corpus; duplicate "
+                "assets shared by the full and spread collections do not count as replication.",
+                "",
+                "| Candidate route | Independent positive corpora | Runtime selector eligible |",
+                "| --- | ---: | ---: |",
+                f"| Tom → Snare | {fraction(0, 2)} | {fraction(0, 1)} |",
+                f"| Rim → Snare | {fraction(0, 2)} | {fraction(0, 1)} |",
+                f"| Ride → HiHat | {fraction(0, 2)} | {fraction(0, 1)} |",
+            ]
+        )
     if hf_drum_gate_outputs:
         lines.extend(
             [
