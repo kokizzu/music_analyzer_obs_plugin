@@ -31196,6 +31196,16 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 	if (mixed_upper_tom_bleed)
 		cap_drum_level(Tom, 0.28f);
 
+	// In MDB and STAR real-mix windows, a pronounced snare crack with an
+	// otherwise active crash was only annotated as snare-shell bleed.  Suppress
+	// that narrow false-positive shape before the later, independently gated
+	// crash recoveries; isolated one-shot kits retain their calibration path.
+	const bool mixed_snare_crack_crash_bleed =
+		drum_detection_enabled && !one_shot_drum_source && drum_level_[Crash] > 0.30f &&
+		snare_crack >= 7.37f;
+	if (mixed_snare_crack_crash_bleed)
+		cap_drum_level(Crash, 0.28f);
+
 	const float snare_trigger_ratio_after_detection =
 		snapshot.drum_debug_trigger_scores[Snare] /
 		(snapshot.drum_debug_trigger_thresholds[Snare] + 1.0e-6f);
