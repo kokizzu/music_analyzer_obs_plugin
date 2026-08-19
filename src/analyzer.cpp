@@ -33955,6 +33955,44 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 		if (final_real_mix_ride_energy_context_false_positive)
 			cap_drum_level(Ride, 0.28f);
 
+		// In both annotated MDB full mixes and independent STAR mixes, a detected
+		// Ride is a bleed false positive when the concurrently active HiHat is
+		// just stronger.  The strict ratio was replayed against every protected
+		// Ride-primary row before enabling it; use the narrow full-precision
+		// boundary rather than a broad HiHat-over-Ride preference.
+		const bool final_real_mix_hihat_dominant_ride_context_false_positive =
+			drum_detection_enabled &&
+			!one_shot_drum_source &&
+			drum_level_[HiHat] > 0.30f &&
+			drum_level_[Ride] > 0.30f &&
+			drum_level_[HiHat] >= drum_level_[Ride] * 1.02299f;
+		if (final_real_mix_hihat_dominant_ride_context_false_positive)
+			cap_drum_level(Ride, 0.28f);
+
+		// A much stronger concurrently active HiHat is likewise a narrow,
+		// cross-real-mix safe context for a Kick bleed activation.  This ratio
+		// was checked against the full protected Kick-primary corpus.
+		const bool final_real_mix_hihat_dominant_kick_context_false_positive =
+			drum_detection_enabled &&
+			!one_shot_drum_source &&
+			drum_level_[HiHat] > 0.30f &&
+			drum_level_[Kick] > 0.30f &&
+			drum_level_[HiHat] >= drum_level_[Kick] * 1.33333f;
+		if (final_real_mix_hihat_dominant_kick_context_false_positive)
+			cap_drum_level(Kick, 0.28f);
+
+		// In dense accompaniment, an active Snare at least 1.30x stronger than
+		// Tom identifies a tested Tom bleed context.  MDB and STAR annotate no
+		// true Tom loss for it, and protected Tom-primary replay is clean.
+		const bool final_real_mix_snare_dominant_tom_context_false_positive =
+			drum_detection_enabled &&
+			!one_shot_drum_source &&
+			drum_level_[Snare] > 0.30f &&
+			drum_level_[Tom] > 0.30f &&
+			drum_level_[Snare] >= drum_level_[Tom] * 1.30f;
+		if (final_real_mix_snare_dominant_tom_context_false_positive)
+			cap_drum_level(Tom, 0.28f);
+
 		const bool final_one_shot_measured_snare_hihat_active_bleed =
 			drum_detection_enabled && one_shot_drum_source &&
 			drum_level_[HiHat] > 0.30f &&

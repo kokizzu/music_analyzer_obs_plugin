@@ -288,6 +288,20 @@ Source: `build/mdb_full_mix_false_positive_cap_audit.txt`
 
 No MDB-only simple cap is eligible: every candidate that suppresses a full-mix false positive also removes a protected correct primary hit.
 
+## Cross-real competing-drum context audit
+
+This searches source-scoped class-aware suppression contexts across the annotated MDB and STAR full mixes. Each candidate must preserve annotated target events and every protected one-shot primary row.
+
+Source: `build/mdb_full_mix_competing_active_context_audit.txt`
+
+| Metric | Accurate / total | Remaining |
+| --- | ---: | ---: |
+| Remaining competing-drum contexts examined | 19 / 19 (100.0%) | 0 |
+| Remaining contexts safe for an isolated runtime experiment | 6 / 19 (31.6%) | 13 |
+| Further source-scoped context work available | 1 / 1 (100.0%) | 0 |
+
+Only independently re-measured contexts may be enabled; eligible contexts can overlap and are not assumed safe in combination.
+
 ## Two-feature cross-real drum false-positive context audit
 
 This bounded search combines two detector features for a single active drum category. It requires a false suppression in both MDB and STAR, no annotated real-mix event loss, and then replays each context against every protected one-shot primary row.
@@ -1847,7 +1861,7 @@ Source: `build/mdb_drums_windows.log.summary`
 | Metric | Accurate / total | Remaining |
 | --- | ---: | ---: |
 | MDB Drums — annotated drum events detected | 139 / 192 (72.4%) | 53 |
-| MDB Drums — detected-drum precision | 139 / 241 (57.7%) | 102 false predictions |
-| MDB Drums — windows without a false drum | 23 / 92 (25.0%) | 69 false-positive windows |
+| MDB Drums — detected-drum precision | 139 / 223 (62.3%) | 84 false predictions |
+| MDB Drums — windows without a false drum | 31 / 92 (33.7%) | 61 false-positive windows |
 
 Refresh with `make update-detection-accuracy-report`. Whenever a verified detection metric changes, update this report in the same commit.

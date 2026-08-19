@@ -94,6 +94,11 @@ DRUM_FALSE_POSITIVE_CAP_RE = re.compile(
     r"protected_runtime_safe=(?P<safe>\d+)/(?P<total>\d+)$",
     re.MULTILINE,
 )
+DRUM_COMPETING_ACTIVE_CONTEXT_RE = re.compile(
+    r"^drum_competing_active_context_audit: real_candidates=(?P<candidates>\d+) "
+    r"protected_runtime_safe=(?P<safe>\d+)/(?P<total>\d+)$",
+    re.MULTILINE,
+)
 DRUM_FALSE_POSITIVE_CONTEXT_RE = re.compile(
     r"^drum_false_positive_context_audit: primitives=(?P<primitives>\d+) "
     r"cross_real_contexts=(?P<contexts>\d+) "
@@ -895,6 +900,14 @@ def drum_false_positive_cap_audit(path: Path) -> tuple[int, int, int, int]:
     )
 
 
+def drum_competing_active_context_audit(path: Path) -> tuple[int, int, int]:
+    """Return remaining class-aware real-mix contexts and protected safety."""
+    match = DRUM_COMPETING_ACTIVE_CONTEXT_RE.search(path.read_text(encoding="utf-8", errors="replace"))
+    if match is None:
+        raise ValueError(f"{path}: missing competing-active drum-context audit summary")
+    return int(match["candidates"]), int(match["safe"]), int(match["total"])
+
+
 def drum_false_positive_context_audit(path: Path) -> tuple[int, int, int, int]:
     """Return two-feature real-mix candidates and protected safety."""
     match = DRUM_FALSE_POSITIVE_CONTEXT_RE.search(path.read_text(encoding="utf-8", errors="replace"))
@@ -1342,6 +1355,7 @@ def render(
     drum_primary_loco_audit_input: Path | None = None,
     drum_false_positive_cap_audit_input: Path | None = None,
     mdb_full_mix_false_positive_cap_audit_input: Path | None = None,
+    mdb_full_mix_competing_active_context_audit_input: Path | None = None,
     drum_false_positive_context_audit_input: Path | None = None,
     chord_primary_component_audit_input: Path | None = None,
     other_detection_disabled: bool = False,
@@ -1578,6 +1592,11 @@ def render(
     mdb_full_mix_false_positive_caps = (
         drum_false_positive_cap_audit(mdb_full_mix_false_positive_cap_audit_input)
         if mdb_full_mix_false_positive_cap_audit_input is not None
+        else None
+    )
+    mdb_full_mix_competing_active_contexts = (
+        drum_competing_active_context_audit(mdb_full_mix_competing_active_context_audit_input)
+        if mdb_full_mix_competing_active_context_audit_input is not None
         else None
     )
     drum_false_positive_contexts = (
@@ -2025,6 +2044,29 @@ def render(
                     "No MDB-only simple cap is eligible: every candidate that suppresses a full-mix false positive also removes a protected correct primary hit."
                     if not (safe == total and total > 0)
                     else "A protected-safe MDB full-mix cap is available for implementation review."
+                ),
+            ]
+        )
+    if mdb_full_mix_competing_active_contexts is not None:
+        candidates, safe, total = mdb_full_mix_competing_active_contexts
+        lines.extend(
+            [
+                "",
+                "## Cross-real competing-drum context audit",
+                "",
+                "This searches source-scoped class-aware suppression contexts across the annotated MDB and STAR full mixes. Each candidate must preserve annotated target events and every protected one-shot primary row.",
+                "",
+                f"Source: `{mdb_full_mix_competing_active_context_audit_input.as_posix()}`",
+                "",
+                "| Metric | Accurate / total | Remaining |",
+                "| --- | ---: | ---: |",
+                f"| Remaining competing-drum contexts examined | {fraction(candidates, candidates)} | 0 |",
+                f"| Remaining contexts safe for an isolated runtime experiment | {fraction(safe, total)} | {total - safe} |",
+                f"| Further source-scoped context work available | {fraction(int(safe > 0), 1)} | {int(safe == 0)} |",
+                "",
+                (
+                    "Only independently re-measured contexts may be enabled; eligible contexts can overlap and are not assumed safe in combination."
+                    if safe else "No additional isolated class-aware context remains eligible."
                 ),
             ]
         )
@@ -3497,6 +3539,7 @@ def main() -> int:
     parser.add_argument("--drum-primary-loco-audit", type=Path)
     parser.add_argument("--drum-false-positive-cap-audit", type=Path)
     parser.add_argument("--mdb-full-mix-false-positive-cap-audit", type=Path)
+    parser.add_argument("--mdb-full-mix-competing-active-context-audit", type=Path)
     parser.add_argument("--drum-false-positive-context-audit", type=Path)
     parser.add_argument("--chord-primary-component-audit", type=Path)
     parser.add_argument("--other-detection-disabled", action="store_true")
@@ -3579,6 +3622,7 @@ def main() -> int:
             args.drum_primary_loco_audit,
             args.drum_false_positive_cap_audit,
             args.mdb_full_mix_false_positive_cap_audit,
+            args.mdb_full_mix_competing_active_context_audit,
             args.drum_false_positive_context_audit,
             args.chord_primary_component_audit,
             args.other_detection_disabled,
