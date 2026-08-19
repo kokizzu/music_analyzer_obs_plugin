@@ -20,17 +20,10 @@ case "$download_url" in
         exit 1
         ;;
 esac
-if [ "$download_connections" -eq 1 ]; then
-    # A single HTTP range stream can continue a valid contiguous tail without
-    # aria2's piece map re-downloading already present bytes.
-    curl --ipv4 --connect-timeout 20 --fail --location --retry 12 --retry-delay 5 \
-        --continue-at - --silent --show-error --output "$temporary_path" "$download_url"
-else
-    aria2c --continue=true --max-connection-per-server="$download_connections" --split="$download_connections" --min-split-size=1M \
-        --file-allocation=none --allow-overwrite=true --retry-wait=5 --max-tries=20 \
-        --summary-interval=0 --console-log-level=warn --dir "$(dirname "$temporary_path")" \
-        --out "$(basename "$temporary_path")" "$download_url"
-fi
+aria2c --continue=true --max-connection-per-server="$download_connections" --split="$download_connections" --min-split-size=1M \
+    --file-allocation=none --allow-overwrite=true --retry-wait=5 --max-tries=20 \
+    --summary-interval=0 --console-log-level=warn --dir "$(dirname "$temporary_path")" \
+    --out "$(basename "$temporary_path")" "$download_url"
 printf '%s  %s\n' "$expected_md5" "$temporary_path" | md5sum -c -
 rm -f "$temporary_path.aria2"
 mv "$temporary_path" "$archive_path"
