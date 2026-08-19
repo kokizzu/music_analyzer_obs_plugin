@@ -289,6 +289,21 @@ Source: `build/drum_false_positive_context_audit.txt`
 
 The current Ride high/low-energy guard removed the two previously qualified false windows; no additional two-feature context remains.
 
+## Canonical-first chord display audit
+
+The proposed compact display would keep only the first component of a multi-alias keyboard chord. MAPS and independently recorded MAESTRO determine whether that visual simplification preserves correct labelled chords.
+
+Source: `build/chord_primary_component_audit.txt`
+
+| Metric | Accurate / total | Remaining |
+| --- | ---: | ---: |
+| Correct chords with any displayed alias | 154 / 1415 (10.9%) | 1261 |
+| Correct chords with only the first displayed component | 143 / 1415 (10.1%) | 1272 |
+| Correct chords rescued only by a later alias | 11 / 154 (7.1%) | 143 |
+| Canonical-first runtime display eligible | 0 / 1 (0.0%) | 1 |
+
+Canonical-first display is rejected: later aliases account for correct labelled outcomes in both piano corpora.
+
 ## Violin-to-Guitar safety audit
 
 The leading Good Sounds violin routing profile is audited against independent Iowa strings and KRAISLER piano--violin mixture evidence before any reroute.

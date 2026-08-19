@@ -651,6 +651,11 @@ class DetectionAccuracyReportTest(unittest.TestCase):
                 "protected_runtime_safe=1/2\n",
                 encoding="utf-8",
             )
+            chord_primary_component_audit = Path(temporary) / "chord_primary_component_audit.txt"
+            chord_primary_component_audit.write_text(
+                "chord_primary_component_audit: any_hit=17/20 primary_hit=15/20 alias_rescued=2\n",
+                encoding="utf-8",
+            )
             urmp_bass_timing = Path(temporary) / "urmp_bass_timing_audit.tsv"
             urmp_bass_timing.write_text(
                 "piece\tnotes\taudio_aligned_notes\tscore_midi\texplicit_beat_grid\tqualifies_as_tempo_truth\ttiming_files\n"
@@ -753,6 +758,7 @@ class DetectionAccuracyReportTest(unittest.TestCase):
                 drum_primary_loco_audit_input=drum_classifier_audit,
                 drum_false_positive_cap_audit_input=drum_false_positive_cap_audit,
                 drum_false_positive_context_audit_input=drum_false_positive_context_audit,
+                chord_primary_component_audit_input=chord_primary_component_audit,
                 urmp_bass_timing_audit_input=urmp_bass_timing,
                 idmt_bass_tempo_metadata_input=idmt_bass_timing,
                 filobass_bpm_input=filobass_bpm,
@@ -786,6 +792,8 @@ class DetectionAccuracyReportTest(unittest.TestCase):
         self.assertIn("| Cross-real candidates safe on protected one-shot primaries | 0 / 2 (0.0%) | 2 |", report)
         self.assertIn("## Two-feature cross-real drum false-positive context audit", report)
         self.assertIn("| Protected one-shot runtime-safe contexts | 1 / 2 (50.0%) | 1 |", report)
+        self.assertIn("## Canonical-first chord display audit", report)
+        self.assertIn("| Correct chords rescued only by a later alias | 2 / 17 (11.8%) | 15 |", report)
         self.assertIn("## URMP double-bass timing-ground-truth audit", report)
         self.assertIn("| URMP double-bass stems qualifying as tempo truth | 0 / 1 (0.0%) | 1 |", report)
         self.assertIn("## Rejected three-corpus keys-to-vocal routing trial", report)

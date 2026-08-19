@@ -100,6 +100,11 @@ DRUM_FALSE_POSITIVE_CONTEXT_RE = re.compile(
     r"protected_runtime_safe=(?P<safe>\d+)/(?P<total>\d+)$",
     re.MULTILINE,
 )
+CHORD_PRIMARY_COMPONENT_RE = re.compile(
+    r"^chord_primary_component_audit: any_hit=(?P<any>\d+)/(?P<total>\d+) "
+    r"primary_hit=(?P<primary>\d+)/(?P=total) alias_rescued=(?P<rescued>\d+)$",
+    re.MULTILINE,
+)
 
 # Analyzer TSV evidence can legitimately retain long comma-separated note
 # histories.  Keep a finite but practical cap instead of csv's 128 KiB default.
@@ -899,6 +904,16 @@ def drum_false_positive_context_audit(path: Path) -> tuple[int, int, int, int]:
     )
 
 
+def chord_primary_component_audit(path: Path) -> tuple[int, int, int, int]:
+    """Return any-alias and first-component chord matches."""
+    match = CHORD_PRIMARY_COMPONENT_RE.search(path.read_text(encoding="utf-8", errors="replace"))
+    if match is None:
+        raise ValueError(f"{path}: missing chord primary-component audit summary")
+    return (
+        int(match["any"]), int(match["primary"]), int(match["total"]), int(match["rescued"]),
+    )
+
+
 def polyphonic_candidate_capacity_audit(path: Path) -> tuple[int, int, int, int]:
     """Return whether full-mix candidate capacity explains SATB pitch misses."""
     match = POLYPHONIC_CANDIDATE_CAPACITY_RE.search(path.read_text(encoding="utf-8", errors="replace"))
@@ -1324,6 +1339,7 @@ def render(
     drum_primary_loco_audit_input: Path | None = None,
     drum_false_positive_cap_audit_input: Path | None = None,
     drum_false_positive_context_audit_input: Path | None = None,
+    chord_primary_component_audit_input: Path | None = None,
     other_detection_disabled: bool = False,
     polyphonic_candidate_capacity_audit_input: Path | None = None,
     harmonic_product_octave_audit_input: Path | None = None,
@@ -1558,6 +1574,11 @@ def render(
     drum_false_positive_contexts = (
         drum_false_positive_context_audit(drum_false_positive_context_audit_input)
         if drum_false_positive_context_audit_input is not None
+        else None
+    )
+    chord_primary_components = (
+        chord_primary_component_audit(chord_primary_component_audit_input)
+        if chord_primary_component_audit_input is not None
         else None
     )
     polyphonic_candidate_capacity = (
@@ -1997,6 +2018,27 @@ def render(
                     if contexts == 0 else
                     "Any candidate remains audit-only until the full real-mix gates and protected one-shot replay both pass."
                 ),
+            ]
+        )
+    if chord_primary_components is not None:
+        any_hit, primary_hit, total, alias_rescued = chord_primary_components
+        lines.extend(
+            [
+                "",
+                "## Canonical-first chord display audit",
+                "",
+                "The proposed compact display would keep only the first component of a multi-alias keyboard chord. MAPS and independently recorded MAESTRO determine whether that visual simplification preserves correct labelled chords.",
+                "",
+                f"Source: `{chord_primary_component_audit_input.as_posix()}`",
+                "",
+                "| Metric | Accurate / total | Remaining |",
+                "| --- | ---: | ---: |",
+                f"| Correct chords with any displayed alias | {fraction(any_hit, total)} | {total - any_hit} |",
+                f"| Correct chords with only the first displayed component | {fraction(primary_hit, total)} | {total - primary_hit} |",
+                f"| Correct chords rescued only by a later alias | {fraction(alias_rescued, any_hit)} | {any_hit - alias_rescued} |",
+                f"| Canonical-first runtime display eligible | {fraction(int(alias_rescued == 0), 1)} | {int(alias_rescued != 0)} |",
+                "",
+                "Canonical-first display is rejected: later aliases account for correct labelled outcomes in both piano corpora.",
             ]
         )
     if violin_guitar_audit is not None:
@@ -3418,6 +3460,7 @@ def main() -> int:
     parser.add_argument("--drum-primary-loco-audit", type=Path)
     parser.add_argument("--drum-false-positive-cap-audit", type=Path)
     parser.add_argument("--drum-false-positive-context-audit", type=Path)
+    parser.add_argument("--chord-primary-component-audit", type=Path)
     parser.add_argument("--other-detection-disabled", action="store_true")
     parser.add_argument("--polyphonic-candidate-capacity-audit", type=Path)
     parser.add_argument("--harmonic-product-octave-audit", type=Path)
@@ -3498,6 +3541,7 @@ def main() -> int:
             args.drum_primary_loco_audit,
             args.drum_false_positive_cap_audit,
             args.drum_false_positive_context_audit,
+            args.chord_primary_component_audit,
             args.other_detection_disabled,
             args.polyphonic_candidate_capacity_audit,
             args.harmonic_product_octave_audit,
