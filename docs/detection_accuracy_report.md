@@ -296,8 +296,8 @@ Source: `build/mdb_full_mix_competing_active_context_audit.txt`
 
 | Metric | Accurate / total | Remaining |
 | --- | ---: | ---: |
-| Remaining competing-drum contexts examined | 12 / 12 (100.0%) | 0 |
-| Remaining contexts safe for an isolated runtime experiment | 3 / 12 (25.0%) | 9 |
+| Remaining competing-drum contexts examined | 5 / 5 (100.0%) | 0 |
+| Remaining contexts safe for an isolated runtime experiment | 2 / 5 (40.0%) | 3 |
 | Further source-scoped context work available | 1 / 1 (100.0%) | 0 |
 
 Only independently re-measured contexts may be enabled; eligible contexts can overlap and are not assumed safe in combination.
@@ -1861,8 +1861,8 @@ Source: `build/mdb_drums_windows.log.summary`
 | Metric | Accurate / total | Remaining |
 | --- | ---: | ---: |
 | MDB Drums — annotated drum events detected | 139 / 192 (72.4%) | 53 |
-| MDB Drums — detected-drum precision | 139 / 179 (77.7%) | 40 false predictions |
-| MDB Drums — windows without a false drum | 56 / 92 (60.9%) | 36 false-positive windows |
+| MDB Drums — detected-drum precision | 139 / 176 (79.0%) | 37 false predictions |
+| MDB Drums — windows without a false drum | 59 / 92 (64.1%) | 33 false-positive windows |
 
 ## BabySlakh rendered full-mix drum baseline
 
