@@ -74,8 +74,8 @@ int run_visualizer_renderer_tests()
 		    "BPM formatter should show a calibrated numeric estimate", &checks, &failures);
 	tempo_snapshot.bpm_confidence = kBpmDisplayConfidenceThreshold - 0.01f;
 	format_bpm_value(bpm_value, sizeof(bpm_value), tempo_snapshot);
-	expect_true(std::strcmp(bpm_value, "?") == 0,
-		    "BPM formatter should show analysing state for a withheld estimate", &checks, &failures);
+	expect_true(std::strcmp(bpm_value, "--") == 0,
+		    "BPM formatter should keep a withheld estimate visually unavailable", &checks, &failures);
 	tempo_snapshot = {};
 	format_bpm_value(bpm_value, sizeof(bpm_value), tempo_snapshot);
 	expect_true(std::strcmp(bpm_value, "--") == 0,
