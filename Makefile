@@ -2542,7 +2542,7 @@ prepare-mdb-drums-samples: scripts/prepare_mdb_drums_samples.py scripts/run_with
 	$(SHELL) scripts/run_with_lock.sh "$(MDB_DRUMS_PREP_LOCK_DIR)" -- env MDB_DRUMS_SAMPLE_DIR="$(MDB_DRUMS_SAMPLE_DIR)" MDB_DRUMS_SOURCE_ROOT="$(MDB_DRUMS_SOURCE_ROOT)" MDB_DRUMS_AUDIO_FLAVOR="$(MDB_DRUMS_AUDIO_FLAVOR)" MDB_DRUMS_RECORDING_LIMIT="$(MDB_DRUMS_RECORDING_LIMIT)" MDB_DRUMS_MIN_RECORDINGS="$(MDB_DRUMS_MIN_RECORDINGS)" $(PYTHON) scripts/prepare_mdb_drums_samples.py --output "$(MDB_DRUMS_SAMPLE_DIR)" --source-root "$(MDB_DRUMS_SOURCE_ROOT)" --audio-flavor "$(MDB_DRUMS_AUDIO_FLAVOR)" --limit "$(MDB_DRUMS_RECORDING_LIMIT)" --min-recordings "$(MDB_DRUMS_MIN_RECORDINGS)"
 
 .PHONY: download-babyslakh probe-babyslakh-download test-download-babyslakh-script download-babyslakh-background stop-babyslakh-background reset-babyslakh-download-control finalize-babyslakh-download discard-babyslakh-corrupt-partial inspect-babyslakh-download inspect-babyslakh-downloader test-download-babyslakh-background-scripts test-babyslakh-background-extraction-scripts inspect-babyslakh-extraction extract-babyslakh-background test-inspect-babyslakh-archive test-extract-babyslakh-archive test-prepare-babyslakh-drums inspect-babyslakh-archive inspect-babyslakh-archive-existing extract-babyslakh inspect-babyslakh prepare-babyslakh-drums measure-babyslakh-drums
-.PHONY: download-enst-drums test-download-enst-drums-script download-29k-drums inspect-29k-drums-archive test-download-29k-drums-script test-inspect-29k-drums-archive
+.PHONY: download-enst-drums test-download-enst-drums-script download-29k-drums inspect-29k-drums-download inspect-29k-drums-archive test-download-29k-drums-script test-inspect-29k-drums-download test-inspect-29k-drums-archive
 download-enst-drums: scripts/download_enst_drums.sh
 	$(SHELL) scripts/download_enst_drums.sh "$(ENST_DRUMS_ARCHIVE)" "$(ENST_DRUMS_ARCHIVE_URL)" "$(ENST_DRUMS_ARCHIVE_MD5)" "$(ENST_DRUMS_LICENSE_ACCEPTED)"
 
@@ -2553,12 +2553,18 @@ test-download-enst-drums-script: scripts/download_enst_drums.sh tests/test_downl
 download-29k-drums: scripts/download_29k_samples_drums.sh
 	$(SHELL) scripts/download_29k_samples_drums.sh "$(SAMPLES29K_DRUMS_ARCHIVE)" "$(SAMPLES29K_DRUMS_ARCHIVE_URL)" "$(SAMPLES29K_DRUMS_ARCHIVE_MD5)" "$(PYTHON)"
 
+inspect-29k-drums-download: scripts/inspect_29k_samples_drums_download.py
+	$(PYTHON) scripts/inspect_29k_samples_drums_download.py "$(SAMPLES29K_DRUMS_ARCHIVE)"
+
 inspect-29k-drums-archive: download-29k-drums scripts/inspect_29k_samples_drums.py | $(BUILD_DIR)
 	$(PYTHON) scripts/inspect_29k_samples_drums.py "$(SAMPLES29K_DRUMS_ARCHIVE)" > "$(SAMPLES29K_DRUMS_INSPECTION)"
 	cat "$(SAMPLES29K_DRUMS_INSPECTION)"
 
 test-download-29k-drums-script: scripts/download_29k_samples_drums.sh
 	sh -n scripts/download_29k_samples_drums.sh
+
+test-inspect-29k-drums-download: tests/test_inspect_29k_samples_drums_download.py scripts/inspect_29k_samples_drums_download.py
+	$(PYTHON) tests/test_inspect_29k_samples_drums_download.py
 
 test-inspect-29k-drums-archive: tests/test_inspect_29k_samples_drums.py scripts/inspect_29k_samples_drums.py
 	$(PYTHON) tests/test_inspect_29k_samples_drums.py
