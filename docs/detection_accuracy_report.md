@@ -296,8 +296,8 @@ Source: `build/mdb_full_mix_competing_active_context_audit.txt`
 
 | Metric | Accurate / total | Remaining |
 | --- | ---: | ---: |
-| Remaining competing-drum contexts examined | 5 / 5 (100.0%) | 0 |
-| Remaining contexts safe for an isolated runtime experiment | 2 / 5 (40.0%) | 3 |
+| Remaining competing-drum contexts examined | 3 / 3 (100.0%) | 0 |
+| Remaining contexts safe for an isolated runtime experiment | 1 / 3 (33.3%) | 2 |
 | Further source-scoped context work available | 1 / 1 (100.0%) | 0 |
 
 Only independently re-measured contexts may be enabled; eligible contexts can overlap and are not assumed safe in combination.
