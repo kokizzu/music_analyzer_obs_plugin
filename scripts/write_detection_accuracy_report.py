@@ -112,6 +112,9 @@ CHORD_PRIMARY_COMPONENT_RE = re.compile(
     r"dim7_promotions=(?P<promotions>\d+) dim7_regressions=(?P<regressions>\d+)$",
     re.MULTILINE,
 )
+SAMPLES29K_DRUMS_RE = re.compile(
+    r"\b(?P<category>tom|ride) recall (?P<hits>\d+)/(?P<total>\d+) primary (?P<primary>\d+)/(?P=total)",
+)
 
 # Analyzer TSV evidence can legitimately retain long comma-separated note
 # histories.  Keep a finite but practical cap instead of csv's 128 KiB default.
@@ -120,6 +123,16 @@ csv.field_size_limit(8 * 1024 * 1024)
 
 def truthy(value: str) -> bool:
     return value.strip().lower() not in {"", "0", "false", "no"}
+
+
+def samples29k_drum_counts(path: Path) -> dict[str, tuple[int, int, int]]:
+    """Return active and primary hit counts from the Tom/Ride-only fixture log."""
+    counts: dict[str, tuple[int, int, int]] = {}
+    for match in SAMPLES29K_DRUMS_RE.finditer(path.read_text(encoding="utf-8", errors="replace")):
+        counts[match.group("category")] = (
+            int(match.group("hits")), int(match.group("total")), int(match.group("primary"))
+        )
+    return counts
 
 
 def labels(value: str) -> set[str]:
@@ -1389,6 +1402,7 @@ def render(
     babyslakh_manifest: Path | None = None,
     babyslakh_calibration_audit: Path | None = None,
     samples29k_drums_inspection: Path | None = None,
+    samples29k_drums_measurement: Path | None = None,
 ) -> str:
     samples = load_samples(input_path)
     babyslakh_archive_ready = int(babyslakh_archive is not None and babyslakh_archive.is_file())
@@ -1408,6 +1422,10 @@ def render(
     )
     samples29k_archive_ready = int(
         samples29k_drums_inspection is not None and samples29k_drums_inspection.is_file()
+    )
+    samples29k_counts = (
+        samples29k_drum_counts(samples29k_drums_measurement)
+        if samples29k_drums_measurement is not None and samples29k_drums_measurement.is_file() else {}
     )
     dcs_rows = dagstuhl_choirset_rows(dagstuhl_choirset_input) if dagstuhl_choirset_input else []
     dcs_validation_ready = int(dagstuhl_choirset_validation is not None and dagstuhl_choirset_validation.is_file())
@@ -3464,6 +3482,24 @@ def render(
         ):
             remainder = f"{total - accurate} {remainder_unit}" if remainder_unit else str(total - accurate)
             lines.append(f"| {label} | {fraction(accurate, total)} | {remainder} |")
+    if samples29k_counts:
+        lines.extend(
+            [
+                "",
+                "## 29k Drums independent acoustic Tom/Ride baseline",
+                "",
+                f"Source: `{samples29k_drums_measurement.as_posix()}`. The fixture uses only published Tom (ft/mt/ht) and Ride (cy) samples; it does not represent Rim or a full mix.",
+                "",
+                "| Metric | Accurate / total | Remaining |",
+                "| --- | ---: | ---: |",
+            ]
+        )
+        for category in ("tom", "ride"):
+            if category not in samples29k_counts:
+                continue
+            hits, total, primary = samples29k_counts[category]
+            lines.append(f"| 29k Drums — {category.title()} detected | {fraction(hits, total)} | {total - hits} |")
+            lines.append(f"| 29k Drums — {category.title()} primary display | {fraction(primary, total)} | {total - primary} |")
     lines.extend(
         [
             "",
@@ -3491,7 +3527,7 @@ def render(
             "| Work item | Complete / total | Remaining | Evidence required |",
             "| --- | ---: | ---: | --- |",
             f"| Checksum-verified 29k Drums archive inspected for Tom/Ride labels | {fraction(samples29k_archive_ready, 1)} | {1 - samples29k_archive_ready} | inspection follows successful Zenodo MD5 and ZIP integrity verification |",
-            "| Measure independent 29k Drums Tom/Ride baseline | 0 / 1 (0.0%) | 1 | prepared, labelled acoustic one-shot fixture and analyzer x/total results |",
+            f"| Measure independent 29k Drums Tom/Ride baseline | {fraction(int(bool(samples29k_counts)), 1)} | {1 - int(bool(samples29k_counts))} | prepared, labelled acoustic one-shot fixture and analyzer x/total results |",
             "| Independently replicate Rim on real acoustic recordings | 0 / 1 (0.0%) | 1 | ENST-Drums has suitable labelled classes and a public prepared archive, but its research-use licence must be accepted and preserved; annotations alone are insufficient |",
         ]
     )
@@ -3545,6 +3581,7 @@ def main() -> int:
     parser.add_argument("--babyslakh-extraction", type=Path)
     parser.add_argument("--babyslakh-manifest", type=Path)
     parser.add_argument("--29k-drums-inspection", dest="samples29k_drums_inspection", type=Path)
+    parser.add_argument("--29k-drums-measurement", dest="samples29k_drums_measurement", type=Path)
     parser.add_argument("--dagstuhl-choirset-input", type=Path)
     parser.add_argument("--dagstuhl-choirset-validation", type=Path)
     parser.add_argument("--dagstuhl-choirset-inspection", type=Path)
@@ -3737,6 +3774,7 @@ def main() -> int:
             args.babyslakh_manifest,
             args.babyslakh_calibration_audit,
             args.samples29k_drums_inspection,
+            args.samples29k_drums_measurement,
         )
     except (OSError, ValueError) as error:
         parser.error(str(error))

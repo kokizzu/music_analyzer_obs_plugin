@@ -198,6 +198,18 @@ class DetectionAccuracyReportTest(unittest.TestCase):
             )
             self.assertEqual(REPORT.polyphonic_candidate_capacity_audit(audit), (0, 3, 427, 0))
 
+    def test_29k_drum_measurement_parses_tom_and_ride_primary_counts(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            measurement = Path(temporary) / "29k.log"
+            measurement.write_text(
+                "analyzer_drum_samples: ok (usable 12, tom recall 4/6 primary 3/6 precision 4/7 false 3, ride recall 5/6 primary 4/6 precision 5/8 false 3)\n",
+                encoding="utf-8",
+            )
+            self.assertEqual(
+                REPORT.samples29k_drum_counts(measurement),
+                {"tom": (4, 6, 3), "ride": (5, 6, 4)},
+            )
+
     def test_violin_guitar_audit_requires_two_independent_corpora(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             audit = Path(temporary) / "violin_guitar_route_audit.txt"
