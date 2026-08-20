@@ -966,6 +966,7 @@ class DetectionAccuracyReportTest(unittest.TestCase):
         self.assertIn("| Tracks with corpus-supplied tempo, beat, or pattern metadata | 0 / 2 (0.0%) | 2 |", report)
         self.assertIn("| IDMT real-bass timing metadata qualifies as beat truth | 0 / 2 (0.0%) | 2 |", report)
         self.assertIn("| Independent real bass-led beat-labelled validation measured | 1 / 1 (100.0%) | 0 |", report)
+        self.assertIn("| Reject MUSDB18/BeatNet+ as an authoritative bass BPM benchmark | 1 / 1 (100.0%) | 0 |", report)
         self.assertIn("| Assess raw bass-attack BPM evidence | 1 / 1 (100.0%) | 0 |", report)
         self.assertIn("| Preserve simultaneous kick+bass downbeat evidence | 1 / 1 (100.0%) | 0 |", report)
         self.assertIn("| Reject bass-dominant RMS attack phase feature | 1 / 1 (100.0%) | 0 |", report)

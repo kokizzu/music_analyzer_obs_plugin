@@ -1783,6 +1783,7 @@ Tempo estimates are only displayed at calibrated confidence. Source-specific pha
 | Audit URMP double-bass timing provenance | 1 / 1 (100.0%) | 0 | distinguish audio-aligned note annotations from explicit metrical grids |
 | URMP double-bass stems qualify as beat truth | 0 / 3 (0.0%) | 3 | original score MIDI alone is not audio-aligned timing evidence |
 | Independent real bass-led beat-labelled validation measured | 1 / 1 (100.0%) | 0 | FiloBass real bass stems plus reviewed downbeats and MIDI time signature |
+| Reject MUSDB18/BeatNet+ as an authoritative bass BPM benchmark | 1 / 1 (100.0%) | 0 | MUSDB18 access requires academic-use approval, and BeatNet+ labels are documented as added annotations rather than original corpus beat truth |
 | Assess raw bass-attack BPM evidence | 1 / 1 (100.0%) | 0 | offline FiloBass rank-one/top-five diagnostic |
 | Assess bass source-grid energy before a selector | 1 / 1 (100.0%) | 0 | FiloBass expected candidate shows higher bass alignment in 7/47 eligible rows |
 | Reject unproven meter/bass candidate reweighting | 1 / 1 (100.0%) | 0 | feasibility audit: Ballroom meter/bass selectors stay at 4 / 61; FiloBass stays at 4 / 24, so neither is a safe BPM selector |
