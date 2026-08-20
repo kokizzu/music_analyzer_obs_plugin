@@ -1936,10 +1936,10 @@ Source: `build/29k_samples_drums_measurement.log`. The fixture uses only publish
 
 | Metric | Accurate / total | Remaining |
 | --- | ---: | ---: |
-| 29k Drums — Tom detected | 129 / 150 (86.0%) | 21 |
-| 29k Drums — Tom primary display | 88 / 150 (58.7%) | 62 |
-| 29k Drums — Ride detected | 106 / 150 (70.7%) | 44 |
-| 29k Drums — Ride primary display | 89 / 150 (59.3%) | 61 |
+| 29k Drums — Tom detected | 418 / 500 (83.6%) | 82 |
+| 29k Drums — Tom primary display | 269 / 500 (53.8%) | 231 |
+| 29k Drums — Ride detected | 372 / 500 (74.4%) | 128 |
+| 29k Drums — Ride primary display | 317 / 500 (63.4%) | 183 |
 
 ## BabySlakh drum-validation checklist
 

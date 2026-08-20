@@ -17,6 +17,8 @@ def require(needle: str) -> None:
 
 def main() -> int:
     require("SAMPLES29K_DRUMS_PRIMARY_ATTRIBUTE_ROWS ?=")
+    require("SAMPLES29K_DRUMS_LIMIT_PER_CATEGORY ?= 500")
+    require("SAMPLES29K_DRUMS_MIN_PER_CATEGORY ?= 500")
     require("MUSIC_ANALYZER_DRUM_SAMPLE_VERBOSE_ALL=1")
     require("analyze-29k-drums-primary-attribute-rows: measure-29k-drums")
     require("find-29k-drum-primary-attribute-patterns: $(SAMPLES29K_DRUMS_PRIMARY_ATTRIBUTE_ROWS)")
