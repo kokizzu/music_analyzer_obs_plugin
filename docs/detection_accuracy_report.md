@@ -310,8 +310,8 @@ Source: `build/drum_false_positive_context_audit.txt`
 
 | Metric | Accurate / total | Remaining |
 | --- | ---: | ---: |
-| Zero-true source primitives considered | 133 / 133 (100.0%) | 0 |
-| Cross-real two-feature contexts | 0 / 133 (0.0%) | 133 |
+| Zero-true source primitives considered | 58 / 58 (100.0%) | 0 |
+| Cross-real two-feature contexts | 0 / 58 (0.0%) | 58 |
 | Protected one-shot runtime-safe contexts | 0 / 0 (0.0%) | 0 |
 | Remaining runtime context eligible | 0 / 1 (0.0%) | 1 |
 
@@ -1861,8 +1861,8 @@ Source: `build/mdb_drums_windows.log.summary`
 | Metric | Accurate / total | Remaining |
 | --- | ---: | ---: |
 | MDB Drums — annotated drum events detected | 139 / 192 (72.4%) | 53 |
-| MDB Drums — detected-drum precision | 139 / 168 (82.7%) | 29 false predictions |
-| MDB Drums — windows without a false drum | 66 / 92 (71.7%) | 26 false-positive windows |
+| MDB Drums — detected-drum precision | 139 / 167 (83.2%) | 28 false predictions |
+| MDB Drums — windows without a false drum | 67 / 92 (72.8%) | 25 false-positive windows |
 
 ## BabySlakh rendered full-mix drum baseline
 

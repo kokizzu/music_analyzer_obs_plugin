@@ -31747,6 +31747,17 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 		drum_bands[Crash] / (drum_bands[HiHat] + 1.0e-6f);
 	const float crash_hihat_level_ratio =
 		drum_level_[Crash] / (drum_level_[HiHat] + 1.0e-6f);
+	// The annotated real-mix audit has one remaining crash false positive where
+	// an already-active hi-hat is decisively stronger.  Keep this distinct from
+	// the one-shot cymbal arbitration: it is a late display suppression and the
+	// 1.516 ratio preserves every annotated MDB/STAR crash and protected primary
+	// one-shot row.
+	const bool real_mix_hihat_dominant_crash_active_bleed =
+		drum_detection_enabled && !one_shot_drum_source &&
+		drum_level_[Crash] > 0.30f && drum_level_[HiHat] > 0.30f &&
+		crash_hihat_level_ratio <= (1.0f / 1.51562f);
+	if (real_mix_hihat_dominant_crash_active_bleed)
+		cap_drum_level(Crash, 0.28f);
 	const float crash_hihat_segment_ratio =
 		drum_segment_bands[Crash] / (drum_segment_bands[HiHat] + 1.0e-6f);
 	const float snare_kick_band_ratio =
