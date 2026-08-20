@@ -31,6 +31,8 @@ def main() -> int:
             for code in ("ft", "mt", "ht", "cy"):
                 for index in range(2):
                     output.writestr(f"29kSamples/{code}/sample_{index}.wav", wav_bytes())
+            output.writestr("29kSamples/ft+kd/combined.wav", wav_bytes())
+            output.writestr("__MACOSX/29kSamples/ft/._resource.wav", wav_bytes())
             output.writestr("29kSamples/kd/ignored.wav", wav_bytes())
             output.writestr("../cy/unsafe.wav", wav_bytes())
         fixture = root / "fixture"

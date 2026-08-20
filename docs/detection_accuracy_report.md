@@ -1885,6 +1885,17 @@ Source: `build/babyslakh_drums_diagnostics.log`
 | BabySlakh rendered mixes — detected-drum precision | 138 / 173 (79.8%) | 35 false predictions |
 | BabySlakh rendered mixes — windows without a false drum | 49 / 80 (61.2%) | 31 false-positive windows |
 
+## 29k Drums independent acoustic Tom/Ride baseline
+
+Source: `build/29k_samples_drums_measurement.log`. The fixture uses only published Tom (ft/mt/ht) and Ride (cy) samples; it does not represent Rim or a full mix.
+
+| Metric | Accurate / total | Remaining |
+| --- | ---: | ---: |
+| 29k Drums — Tom detected | 129 / 150 (86.0%) | 21 |
+| 29k Drums — Tom primary display | 88 / 150 (58.7%) | 62 |
+| 29k Drums — Ride detected | 106 / 150 (70.7%) | 44 |
+| 29k Drums — Ride primary display | 89 / 150 (59.3%) | 61 |
+
 ## BabySlakh drum-validation checklist
 
 BabySlakh is an independently rendered 16 kHz multitrack corpus with aligned per-stem MIDI. It strengthens calibration coverage but cannot replace real-recording evidence.
@@ -1903,8 +1914,8 @@ The full one-shot gate has broad category counts, but its weak Tom/Ride/Rim resu
 
 | Work item | Complete / total | Remaining | Evidence required |
 | --- | ---: | ---: | --- |
-| Checksum-verified 29k Drums archive inspected for Tom/Ride labels | 0 / 1 (0.0%) | 1 | inspection follows successful Zenodo MD5 and ZIP integrity verification |
-| Measure independent 29k Drums Tom/Ride baseline | 0 / 1 (0.0%) | 1 | prepared, labelled acoustic one-shot fixture and analyzer x/total results |
+| Checksum-verified 29k Drums archive inspected for Tom/Ride labels | 1 / 1 (100.0%) | 0 | inspection follows successful Zenodo MD5 and ZIP integrity verification |
+| Measure independent 29k Drums Tom/Ride baseline | 1 / 1 (100.0%) | 0 | prepared, labelled acoustic one-shot fixture and analyzer x/total results |
 | Independently replicate Rim on real acoustic recordings | 0 / 1 (0.0%) | 1 | ENST-Drums has suitable labelled classes and a public prepared archive, but its research-use licence must be accepted and preserved; annotations alone are insufficient |
 
 Refresh with `make update-detection-accuracy-report`. Whenever a verified detection metric changes, update this report in the same commit.

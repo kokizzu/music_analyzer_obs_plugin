@@ -29,11 +29,12 @@ def category_for(name: str) -> str | None:
     parts = safe_parts(name)
     if parts is None or Path(parts[-1]).suffix.lower() != ".wav":
         return None
-    codes = set()
-    for part in parts[:-1]:
-        codes.update(token for token in re.split(r"[^a-z0-9]+", part.lower()) if token)
-    mapped = {COMPONENT_CATEGORY[code] for code in codes if code in COMPONENT_CATEGORY}
-    return mapped.pop() if len(mapped) == 1 else None
+    if parts[0] == "__MACOSX":
+        return None
+    # The published class name is the immediate parent.  A combined folder
+    # such as ft+kd is not a pure Tom ground-truth sample, even though it
+    # contains a Tom code in its name.
+    return COMPONENT_CATEGORY.get(parts[-2].lower()) if len(parts) >= 2 else None
 
 
 def duration_seconds(data: bytes) -> float | None:
