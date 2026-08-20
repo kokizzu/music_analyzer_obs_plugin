@@ -3462,6 +3462,19 @@ def render(
         for label, accurate, total, remainder_unit in egmd_drum_rows(mdb_drums_gate_output, "MDB Drums"):
             remainder = f"{total - accurate} {remainder_unit}" if remainder_unit else str(total - accurate)
             lines.append(f"| {label} | {fraction(accurate, total)} | {remainder} |")
+        lines.extend(
+            [
+                "",
+                "### MDB multi-recording Snare-context replay",
+                "",
+                "The best source-scoped offline candidate (`kick_body ≥36.36`, `upper_tom ≤17.85`) covered three MDB false-positive recordings with no protected one-shot loss. In a rebuilt MDB, STAR, and BabySlakh replay it did not suppress an actual active Snare or improve a protected metric. The runtime trial was removed; the tables above and below are refreshed from the retained baseline outputs.",
+                "",
+                "| Metric | Accurate / total | Remaining |",
+                "| --- | ---: | ---: |",
+                "| Highest multi-recording MDB Snare candidate replayed | 1 / 1 (100.0%) | 0 |",
+                "| Candidate with a measured cross-corpus gain | 0 / 1 (0.0%) | 1 |",
+            ]
+        )
     if babyslakh_drums_gate_output is not None:
         lines.extend(
             [

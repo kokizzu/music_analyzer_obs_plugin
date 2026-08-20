@@ -1864,6 +1864,15 @@ Source: `build/mdb_drums_windows.log.summary`
 | MDB Drums — detected-drum precision | 139 / 166 (83.7%) | 27 false predictions |
 | MDB Drums — windows without a false drum | 67 / 92 (72.8%) | 25 false-positive windows |
 
+### MDB multi-recording Snare-context replay
+
+The best source-scoped offline candidate (`kick_body ≥36.36`, `upper_tom ≤17.85`) covered three MDB false-positive recordings with no protected one-shot loss. In a rebuilt MDB, STAR, and BabySlakh replay it did not suppress an actual active Snare or improve a protected metric. The runtime trial was removed; the tables above and below are refreshed from the retained baseline outputs.
+
+| Metric | Accurate / total | Remaining |
+| --- | ---: | ---: |
+| Highest multi-recording MDB Snare candidate replayed | 1 / 1 (100.0%) | 0 |
+| Candidate with a measured cross-corpus gain | 0 / 1 (0.0%) | 1 |
+
 ## BabySlakh rendered full-mix drum baseline
 
 These 16 kHz rendered multitracks have aligned per-stem MIDI drum truth. They broaden the calibration set, but remain separately reported from real-recording MDB and STAR evidence.
