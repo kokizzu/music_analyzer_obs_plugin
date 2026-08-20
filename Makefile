@@ -891,6 +891,7 @@ SAMPLES29K_DRUMS_SAMPLE_DIR ?= $(INSTRUMENT_SAMPLE_STORE_LINK)/29k_samples_drums
 SAMPLES29K_DRUMS_LIMIT_PER_CATEGORY ?= 600
 SAMPLES29K_DRUMS_MIN_PER_CATEGORY ?= 500
 SAMPLES29K_DRUMS_MEASUREMENT ?= $(BUILD_DIR)/29k_samples_drums_measurement.log
+SAMPLES29K_DRUMS_JOB_LOG ?= $(BUILD_DIR)/corpus-download-jobs/measure-29k-drums.log
 BPM_DIAG_TOLERANCE ?= 8
 EGMD_BPM_MAX_SECONDS ?= 20
 MDB_BPM_MAX_SECONDS ?= 20
@@ -2560,7 +2561,7 @@ download-29k-drums: scripts/download_29k_samples_drums.sh
 	$(SHELL) scripts/download_29k_samples_drums.sh "$(SAMPLES29K_DRUMS_ARCHIVE)" "$(SAMPLES29K_DRUMS_ARCHIVE_URL)" "$(SAMPLES29K_DRUMS_ARCHIVE_MD5)" "$(PYTHON)"
 
 inspect-29k-drums-download: scripts/inspect_29k_samples_drums_download.py
-	$(PYTHON) scripts/inspect_29k_samples_drums_download.py "$(SAMPLES29K_DRUMS_ARCHIVE)"
+	$(PYTHON) scripts/inspect_29k_samples_drums_download.py "$(SAMPLES29K_DRUMS_ARCHIVE)" "$(SAMPLES29K_DRUMS_JOB_LOG)"
 
 inspect-29k-drums-archive: download-29k-drums scripts/inspect_29k_samples_drums.py | $(BUILD_DIR)
 	$(PYTHON) scripts/inspect_29k_samples_drums.py "$(SAMPLES29K_DRUMS_ARCHIVE)" > "$(SAMPLES29K_DRUMS_INSPECTION)"
