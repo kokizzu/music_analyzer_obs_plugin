@@ -99,7 +99,10 @@ def shown(row: Row, phase_max: float, btt_gate: float, agreement: float) -> bool
 
 
 def correct(row: Row, tolerance: float) -> bool:
-    return abs(row.beat_this_raw - row.expected) <= tolerance
+    return all(
+        abs(estimate - row.expected) <= tolerance
+        for estimate in (row.phase_raw, row.btt_raw, row.beat_this_raw)
+    )
 
 
 def fraction(numerator: int, denominator: int) -> str:

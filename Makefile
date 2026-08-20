@@ -1076,6 +1076,12 @@ BTT_EGMD_LOG ?= $(BUILD_DIR)/btt_egmd_bpm_diagnostics.log
 BTT_HIGH_TEMPO_MIN ?= 120
 BTT_HIGH_TEMPO_BALLROOM_LOG ?= $(BUILD_DIR)/btt_high_tempo_ballroom_bpm_diagnostics.log
 BTT_HIGH_TEMPO_FILOBASS_LOG ?= $(BUILD_DIR)/btt_high_tempo_filobass_bpm_diagnostics.log
+BTT_HIGH_TEMPO_GTZAN_LOG ?= $(BUILD_DIR)/btt_high_tempo_gtzan_rhythm_bpm_diagnostics.log
+BTT_TEMPO_CHUNK_ROOT ?=
+BTT_TEMPO_CHUNK_OUTPUT ?=
+BTT_TEMPO_CHUNK_START ?= 0
+BTT_TEMPO_CHUNK_LIMIT ?= 10
+BTT_TEMPO_CHUNK_INPUTS ?=
 # Keep the complete annotated FiloBass corpus in the default diagnostic.  A
 # smaller prefix can overstate a BPM route that does not generalize to all 48
 # real bass stems.
@@ -5966,7 +5972,7 @@ test-analyzer-egmd: $(BUILD_DIR)/analyzer_egmd scripts/run_with_duration.sh
 .PHONY: test-bpm-regression
 test-bpm-regression: test-analyzer-cases test-egmd-fixture
 
-.PHONY: analyze-egmd-bpm measure-egmd-bpm-cached summarize-egmd-bpm analyze-real-egmd-bpm analyze-mdb-bpm analyze-maestro-bpm analyze-kraisler-bpm measure-kraisler-bpm-cached summarize-kraisler-bpm download-ballroom-tempo download-ballroom-annotations download-permissive-beat-tracker test-download-ballroom-tempo-script test-prepare-ballroom-tempo-fixture prepare-ballroom-tempo-fixture measure-ballroom-bpm summarize-ballroom-bpm download-filobass inspect-filobass prepare-filobass-tempo-fixture measure-filobass-bpm summarize-filobass-bpm inspect-filobass-tempo-onsets inspect-tempo-candidate-feasibility inspect-tempo-confidence-calibration inspect-beat-tracker-backends analyze-bpm-diagnostics test-analyze-egmd-tempo test-inspect-tempo-candidate-feasibility measure-permissive-beat-tracker-high-tempo summarize-permissive-beat-tracker-high-tempo
+.PHONY: analyze-egmd-bpm measure-egmd-bpm-cached summarize-egmd-bpm analyze-real-egmd-bpm analyze-mdb-bpm analyze-maestro-bpm analyze-kraisler-bpm measure-kraisler-bpm-cached summarize-kraisler-bpm download-ballroom-tempo download-ballroom-annotations download-permissive-beat-tracker test-download-ballroom-tempo-script test-prepare-ballroom-tempo-fixture prepare-ballroom-tempo-fixture measure-ballroom-bpm summarize-ballroom-bpm download-filobass inspect-filobass prepare-filobass-tempo-fixture measure-filobass-bpm summarize-filobass-bpm inspect-filobass-tempo-onsets inspect-tempo-candidate-feasibility inspect-tempo-confidence-calibration inspect-beat-tracker-backends analyze-bpm-diagnostics test-analyze-egmd-tempo test-inspect-tempo-candidate-feasibility measure-permissive-beat-tracker-high-tempo measure-permissive-beat-tracker-high-tempo-ballroom measure-permissive-beat-tracker-high-tempo-filobass measure-permissive-beat-tracker-high-tempo-gtzan-rhythm summarize-permissive-beat-tracker-high-tempo
 
 test-analyze-egmd-tempo: tests/test_analyze_egmd_tempo.py scripts/analyze_egmd_tempo.py
 	$(PYTHON) tests/test_analyze_egmd_tempo.py
@@ -6223,16 +6229,36 @@ inspect-three-tempo-tracker-consensus: scripts/inspect_three_tempo_tracker_conse
 	$(PYTHON) scripts/inspect_three_tempo_tracker_consensus.py --tolerance "$(BPM_DIAG_TOLERANCE)" --corpus Ballroom "$(BALLROOM_BPM_LOG)" "$(BTT_BALLROOM_LOG)" "$(BEAT_THIS_BALLROOM_LOG)" --corpus FiloBass "$(FILOBASS_BPM_LOG)" "$(BTT_FILOBASS_LOG)" "$(BEAT_THIS_FILOBASS_LOG)" --corpus GTZAN "$(GTZAN_RHYTHM_BPM_LOG)" "$(BTT_GTZAN_RHYTHM_LOG)" "$(BEAT_THIS_DIAGNOSTIC_LOG)" --output "$(THREE_TEMPO_TRACKER_CONSENSUS_LOG)"
 	cat "$(THREE_TEMPO_TRACKER_CONSENSUS_LOG)"
 
-inspect-high-tempo-three-tracker-consensus: scripts/inspect_three_tempo_tracker_consensus.py $(BALLROOM_BPM_LOG) $(BTT_BALLROOM_LOG) $(BEAT_THIS_BALLROOM_LOG) $(FILOBASS_BPM_LOG) $(BTT_FILOBASS_LOG) $(BEAT_THIS_FILOBASS_LOG) $(GTZAN_RHYTHM_BPM_LOG) $(BTT_GTZAN_RHYTHM_LOG) $(BEAT_THIS_DIAGNOSTIC_LOG)
-	$(PYTHON) scripts/inspect_three_tempo_tracker_consensus.py --tolerance "$(BPM_DIAG_TOLERANCE)" --min-expected 150 --corpus Ballroom "$(BALLROOM_BPM_LOG)" "$(BTT_BALLROOM_LOG)" "$(BEAT_THIS_BALLROOM_LOG)" --corpus FiloBass "$(FILOBASS_BPM_LOG)" "$(BTT_FILOBASS_LOG)" "$(BEAT_THIS_FILOBASS_LOG)" --corpus GTZAN "$(GTZAN_RHYTHM_BPM_LOG)" "$(BTT_GTZAN_RHYTHM_LOG)" "$(BEAT_THIS_DIAGNOSTIC_LOG)" --output "$(HIGH_TEMPO_THREE_TEMPO_TRACKER_CONSENSUS_LOG)"
+inspect-high-tempo-three-tracker-consensus: scripts/inspect_three_tempo_tracker_consensus.py $(BALLROOM_BPM_LOG) $(BTT_HIGH_TEMPO_BALLROOM_LOG) $(BEAT_THIS_BALLROOM_LOG) $(FILOBASS_BPM_LOG) $(BTT_HIGH_TEMPO_FILOBASS_LOG) $(BEAT_THIS_FILOBASS_LOG) $(GTZAN_RHYTHM_BPM_LOG) $(BTT_HIGH_TEMPO_GTZAN_LOG) $(BEAT_THIS_DIAGNOSTIC_LOG)
+	$(PYTHON) scripts/inspect_three_tempo_tracker_consensus.py --tolerance "$(BPM_DIAG_TOLERANCE)" --min-expected 150 --corpus Ballroom "$(BALLROOM_BPM_LOG)" "$(BTT_HIGH_TEMPO_BALLROOM_LOG)" "$(BEAT_THIS_BALLROOM_LOG)" --corpus FiloBass "$(FILOBASS_BPM_LOG)" "$(BTT_HIGH_TEMPO_FILOBASS_LOG)" "$(BEAT_THIS_FILOBASS_LOG)" --corpus GTZAN "$(GTZAN_RHYTHM_BPM_LOG)" "$(BTT_HIGH_TEMPO_GTZAN_LOG)" "$(BEAT_THIS_DIAGNOSTIC_LOG)" --output "$(HIGH_TEMPO_THREE_TEMPO_TRACKER_CONSENSUS_LOG)"
 	cat "$(HIGH_TEMPO_THREE_TEMPO_TRACKER_CONSENSUS_LOG)"
 
 test-inspect-three-tempo-tracker-consensus: tests/test_inspect_three_tempo_tracker_consensus.py scripts/inspect_three_tempo_tracker_consensus.py
 	$(PYTHON) tests/test_inspect_three_tempo_tracker_consensus.py
 
-measure-permissive-beat-tracker-high-tempo: $(BTT_PROBE) scripts/measure_permissive_beat_tracker.py $(BALLROOM_TEMPO_FIXTURE_DIR)/maestro-v3.0.0.csv $(FILOBASS_TEMPO_FIXTURE_DIR)/maestro-v3.0.0.csv
+measure-permissive-beat-tracker-high-tempo: measure-permissive-beat-tracker-high-tempo-ballroom measure-permissive-beat-tracker-high-tempo-filobass measure-permissive-beat-tracker-high-tempo-gtzan-rhythm
+
+measure-permissive-beat-tracker-high-tempo-ballroom: $(BTT_PROBE) scripts/measure_permissive_beat_tracker.py $(BALLROOM_TEMPO_FIXTURE_DIR)/maestro-v3.0.0.csv
 	$(PYTHON) scripts/measure_permissive_beat_tracker.py --root "$(BALLROOM_TEMPO_FIXTURE_DIR)" --probe "$(BTT_PROBE)" --min-tempo "$(BTT_HIGH_TEMPO_MIN)" > "$(BTT_HIGH_TEMPO_BALLROOM_LOG)"
+
+measure-permissive-beat-tracker-high-tempo-filobass: $(BTT_PROBE) scripts/measure_permissive_beat_tracker.py $(FILOBASS_TEMPO_FIXTURE_DIR)/maestro-v3.0.0.csv
 	$(PYTHON) scripts/measure_permissive_beat_tracker.py --root "$(FILOBASS_TEMPO_FIXTURE_DIR)" --probe "$(BTT_PROBE)" --min-tempo "$(BTT_HIGH_TEMPO_MIN)" > "$(BTT_HIGH_TEMPO_FILOBASS_LOG)"
+
+measure-permissive-beat-tracker-high-tempo-gtzan-rhythm: $(BTT_PROBE) scripts/measure_permissive_beat_tracker.py $(GTZAN_RHYTHM_TEMPO_FIXTURE_DIR)/maestro-v3.0.0.csv
+	$(PYTHON) scripts/measure_permissive_beat_tracker.py --root "$(GTZAN_RHYTHM_TEMPO_FIXTURE_DIR)" --probe "$(BTT_PROBE)" --min-tempo "$(BTT_HIGH_TEMPO_MIN)" > "$(BTT_HIGH_TEMPO_GTZAN_LOG)"
+
+.PHONY: test-extract-btt-range-sweep measure-permissive-beat-tracker-tempo-chunk merge-permissive-beat-tracker-tempo-chunks extract-permissive-beat-tracker-high-tempo-gtzan-rhythm
+test-extract-btt-range-sweep: tests/test_extract_btt_range_sweep.py scripts/extract_btt_range_sweep.py
+	$(PYTHON) tests/test_extract_btt_range_sweep.py
+
+measure-permissive-beat-tracker-tempo-chunk: $(BTT_PROBE) scripts/measure_permissive_beat_tracker.py
+	$(PYTHON) scripts/measure_permissive_beat_tracker.py --root "$(BTT_TEMPO_CHUNK_ROOT)" --probe "$(BTT_PROBE)" --min-tempo "$(BTT_HIGH_TEMPO_MIN)" --start-index "$(BTT_TEMPO_CHUNK_START)" --limit "$(BTT_TEMPO_CHUNK_LIMIT)" > "$(BTT_TEMPO_CHUNK_OUTPUT)"
+
+merge-permissive-beat-tracker-tempo-chunks:
+	cat $(BTT_TEMPO_CHUNK_INPUTS) > "$(BTT_TEMPO_CHUNK_OUTPUT)"
+
+extract-permissive-beat-tracker-high-tempo-gtzan-rhythm: scripts/extract_btt_range_sweep.py $(BTT_GTZAN_RHYTHM_RANGE_SWEEP_LOG)
+	$(PYTHON) scripts/extract_btt_range_sweep.py --input "$(BTT_GTZAN_RHYTHM_RANGE_SWEEP_LOG)" --output "$(BTT_HIGH_TEMPO_GTZAN_LOG)" --min-tempo "$(BTT_HIGH_TEMPO_MIN)"
 
 summarize-permissive-beat-tracker-high-tempo: scripts/inspect_tempo_confidence_calibration.py $(BTT_HIGH_TEMPO_BALLROOM_LOG) $(BTT_HIGH_TEMPO_FILOBASS_LOG)
 	$(PYTHON) scripts/inspect_tempo_confidence_calibration.py --prefix "BTT tempo diag" --tolerance "$(BPM_DIAG_TOLERANCE)" "$(BTT_HIGH_TEMPO_BALLROOM_LOG)"

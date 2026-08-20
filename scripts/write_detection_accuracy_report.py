@@ -3317,7 +3317,7 @@ def render(
                 "",
                 "### Three-tracker offline consensus safety audit",
                 "",
-                f"Source: `{three_tempo_tracker_consensus_input.as_posix()}`. A candidate is retained only when phase, the permissive tracker, and Beat This! agree, and every selected annotated row is within 8 BPM. This is offline evidence only: Beat This! uses non-causal full-context attention, so this audit cannot enable a live OBS path.",
+                f"Source: `{three_tempo_tracker_consensus_input.as_posix()}`. A candidate is retained only when phase, the permissive tracker, and Beat This! agree, and each individual estimate is within 8 BPM. This is offline evidence only: Beat This! uses non-causal full-context attention, so this audit cannot enable a live OBS path.",
                 "",
                 "| Metric | Accurate / total | Remaining |",
                 "| --- | ---: | ---: |",

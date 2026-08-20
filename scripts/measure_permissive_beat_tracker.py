@@ -24,12 +24,21 @@ def main() -> int:
     parser.add_argument("--seconds", type=float, default=20.0)
     parser.add_argument("--min-tempo", type=float, default=40.0)
     parser.add_argument("--max-tempo", type=float, default=240.0)
+    parser.add_argument("--start-index", type=int, default=0,
+                        help="zero-based metadata row offset for resumable measurements")
+    parser.add_argument("--limit", type=int,
+                        help="maximum metadata rows to measure after --start-index")
     args = parser.parse_args()
     if args.min_tempo <= 0.0 or args.max_tempo <= args.min_tempo:
         parser.error("--min-tempo must be positive and below --max-tempo")
+    if args.start_index < 0 or args.limit is not None and args.limit <= 0:
+        parser.error("--start-index must be non-negative and --limit must be positive")
     with (args.root / args.metadata).open(encoding="utf-8", newline="") as handle:
         rows = list(csv.DictReader(handle))
-    for index, row in enumerate(rows, 1):
+    rows = rows[args.start_index:]
+    if args.limit is not None:
+        rows = rows[:args.limit]
+    for index, row in enumerate(rows, args.start_index + 1):
         audio = args.root / row["audio_filename"]
         expected = float(row["bpm"]) if row.get("bpm") else bpm_from_midi(args.root / row["midi_filename"])
         offset = float(row.get("tempo_audio_offset_seconds", "0") or 0)

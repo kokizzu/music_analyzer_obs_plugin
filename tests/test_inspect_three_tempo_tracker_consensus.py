@@ -43,6 +43,28 @@ def main() -> int:
         assert result.returncode == 0, result.stderr
         assert "correct=1/1 (100.0%)" in result.stdout
         assert "newly_revealed=1" in result.stdout
+        phase.write_text(
+            "MAESTRO tempo diag\tid=1\texpected=120.00\tgot=0.00\tphase_raw=129.00\tphase_confidence=0.40\n",
+            encoding="utf-8",
+        )
+        btt.write_text(
+            "BTT tempo diag\tid=1\texpected=120.00\traw=120.00\tconfidence=0.40\n",
+            encoding="utf-8",
+        )
+        beat.write_text(
+            "Beat This tempo diag\tid=1\texpected=120.00\traw=120.00\n",
+            encoding="utf-8",
+        )
+        result = subprocess.run(
+            [
+                "python3", str(SCRIPT), "--corpus", "test", str(phase), str(btt), str(beat),
+                "--btt-gates", "0", "--agreement-gates", "12",
+            ],
+            text=True,
+            capture_output=True,
+        )
+        assert result.returncode == 0, result.stderr
+        assert "viable: none" in result.stdout
         beat.write_text("Beat This tempo diag\tid=2\texpected=90.00\traw=90.00\n", encoding="utf-8")
         result = subprocess.run(
             ["python3", str(SCRIPT), "--corpus", "test", str(phase), str(btt), str(beat)],
@@ -50,7 +72,7 @@ def main() -> int:
             capture_output=True,
         )
         assert result.returncode != 0 and "ids differ" in result.stderr
-    print("test_inspect_three_tempo_tracker_consensus: 3 checks passed")
+    print("test_inspect_three_tempo_tracker_consensus: 5 checks passed")
     return 0
 
 
