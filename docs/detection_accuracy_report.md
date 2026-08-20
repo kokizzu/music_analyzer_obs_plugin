@@ -1890,10 +1890,12 @@ BabySlakh is an independently rendered 16 kHz multitrack corpus with aligned per
 
 ## Real-drum Tom/Ride/Rim coverage checklist
 
-The full one-shot gate has broad category counts, but its weak Tom/Ride/Rim results need independent real-acoustic replication before a class-specific runtime rule can be trusted.
+The full one-shot gate has broad category counts, but its weak Tom/Ride/Rim results need independent real-acoustic replication before a class-specific runtime rule can be trusted. 29k Drums can independently cover Tom and Ride; ENST remains necessary for Rim.
 
 | Work item | Complete / total | Remaining | Evidence required |
 | --- | ---: | ---: | --- |
-| Independently replicable real-acoustic Tom/Ride/Rim corpus available | 0 / 1 (0.0%) | 1 | ENST-Drums has suitable labelled classes and a public prepared archive, but its research-use licence must be accepted and preserved; annotations alone are insufficient |
+| Checksum-verified 29k Drums archive inspected for Tom/Ride labels | 0 / 1 (0.0%) | 1 | inspection follows successful Zenodo MD5 and ZIP integrity verification |
+| Measure independent 29k Drums Tom/Ride baseline | 0 / 1 (0.0%) | 1 | prepared, labelled acoustic one-shot fixture and analyzer x/total results |
+| Independently replicate Rim on real acoustic recordings | 0 / 1 (0.0%) | 1 | ENST-Drums has suitable labelled classes and a public prepared archive, but its research-use licence must be accepted and preserved; annotations alone are insufficient |
 
 Refresh with `make update-detection-accuracy-report`. Whenever a verified detection metric changes, update this report in the same commit.

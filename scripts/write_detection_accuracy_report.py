@@ -1388,6 +1388,7 @@ def render(
     babyslakh_extraction: Path | None = None,
     babyslakh_manifest: Path | None = None,
     babyslakh_calibration_audit: Path | None = None,
+    samples29k_drums_inspection: Path | None = None,
 ) -> str:
     samples = load_samples(input_path)
     babyslakh_archive_ready = int(babyslakh_archive is not None and babyslakh_archive.is_file())
@@ -1404,6 +1405,9 @@ def render(
         "decision=retain_current_detector" in babyslakh_calibration_audit.read_text(
             encoding="utf-8", errors="replace"
         )
+    )
+    samples29k_archive_ready = int(
+        samples29k_drums_inspection is not None and samples29k_drums_inspection.is_file()
     )
     dcs_rows = dagstuhl_choirset_rows(dagstuhl_choirset_input) if dagstuhl_choirset_input else []
     dcs_validation_ready = int(dagstuhl_choirset_validation is not None and dagstuhl_choirset_validation.is_file())
@@ -3482,11 +3486,13 @@ def render(
             "",
             "## Real-drum Tom/Ride/Rim coverage checklist",
             "",
-            "The full one-shot gate has broad category counts, but its weak Tom/Ride/Rim results need independent real-acoustic replication before a class-specific runtime rule can be trusted.",
+            "The full one-shot gate has broad category counts, but its weak Tom/Ride/Rim results need independent real-acoustic replication before a class-specific runtime rule can be trusted. 29k Drums can independently cover Tom and Ride; ENST remains necessary for Rim.",
             "",
             "| Work item | Complete / total | Remaining | Evidence required |",
             "| --- | ---: | ---: | --- |",
-            "| Independently replicable real-acoustic Tom/Ride/Rim corpus available | 0 / 1 (0.0%) | 1 | ENST-Drums has suitable labelled classes and a public prepared archive, but its research-use licence must be accepted and preserved; annotations alone are insufficient |",
+            f"| Checksum-verified 29k Drums archive inspected for Tom/Ride labels | {fraction(samples29k_archive_ready, 1)} | {1 - samples29k_archive_ready} | inspection follows successful Zenodo MD5 and ZIP integrity verification |",
+            "| Measure independent 29k Drums Tom/Ride baseline | 0 / 1 (0.0%) | 1 | prepared, labelled acoustic one-shot fixture and analyzer x/total results |",
+            "| Independently replicate Rim on real acoustic recordings | 0 / 1 (0.0%) | 1 | ENST-Drums has suitable labelled classes and a public prepared archive, but its research-use licence must be accepted and preserved; annotations alone are insufficient |",
         ]
     )
     lines.extend(
@@ -3538,6 +3544,7 @@ def main() -> int:
     parser.add_argument("--babyslakh-archive", type=Path)
     parser.add_argument("--babyslakh-extraction", type=Path)
     parser.add_argument("--babyslakh-manifest", type=Path)
+    parser.add_argument("--29k-drums-inspection", dest="samples29k_drums_inspection", type=Path)
     parser.add_argument("--dagstuhl-choirset-input", type=Path)
     parser.add_argument("--dagstuhl-choirset-validation", type=Path)
     parser.add_argument("--dagstuhl-choirset-inspection", type=Path)
@@ -3729,6 +3736,7 @@ def main() -> int:
             args.babyslakh_extraction,
             args.babyslakh_manifest,
             args.babyslakh_calibration_audit,
+            args.samples29k_drums_inspection,
         )
     except (OSError, ValueError) as error:
         parser.error(str(error))
