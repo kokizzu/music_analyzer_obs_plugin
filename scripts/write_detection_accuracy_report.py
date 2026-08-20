@@ -440,6 +440,12 @@ INDEPENDENT_PIANO_STATE_RE = re.compile(
     r"shared_no_label_states=(?P<states>\d+) "
     r"complete_pcs_recovery_candidates=(?P<candidates>\d+)"
 )
+DRUM_RECOVERY_CANDIDATE_RE = re.compile(
+    r"^drum_recovery_candidate_audit: corpora=(?P<corpora>\d+) "
+    r"missed_events=(?P<misses>\d+) "
+    r"cross_real_zero_false_candidates=(?P<candidates>\d+)$",
+    re.MULTILINE,
+)
 PIANO_CHORD_STABILITY_RE = re.compile(
     r"^piano_chord_state_audit: combined sequences=(?P<sequences>\d+) "
     r"frames=(?P<frames>\d+) correct=(?P<correct>\d+)/(?P<correct_total>\d+) "
@@ -622,6 +628,16 @@ def independent_piano_state_evidence(path: Path) -> tuple[int, int]:
     if candidates < 0 or candidates > states:
         raise ValueError(f"{path}: invalid independent piano runtime-state counts")
     return candidates, states
+
+
+def drum_recovery_candidate_audit(path: Path) -> tuple[int, int, int]:
+    match = DRUM_RECOVERY_CANDIDATE_RE.search(path.read_text(encoding="utf-8", errors="replace"))
+    if match is None:
+        raise ValueError(f"{path}: missing cross-real drum recovery summary")
+    corpora, misses, candidates = (int(match[name]) for name in ("corpora", "misses", "candidates"))
+    if corpora < 2 or misses <= 0 or candidates < 0:
+        raise ValueError(f"{path}: invalid cross-real drum recovery counts")
+    return corpora, misses, candidates
 
 
 def piano_chord_stability_evidence(path: Path) -> tuple[int, int, int, int, int, int]:
@@ -1405,6 +1421,7 @@ def render(
     mdb_full_mix_false_positive_cap_audit_input: Path | None = None,
     mdb_full_mix_competing_active_context_audit_input: Path | None = None,
     drum_false_positive_context_audit_input: Path | None = None,
+    drum_recovery_candidate_audit_input: Path | None = None,
     chord_primary_component_audit_input: Path | None = None,
     other_detection_disabled: bool = False,
     polyphonic_candidate_capacity_audit_input: Path | None = None,
@@ -1688,6 +1705,11 @@ def render(
     drum_false_positive_contexts = (
         drum_false_positive_context_audit(drum_false_positive_context_audit_input)
         if drum_false_positive_context_audit_input is not None
+        else None
+    )
+    drum_recovery_candidates = (
+        drum_recovery_candidate_audit(drum_recovery_candidate_audit_input)
+        if drum_recovery_candidate_audit_input is not None
         else None
     )
     chord_primary_components = (
@@ -2179,6 +2201,27 @@ def render(
                     if contexts == 0 else
                     "Any candidate remains audit-only until the full real-mix gates and protected one-shot replay both pass."
                 ),
+            ]
+        )
+    if drum_recovery_candidates is not None:
+        corpora, misses, candidates = drum_recovery_candidates
+        lines.extend(
+            [
+                "",
+                "## Cross-real drum recovery-candidate audit",
+                "",
+                "A recovery shape must add an inactive annotated class in both MDB and STAR while matching no window where that class is unannotated. Candidates remain diagnostic until a rebuilt MDB, STAR, BabySlakh, and protected one-shot replay confirms an overall gain.",
+                "",
+                f"Source: `{drum_recovery_candidate_audit_input.as_posix()}`",
+                "",
+                "| Metric | Accurate / total | Remaining |",
+                "| --- | ---: | ---: |",
+                f"| Missed annotated events searched across real corpora | {fraction(misses, misses)} | 0 |",
+                f"| Independent real corpora represented | {fraction(corpora, corpora)} | 0 |",
+                f"| Zero-false cross-real recovery shapes available for replay | {fraction(int(candidates > 0), 1)} | {int(candidates == 0)} |",
+                "| Recovery shapes with a verified overall runtime gain | 0 / 1 (0.0%) | 1 |",
+                "",
+                "The first HiHat trial was rejected: it increased MDB recall but did not improve MDB precision, did not improve STAR, and did not improve BabySlakh precision.",
             ]
         )
     if chord_primary_components is not None:
@@ -3740,6 +3783,7 @@ def main() -> int:
     parser.add_argument("--mdb-full-mix-false-positive-cap-audit", type=Path)
     parser.add_argument("--mdb-full-mix-competing-active-context-audit", type=Path)
     parser.add_argument("--drum-false-positive-context-audit", type=Path)
+    parser.add_argument("--drum-recovery-candidate-audit", type=Path)
     parser.add_argument("--chord-primary-component-audit", type=Path)
     parser.add_argument("--other-detection-disabled", action="store_true")
     parser.add_argument("--polyphonic-candidate-capacity-audit", type=Path)
@@ -3824,6 +3868,7 @@ def main() -> int:
             args.mdb_full_mix_false_positive_cap_audit,
             args.mdb_full_mix_competing_active_context_audit,
             args.drum_false_positive_context_audit,
+            args.drum_recovery_candidate_audit,
             args.chord_primary_component_audit,
             args.other_detection_disabled,
             args.polyphonic_candidate_capacity_audit,

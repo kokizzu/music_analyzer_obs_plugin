@@ -219,6 +219,16 @@ class DetectionAccuracyReportTest(unittest.TestCase):
             self.assertEqual(REPORT.samples29k_primary_attributes_ready(attributes), 0)
             self.assertEqual(REPORT.samples29k_primary_attributes_ready(None), 0)
 
+    def test_drum_recovery_candidate_audit_requires_cross_real_summary(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            audit = Path(temporary) / "recovery.txt"
+            audit.write_text(
+                "drum_recovery_candidate_audit: corpora=2 missed_events=70 "
+                "cross_real_zero_false_candidates=3\n",
+                encoding="utf-8",
+            )
+            self.assertEqual(REPORT.drum_recovery_candidate_audit(audit), (2, 70, 3))
+
     def test_violin_guitar_audit_requires_two_independent_corpora(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             audit = Path(temporary) / "violin_guitar_route_audit.txt"
