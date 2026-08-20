@@ -1504,6 +1504,7 @@ MAESTRO is independent external paired WAV/MIDI evidence. It remains separate fr
 | --- | ---: | ---: |
 | Prepare external MAESTRO paired-audio subset | 1 / 1 (100.0%) | 0 |
 | Measure MAESTRO note and chord outcomes | 1 / 1 (100.0%) | 0 |
+| Replay continuous chord state on MAPS and MAESTRO | 1 / 1 (100.0%) | 0 |
 | Mine a protected cross-piano detector rule | 0 / 1 (0.0%) | 1 |
 
 ### MAESTRO external-piano measurement
@@ -1525,6 +1526,19 @@ Source: `build/independent_piano_chord_states.txt`
 | Metric | Candidate states / shared states | Remaining |
 | --- | ---: | ---: |
 | No-label states with complete pitch-class recovery in every corpus | 0 / 15 (0.0%) | 15 |
+
+### Continuous independent-piano chord-state replay
+
+Each sequence reuses one analysis engine across five adjacent annotated stable-chord windows. It measures the OBS switch-confirm and label-hold path rather than independent snapshots.
+
+Source: `build/independent_piano_chord_stability.txt`
+
+| Metric | Accurate / total | Remaining |
+| --- | ---: | ---: |
+| Annotated stable chord-state frames with the expected keyboard chord | 96 / 530 (18.1%) | 434 |
+| Chord-state frames that retained a label | 339 / 530 (64.0%) | 191 no-label frames |
+| Correct-loss-recovery flickers across audited sequences | 106 / 106 (100.0%) | 0 |
+| Audited continuous stable-chord sequences | 106 / 106 (100.0%) | 0 |
 
 ## KRAISLER independent piano–violin coverage checklist
 

@@ -1474,6 +1474,65 @@ void append_maestro_attribute_row(std::ostream &out, const Recording &recording,
 	    << snapshot.global_chord.label << '\t' << snapshot.keyboard_chord.label << '\n';
 }
 
+void print_chord_state_audit_header(std::ostream &out)
+{
+	out << "recording\tanchor_sample\tframe\tcenter_sample\texpected_chords\tkeyboard_chord\tchord_hit\n";
+}
+
+bool keyboard_chord_hit(const mao::AnalysisSnapshot &snapshot, const CandidateWindow &candidate)
+{
+	return std::any_of(candidate.chord_labels.begin(), candidate.chord_labels.end(),
+			   [&](const std::string &label) {
+				   return has_chord_label(snapshot.keyboard_chord.label, label);
+			   });
+}
+
+// Replay a short run of overlapping analysis windows around one annotated
+// stable chord.  Unlike the ordinary precision fixture, this preserves the
+// engine state between windows so the switch-confirm and no-label hold paths
+// are measured as they run in OBS.
+bool append_chord_state_audit_sequence(std::ostream &out, const Recording &recording,
+					       const CandidateWindow &anchor, std::string &error)
+{
+	static constexpr int kFramesBefore = 2;
+	static constexpr int kFramesAfter = 2;
+	static constexpr double kStepSeconds = 0.05;
+	const double anchor_seconds = static_cast<double>(anchor.center_sample) / recording.sample_rate;
+	std::vector<CandidateWindow> expected;
+	for (int frame = -kFramesBefore; frame <= kFramesAfter; ++frame) {
+		const double seconds = anchor_seconds + static_cast<double>(frame) * kStepSeconds;
+		if (seconds < 0.0)
+			return false;
+		CandidateWindow candidate = candidate_window_at(recording, seconds);
+		if (candidate.chord_labels != anchor.chord_labels)
+			return false;
+		expected.push_back(candidate);
+	}
+
+	mao::AnalysisEngine engine;
+	mao::AnalysisSettings settings = mao_test::default_settings();
+	settings.sample_rate = recording.sample_rate;
+	settings.analysis_interval_seconds = static_cast<float>(kStepSeconds);
+	settings.input_mode = mao::AnalysisInputMode::IsolatedKeyboard;
+	for (std::size_t index = 0; index < expected.size(); ++index) {
+		mao_test::Buffer buffer = {};
+		uint32_t sample_rate = 0;
+		if (!read_wav_window(recording.audio_path, expected[index].center_sample, buffer, sample_rate, error))
+			return false;
+		if (sample_rate != recording.sample_rate) {
+			error = "sample-rate changed while replaying chord state";
+			return false;
+		}
+		const mao::AnalysisSnapshot snapshot =
+			engine.analyze(buffer.data(), buffer.size(), settings, "MAESTRO piano", 0);
+		out << recording.id << '\t' << anchor.center_sample << '\t'
+		    << static_cast<int>(index) - kFramesBefore << '\t' << expected[index].center_sample << '\t'
+		    << join_labels(anchor.chord_labels) << '\t' << snapshot.keyboard_chord.label << '\t'
+		    << (keyboard_chord_hit(snapshot, anchor) ? 1 : 0) << '\n';
+	}
+	return true;
+}
+
 int percentage_floor(int numerator, int denominator)
 {
 	return denominator > 0 ? numerator * 100 / denominator : 0;
@@ -1699,6 +1758,19 @@ int main()
 		}
 		print_maestro_attribute_header(attribute_file);
 	}
+	const char *chord_state_audit_path_env = std::getenv("MUSIC_ANALYZER_MAESTRO_CHORD_STATE_AUDIT_TSV");
+	std::ofstream chord_state_audit_file;
+	if (chord_state_audit_path_env && *chord_state_audit_path_env) {
+		chord_state_audit_file.open(chord_state_audit_path_env);
+		if (!chord_state_audit_file) {
+			std::fprintf(stderr, "analyzer_maestro: failed to open chord-state TSV `%s`\n",
+				     chord_state_audit_path_env);
+			return 1;
+		}
+		print_chord_state_audit_header(chord_state_audit_file);
+	}
+	const int chord_state_audit_max_sequences =
+		resolve_positive_int_env("MUSIC_ANALYZER_MAESTRO_CHORD_STATE_AUDIT_MAX_SEQUENCES", 64);
 
 	Runner runner;
 	RecallStats recall;
@@ -1710,9 +1782,13 @@ int main()
 	int read_failures = 0;
 	int no_candidate_recordings = 0;
 	TempoStats tempo;
+	int chord_state_audit_sequences = 0;
 
 	std::size_t recording_ordinal = 0;
 	for (const Recording &recording : recordings) {
+		if (chord_state_audit_file && inspect_only &&
+		    chord_state_audit_sequences >= chord_state_audit_max_sequences)
+			break;
 		const std::size_t current_recording_ordinal = recording_ordinal++;
 		if (shard_count > 1 &&
 		    current_recording_ordinal % static_cast<std::size_t>(shard_count) !=
@@ -1737,6 +1813,18 @@ int main()
 
 		int recording_windows = 0;
 		for (const CandidateWindow &candidate : candidates) {
+			if (chord_state_audit_file &&
+			    chord_state_audit_sequences < chord_state_audit_max_sequences) {
+				std::string chord_state_error;
+				if (append_chord_state_audit_sequence(chord_state_audit_file, recording, candidate,
+							      chord_state_error)) {
+					++chord_state_audit_sequences;
+				} else if (!chord_state_error.empty()) {
+					++read_failures;
+					runner.expect(false, "MAESTRO chord-state " + recording.id + " at sample " +
+							std::to_string(candidate.center_sample) + ": " + chord_state_error);
+				}
+			}
 			++recording_windows;
 			++tested_windows;
 			add_composition(composition, candidate);

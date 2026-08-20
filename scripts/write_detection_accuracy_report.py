@@ -440,6 +440,13 @@ INDEPENDENT_PIANO_STATE_RE = re.compile(
     r"shared_no_label_states=(?P<states>\d+) "
     r"complete_pcs_recovery_candidates=(?P<candidates>\d+)"
 )
+PIANO_CHORD_STABILITY_RE = re.compile(
+    r"^piano_chord_state_audit: combined sequences=(?P<sequences>\d+) "
+    r"frames=(?P<frames>\d+) correct=(?P<correct>\d+)/(?P<correct_total>\d+) "
+    r"no_label=(?P<no_label>\d+) wrong=(?P<wrong>\d+) "
+    r"transient_losses=(?P<transient_losses>\d+)$",
+    re.MULTILINE,
+)
 
 URMP_COVERAGE_RE = re.compile(
     r"analyzer_urmp: coverage: discovered (?P<discovered>\d+) piece dirs, loadable "
@@ -615,6 +622,24 @@ def independent_piano_state_evidence(path: Path) -> tuple[int, int]:
     if candidates < 0 or candidates > states:
         raise ValueError(f"{path}: invalid independent piano runtime-state counts")
     return candidates, states
+
+
+def piano_chord_stability_evidence(path: Path) -> tuple[int, int, int, int, int, int]:
+    match = PIANO_CHORD_STABILITY_RE.search(path.read_text(encoding="utf-8", errors="replace"))
+    if match is None:
+        raise ValueError(f"{path}: missing combined continuous piano chord-state summary")
+    sequences = int(match["sequences"])
+    frames = int(match["frames"])
+    correct = int(match["correct"])
+    correct_total = int(match["correct_total"])
+    no_label = int(match["no_label"])
+    wrong = int(match["wrong"])
+    transient_losses = int(match["transient_losses"])
+    if (sequences <= 0 or frames <= 0 or correct_total != frames or
+            correct + no_label + wrong != frames or transient_losses < 0 or
+            transient_losses > sequences):
+        raise ValueError(f"{path}: invalid continuous piano chord-state counts")
+    return sequences, frames, correct, no_label, wrong, transient_losses
 
 
 def maps_chord_miss_rows(path: Path) -> list[tuple[str, int, int]]:
@@ -1352,6 +1377,7 @@ def render(
     maestro_real_manifest: Path | None = None,
     maestro_real_attribute_input: Path | None = None,
     independent_piano_chord_state_evidence_input: Path | None = None,
+    independent_piano_chord_stability_evidence_input: Path | None = None,
     kraisler_archive: Path | None = None,
     kraisler_extraction: Path | None = None,
     kraisler_manifest: Path | None = None,
@@ -1546,6 +1572,11 @@ def render(
     piano_state_evidence = (
         independent_piano_state_evidence(independent_piano_chord_state_evidence_input)
         if independent_piano_chord_state_evidence_input
+        else None
+    )
+    piano_chord_stability = (
+        piano_chord_stability_evidence(independent_piano_chord_stability_evidence_input)
+        if independent_piano_chord_stability_evidence_input
         else None
     )
     electronic_piano_guitar_audit = (
@@ -2990,6 +3021,7 @@ def render(
                 "| --- | ---: | ---: |",
                 f"| Prepare external MAESTRO paired-audio subset | {fraction(maestro_real_manifest_ready, 1)} | {1 - maestro_real_manifest_ready} |",
                 f"| Measure MAESTRO note and chord outcomes | {fraction(int(bool(maestro_real_rows)), 1)} | {int(not maestro_real_rows)} |",
+                f"| Replay continuous chord state on MAPS and MAESTRO | {fraction(int(piano_chord_stability is not None), 1)} | {int(piano_chord_stability is None)} |",
                 "| Mine a protected cross-piano detector rule | 0 / 1 (0.0%) | 1 |",
             ]
         )
@@ -3020,6 +3052,26 @@ def render(
                     "| Metric | Candidate states / shared states | Remaining |",
                     "| --- | ---: | ---: |",
                     f"| No-label states with complete pitch-class recovery in every corpus | {fraction(candidates, states)} | {states - candidates} |",
+                ]
+            )
+        if piano_chord_stability is not None:
+            sequences, frames, correct, no_label, wrong, transient_losses = piano_chord_stability
+            lines.extend(
+                [
+                    "",
+                    "### Continuous independent-piano chord-state replay",
+                    "",
+                    "Each sequence reuses one analysis engine across five adjacent annotated stable-chord windows. "
+                    "It measures the OBS switch-confirm and label-hold path rather than independent snapshots.",
+                    "",
+                    f"Source: `{independent_piano_chord_stability_evidence_input.as_posix()}`",
+                    "",
+                    "| Metric | Accurate / total | Remaining |",
+                    "| --- | ---: | ---: |",
+                    f"| Annotated stable chord-state frames with the expected keyboard chord | {fraction(correct, frames)} | {frames - correct} |",
+                    f"| Chord-state frames that retained a label | {fraction(frames - no_label, frames)} | {no_label} no-label frames |",
+                    f"| Correct-loss-recovery flickers across audited sequences | {fraction(sequences - transient_losses, sequences)} | {transient_losses} |",
+                    f"| Audited continuous stable-chord sequences | {fraction(sequences, sequences)} | 0 |",
                 ]
             )
     if kraisler_archive is not None or kraisler_rows:
@@ -3639,6 +3691,7 @@ def main() -> int:
     parser.add_argument("--maestro-real-manifest", type=Path)
     parser.add_argument("--maestro-real-attribute-input", type=Path)
     parser.add_argument("--independent-piano-chord-state-evidence", type=Path)
+    parser.add_argument("--independent-piano-chord-stability-evidence", type=Path)
     parser.add_argument("--kraisler-archive", type=Path)
     parser.add_argument("--kraisler-extraction", type=Path)
     parser.add_argument("--kraisler-manifest", type=Path)
@@ -3743,6 +3796,7 @@ def main() -> int:
             args.maestro_real_manifest,
             args.maestro_real_attribute_input,
             args.independent_piano_chord_state_evidence,
+            args.independent_piano_chord_stability_evidence,
             args.kraisler_archive,
             args.kraisler_extraction,
             args.kraisler_manifest,

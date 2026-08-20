@@ -260,7 +260,8 @@ DETECTION_ACCURACY_DAGSTUHL_CHOIRSET_MANIFEST_ARG = $(if $(wildcard $(DAGSTUHL_C
 DETECTION_ACCURACY_MAESTRO_REAL_MEASUREMENT_ARG = $(if $(wildcard $(MAESTRO_REAL_MEASUREMENT_OUTPUT)),--maestro-real-measurement "$(MAESTRO_REAL_MEASUREMENT_OUTPUT)")
 DETECTION_ACCURACY_MAESTRO_REAL_ATTRIBUTE_ARG = $(if $(wildcard $(MAESTRO_REAL_ATTRIBUTE_TSV)),--maestro-real-attribute-input "$(MAESTRO_REAL_ATTRIBUTE_TSV)")
 DETECTION_ACCURACY_INDEPENDENT_PIANO_STATE_ARG = $(if $(wildcard $(MAESTRO_REAL_CHORD_STATE_OUTPUT)),--independent-piano-chord-state-evidence "$(MAESTRO_REAL_CHORD_STATE_OUTPUT)")
-DETECTION_ACCURACY_MAESTRO_REAL_MANIFEST_ARG = $(if $(wildcard $(MAESTRO_REAL_SAMPLE_DIR)/maestro-v3.0.0.csv),--maestro-real-manifest "$(MAESTRO_REAL_SAMPLE_DIR)/maestro-v3.0.0.csv") $(DETECTION_ACCURACY_MAESTRO_REAL_ATTRIBUTE_ARG) $(DETECTION_ACCURACY_INDEPENDENT_PIANO_STATE_ARG)
+DETECTION_ACCURACY_INDEPENDENT_PIANO_STABILITY_ARG = $(if $(wildcard $(INDEPENDENT_PIANO_CHORD_STABILITY_OUTPUT)),--independent-piano-chord-stability-evidence "$(INDEPENDENT_PIANO_CHORD_STABILITY_OUTPUT)")
+DETECTION_ACCURACY_MAESTRO_REAL_MANIFEST_ARG = $(if $(wildcard $(MAESTRO_REAL_SAMPLE_DIR)/maestro-v3.0.0.csv),--maestro-real-manifest "$(MAESTRO_REAL_SAMPLE_DIR)/maestro-v3.0.0.csv") $(DETECTION_ACCURACY_MAESTRO_REAL_ATTRIBUTE_ARG) $(DETECTION_ACCURACY_INDEPENDENT_PIANO_STATE_ARG) $(DETECTION_ACCURACY_INDEPENDENT_PIANO_STABILITY_ARG)
 DETECTION_ACCURACY_KRAISLER_ARCHIVE_ARG = $(if $(wildcard $(KRAISLER_ARCHIVE)),--kraisler-archive "$(KRAISLER_ARCHIVE)")
 DETECTION_ACCURACY_KRAISLER_EXTRACT_ARG = $(if $(wildcard $(KRAISLER_EXTRACT_DIR)),--kraisler-extraction "$(KRAISLER_EXTRACT_DIR)")
 DETECTION_ACCURACY_KRAISLER_MANIFEST_ARG = $(if $(wildcard $(KRAISLER_PREPARED_DIR)/manifest.json),--kraisler-manifest "$(KRAISLER_PREPARED_DIR)/manifest.json")
@@ -964,6 +965,7 @@ MAPS_PIANO_SHARD_INDEXES := $(shell i=0; while [ $$i -lt $(MAPS_PIANO_SHARDS) ];
 MAPS_PIANO_SHARD_TARGETS := $(addprefix test-maps-piano-samples-shard-,$(MAPS_PIANO_SHARD_INDEXES))
 MAPS_PIANO_SHARD_OUTS := $(addprefix $(BUILD_DIR)/maps_piano_samples_shard_,$(addsuffix .out,$(MAPS_PIANO_SHARD_INDEXES)))
 MAPS_PIANO_ATTRIBUTE_TSV ?= $(BUILD_DIR)/maps_piano_attributes.tsv
+MAPS_PIANO_CHORD_STATE_AUDIT ?= $(BUILD_DIR)/maps_piano_chord_state_audit.tsv
 ELECTRONIC_PIANO_GUITAR_ROUTE_AUDIT ?= $(BUILD_DIR)/electronic_piano_guitar_route_audit.txt
 MAPS_PIANO_ATTRIBUTE_PARTS := $(addprefix $(BUILD_DIR)/maps_piano_attributes.shard-,$(addsuffix .tsv,$(MAPS_PIANO_SHARD_INDEXES)))
 MAPS_PIANO_LOCK_DIR ?= $(BUILD_DIR)/maps_piano_samples.lock
@@ -998,6 +1000,9 @@ MAESTRO_REAL_MEASUREMENT_OUTPUT ?= $(BUILD_DIR)/maestro_real_measurement.out
 MAESTRO_REAL_ATTRIBUTE_TSV ?= $(BUILD_DIR)/maestro_real_attributes.tsv
 MAESTRO_REAL_CHORD_EVIDENCE_OUTPUT ?= $(BUILD_DIR)/independent_piano_chord_evidence.txt
 MAESTRO_REAL_CHORD_STATE_OUTPUT ?= $(BUILD_DIR)/independent_piano_chord_states.txt
+MAESTRO_REAL_CHORD_STATE_AUDIT ?= $(BUILD_DIR)/maestro_real_chord_state_audit.tsv
+INDEPENDENT_PIANO_CHORD_STABILITY_OUTPUT ?= $(BUILD_DIR)/independent_piano_chord_stability.txt
+PIANO_CHORD_STATE_AUDIT_MAX_SEQUENCES ?= 64
 KRAISLER_SOURCE_DIR ?= $(INSTRUMENT_SAMPLE_STORE_LINK)/kraisler
 KRAISLER_ARCHIVE ?= $(KRAISLER_SOURCE_DIR)/KRAISLER.zip
 KRAISLER_EXTRACT_DIR ?= $(KRAISLER_SOURCE_DIR)/extracted
@@ -5799,6 +5804,27 @@ analyze-independent-piano-chord-states: scripts/summarize_independent_piano_chor
 
 test-independent-piano-chord-states: tests/test_summarize_independent_piano_chord_states.py scripts/summarize_independent_piano_chord_states.py
 	$(PYTHON) tests/test_summarize_independent_piano_chord_states.py
+
+# Replays contiguous annotated stable-chord windows through one AnalysisEngine.
+# This specifically tests the runtime switch-confirm/no-label hold behavior,
+# whereas the normal attributes intentionally analyze each window independently.
+.PHONY: measure-maps-piano-chord-state-cached measure-maestro-real-chord-state-cached analyze-independent-piano-chord-stability-cached test-summarize-piano-chord-state-audit
+measure-maps-piano-chord-state-cached: $(BUILD_DIR)/analyzer_maestro scripts/run_with_duration.sh | $(BUILD_DIR)
+	@test -s "$(MAPS_PIANO_SAMPLE_DIR)/maestro-v3.0.0.csv" && test -d "$(MAPS_PIANO_SAMPLE_DIR)/maps" || { printf '%s\n' "missing prepared MAPS piano CSV or audio under $(MAPS_PIANO_SAMPLE_DIR); run make prepare-maps-piano-samples first"; exit 2; }
+	$(RUN_WITH_DURATION) maps_piano_chord_state_audit env MUSIC_ANALYZER_MAESTRO_ROOT="$(MAPS_PIANO_SAMPLE_DIR)" MUSIC_ANALYZER_MAESTRO_REQUIRED=1 MUSIC_ANALYZER_MAESTRO_REQUIRED_RECORDINGS=1 MUSIC_ANALYZER_MAESTRO_REQUIRED_WINDOWS=1 MUSIC_ANALYZER_MAESTRO_MAX_WINDOWS_PER_RECORDING=1 MUSIC_ANALYZER_MAESTRO_INSPECT_ONLY=1 MUSIC_ANALYZER_MAESTRO_CHORD_STATE_AUDIT_TSV="$(MAPS_PIANO_CHORD_STATE_AUDIT)" MUSIC_ANALYZER_MAESTRO_CHORD_STATE_AUDIT_MAX_SEQUENCES="$(PIANO_CHORD_STATE_AUDIT_MAX_SEQUENCES)" $(BUILD_DIR)/analyzer_maestro
+
+measure-maestro-real-chord-state-cached: $(BUILD_DIR)/analyzer_maestro scripts/run_with_duration.sh | $(BUILD_DIR)
+	@test -s "$(MAESTRO_REAL_SAMPLE_DIR)/maestro-v3.0.0.csv" || { printf '%s\n' "missing prepared MAESTRO CSV under $(MAESTRO_REAL_SAMPLE_DIR); run make prepare-maestro-real-samples first"; exit 2; }
+	$(RUN_WITH_DURATION) maestro_real_chord_state_audit env MUSIC_ANALYZER_MAESTRO_ROOT="$(MAESTRO_REAL_SAMPLE_DIR)" MUSIC_ANALYZER_MAESTRO_REQUIRED=1 MUSIC_ANALYZER_MAESTRO_REQUIRED_RECORDINGS=1 MUSIC_ANALYZER_MAESTRO_REQUIRED_WINDOWS=1 MUSIC_ANALYZER_MAESTRO_MAX_WINDOWS_PER_RECORDING=1 MUSIC_ANALYZER_MAESTRO_INSPECT_ONLY=1 MUSIC_ANALYZER_MAESTRO_CHORD_STATE_AUDIT_TSV="$(MAESTRO_REAL_CHORD_STATE_AUDIT)" MUSIC_ANALYZER_MAESTRO_CHORD_STATE_AUDIT_MAX_SEQUENCES="$(PIANO_CHORD_STATE_AUDIT_MAX_SEQUENCES)" $(BUILD_DIR)/analyzer_maestro
+
+analyze-independent-piano-chord-stability-cached: scripts/summarize_piano_chord_state_audit.py | $(BUILD_DIR)
+	@test -s "$(MAPS_PIANO_CHORD_STATE_AUDIT)" || { printf '%s\n' "missing cached $(MAPS_PIANO_CHORD_STATE_AUDIT); run make measure-maps-piano-chord-state-cached first"; exit 2; }
+	@test -s "$(MAESTRO_REAL_CHORD_STATE_AUDIT)" || { printf '%s\n' "missing cached $(MAESTRO_REAL_CHORD_STATE_AUDIT); run make measure-maestro-real-chord-state-cached first"; exit 2; }
+	$(PYTHON) scripts/summarize_piano_chord_state_audit.py "$(MAPS_PIANO_CHORD_STATE_AUDIT)" "$(MAESTRO_REAL_CHORD_STATE_AUDIT)" > "$(INDEPENDENT_PIANO_CHORD_STABILITY_OUTPUT)"
+	@cat "$(INDEPENDENT_PIANO_CHORD_STABILITY_OUTPUT)"
+
+test-summarize-piano-chord-state-audit: tests/test_summarize_piano_chord_state_audit.py scripts/summarize_piano_chord_state_audit.py
+	$(PYTHON) tests/test_summarize_piano_chord_state_audit.py
 
 audit-independent-piano-exact-chord-fallback: scripts/audit_independent_piano_exact_chord_fallback.py
 	@test -s "$(MAPS_PIANO_ATTRIBUTE_TSV)" || { printf '%s\n' "missing $(MAPS_PIANO_ATTRIBUTE_TSV)"; exit 2; }
