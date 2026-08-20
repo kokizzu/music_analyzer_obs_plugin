@@ -1493,8 +1493,8 @@ This real Disklavier corpus uses aligned MIDI annotations. The four stored shard
 | MAPS real piano — recordings with eligible chord windows | 2924 / 3000 (97.5%) | 76 |
 | MAPS real piano — expected pitch classes | 8052 / 11662 (69.0%) | 3610 |
 | MAPS real piano — keyboard detected-note precision | 8052 / 11975 (67.2%) | 3923 false predictions |
-| MAPS real piano — exact chord windows | 144 / 2231 (6.5%) | 2087 |
-| MAPS real piano — keyboard chord precision | 144 / 884 (16.3%) | 740 false predictions |
+| MAPS real piano — exact chord windows | 150 / 2231 (6.7%) | 2081 |
+| MAPS real piano — keyboard chord precision | 150 / 907 (16.5%) | 757 false predictions |
 
 ## Independent piano cross-corpus coverage checklist
 
@@ -1515,8 +1515,8 @@ Source: `build/maestro_real_measurement.out`
 | MAESTRO external piano — recordings with eligible chord windows | 320 / 320 (100.0%) | 0 |
 | MAESTRO external piano — expected pitch classes | 4450 / 5726 (77.7%) | 1276 |
 | MAESTRO external piano — keyboard detected-note precision | 4450 / 6664 (66.8%) | 2214 false predictions |
-| MAESTRO external piano — exact chord windows | 137 / 1280 (10.7%) | 1143 |
-| MAESTRO external piano — keyboard chord precision | 137 / 651 (21.0%) | 514 false predictions |
+| MAESTRO external piano — exact chord windows | 139 / 1280 (10.9%) | 1141 |
+| MAESTRO external piano — keyboard chord precision | 139 / 657 (21.2%) | 518 false predictions |
 
 ### Independent-piano runtime-state mining
 
@@ -1788,7 +1788,7 @@ These compatible MAPS and MAESTRO labels establish shared failure outcomes, not 
 | Corpus | Exact chord hit | Missing chord label | Wrong chord label |
 | --- | ---: | ---: | ---: |
 | MAPS | 17 / 135 (12.6%) | 85 / 135 (63.0%) | 33 / 135 (24.4%) |
-| MAESTRO | 137 / 1280 (10.7%) | 629 / 1280 (49.1%) | 514 / 1280 (40.2%) |
+| MAESTRO | 139 / 1280 (10.9%) | 623 / 1280 (48.7%) | 518 / 1280 (40.5%) |
 
 ## MAPS isolated-piano note gate
 

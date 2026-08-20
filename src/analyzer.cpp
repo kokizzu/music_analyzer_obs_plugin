@@ -10736,7 +10736,7 @@ ChordResult detect_chord(const std::array<float, 12> &chroma, int bass_pitch_cla
 	uint16_t best_mask = 0;
 	ChordCandidate best_candidate;
 	ChordCandidateList candidates;
-	static constexpr float kToneThreshold = 0.24f;
+	static constexpr float kToneThreshold = 0.20f;
 
 	auto tone = [&](int root, int offset) -> float { return chroma[(root + offset) % 12]; };
 	auto present = [&](int root, int offset) -> bool { return tone(root, offset) >= kToneThreshold; };
