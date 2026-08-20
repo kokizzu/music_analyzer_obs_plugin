@@ -1916,6 +1916,7 @@ The full one-shot gate has broad category counts, but its weak Tom/Ride/Rim resu
 | --- | ---: | ---: | --- |
 | Checksum-verified 29k Drums archive inspected for Tom/Ride labels | 1 / 1 (100.0%) | 0 | inspection follows successful Zenodo MD5 and ZIP integrity verification |
 | Measure independent 29k Drums Tom/Ride baseline | 1 / 1 (100.0%) | 0 | prepared, labelled acoustic one-shot fixture and analyzer x/total results |
+| Record all 29k Tom/Ride primary decisions for candidate evaluation | 1 / 1 (100.0%) | 0 | verbose current and missed primary labels become a reproducible TSV; selectors still need cross-corpus runtime replay |
 | Independently replicate Rim on real acoustic recordings | 0 / 1 (0.0%) | 1 | ENST-Drums has suitable labelled classes and a public prepared archive, but its research-use licence must be accepted and preserved; annotations alone are insufficient |
 
 Refresh with `make update-detection-accuracy-report`. Whenever a verified detection metric changes, update this report in the same commit.

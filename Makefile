@@ -238,11 +238,12 @@ DETECTION_ACCURACY_DRUM_FALSE_POSITIVE_CONTEXT_AUDIT_ARG = --drum-false-positive
 DETECTION_ACCURACY_CHORD_PRIMARY_COMPONENT_AUDIT_ARG = --chord-primary-component-audit "$(CHORD_PRIMARY_COMPONENT_AUDIT)"
 DETECTION_ACCURACY_POLYPHONIC_CANDIDATE_CAPACITY_AUDIT_ARG = --polyphonic-candidate-capacity-audit "$(POLYPHONIC_CANDIDATE_CAPACITY_AUDIT)"
 DETECTION_ACCURACY_HARMONIC_PRODUCT_OCTAVE_AUDIT_ARG = --harmonic-product-octave-audit "$(HARMONIC_PRODUCT_OCTAVE_AUDIT)"
-DETECTION_ACCURACY_SAME_ROOT_GUITAR_QUALITY_AUDIT_ARG = --same-root-guitar-quality-audit "$(SAME_ROOT_GUITAR_QUALITY_AUDIT)" $(DETECTION_ACCURACY_OWNER_CLASSIFIER_LOCO_AUDIT_ARG) $(DETECTION_ACCURACY_OWNER_SCORE_CALIBRATION_LOCO_AUDIT_ARG) --drum-primary-loco-audit "$(DRUM_PRIMARY_LOCO_AUDIT)" $(DETECTION_ACCURACY_DRUM_FALSE_POSITIVE_CAP_AUDIT_ARG) $(DETECTION_ACCURACY_MDB_FULL_MIX_FALSE_POSITIVE_CAP_AUDIT_ARG) $(DETECTION_ACCURACY_MDB_FULL_MIX_COMPETING_ACTIVE_CONTEXT_AUDIT_ARG) $(DETECTION_ACCURACY_DRUM_FALSE_POSITIVE_CONTEXT_AUDIT_ARG) $(DETECTION_ACCURACY_CHORD_PRIMARY_COMPONENT_AUDIT_ARG) $(DETECTION_ACCURACY_POLYPHONIC_CANDIDATE_CAPACITY_AUDIT_ARG) $(DETECTION_ACCURACY_HARMONIC_PRODUCT_OCTAVE_AUDIT_ARG) $(DETECTION_ACCURACY_29K_DRUMS_INSPECTION_ARG) $(DETECTION_ACCURACY_29K_DRUMS_MEASUREMENT_ARG)
+DETECTION_ACCURACY_SAME_ROOT_GUITAR_QUALITY_AUDIT_ARG = --same-root-guitar-quality-audit "$(SAME_ROOT_GUITAR_QUALITY_AUDIT)" $(DETECTION_ACCURACY_OWNER_CLASSIFIER_LOCO_AUDIT_ARG) $(DETECTION_ACCURACY_OWNER_SCORE_CALIBRATION_LOCO_AUDIT_ARG) --drum-primary-loco-audit "$(DRUM_PRIMARY_LOCO_AUDIT)" $(DETECTION_ACCURACY_DRUM_FALSE_POSITIVE_CAP_AUDIT_ARG) $(DETECTION_ACCURACY_MDB_FULL_MIX_FALSE_POSITIVE_CAP_AUDIT_ARG) $(DETECTION_ACCURACY_MDB_FULL_MIX_COMPETING_ACTIVE_CONTEXT_AUDIT_ARG) $(DETECTION_ACCURACY_DRUM_FALSE_POSITIVE_CONTEXT_AUDIT_ARG) $(DETECTION_ACCURACY_CHORD_PRIMARY_COMPONENT_AUDIT_ARG) $(DETECTION_ACCURACY_POLYPHONIC_CANDIDATE_CAPACITY_AUDIT_ARG) $(DETECTION_ACCURACY_HARMONIC_PRODUCT_OCTAVE_AUDIT_ARG) $(DETECTION_ACCURACY_29K_DRUMS_INSPECTION_ARG) $(DETECTION_ACCURACY_29K_DRUMS_MEASUREMENT_ARG) $(DETECTION_ACCURACY_29K_DRUMS_PRIMARY_ATTRIBUTE_ARG)
 DETECTION_ACCURACY_GUITARSET_ATTRIBUTE_ARG = $(if $(wildcard $(GUITARSET_ATTRIBUTE_TSV)),--guitarset-attribute-input "$(GUITARSET_ATTRIBUTE_TSV)")
 DETECTION_ACCURACY_REPORT ?= docs/detection_accuracy_report.md
 DETECTION_ACCURACY_29K_DRUMS_INSPECTION_ARG = $(if $(wildcard $(SAMPLES29K_DRUMS_INSPECTION)),--29k-drums-inspection "$(SAMPLES29K_DRUMS_INSPECTION)")
 DETECTION_ACCURACY_29K_DRUMS_MEASUREMENT_ARG = $(if $(wildcard $(SAMPLES29K_DRUMS_MEASUREMENT)),--29k-drums-measurement "$(SAMPLES29K_DRUMS_MEASUREMENT)")
+DETECTION_ACCURACY_29K_DRUMS_PRIMARY_ATTRIBUTE_ARG = $(if $(wildcard $(SAMPLES29K_DRUMS_PRIMARY_ATTRIBUTE_ROWS)),--29k-drums-primary-attributes "$(SAMPLES29K_DRUMS_PRIMARY_ATTRIBUTE_ROWS)")
 HIGH_VOCAL_OCTAVE_AUDIT ?= $(BUILD_DIR)/high_vocal_octave_evidence.txt
 DETECTION_ACCURACY_HIGH_VOCAL_OCTAVE_AUDIT_ARG = $(if $(wildcard $(HIGH_VOCAL_OCTAVE_AUDIT)),--high-vocal-octave-audit "$(HIGH_VOCAL_OCTAVE_AUDIT)")
 GUITAR_CHORD_PRIMARY_DISPLAY_AUDIT ?= $(BUILD_DIR)/guitar_chord_primary_display_audit.txt
@@ -846,7 +847,7 @@ IDMT_DRUMS_SHARD_TARGETS := $(addprefix test-idmt-drums-samples-shard-,$(IDMT_DR
 IDMT_DRUMS_SHARD_OUTS := $(addprefix $(BUILD_DIR)/idmt_drums_samples_shard_,$(addsuffix .out,$(IDMT_DRUMS_SHARD_CATEGORIES)))
 IDMT_DRUMS_PRIMARY_ATTRIBUTE_PARTS := $(addprefix $(BUILD_DIR)/idmt_drums_primary_attribute_rows_,$(addsuffix .tsv,$(IDMT_DRUMS_SHARD_CATEGORIES)))
 IDMT_DRUMS_TEST_MAKE_JOBS = $(if $(filter -j%,$(MAKEFLAGS)),,-j$(words $(IDMT_DRUMS_SHARD_CATEGORIES)))
-DRUM_PROTECTED_PRIMARY_ATTRIBUTE_INPUTS ?= $(DRUM_SPREAD_EXACT_ATTRIBUTE_ROWS) $(HF_DRUM_KIT_PRIMARY_ATTRIBUTE_ROWS) $(IDMT_DRUMS_PRIMARY_ATTRIBUTE_ROWS) $(DRUM_FULL_EXACT_ATTRIBUTE_ROWS)
+DRUM_PROTECTED_PRIMARY_ATTRIBUTE_INPUTS ?= $(DRUM_SPREAD_EXACT_ATTRIBUTE_ROWS) $(HF_DRUM_KIT_PRIMARY_ATTRIBUTE_ROWS) $(IDMT_DRUMS_PRIMARY_ATTRIBUTE_ROWS) $(DRUM_FULL_EXACT_ATTRIBUTE_ROWS) $(SAMPLES29K_DRUMS_PRIMARY_ATTRIBUTE_ROWS)
 MDB_DRUMS_SAMPLE_DIR ?= $(BUILD_DIR)/mdb_drums_full_mix_samples
 MDB_DRUMS_SOURCE_ROOT ?=
 MDB_DRUMS_AUDIO_FLAVOR ?= full_mix
@@ -891,6 +892,7 @@ SAMPLES29K_DRUMS_SAMPLE_DIR ?= $(INSTRUMENT_SAMPLE_STORE_LINK)/29k_samples_drums
 SAMPLES29K_DRUMS_LIMIT_PER_CATEGORY ?= 150
 SAMPLES29K_DRUMS_MIN_PER_CATEGORY ?= 150
 SAMPLES29K_DRUMS_MEASUREMENT ?= $(BUILD_DIR)/29k_samples_drums_measurement.log
+SAMPLES29K_DRUMS_PRIMARY_ATTRIBUTE_ROWS ?= $(BUILD_DIR)/29k_samples_drums_primary_attribute_rows.tsv
 SAMPLES29K_DRUMS_JOB_LOG ?= $(BUILD_DIR)/corpus-download-jobs/measure-29k-drums.log
 BPM_DIAG_TOLERANCE ?= 8
 EGMD_BPM_MAX_SECONDS ?= 20
@@ -2549,7 +2551,7 @@ prepare-mdb-drums-samples: scripts/prepare_mdb_drums_samples.py scripts/run_with
 	$(SHELL) scripts/run_with_lock.sh "$(MDB_DRUMS_PREP_LOCK_DIR)" -- env MDB_DRUMS_SAMPLE_DIR="$(MDB_DRUMS_SAMPLE_DIR)" MDB_DRUMS_SOURCE_ROOT="$(MDB_DRUMS_SOURCE_ROOT)" MDB_DRUMS_AUDIO_FLAVOR="$(MDB_DRUMS_AUDIO_FLAVOR)" MDB_DRUMS_RECORDING_LIMIT="$(MDB_DRUMS_RECORDING_LIMIT)" MDB_DRUMS_MIN_RECORDINGS="$(MDB_DRUMS_MIN_RECORDINGS)" $(PYTHON) scripts/prepare_mdb_drums_samples.py --output "$(MDB_DRUMS_SAMPLE_DIR)" --source-root "$(MDB_DRUMS_SOURCE_ROOT)" --audio-flavor "$(MDB_DRUMS_AUDIO_FLAVOR)" --limit "$(MDB_DRUMS_RECORDING_LIMIT)" --min-recordings "$(MDB_DRUMS_MIN_RECORDINGS)"
 
 .PHONY: download-babyslakh probe-babyslakh-download test-download-babyslakh-script download-babyslakh-background stop-babyslakh-background reset-babyslakh-download-control finalize-babyslakh-download discard-babyslakh-corrupt-partial inspect-babyslakh-download inspect-babyslakh-downloader test-download-babyslakh-background-scripts test-babyslakh-background-extraction-scripts inspect-babyslakh-extraction extract-babyslakh-background test-inspect-babyslakh-archive test-extract-babyslakh-archive test-prepare-babyslakh-drums inspect-babyslakh-archive inspect-babyslakh-archive-existing extract-babyslakh inspect-babyslakh prepare-babyslakh-drums measure-babyslakh-drums
-.PHONY: download-enst-drums test-download-enst-drums-script download-29k-drums inspect-29k-drums-download inspect-29k-drums-archive prepare-29k-drums-samples measure-29k-drums test-download-29k-drums-script test-inspect-29k-drums-download test-inspect-29k-drums-archive test-prepare-29k-drums-samples
+.PHONY: download-enst-drums test-download-enst-drums-script download-29k-drums inspect-29k-drums-download inspect-29k-drums-archive prepare-29k-drums-samples measure-29k-drums analyze-29k-drums-primary-attribute-rows find-29k-drum-primary-attribute-patterns test-download-29k-drums-script test-inspect-29k-drums-download test-inspect-29k-drums-archive test-prepare-29k-drums-samples test-measure-29k-drums-makefile
 download-enst-drums: scripts/download_enst_drums.sh
 	$(SHELL) scripts/download_enst_drums.sh "$(ENST_DRUMS_ARCHIVE)" "$(ENST_DRUMS_ARCHIVE_URL)" "$(ENST_DRUMS_ARCHIVE_MD5)" "$(ENST_DRUMS_LICENSE_ACCEPTED)"
 
@@ -2571,9 +2573,20 @@ prepare-29k-drums-samples: inspect-29k-drums-archive scripts/prepare_29k_samples
 	$(PYTHON) scripts/prepare_29k_samples_drums.py --archive "$(SAMPLES29K_DRUMS_ARCHIVE)" --output "$(SAMPLES29K_DRUMS_SAMPLE_DIR)" --limit-per-category "$(SAMPLES29K_DRUMS_LIMIT_PER_CATEGORY)" --min-per-category "$(SAMPLES29K_DRUMS_MIN_PER_CATEGORY)"
 
 measure-29k-drums: $(BUILD_DIR)/analyzer_drum_samples prepare-29k-drums-samples | $(BUILD_DIR)
-	env MUSIC_ANALYZER_DRUM_SAMPLES_REQUIRED=1 MUSIC_ANALYZER_DRUM_SAMPLE_REQUIRED_CATEGORIES="tom,ride" MUSIC_ANALYZER_DRUM_SAMPLE_VERBOSE_PRIMARY=1 MUSIC_ANALYZER_DRUM_SAMPLE_VERBOSE_PRIMARY_LIMIT=4000 MUSIC_ANALYZER_DRUM_SAMPLES_DIR="$(SAMPLES29K_DRUMS_SAMPLE_DIR)" MUSIC_ANALYZER_DRUM_SAMPLE_MIN_RECALL_PERCENT=0 MUSIC_ANALYZER_DRUM_SAMPLE_MIN_PRECISION_PERCENT=0 MUSIC_ANALYZER_DRUM_SAMPLE_MIN_PRIMARY_RECALL_PERCENT=0 MUSIC_ANALYZER_DRUM_SAMPLE_MAX_TOM_FALSE_PERCENT=100 $(BUILD_DIR)/analyzer_drum_samples > "$(SAMPLES29K_DRUMS_MEASUREMENT)" 2>&1
+	env MUSIC_ANALYZER_DRUM_SAMPLES_REQUIRED=1 MUSIC_ANALYZER_DRUM_SAMPLE_REQUIRED_CATEGORIES="tom,ride" MUSIC_ANALYZER_DRUM_SAMPLE_VERBOSE_ALL=1 MUSIC_ANALYZER_DRUM_SAMPLE_VERBOSE_PRIMARY=1 MUSIC_ANALYZER_DRUM_SAMPLE_VERBOSE_PRIMARY_LIMIT=4000 MUSIC_ANALYZER_DRUM_SAMPLES_DIR="$(SAMPLES29K_DRUMS_SAMPLE_DIR)" MUSIC_ANALYZER_DRUM_SAMPLE_MIN_RECALL_PERCENT=0 MUSIC_ANALYZER_DRUM_SAMPLE_MIN_PRECISION_PERCENT=0 MUSIC_ANALYZER_DRUM_SAMPLE_MIN_PRIMARY_RECALL_PERCENT=0 MUSIC_ANALYZER_DRUM_SAMPLE_MAX_TOM_FALSE_PERCENT=100 $(BUILD_DIR)/analyzer_drum_samples > "$(SAMPLES29K_DRUMS_MEASUREMENT)" 2>&1
 	cat "$(SAMPLES29K_DRUMS_MEASUREMENT)"
 	+$(MAKE) update-detection-accuracy-report-cached
+
+$(SAMPLES29K_DRUMS_PRIMARY_ATTRIBUTE_ROWS): $(SAMPLES29K_DRUMS_MEASUREMENT) scripts/analyze_drum_primary_debug.py | $(BUILD_DIR)
+	$(PYTHON) scripts/analyze_drum_primary_debug.py --dump-rows --include-debug-rows "$(SAMPLES29K_DRUMS_MEASUREMENT)" > "$(SAMPLES29K_DRUMS_PRIMARY_ATTRIBUTE_ROWS)"
+
+analyze-29k-drums-primary-attribute-rows: measure-29k-drums
+	+$(MAKE) "$(SAMPLES29K_DRUMS_PRIMARY_ATTRIBUTE_ROWS)"
+	+$(MAKE) update-detection-accuracy-report-cached
+	@printf '%s\n' "29k drum primary attribute TSV: $(SAMPLES29K_DRUMS_PRIMARY_ATTRIBUTE_ROWS)"
+
+find-29k-drum-primary-attribute-patterns: $(SAMPLES29K_DRUMS_PRIMARY_ATTRIBUTE_ROWS) scripts/find_drum_attribute_patterns.py
+	$(PYTHON) scripts/find_drum_attribute_patterns.py "$(SAMPLES29K_DRUMS_PRIMARY_ATTRIBUTE_ROWS)" $(if $(PATTERN_ROUTE),--route "$(PATTERN_ROUTE)") --jobs "$(DRUM_PATTERN_JOBS)" $(PATTERN_ARGS)
 
 test-download-29k-drums-script: scripts/download_29k_samples_drums.sh
 	sh -n scripts/download_29k_samples_drums.sh
@@ -2583,6 +2596,9 @@ test-inspect-29k-drums-download: tests/test_inspect_29k_samples_drums_download.p
 
 test-prepare-29k-drums-samples: tests/test_prepare_29k_samples_drums.py scripts/prepare_29k_samples_drums.py
 	$(PYTHON) tests/test_prepare_29k_samples_drums.py
+
+test-measure-29k-drums-makefile: tests/test_measure_29k_drums_makefile.py Makefile
+	$(PYTHON) tests/test_measure_29k_drums_makefile.py
 
 test-inspect-29k-drums-archive: tests/test_inspect_29k_samples_drums.py scripts/inspect_29k_samples_drums.py
 	$(PYTHON) tests/test_inspect_29k_samples_drums.py

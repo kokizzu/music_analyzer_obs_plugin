@@ -210,6 +210,15 @@ class DetectionAccuracyReportTest(unittest.TestCase):
                 {"tom": (4, 6, 3), "ride": (5, 6, 4)},
             )
 
+    def test_29k_primary_attribute_rows_require_the_expected_tsv_header(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            attributes = Path(temporary) / "29k-primary.tsv"
+            attributes.write_text("sample\texpected\tgot\tenergy_low\n", encoding="utf-8")
+            self.assertEqual(REPORT.samples29k_primary_attributes_ready(attributes), 1)
+            attributes.write_text("expected\tgot\n", encoding="utf-8")
+            self.assertEqual(REPORT.samples29k_primary_attributes_ready(attributes), 0)
+            self.assertEqual(REPORT.samples29k_primary_attributes_ready(None), 0)
+
     def test_violin_guitar_audit_requires_two_independent_corpora(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             audit = Path(temporary) / "violin_guitar_route_audit.txt"
