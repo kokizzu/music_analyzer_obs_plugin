@@ -1861,8 +1861,8 @@ Source: `build/mdb_drums_windows.log.summary`
 | Metric | Accurate / total | Remaining |
 | --- | ---: | ---: |
 | MDB Drums — annotated drum events detected | 139 / 192 (72.4%) | 53 |
-| MDB Drums — detected-drum precision | 139 / 176 (79.0%) | 37 false predictions |
-| MDB Drums — windows without a false drum | 59 / 92 (64.1%) | 33 false-positive windows |
+| MDB Drums — detected-drum precision | 139 / 172 (80.8%) | 33 false predictions |
+| MDB Drums — windows without a false drum | 62 / 92 (67.4%) | 30 false-positive windows |
 
 ## BabySlakh rendered full-mix drum baseline
 

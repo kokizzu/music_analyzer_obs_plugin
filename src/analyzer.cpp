@@ -102,6 +102,8 @@ constexpr bool kEnableSourceScopedHighBandRimFalsePositiveCap = true;
 constexpr bool kEnableSourceScopedWeakKickTriggerFalsePositiveCap = true;
 // Real-mix-only HiHat cap independently verified on MDB, STAR, and BabySlakh.
 constexpr bool kEnableSourceScopedLowKickUpperTomHiHatFalsePositiveCap = true;
+// Real-mix-only HiHat cap independently verified on MDB, STAR, and BabySlakh.
+constexpr bool kEnableSourceScopedTomBodySegmentHiHatFalsePositiveCap = true;
 constexpr float kComplexTuningFallbackScale = 0.38f;
 constexpr float kMixedDominantDetunedFallbackScale = 0.62f;
 constexpr int kMixedDominantDetunedFallbackMinMidi = 73;
@@ -34083,6 +34085,14 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 			drum_detection_enabled && !one_shot_drum_source &&
 			drum_level_[HiHat] > 0.30f && kick_body <= 52.02f && upper_tom_body >= 44.75f;
 		if (source_scoped_low_kick_upper_tom_hihat_false_positive)
+			cap_drum_level(HiHat, 0.28f);
+
+		const bool source_scoped_tom_body_segment_hihat_false_positive =
+			kEnableSourceScopedTomBodySegmentHiHatFalsePositiveCap &&
+			drum_detection_enabled && !one_shot_drum_source &&
+			drum_level_[HiHat] > 0.30f && drum_segment_bands[HiHat] >= 2.95f &&
+			tom_body >= 167.88f;
+		if (source_scoped_tom_body_segment_hihat_false_positive)
 			cap_drum_level(HiHat, 0.28f);
 
 		// A low-heavy frame with little Snare crack leaves an apparent HiHat
