@@ -1493,8 +1493,8 @@ This real Disklavier corpus uses aligned MIDI annotations. The four stored shard
 | MAPS real piano — recordings with eligible chord windows | 2924 / 3000 (97.5%) | 76 |
 | MAPS real piano — expected pitch classes | 8052 / 11662 (69.0%) | 3610 |
 | MAPS real piano — keyboard detected-note precision | 8052 / 11975 (67.2%) | 3923 false predictions |
-| MAPS real piano — exact chord windows | 266 / 2231 (11.9%) | 1965 |
-| MAPS real piano — keyboard chord precision | 266 / 1322 (20.1%) | 1056 false predictions |
+| MAPS real piano — exact chord windows | 307 / 2231 (13.8%) | 1924 |
+| MAPS real piano — keyboard chord precision | 307 / 1409 (21.8%) | 1102 false predictions |
 
 ## Independent piano cross-corpus coverage checklist
 
@@ -1515,8 +1515,8 @@ Source: `build/maestro_real_measurement.out`
 | MAESTRO external piano — recordings with eligible chord windows | 320 / 320 (100.0%) | 0 |
 | MAESTRO external piano — expected pitch classes | 4450 / 5726 (77.7%) | 1276 |
 | MAESTRO external piano — keyboard detected-note precision | 4450 / 6664 (66.8%) | 2214 false predictions |
-| MAESTRO external piano — exact chord windows | 261 / 1280 (20.4%) | 1019 |
-| MAESTRO external piano — keyboard chord precision | 261 / 922 (28.3%) | 661 false predictions |
+| MAESTRO external piano — exact chord windows | 300 / 1280 (23.4%) | 980 |
+| MAESTRO external piano — keyboard chord precision | 300 / 988 (30.4%) | 688 false predictions |
 
 ### Independent-piano runtime-state mining
 
@@ -1524,7 +1524,7 @@ Source: `build/independent_piano_chord_states.txt`
 
 | Metric | Candidate states / shared states | Remaining |
 | --- | ---: | ---: |
-| No-label states with complete pitch-class recovery in every corpus | 0 / 14 (0.0%) | 14 |
+| No-label states with complete pitch-class recovery in every corpus | 0 / 15 (0.0%) | 15 |
 
 ## KRAISLER independent piano–violin coverage checklist
 
@@ -1788,7 +1788,7 @@ These compatible MAPS and MAESTRO labels establish shared failure outcomes, not 
 | Corpus | Exact chord hit | Missing chord label | Wrong chord label |
 | --- | ---: | ---: | ---: |
 | MAPS | 17 / 135 (12.6%) | 85 / 135 (63.0%) | 33 / 135 (24.4%) |
-| MAESTRO | 261 / 1280 (20.4%) | 358 / 1280 (28.0%) | 661 / 1280 (51.6%) |
+| MAESTRO | 300 / 1280 (23.4%) | 292 / 1280 (22.8%) | 688 / 1280 (53.8%) |
 
 ## MAPS isolated-piano note gate
 
