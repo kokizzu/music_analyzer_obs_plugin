@@ -893,6 +893,7 @@ SAMPLES29K_DRUMS_LIMIT_PER_CATEGORY ?= 150
 SAMPLES29K_DRUMS_MIN_PER_CATEGORY ?= 150
 SAMPLES29K_DRUMS_MEASUREMENT ?= $(BUILD_DIR)/29k_samples_drums_measurement.log
 SAMPLES29K_DRUMS_PRIMARY_ATTRIBUTE_ROWS ?= $(BUILD_DIR)/29k_samples_drums_primary_attribute_rows.tsv
+CACHED_PROTECTED_DRUM_PRIMARY_PATTERN_REPORT ?= $(BUILD_DIR)/cached_protected_drum_primary_patterns.txt
 SAMPLES29K_DRUMS_JOB_LOG ?= $(BUILD_DIR)/corpus-download-jobs/measure-29k-drums.log
 BPM_DIAG_TOLERANCE ?= 8
 EGMD_BPM_MAX_SECONDS ?= 20
@@ -2551,7 +2552,7 @@ prepare-mdb-drums-samples: scripts/prepare_mdb_drums_samples.py scripts/run_with
 	$(SHELL) scripts/run_with_lock.sh "$(MDB_DRUMS_PREP_LOCK_DIR)" -- env MDB_DRUMS_SAMPLE_DIR="$(MDB_DRUMS_SAMPLE_DIR)" MDB_DRUMS_SOURCE_ROOT="$(MDB_DRUMS_SOURCE_ROOT)" MDB_DRUMS_AUDIO_FLAVOR="$(MDB_DRUMS_AUDIO_FLAVOR)" MDB_DRUMS_RECORDING_LIMIT="$(MDB_DRUMS_RECORDING_LIMIT)" MDB_DRUMS_MIN_RECORDINGS="$(MDB_DRUMS_MIN_RECORDINGS)" $(PYTHON) scripts/prepare_mdb_drums_samples.py --output "$(MDB_DRUMS_SAMPLE_DIR)" --source-root "$(MDB_DRUMS_SOURCE_ROOT)" --audio-flavor "$(MDB_DRUMS_AUDIO_FLAVOR)" --limit "$(MDB_DRUMS_RECORDING_LIMIT)" --min-recordings "$(MDB_DRUMS_MIN_RECORDINGS)"
 
 .PHONY: download-babyslakh probe-babyslakh-download test-download-babyslakh-script download-babyslakh-background stop-babyslakh-background reset-babyslakh-download-control finalize-babyslakh-download discard-babyslakh-corrupt-partial inspect-babyslakh-download inspect-babyslakh-downloader test-download-babyslakh-background-scripts test-babyslakh-background-extraction-scripts inspect-babyslakh-extraction extract-babyslakh-background test-inspect-babyslakh-archive test-extract-babyslakh-archive test-prepare-babyslakh-drums inspect-babyslakh-archive inspect-babyslakh-archive-existing extract-babyslakh inspect-babyslakh prepare-babyslakh-drums measure-babyslakh-drums
-.PHONY: download-enst-drums test-download-enst-drums-script download-29k-drums inspect-29k-drums-download inspect-29k-drums-archive prepare-29k-drums-samples measure-29k-drums analyze-29k-drums-primary-attribute-rows find-29k-drum-primary-attribute-patterns test-download-29k-drums-script test-inspect-29k-drums-download test-inspect-29k-drums-archive test-prepare-29k-drums-samples test-measure-29k-drums-makefile
+.PHONY: download-enst-drums test-download-enst-drums-script download-29k-drums inspect-29k-drums-download inspect-29k-drums-archive prepare-29k-drums-samples measure-29k-drums analyze-29k-drums-primary-attribute-rows find-29k-drum-primary-attribute-patterns find-cached-protected-drum-primary-attribute-patterns test-download-29k-drums-script test-inspect-29k-drums-download test-inspect-29k-drums-archive test-prepare-29k-drums-samples test-measure-29k-drums-makefile
 download-enst-drums: scripts/download_enst_drums.sh
 	$(SHELL) scripts/download_enst_drums.sh "$(ENST_DRUMS_ARCHIVE)" "$(ENST_DRUMS_ARCHIVE_URL)" "$(ENST_DRUMS_ARCHIVE_MD5)" "$(ENST_DRUMS_LICENSE_ACCEPTED)"
 
@@ -2587,6 +2588,9 @@ analyze-29k-drums-primary-attribute-rows: measure-29k-drums
 
 find-29k-drum-primary-attribute-patterns: $(SAMPLES29K_DRUMS_PRIMARY_ATTRIBUTE_ROWS) scripts/find_drum_attribute_patterns.py
 	$(PYTHON) scripts/find_drum_attribute_patterns.py "$(SAMPLES29K_DRUMS_PRIMARY_ATTRIBUTE_ROWS)" $(if $(PATTERN_ROUTE),--route "$(PATTERN_ROUTE)") --jobs "$(DRUM_PATTERN_JOBS)" $(PATTERN_ARGS)
+
+find-cached-protected-drum-primary-attribute-patterns: scripts/find_drum_attribute_patterns.py
+	@set --; for path in $(DRUM_PROTECTED_PRIMARY_ATTRIBUTE_INPUTS); do if [ -f "$$path" ]; then set -- "$$@" "$$path"; fi; done; if [ "$$#" -eq 0 ]; then printf '%s\n' "cached protected drum primary pattern candidates: skipped; no attribute rows"; else $(PYTHON) scripts/find_drum_attribute_patterns.py "$$@" $(if $(PATTERN_ROUTE),--route "$(PATTERN_ROUTE)") --jobs "$(DRUM_PATTERN_JOBS)" $(PATTERN_ARGS) > "$(CACHED_PROTECTED_DRUM_PRIMARY_PATTERN_REPORT)"; printf '%s\n' "cached protected drum primary patterns: $(CACHED_PROTECTED_DRUM_PRIMARY_PATTERN_REPORT)"; fi
 
 test-download-29k-drums-script: scripts/download_29k_samples_drums.sh
 	sh -n scripts/download_29k_samples_drums.sh

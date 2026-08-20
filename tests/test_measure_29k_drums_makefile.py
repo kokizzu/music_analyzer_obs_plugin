@@ -20,6 +20,8 @@ def main() -> int:
     require("MUSIC_ANALYZER_DRUM_SAMPLE_VERBOSE_ALL=1")
     require("analyze-29k-drums-primary-attribute-rows: measure-29k-drums")
     require("find-29k-drum-primary-attribute-patterns: $(SAMPLES29K_DRUMS_PRIMARY_ATTRIBUTE_ROWS)")
+    require("find-cached-protected-drum-primary-attribute-patterns: scripts/find_drum_attribute_patterns.py")
+    require("CACHED_PROTECTED_DRUM_PRIMARY_PATTERN_REPORT ?=")
     require("scripts/analyze_drum_primary_debug.py --dump-rows --include-debug-rows")
     require("$(SAMPLES29K_DRUMS_PRIMARY_ATTRIBUTE_ROWS)")
     require("DRUM_PROTECTED_PRIMARY_ATTRIBUTE_INPUTS ?=")
