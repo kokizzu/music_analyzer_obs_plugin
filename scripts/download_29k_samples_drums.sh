@@ -38,7 +38,7 @@ if [ ! -s "$partial" ]; then
 fi
 
 if command -v aria2c >/dev/null 2>&1; then
-    aria2c --continue=true --max-connection-per-server=4 --split=4 --min-split-size=1M \
+	aria2c --continue=true --max-connection-per-server=8 --split=8 --min-split-size=1M \
         --file-allocation=none --allow-overwrite=true --auto-file-renaming=false \
         --retry-wait=5 --max-tries=20 --summary-interval=0 --console-log-level=warn \
         --dir "$directory" --out "$(basename "$partial")" "$url"
