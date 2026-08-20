@@ -96,7 +96,9 @@ DRUM_FALSE_POSITIVE_CAP_RE = re.compile(
 )
 DRUM_COMPETING_ACTIVE_CONTEXT_RE = re.compile(
     r"^drum_competing_active_context_audit: real_candidates=(?P<candidates>\d+) "
-    r"protected_runtime_safe=(?P<safe>\d+)/(?P<total>\d+)$",
+    r"protected_runtime_safe=(?P<safe>\d+)/(?P<total>\d+)"
+    r"(?: runtime_replayed=(?P<replayed>\d+)/(?P<replay_total>\d+) "
+    r"runtime_gain=(?P<gained>\d+)/(?P<gain_total>\d+))?$",
     re.MULTILINE,
 )
 DRUM_FALSE_POSITIVE_CONTEXT_RE = re.compile(
@@ -963,12 +965,17 @@ def drum_false_positive_cap_audit(path: Path) -> tuple[int, int, int, int]:
     )
 
 
-def drum_competing_active_context_audit(path: Path) -> tuple[int, int, int]:
-    """Return remaining class-aware real-mix contexts and protected safety."""
+def drum_competing_active_context_audit(path: Path) -> tuple[int, int, int, int, int, int, int]:
+    """Return class-aware contexts, protected safety, and runtime replay results."""
     match = DRUM_COMPETING_ACTIVE_CONTEXT_RE.search(path.read_text(encoding="utf-8", errors="replace"))
     if match is None:
         raise ValueError(f"{path}: missing competing-active drum-context audit summary")
-    return int(match["candidates"]), int(match["safe"]), int(match["total"])
+    safe = int(match["safe"])
+    return (
+        int(match["candidates"]), safe, int(match["total"]),
+        int(match["replayed"] or 0), int(match["replay_total"] or safe),
+        int(match["gained"] or 0), int(match["gain_total"] or 0),
+    )
 
 
 def drum_false_positive_context_audit(path: Path) -> tuple[int, int, int, int]:
@@ -2156,7 +2163,8 @@ def render(
             ]
         )
     if mdb_full_mix_competing_active_contexts is not None:
-        candidates, safe, total = mdb_full_mix_competing_active_contexts
+        candidates, safe, total, replayed, replay_total, gained, gain_total = mdb_full_mix_competing_active_contexts
+        pending = max(safe - replayed, 0)
         lines.extend(
             [
                 "",
@@ -2170,9 +2178,13 @@ def render(
                 "| --- | ---: | ---: |",
                 f"| Remaining competing-drum contexts examined | {fraction(candidates, candidates)} | 0 |",
                 f"| Remaining contexts safe for an isolated runtime experiment | {fraction(safe, total)} | {total - safe} |",
-                f"| Further source-scoped context work available | {fraction(int(safe > 0), 1)} | {int(safe == 0)} |",
+                f"| Protected-safe contexts replayed through runtime detector | {fraction(replayed, replay_total)} | {max(replay_total - replayed, 0)} |",
+                f"| Replayed contexts with a verified runtime gain | {fraction(gained, gain_total)} | {max(gain_total - gained, 0)} |",
+                f"| Further source-scoped context work available | {fraction(pending, safe)} | {replayed} |",
                 "",
                 (
+                    "Every currently eligible context was replayed without a verified overall gain; do not enable it."
+                    if safe and replayed >= safe and gained == 0 else
                     "Only independently re-measured contexts may be enabled; eligible contexts can overlap and are not assumed safe in combination."
                     if safe else "No additional isolated class-aware context remains eligible."
                 ),

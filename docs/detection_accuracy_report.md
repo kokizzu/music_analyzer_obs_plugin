@@ -298,9 +298,11 @@ Source: `build/mdb_full_mix_competing_active_context_audit.txt`
 | --- | ---: | ---: |
 | Remaining competing-drum contexts examined | 3 / 3 (100.0%) | 0 |
 | Remaining contexts safe for an isolated runtime experiment | 1 / 3 (33.3%) | 2 |
-| Further source-scoped context work available | 1 / 1 (100.0%) | 0 |
+| Protected-safe contexts replayed through runtime detector | 1 / 1 (100.0%) | 0 |
+| Replayed contexts with a verified runtime gain | 0 / 1 (0.0%) | 1 |
+| Further source-scoped context work available | 0 / 1 (0.0%) | 1 |
 
-Only independently re-measured contexts may be enabled; eligible contexts can overlap and are not assumed safe in combination.
+Every currently eligible context was replayed without a verified overall gain; do not enable it.
 
 ## Two-feature cross-real drum false-positive context audit
 

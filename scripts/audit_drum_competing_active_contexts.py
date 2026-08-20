@@ -132,6 +132,10 @@ def main() -> int:
                         help="verbose annotated real-mix window log; may be repeated")
     parser.add_argument("--protected", action="append", required=True, type=Path)
     parser.add_argument("--output", required=True, type=Path)
+    parser.add_argument("--runtime-replayed-context", action="append", default=[],
+                        help="eligible context text already replayed through the runtime detector")
+    parser.add_argument("--runtime-gain-context", action="append", default=[],
+                        help="replayed eligible context with a verified cross-corpus runtime gain")
     args = parser.parse_args()
     events = read_events(args.real_input)
     candidates = non_dominated([
@@ -141,7 +145,10 @@ def main() -> int:
         if competitor != target
         for candidate in candidates_for(events, target, competitor)
     ])
+    replayed = set(args.runtime_replayed_context)
+    gained = set(args.runtime_gain_context)
     safe = 0
+    safe_contexts: set[str] = set()
     lines = [
         "drum_competing_active_context_audit: "
         f"real_candidates={len(candidates)} protected_runtime_safe=0/{len(candidates)}"
@@ -150,15 +157,30 @@ def main() -> int:
         result = replay(candidate, args.protected)
         eligible = result.unsupported == 0 and result.correct_suppressed == 0
         safe += int(eligible)
+        if eligible:
+            safe_contexts.add(candidate.text())
         lines.append(
             f"context {candidate.text()}: real_false_suppressed={candidate.false_suppressed} "
             f"protected_primary_suppressed={result.primary_suppressed}/{result.rows} "
             f"protected_correct_suppressed={result.correct_suppressed} "
-            f"unsupported={result.unsupported} eligible={int(eligible)}"
+            f"unsupported={result.unsupported} eligible={int(eligible)} "
+            f"runtime_replayed={int(candidate.text() in replayed)} "
+            f"runtime_gain={int(candidate.text() in gained)}"
         )
+    unknown_replayed = replayed - safe_contexts
+    unknown_gained = gained - safe_contexts
+    if unknown_replayed:
+        raise ValueError(f"runtime-replayed contexts are not currently eligible: {sorted(unknown_replayed)}")
+    if unknown_gained:
+        raise ValueError(f"runtime-gain contexts are not currently eligible: {sorted(unknown_gained)}")
+    if not gained.issubset(replayed):
+        raise ValueError("runtime-gain contexts must also be marked runtime-replayed")
+    replayed_safe = len(replayed & safe_contexts)
+    gained_safe = len(gained & safe_contexts)
     lines[0] = (
         "drum_competing_active_context_audit: "
-        f"real_candidates={len(candidates)} protected_runtime_safe={safe}/{len(candidates)}"
+        f"real_candidates={len(candidates)} protected_runtime_safe={safe}/{len(candidates)} "
+        f"runtime_replayed={replayed_safe}/{safe} runtime_gain={gained_safe}/{replayed_safe}"
     )
     args.output.parent.mkdir(parents=True, exist_ok=True)
     args.output.write_text("\n".join(lines) + "\n", encoding="utf-8")

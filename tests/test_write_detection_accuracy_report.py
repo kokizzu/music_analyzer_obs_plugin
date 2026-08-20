@@ -708,7 +708,8 @@ class DetectionAccuracyReportTest(unittest.TestCase):
             )
             mdb_full_mix_competing_active_context_audit = Path(temporary) / "mdb_full_mix_competing_active_context_audit.txt"
             mdb_full_mix_competing_active_context_audit.write_text(
-                "drum_competing_active_context_audit: real_candidates=19 protected_runtime_safe=6/19\n",
+                "drum_competing_active_context_audit: real_candidates=19 protected_runtime_safe=6/19 "
+                "runtime_replayed=6/6 runtime_gain=0/6\n",
                 encoding="utf-8",
             )
             drum_false_positive_context_audit = Path(temporary) / "drum_false_positive_context_audit.txt"
@@ -878,6 +879,9 @@ class DetectionAccuracyReportTest(unittest.TestCase):
         self.assertIn("| MDB caps safe on protected one-shot primaries | 0 / 101 (0.0%) | 101 |", report)
         self.assertIn("## Cross-real competing-drum context audit", report)
         self.assertIn("| Remaining contexts safe for an isolated runtime experiment | 6 / 19 (31.6%) | 13 |", report)
+        self.assertIn("| Protected-safe contexts replayed through runtime detector | 6 / 6 (100.0%) | 0 |", report)
+        self.assertIn("| Replayed contexts with a verified runtime gain | 0 / 6 (0.0%) | 6 |", report)
+        self.assertIn("| Further source-scoped context work available | 0 / 6 (0.0%) | 6 |", report)
         self.assertIn("## Two-feature cross-real drum false-positive context audit", report)
         self.assertIn("| Protected one-shot runtime-safe contexts | 1 / 2 (50.0%) | 1 |", report)
         self.assertIn("## Canonical-first chord display audit", report)

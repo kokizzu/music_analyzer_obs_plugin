@@ -222,6 +222,8 @@ DRUM_PRIMARY_LOCO_AUDIT ?= $(BUILD_DIR)/drum_primary_loco_audit.txt
 DRUM_FALSE_POSITIVE_CAP_AUDIT ?= $(BUILD_DIR)/drum_false_positive_cap_audit.txt
 MDB_FULL_MIX_FALSE_POSITIVE_CAP_AUDIT ?= $(BUILD_DIR)/mdb_full_mix_false_positive_cap_audit.txt
 MDB_FULL_MIX_COMPETING_ACTIVE_CONTEXT_AUDIT ?= $(BUILD_DIR)/mdb_full_mix_competing_active_context_audit.txt
+MDB_COMPETING_ACTIVE_CONTEXT_RUNTIME_REPLAYED ?= kick when snare/kick>=1.18987
+MDB_COMPETING_ACTIVE_CONTEXT_RUNTIME_GAINED ?=
 MDB_SOURCE_SCOPED_CONTEXT_AUDIT ?= $(BUILD_DIR)/mdb_source_scoped_context_audit.txt
 MDB_SOURCE_SCOPED_CONTEXT_ARGS ?=
 DRUM_RECOVERY_CANDIDATE_AUDIT ?= $(BUILD_DIR)/drum_recovery_candidate_audit.txt
@@ -2784,7 +2786,7 @@ audit-mdb-full-mix-false-positive-caps: analyze-mdb-drum-windows scripts/audit_d
 	$(PYTHON) scripts/audit_drum_false_positive_caps.py --real-input "MDB=$(MDB_DRUMS_WINDOW_LOG)" --protected "$(DRUM_FULL_EXACT_ATTRIBUTE_ROWS)" --protected "$(HF_DRUM_KIT_PRIMARY_ATTRIBUTE_ROWS)" --protected "$(IDMT_DRUMS_PRIMARY_ATTRIBUTE_ROWS)" --output "$(MDB_FULL_MIX_FALSE_POSITIVE_CAP_AUDIT)"
 
 audit-mdb-full-mix-competing-active-contexts: analyze-mdb-drum-windows analyze-star-drum-windows scripts/audit_drum_competing_active_contexts.py scripts/evaluate_egmd_drum_recovery.py $(DRUM_FULL_EXACT_ATTRIBUTE_ROWS) $(HF_DRUM_KIT_PRIMARY_ATTRIBUTE_ROWS) $(IDMT_DRUMS_PRIMARY_ATTRIBUTE_ROWS) | $(BUILD_DIR)
-	$(PYTHON) scripts/audit_drum_competing_active_contexts.py --real-input "$(MDB_DRUMS_WINDOW_LOG)" --real-input "$(STAR_DRUMS_MISS_LOG).windows" --protected "$(DRUM_FULL_EXACT_ATTRIBUTE_ROWS)" --protected "$(HF_DRUM_KIT_PRIMARY_ATTRIBUTE_ROWS)" --protected "$(IDMT_DRUMS_PRIMARY_ATTRIBUTE_ROWS)" --output "$(MDB_FULL_MIX_COMPETING_ACTIVE_CONTEXT_AUDIT)"
+	$(PYTHON) scripts/audit_drum_competing_active_contexts.py --real-input "$(MDB_DRUMS_WINDOW_LOG)" --real-input "$(STAR_DRUMS_MISS_LOG).windows" --protected "$(DRUM_FULL_EXACT_ATTRIBUTE_ROWS)" --protected "$(HF_DRUM_KIT_PRIMARY_ATTRIBUTE_ROWS)" --protected "$(IDMT_DRUMS_PRIMARY_ATTRIBUTE_ROWS)" --output "$(MDB_FULL_MIX_COMPETING_ACTIVE_CONTEXT_AUDIT)" --runtime-replayed-context "$(MDB_COMPETING_ACTIVE_CONTEXT_RUNTIME_REPLAYED)" $(if $(MDB_COMPETING_ACTIVE_CONTEXT_RUNTIME_GAINED),--runtime-gain-context "$(MDB_COMPETING_ACTIVE_CONTEXT_RUNTIME_GAINED)")
 
 test-audit-drum-competing-active-contexts: tests/test_audit_drum_competing_active_contexts.py scripts/audit_drum_competing_active_contexts.py scripts/evaluate_egmd_drum_recovery.py
 	$(PYTHON) tests/test_audit_drum_competing_active_contexts.py
