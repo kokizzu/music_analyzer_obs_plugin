@@ -14060,7 +14060,7 @@ ChordResult detect_keyboard_chord_from_grid(const NoteGrid &grid, bool allow_ext
 		float extension_level_sum = 0.0f;
 		int distinct_pitch_classes = 0;
 		int extension_distinct_pitch_classes = 0;
-		const float relative_level_floor = notes[start].midi < 40 ? 0.62f : 0.40f;
+		const float relative_level_floor = notes[start].midi < 40 ? 0.62f : 0.35f;
 		const float extension_level_floor = allow_extensions ? 0.22f : relative_level_floor;
 		for (std::size_t i = start; i < last; ++i) {
 			const int pitch_class = ((notes[i].midi % 12) + 12) % 12;
