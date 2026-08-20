@@ -1557,6 +1557,19 @@ Source: `build/independent_piano_chord_stability.txt`
 | Correct-loss-recovery flickers across audited sequences | 106 / 106 (100.0%) | 0 |
 | Audited continuous stable-chord sequences | 106 / 106 (100.0%) | 0 |
 
+### Independent-piano exact fallback audit
+
+This tests whether an unlabeled exact pitch-class set can safely restore a chord label. A fallback must be correct on every observed no-label window in both independent corpora.
+
+Source: `build/independent_piano_exact_chord_fallback.txt`
+
+| Metric | Accurate / total | Remaining |
+| --- | ---: | ---: |
+| Independent piano corpora checked | 2 / 2 (100.0%) | 0 |
+| Cross-piano runtime-safe exact pitch-class fallback available | 0 / 1 (0.0%) | 1 |
+
+No exact fallback is eligible; detected pitch-class sets and wrong labels do not agree safely across both corpora.
+
 ## KRAISLER independent piano–violin coverage checklist
 
 KRAISLER is an independent real piano–violin duet corpus with separately recorded stems, summed mixtures, Disklavier piano MIDI, and reviewed violin note labels.

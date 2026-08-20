@@ -442,6 +442,11 @@ INDEPENDENT_PIANO_STATE_RE = re.compile(
     r"shared_no_label_states=(?P<states>\d+) "
     r"complete_pcs_recovery_candidates=(?P<candidates>\d+)"
 )
+INDEPENDENT_PIANO_EXACT_FALLBACK_RE = re.compile(
+    r"^independent_piano_exact_chord_fallback: corpora=(?P<corpora>\d+) "
+    r"shared_runtime_safe=(?P<candidates>\d+)$",
+    re.MULTILINE,
+)
 DRUM_RECOVERY_CANDIDATE_RE = re.compile(
     r"^drum_recovery_candidate_audit: corpora=(?P<corpora>\d+) "
     r"missed_events=(?P<misses>\d+) "
@@ -978,6 +983,14 @@ def drum_competing_active_context_audit(path: Path) -> tuple[int, int, int, int,
     )
 
 
+def independent_piano_exact_fallback_audit(path: Path) -> tuple[int, int]:
+    """Return independently checked piano corpora and safe exact fallback count."""
+    match = INDEPENDENT_PIANO_EXACT_FALLBACK_RE.search(path.read_text(encoding="utf-8", errors="replace"))
+    if match is None:
+        raise ValueError(f"{path}: missing independent piano exact-fallback audit summary")
+    return int(match["corpora"]), int(match["candidates"])
+
+
 def drum_false_positive_context_audit(path: Path) -> tuple[int, int, int, int]:
     """Return two-feature real-mix candidates and protected safety."""
     match = DRUM_FALSE_POSITIVE_CONTEXT_RE.search(path.read_text(encoding="utf-8", errors="replace"))
@@ -1401,6 +1414,7 @@ def render(
     maestro_real_attribute_input: Path | None = None,
     independent_piano_chord_state_evidence_input: Path | None = None,
     independent_piano_chord_stability_evidence_input: Path | None = None,
+    independent_piano_exact_chord_fallback_audit_input: Path | None = None,
     kraisler_archive: Path | None = None,
     kraisler_extraction: Path | None = None,
     kraisler_manifest: Path | None = None,
@@ -1601,6 +1615,11 @@ def render(
     piano_chord_stability = (
         piano_chord_stability_evidence(independent_piano_chord_stability_evidence_input)
         if independent_piano_chord_stability_evidence_input
+        else None
+    )
+    piano_exact_fallback = (
+        independent_piano_exact_fallback_audit(independent_piano_exact_chord_fallback_audit_input)
+        if independent_piano_exact_chord_fallback_audit_input
         else None
     )
     electronic_piano_guitar_audit = (
@@ -3129,6 +3148,27 @@ def render(
                     f"| Audited continuous stable-chord sequences | {fraction(sequences, sequences)} | 0 |",
                 ]
             )
+        if piano_exact_fallback is not None:
+            corpora, candidates = piano_exact_fallback
+            lines.extend(
+                [
+                    "",
+                    "### Independent-piano exact fallback audit",
+                    "",
+                    "This tests whether an unlabeled exact pitch-class set can safely restore a chord label. "
+                    "A fallback must be correct on every observed no-label window in both independent corpora.",
+                    "",
+                    f"Source: `{independent_piano_exact_chord_fallback_audit_input.as_posix()}`",
+                    "",
+                    "| Metric | Accurate / total | Remaining |",
+                    "| --- | ---: | ---: |",
+                    f"| Independent piano corpora checked | {fraction(corpora, corpora)} | 0 |",
+                    f"| Cross-piano runtime-safe exact pitch-class fallback available | {fraction(int(candidates > 0), 1)} | {int(candidates == 0)} |",
+                    "",
+                    "No exact fallback is eligible; detected pitch-class sets and wrong labels do not agree safely across both corpora."
+                    if candidates == 0 else "At least one exact fallback is eligible for a bounded runtime replay.",
+                ]
+            )
     if kraisler_archive is not None or kraisler_rows:
         lines.extend(
             [
@@ -3747,6 +3787,7 @@ def main() -> int:
     parser.add_argument("--maestro-real-attribute-input", type=Path)
     parser.add_argument("--independent-piano-chord-state-evidence", type=Path)
     parser.add_argument("--independent-piano-chord-stability-evidence", type=Path)
+    parser.add_argument("--independent-piano-exact-chord-fallback-audit", type=Path)
     parser.add_argument("--kraisler-archive", type=Path)
     parser.add_argument("--kraisler-extraction", type=Path)
     parser.add_argument("--kraisler-manifest", type=Path)
@@ -3853,6 +3894,7 @@ def main() -> int:
             args.maestro_real_attribute_input,
             args.independent_piano_chord_state_evidence,
             args.independent_piano_chord_stability_evidence,
+            args.independent_piano_exact_chord_fallback_audit,
             args.kraisler_archive,
             args.kraisler_extraction,
             args.kraisler_manifest,

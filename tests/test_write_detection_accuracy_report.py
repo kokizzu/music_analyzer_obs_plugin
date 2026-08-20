@@ -661,6 +661,11 @@ class DetectionAccuracyReportTest(unittest.TestCase):
                 "no_label=3 wrong=3 transient_losses=1\n",
                 encoding="utf-8",
             )
+            piano_exact_fallback = Path(temporary) / "independent_piano_exact_chord_fallback.txt"
+            piano_exact_fallback.write_text(
+                "independent_piano_exact_chord_fallback: corpora=2 shared_runtime_safe=0\n",
+                encoding="utf-8",
+            )
             exact_note_cross_corpus = Path(temporary) / "vocal_exact_note_cross_corpus.tsv"
             exact_note_cross_corpus.write_text(
                 "corpus\texact_vocal\texact_foreign\tpitch_class_only\tno_pitch_class\ttotal\n"
@@ -822,6 +827,7 @@ class DetectionAccuracyReportTest(unittest.TestCase):
                 maestro_real_attribute_input=maps_attributes,
                 independent_piano_chord_state_evidence_input=piano_state_evidence,
                 independent_piano_chord_stability_evidence_input=piano_chord_stability,
+                independent_piano_exact_chord_fallback_audit_input=piano_exact_fallback,
                 kraisler_archive=kraisler_archive,
                 kraisler_extraction=kraisler_extraction,
                 kraisler_manifest=kraisler_manifest,
@@ -865,6 +871,8 @@ class DetectionAccuracyReportTest(unittest.TestCase):
         self.assertIn("## Real-drum Tom/Ride/Rim coverage checklist", report)
         self.assertIn("## Continuous independent-piano chord-state replay", report)
         self.assertIn("| Annotated stable chord-state frames with the expected keyboard chord | 4 / 10 (40.0%) | 6 |", report)
+        self.assertIn("### Independent-piano exact fallback audit", report)
+        self.assertIn("| Cross-piano runtime-safe exact pitch-class fallback available | 0 / 1 (0.0%) | 1 |", report)
         self.assertIn(
             "| Checksum-verified 29k Drums archive inspected for Tom/Ride labels | 0 / 1 (0.0%) | 1 |",
             report,
