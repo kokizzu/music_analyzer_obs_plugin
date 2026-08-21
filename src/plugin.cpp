@@ -766,7 +766,15 @@ uint32_t visualizer_setting_height(obs_data_t *settings)
 
 uint8_t visualizer_background_opacity(obs_data_t *settings)
 {
-	const long long percent = std::clamp<long long>(obs_data_get_int(settings, "background_opacity_percent"), 0, 100);
+	long long configured_percent = obs_data_get_int(settings, "background_opacity_percent");
+	// Version 0.55 introduced the source setting with a 55% default.  Treat
+	// that exact legacy default as a migration target, while preserving every
+	// other user-selected value.
+	if (configured_percent == 55) {
+		configured_percent = 44;
+		obs_data_set_int(settings, "background_opacity_percent", configured_percent);
+	}
+	const long long percent = std::clamp<long long>(configured_percent, 0, 100);
 	return static_cast<uint8_t>((percent * 255 + 50) / 100);
 }
 
@@ -806,7 +814,7 @@ void visualizer_defaults(obs_data_t *settings)
 {
 	obs_data_set_default_int(settings, "width", mao::kDefaultVisualizerWidth);
 	obs_data_set_default_int(settings, "height", mao::kDefaultVisualizerHeight);
-	obs_data_set_default_int(settings, "background_opacity_percent", 55);
+	obs_data_set_default_int(settings, "background_opacity_percent", 44);
 	obs_data_set_default_int(settings, "update_fps", 10);
 }
 
