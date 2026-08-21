@@ -742,12 +742,24 @@ struct VisualizerData {
 	gs_texture_t *texture = nullptr;
 };
 
+uint32_t visualizer_setting_height(obs_data_t *settings)
+{
+	long long configured_height = obs_data_get_int(settings, "height");
+	// Existing sources saved the former 540px default.  Migrate that specific
+	// value once so the aligned ROOT/BPM row does not retain its old empty tail.
+	if (configured_height == 540) {
+		configured_height = mao::kDefaultVisualizerHeight;
+		obs_data_set_int(settings, "height", configured_height);
+	}
+	return static_cast<uint32_t>(std::clamp<long long>(configured_height, 520, 1080));
+}
+
 void *visualizer_create(obs_data_t *settings, obs_source_t *)
 {
 	auto *visualizer = new VisualizerData();
 	visualizer->renderer.show_other_row = false;
 	const uint32_t width = static_cast<uint32_t>(std::clamp<long long>(obs_data_get_int(settings, "width"), 320, 1920));
-	const uint32_t height = static_cast<uint32_t>(std::clamp<long long>(obs_data_get_int(settings, "height"), 520, 1080));
+	const uint32_t height = visualizer_setting_height(settings);
 	visualizer->update_fps = static_cast<uint32_t>(std::clamp<long long>(obs_data_get_int(settings, "update_fps"), 1, 30));
 	mao::resize_visualizer(&visualizer->renderer, width, height);
 	mao::render_visualizer(&visualizer->renderer, read_snapshot(), 0.0f);
@@ -797,7 +809,7 @@ void visualizer_update(void *data, obs_data_t *settings)
 
 	std::lock_guard<std::mutex> lock(visualizer->mutex);
 	const uint32_t width = static_cast<uint32_t>(std::clamp<long long>(obs_data_get_int(settings, "width"), 320, 1920));
-	const uint32_t height = static_cast<uint32_t>(std::clamp<long long>(obs_data_get_int(settings, "height"), 520, 1080));
+	const uint32_t height = visualizer_setting_height(settings);
 	visualizer->update_fps = static_cast<uint32_t>(std::clamp<long long>(obs_data_get_int(settings, "update_fps"), 1, 30));
 	if (width != visualizer->renderer.width || height != visualizer->renderer.height) {
 		mao::resize_visualizer(&visualizer->renderer, width, height);
