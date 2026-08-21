@@ -1210,15 +1210,19 @@ int draw_guitar_fretboard(VisualizerRenderer *visualizer, const VisualLayout &la
 void draw_visualizer_header(VisualizerRenderer *visualizer, const AnalysisSnapshot &snapshot, float snapshot_age,
 			    const char *mode_label, int y_offset = 0)
 {
-	char title[128];
+	constexpr uint32_t kHeaderScale = 3;
+	const int title_y = std::max(0, 24 + y_offset);
+	int title_x = 28;
+	draw_text(visualizer, title_x, title_y, "MUSIC ANALYZER", kHeaderScale, Color{246, 248, 251, 255});
+	title_x += text_width("MUSIC ANALYZER  ", kHeaderScale);
 	if (mode_label && mode_label[0]) {
-		std::snprintf(title, sizeof(title), "MUSIC ANALYZER  %s  %s", mode_label,
-			      snapshot.source[0] ? snapshot.source : "WAITING");
-	} else {
-		std::snprintf(title, sizeof(title), "MUSIC ANALYZER  %s",
-			      snapshot.source[0] ? snapshot.source : "WAITING");
+		draw_text(visualizer, title_x, title_y, mode_label, kHeaderScale, Color{246, 248, 251, 255});
+		title_x += text_width(mode_label, kHeaderScale) + text_width("  ", kHeaderScale);
 	}
-	draw_text(visualizer, 28, std::max(0, 24 + y_offset), title, 3, Color{246, 248, 251, 255});
+	// Keep the active Audacious/media title at the same deliberately prominent
+	// size as the product name instead of treating it as secondary status text.
+	draw_text(visualizer, title_x, title_y, snapshot.source[0] ? snapshot.source : "WAITING", kHeaderScale,
+		  Color{246, 248, 251, 255});
 
 	draw_status_line(visualizer, snapshot, snapshot_age, y_offset);
 }

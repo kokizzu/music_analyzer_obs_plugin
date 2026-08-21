@@ -29920,6 +29920,69 @@ void AnalysisEngine::update_tempo(float raw_event_strength, float raw_event_body
 	bpm_confidence_ = std::min(bpm_confidence_, harmonic_confidence_cap);
 }
 
+float AnalysisEngine::estimate_three_second_source_bpm(float interval_seconds) const
+{
+	// This is deliberately independent from the calibrated long-window tracker.
+	// It supplies the requested immediate display estimate from only Kick, Bass,
+	// and Snare onset peaks and must never feed back into note/chord analysis.
+	constexpr float kWindowSeconds = 3.0f;
+	constexpr float kPeakFloor = 0.045f;
+	const float interval = std::clamp(interval_seconds, 0.01f, 1.0f);
+	const std::size_t window_frames = std::min<std::size_t>(
+		tempo_flux_count_, std::min<std::size_t>(tempo_flux_.size(),
+			static_cast<std::size_t>(std::ceil(kWindowSeconds / interval)) + 1));
+	if (window_frames < 4)
+		return 0.0f;
+
+	std::array<float, kMaxTempoFluxFrames> peak_times = {};
+	std::array<float, kMaxTempoFluxFrames> peak_strengths = {};
+	std::size_t peak_count = 0;
+	auto source_strength_at = [&](std::size_t offset) {
+		const std::size_t index =
+			(tempo_flux_pos_ + tempo_flux_.size() - window_frames + offset) % tempo_flux_.size();
+		return std::max({tempo_kick_flux_[index], tempo_bass_flux_[index], tempo_snare_flux_[index]});
+	};
+	for (std::size_t offset = 1; offset + 1 < window_frames; ++offset) {
+		const float strength = source_strength_at(offset);
+		if (strength < kPeakFloor || strength < source_strength_at(offset - 1) ||
+		    strength < source_strength_at(offset + 1))
+			continue;
+		peak_times[peak_count] = static_cast<float>(offset) * interval;
+		peak_strengths[peak_count] = strength;
+		++peak_count;
+	}
+	if (peak_count < 3 || peak_times[peak_count - 1] - peak_times[0] < 0.45f)
+		return 0.0f;
+
+	float best_score = 0.0f;
+	int best_bpm = 0;
+	for (int bpm = kMinTempoBpm; bpm <= kMaxTempoBpm; ++bpm) {
+		const float period = 60.0f / static_cast<float>(bpm);
+		const float tolerance = std::clamp(period * 0.12f, 0.035f, 0.085f);
+		float score = 0.0f;
+		for (std::size_t older = 0; older < peak_count; ++older) {
+			for (std::size_t newer = older + 1; newer < peak_count; ++newer) {
+				const float delta = peak_times[newer] - peak_times[older];
+				const float beats = std::round(delta / period);
+				if (beats < 1.0f || beats > 8.0f)
+					continue;
+				const float error = std::abs(delta - beats * period);
+				if (error > tolerance)
+					continue;
+				const float direct_bonus = beats == 1.0f ? 1.0f : 0.18f;
+				const float error_weight = 1.0f - error / tolerance;
+				score += std::sqrt(peak_strengths[older] * peak_strengths[newer]) * direct_bonus *
+					 error_weight * error_weight;
+			}
+		}
+		if (score > best_score) {
+			best_score = score;
+			best_bpm = bpm;
+		}
+	}
+	return best_score > 0.0f ? static_cast<float>(best_bpm) : 0.0f;
+}
+
 float AnalysisEngine::goertzel_power(const float *samples, std::size_t count, float mean, const Probe &probe) const
 {
 	float s1 = 0.0f;
@@ -34959,6 +35022,13 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 		     tempo_event_offset_seconds, interval_seconds, rms, settings.tempo_debug_probe_bpm, snapshot);
 	snapshot.estimated_bpm = estimated_bpm_;
 	snapshot.bpm_confidence = bpm_confidence_;
+	if (snapshot.bpm_confidence < kBpmDisplayConfidenceThreshold) {
+		const float immediate_source_bpm = estimate_three_second_source_bpm(interval_seconds);
+		if (immediate_source_bpm > 0.0f) {
+			snapshot.estimated_bpm = immediate_source_bpm;
+			snapshot.bpm_confidence = kBpmDisplayConfidenceThreshold;
+		}
+	}
 	snapshot.phase_estimated_bpm = estimated_bpm_;
 	snapshot.phase_bpm_confidence = bpm_confidence_;
 	const float permissive_bpm = permissive_beat_tracker_ ?

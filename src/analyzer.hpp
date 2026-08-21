@@ -495,6 +495,7 @@ private:
 			  float event_time_offset_seconds, float interval_seconds, float rms,
 			  int tempo_debug_probe_bpm,
 			  AnalysisSnapshot &snapshot);
+	float estimate_three_second_source_bpm(float interval_seconds) const;
 	float goertzel_power(const float *samples, std::size_t count, float mean, const Probe &probe) const;
 	float goertzel_power_at_frequency(const float *samples, std::size_t count, float mean, float freq) const;
 	TuningProbeResult chromatic_tuning_probe(const float *samples, std::size_t count, float mean, int midi,
