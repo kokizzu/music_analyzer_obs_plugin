@@ -1564,14 +1564,15 @@ Source: `build/independent_piano_chord_stability.txt`
 
 ### Chord switch-confirmation audit
 
-A one-frame replacement trial is retained only if it improves correct stable-state frames without reintroducing correct-loss-recovery flicker.
-
-Source: `build/piano_chord_confirmation_audit.txt`
+A replacement-confirmation trial is retained only if it improves correct stable-state frames without reintroducing correct-loss-recovery flicker.
 
 | Candidate | Correct stable frames | Wrong labels | Correct-loss-recovery flickers | Decision |
 | --- | ---: | ---: | ---: | --- |
 | Two-frame replacement confirmation | 96 / 530 (18.1%) | 243 | 0 | retained |
 | One-frame replacement confirmation | 104 / 530 (19.6%) | 235 | 3 | rejected; retain 2 frames |
+| Three-frame replacement confirmation | 95 / 530 (17.9%) | 244 | 0 | rejected; MAESTRO drops 70→67 correct frames |
+
+Sources: `build/piano_chord_confirmation_audit.txt`, `build/piano_chord_confirm3_audit.txt`
 
 ### Independent-piano exact fallback audit
 

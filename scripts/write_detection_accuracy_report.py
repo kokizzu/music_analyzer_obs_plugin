@@ -1531,6 +1531,7 @@ def render(
     samples29k_drums_measurement: Path | None = None,
     samples29k_drums_primary_attributes: Path | None = None,
     piano_chord_confirmation_audit_input: Path | None = None,
+    piano_chord_confirm3_audit_input: Path | None = None,
     fsd50k_rim_metadata_audit_input: Path | None = None,
     mdb_rim_coverage_input: Path | None = None,
 ) -> str:
@@ -1681,6 +1682,11 @@ def render(
     piano_chord_confirmation = (
         piano_chord_confirmation_audit(piano_chord_confirmation_audit_input)
         if piano_chord_confirmation_audit_input is not None
+        else None
+    )
+    piano_chord_confirm3 = (
+        piano_chord_confirmation_audit(piano_chord_confirm3_audit_input)
+        if piano_chord_confirm3_audit_input is not None
         else None
     )
     fsd50k_rim_metadata = (
@@ -3220,24 +3226,40 @@ def render(
                     f"| Audited continuous stable-chord sequences | {fraction(sequences, sequences)} | 0 |",
                 ]
             )
-        if piano_chord_confirmation is not None:
-            baseline_correct, trial_correct, trial_frames, baseline_wrong, trial_wrong, baseline_flickers, trial_flickers, retained_frames = piano_chord_confirmation
+        if piano_chord_confirmation is not None or piano_chord_confirm3 is not None:
             lines.extend(
                 [
                     "",
                     "### Chord switch-confirmation audit",
                     "",
-                    "A one-frame replacement trial is retained only if it improves correct stable-state frames "
+                    "A replacement-confirmation trial is retained only if it improves correct stable-state frames "
                     "without reintroducing correct-loss-recovery flicker.",
-                    "",
-                    f"Source: `{piano_chord_confirmation_audit_input.as_posix()}`",
                     "",
                     "| Candidate | Correct stable frames | Wrong labels | Correct-loss-recovery flickers | Decision |",
                     "| --- | ---: | ---: | ---: | --- |",
-                    f"| Two-frame replacement confirmation | {fraction(baseline_correct, trial_frames)} | {baseline_wrong} | {baseline_flickers} | retained |",
-                    f"| One-frame replacement confirmation | {fraction(trial_correct, trial_frames)} | {trial_wrong} | {trial_flickers} | rejected; retain {retained_frames} frames |",
                 ]
             )
+            if piano_chord_confirmation is not None:
+                baseline_correct, trial_correct, trial_frames, baseline_wrong, trial_wrong, baseline_flickers, trial_flickers, retained_frames = piano_chord_confirmation
+                lines.extend(
+                    [
+                        f"| Two-frame replacement confirmation | {fraction(baseline_correct, trial_frames)} | {baseline_wrong} | {baseline_flickers} | retained |",
+                        f"| One-frame replacement confirmation | {fraction(trial_correct, trial_frames)} | {trial_wrong} | {trial_flickers} | rejected; retain {retained_frames} frames |",
+                    ]
+                )
+            if piano_chord_confirm3 is not None:
+                (_unused_baseline_correct, confirm3_correct, confirm3_frames, _unused_baseline_wrong,
+                 confirm3_wrong, _unused_baseline_flickers, confirm3_flickers,
+                 _unused_retained) = piano_chord_confirm3
+                lines.append(
+                    f"| Three-frame replacement confirmation | {fraction(confirm3_correct, confirm3_frames)} | {confirm3_wrong} | {confirm3_flickers} | rejected; MAESTRO drops 70→67 correct frames |"
+                )
+            sources = []
+            if piano_chord_confirmation_audit_input is not None:
+                sources.append(f"`{piano_chord_confirmation_audit_input.as_posix()}`")
+            if piano_chord_confirm3_audit_input is not None:
+                sources.append(f"`{piano_chord_confirm3_audit_input.as_posix()}`")
+            lines.extend(["", f"Sources: {', '.join(sources)}"])
         if piano_exact_fallback is not None:
             corpora, candidates = piano_exact_fallback
             lines.extend(
@@ -3901,6 +3923,7 @@ def main() -> int:
     parser.add_argument("--independent-piano-chord-stability-evidence", type=Path)
     parser.add_argument("--independent-piano-exact-chord-fallback-audit", type=Path)
     parser.add_argument("--piano-chord-confirmation-audit", type=Path)
+    parser.add_argument("--piano-chord-confirm3-audit", type=Path)
     parser.add_argument("--kraisler-archive", type=Path)
     parser.add_argument("--kraisler-extraction", type=Path)
     parser.add_argument("--kraisler-manifest", type=Path)
@@ -4071,6 +4094,7 @@ def main() -> int:
             args.samples29k_drums_measurement,
             args.samples29k_drums_primary_attributes,
             args.piano_chord_confirmation_audit,
+            args.piano_chord_confirm3_audit,
             args.fsd50k_rim_metadata_audit,
             args.mdb_rim_coverage_input,
         )

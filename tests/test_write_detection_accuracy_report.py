@@ -798,6 +798,13 @@ class DetectionAccuracyReportTest(unittest.TestCase):
                 "three-tracker consensus viable: none\n",
                 encoding="utf-8",
             )
+            piano_chord_confirm3 = Path(temporary) / "piano_chord_confirm3.txt"
+            piano_chord_confirm3.write_text(
+                "piano_chord_confirmation_audit: baseline_correct=96/530 baseline_wrong=243 "
+                "baseline_flickers=0 trial_correct=95/530 trial_wrong=244 trial_flickers=0 "
+                "retained_confirm_frames=2 eligible=0\n",
+                encoding="utf-8",
+            )
             beat_this_rolling_ballroom = Path(temporary) / "beat_this_rolling_ballroom.log"
             beat_this_rolling_ballroom.write_text(
                 "Beat This rolling tempo diag\tid=1\texpected=120.00\traw=120.00\twindow_seconds=20.000\twall_seconds=3.000\terror=0.00\tstatus=hit\n",
@@ -849,6 +856,7 @@ class DetectionAccuracyReportTest(unittest.TestCase):
                 independent_piano_chord_state_evidence_input=piano_state_evidence,
                 independent_piano_chord_stability_evidence_input=piano_chord_stability,
                 independent_piano_exact_chord_fallback_audit_input=piano_exact_fallback,
+                piano_chord_confirm3_audit_input=piano_chord_confirm3,
                 kraisler_archive=kraisler_archive,
                 kraisler_extraction=kraisler_extraction,
                 kraisler_manifest=kraisler_manifest,
@@ -892,6 +900,7 @@ class DetectionAccuracyReportTest(unittest.TestCase):
         self.assertIn("## Drum-primary leave-one-corpus-out classifier audit", report)
         self.assertIn("## Real-drum Tom/Ride/Rim coverage checklist", report)
         self.assertIn("## Continuous independent-piano chord-state replay", report)
+        self.assertIn("| Three-frame replacement confirmation | 95 / 530 (17.9%) | 244 | 0 |", report)
         self.assertIn("| Annotated stable chord-state frames with the expected keyboard chord | 4 / 10 (40.0%) | 6 |", report)
         self.assertIn("### Independent-piano exact fallback audit", report)
         self.assertIn("| Cross-piano runtime-safe exact pitch-class fallback available | 0 / 1 (0.0%) | 1 |", report)
