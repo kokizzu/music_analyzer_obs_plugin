@@ -1629,6 +1629,7 @@ def render(
     commons_rimshot_candidate_audit_input: Path | None = None,
     pixabay_rimshot_measurement_audit_input: Path | None = None,
     pixabay_rimshot_f_measurement_audit_input: Path | None = None,
+    pixabay_rim_shot_measurement_audit_input: Path | None = None,
     mdb_rim_coverage_input: Path | None = None,
 ) -> str:
     samples = load_samples(input_path)
@@ -1837,6 +1838,11 @@ def render(
         if pixabay_rimshot_f_measurement_audit_input is not None
         else None
     )
+    pixabay_rim_shot_measurement = (
+        pixabay_rimshot_measurement_audit(pixabay_rim_shot_measurement_audit_input)
+        if pixabay_rim_shot_measurement_audit_input is not None
+        else None
+    )
     mdb_rim = mdb_rim_coverage(mdb_rim_coverage_input) if mdb_rim_coverage_input is not None else None
     electronic_piano_guitar_audit = (
         electronic_piano_guitar_route_audit(electronic_piano_guitar_route_audit_input)
@@ -1991,7 +1997,14 @@ def render(
         for candidate in (mdb_drums_gate_output, star_drums_gate_output, babyslakh_drums_gate_output)
     )
     piano_chord_evidence = 2 if piano_chord_stability is not None else 0
-    tom_ride_evidence = (2 if samples29k_counts else 0) + int(pixabay_rimshot_measurement is not None)
+    isolated_rim_measurements = (
+        pixabay_rimshot_measurement,
+        pixabay_rimshot_f_measurement,
+        pixabay_rim_shot_measurement,
+    )
+    tom_ride_evidence = (2 if samples29k_counts else 0) + int(any(
+        measurement is not None for measurement in isolated_rim_measurements
+    ))
     continuous_beat_this_evidence = int(beat_this_continuous_ballroom_bpm is not None) + int(
         beat_this_continuous_filobass_bpm is not None
     )
@@ -4105,7 +4118,8 @@ def render(
             f"| Verify licence-free Rimshot recording candidate | {fraction(int(commons_rimshot_candidate is not None), 1)} | {int(commons_rimshot_candidate is None)} | checksum, source label, licence, and 4 stated rolls; {commons_rimshot_candidate[3] if commons_rimshot_candidate is not None else '--'} per-roll timestamps supplied |",
             f"| Measure checksum-pinned isolated real Rimshot | {fraction(int(pixabay_rimshot_measurement is not None), 1)} | {int(pixabay_rimshot_measurement is None)} | detected {pixabay_rimshot_measurement[0] if pixabay_rimshot_measurement is not None else '--'} / 1; Rim primary {pixabay_rimshot_measurement[1] if pixabay_rimshot_measurement is not None else '--'} / 1; Snare primary {pixabay_rimshot_measurement[2] if pixabay_rimshot_measurement is not None else '--'} / 1 |",
             f"| Measure separately sourced isolated real Rimshot | {fraction(int(pixabay_rimshot_f_measurement is not None), 1)} | {int(pixabay_rimshot_f_measurement is None)} | detected {pixabay_rimshot_f_measurement[0] if pixabay_rimshot_f_measurement is not None else '--'} / 1; Rim primary {pixabay_rimshot_f_measurement[1] if pixabay_rimshot_f_measurement is not None else '--'} / 1; Snare primary {pixabay_rimshot_f_measurement[2] if pixabay_rimshot_f_measurement is not None else '--'} / 1 |",
-            f"| Broaden independent Rim replication beyond one isolated recording | {fraction(int(pixabay_rimshot_f_measurement is not None), 1)} | {int(pixabay_rimshot_f_measurement is None)} | second checksum-pinned, separately sourced one-shot is measured; ENST-Drums remains an additional labelled-corpus path after its research-use licence is accepted and preserved |",
+            f"| Measure third independently sourced isolated Rim Shot | {fraction(int(pixabay_rim_shot_measurement is not None), 1)} | {int(pixabay_rim_shot_measurement is None)} | detected {pixabay_rim_shot_measurement[0] if pixabay_rim_shot_measurement is not None else '--'} / 1; Rim primary {pixabay_rim_shot_measurement[1] if pixabay_rim_shot_measurement is not None else '--'} / 1; Snare primary {pixabay_rim_shot_measurement[2] if pixabay_rim_shot_measurement is not None else '--'} / 1 |",
+            f"| Broaden independent Rim replication beyond one isolated recording | {fraction(sum(measurement is not None for measurement in isolated_rim_measurements), 3)} | {3 - sum(measurement is not None for measurement in isolated_rim_measurements)} | three checksum-pinned, independently credited sources: Rim detected {sum(measurement[0] for measurement in isolated_rim_measurements if measurement is not None)} / 3, primary {sum(measurement[1] for measurement in isolated_rim_measurements if measurement is not None)} / 3, Snare primary {sum(measurement[2] for measurement in isolated_rim_measurements if measurement is not None)} / 3; ENST-Drums remains an additional labelled-corpus path after its research-use licence is accepted and preserved |",
         ]
     )
     lines.extend(
@@ -4164,6 +4178,7 @@ def main() -> int:
     parser.add_argument("--commons-rimshot-candidate-audit", type=Path)
     parser.add_argument("--pixabay-rimshot-measurement-audit", type=Path)
     parser.add_argument("--pixabay-rimshot-f-measurement-audit", type=Path)
+    parser.add_argument("--pixabay-rim-shot-measurement-audit", type=Path)
     parser.add_argument("--mdb-rim-coverage-input", type=Path)
     parser.add_argument("--dagstuhl-choirset-input", type=Path)
     parser.add_argument("--dagstuhl-choirset-validation", type=Path)
@@ -4387,6 +4402,7 @@ def main() -> int:
             args.commons_rimshot_candidate_audit,
             args.pixabay_rimshot_measurement_audit,
             args.pixabay_rimshot_f_measurement_audit,
+            args.pixabay_rim_shot_measurement_audit,
             args.mdb_rim_coverage_input,
         )
     except (OSError, ValueError) as error:

@@ -2044,6 +2044,7 @@ The full one-shot gate has broad category counts, but its weak Tom/Ride/Rim resu
 | Verify licence-free Rimshot recording candidate | 1 / 1 (100.0%) | 0 | checksum, source label, licence, and 4 stated rolls; 0 per-roll timestamps supplied |
 | Measure checksum-pinned isolated real Rimshot | 1 / 1 (100.0%) | 0 | detected 1 / 1; Rim primary 0 / 1; Snare primary 1 / 1 |
 | Measure separately sourced isolated real Rimshot | 1 / 1 (100.0%) | 0 | detected 0 / 1; Rim primary 0 / 1; Snare primary 1 / 1 |
-| Broaden independent Rim replication beyond one isolated recording | 1 / 1 (100.0%) | 0 | second checksum-pinned, separately sourced one-shot is measured; ENST-Drums remains an additional labelled-corpus path after its research-use licence is accepted and preserved |
+| Measure third independently sourced isolated Rim Shot | 1 / 1 (100.0%) | 0 | detected 0 / 1; Rim primary 0 / 1; Snare primary 1 / 1 |
+| Broaden independent Rim replication beyond one isolated recording | 3 / 3 (100.0%) | 0 | three checksum-pinned, independently credited sources: Rim detected 1 / 3, primary 0 / 3, Snare primary 3 / 3; ENST-Drums remains an additional labelled-corpus path after its research-use licence is accepted and preserved |
 
 Refresh with `make update-detection-accuracy-report`. Whenever a verified detection metric changes, update this report in the same commit.
