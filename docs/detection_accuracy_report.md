@@ -2020,7 +2020,7 @@ BabySlakh is an independently rendered 16 kHz multitrack corpus with aligned per
 
 ## Real-drum Tom/Ride/Rim coverage checklist
 
-The full one-shot gate has broad category counts, but its weak Tom/Ride/Rim results need independent real-acoustic replication before a class-specific runtime rule can be trusted. 29k Drums can independently cover Tom and Ride. FSD50K's fixed 200-class vocabulary has no Rimshot label, so ENST remains necessary for Rim.
+The full one-shot gate has broad category counts, but its weak Tom/Ride/Rim results need independent real-acoustic replication before a class-specific runtime rule can be trusted. 29k Drums can independently cover Tom and Ride. FSD50K's fixed 200-class vocabulary has no Rimshot label. The Commons candidate is checksum-verifiable and openly licensed, but its source supplies no per-roll timestamps, so it cannot yet count as accuracy evidence.
 
 | Work item | Complete / total | Remaining | Evidence required |
 | --- | ---: | ---: | --- |
@@ -2029,6 +2029,7 @@ The full one-shot gate has broad category counts, but its weak Tom/Ride/Rim resu
 | Record all 29k Tom/Ride primary decisions for candidate evaluation | 1 / 1 (100.0%) | 0 | verbose current and missed primary labels become a reproducible TSV; selectors still need cross-corpus runtime replay |
 | Measure MDB annotated side-stick/Rim event coverage | 1 / 1 (100.0%) | 0 | 0 / 1 (0.0%) detected; calibration evidence only, not independent replication |
 | Screen FSD50K fixed vocabulary for licence-compatible Rimshot clips | 1 / 1 (100.0%) | 0 | no audio transfer: 0 labelled rows, 0 isolated candidates, 0 permissive-licence candidates |
-| Independently replicate Rim on real acoustic recordings | 0 / 1 (0.0%) | 1 | ENST-Drums has suitable labelled classes and a public prepared archive, but its research-use licence must be accepted and preserved; annotations alone are insufficient |
+| Verify licence-free Rimshot recording candidate | 1 / 1 (100.0%) | 0 | checksum, source label, licence, and 4 stated rolls; 0 per-roll timestamps supplied |
+| Independently replicate Rim on real acoustic recordings | 0 / 1 (0.0%) | 1 | acquire source-grounded temporal annotations or a separately labelled corpus; ENST-Drums has suitable labelled classes and a public prepared archive, but remains available only after its research-use licence is accepted and preserved |
 
 Refresh with `make update-detection-accuracy-report`. Whenever a verified detection metric changes, update this report in the same commit.

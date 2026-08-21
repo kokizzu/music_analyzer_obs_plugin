@@ -248,7 +248,8 @@ DETECTION_ACCURACY_REPORT ?= docs/detection_accuracy_report.md
 DETECTION_ACCURACY_29K_DRUMS_INSPECTION_ARG = $(if $(wildcard $(SAMPLES29K_DRUMS_INSPECTION)),--29k-drums-inspection "$(SAMPLES29K_DRUMS_INSPECTION)")
 DETECTION_ACCURACY_29K_DRUMS_MEASUREMENT_ARG = $(if $(wildcard $(SAMPLES29K_DRUMS_MEASUREMENT)),--29k-drums-measurement "$(SAMPLES29K_DRUMS_MEASUREMENT)")
 DETECTION_ACCURACY_29K_DRUMS_PRIMARY_ATTRIBUTE_ARG = $(if $(wildcard $(SAMPLES29K_DRUMS_PRIMARY_ATTRIBUTE_ROWS)),--29k-drums-primary-attributes "$(SAMPLES29K_DRUMS_PRIMARY_ATTRIBUTE_ROWS)")
-DETECTION_ACCURACY_FSD50K_RIM_METADATA_ARG = $(if $(wildcard $(FSD50K_RIM_METADATA_AUDIT)),--fsd50k-rim-metadata-audit "$(FSD50K_RIM_METADATA_AUDIT)")
+DETECTION_ACCURACY_FSD50K_RIM_METADATA_ARG = $(if $(wildcard $(FSD50K_RIM_METADATA_AUDIT)),--fsd50k-rim-metadata-audit "$(FSD50K_RIM_METADATA_AUDIT)") $(DETECTION_ACCURACY_COMMONS_RIMSHOT_CANDIDATE_ARG)
+DETECTION_ACCURACY_COMMONS_RIMSHOT_CANDIDATE_ARG = $(if $(wildcard $(COMMONS_RIMSHOT_CANDIDATE_AUDIT)),--commons-rimshot-candidate-audit "$(COMMONS_RIMSHOT_CANDIDATE_AUDIT)")
 HIGH_VOCAL_OCTAVE_AUDIT ?= $(BUILD_DIR)/high_vocal_octave_evidence.txt
 DETECTION_ACCURACY_HIGH_VOCAL_OCTAVE_AUDIT_ARG = $(if $(wildcard $(HIGH_VOCAL_OCTAVE_AUDIT)),--high-vocal-octave-audit "$(HIGH_VOCAL_OCTAVE_AUDIT)")
 GUITAR_CHORD_PRIMARY_DISPLAY_AUDIT ?= $(BUILD_DIR)/guitar_chord_primary_display_audit.txt
@@ -920,6 +921,11 @@ FSD50K_RIM_SOURCE_DIR ?= $(INSTRUMENT_SAMPLE_STORE_LINK)/fsd50k_rim
 FSD50K_RIM_GROUND_TRUTH_ARCHIVE ?= $(FSD50K_RIM_SOURCE_DIR)/FSD50K.ground_truth.zip
 FSD50K_RIM_METADATA_ARCHIVE ?= $(FSD50K_RIM_SOURCE_DIR)/FSD50K.metadata.zip
 FSD50K_RIM_METADATA_AUDIT ?= $(BUILD_DIR)/fsd50k_rim_metadata.txt
+COMMONS_RIMSHOT_SOURCE_DIR ?= $(INSTRUMENT_SAMPLE_STORE_LINK)/commons_rimshot
+COMMONS_RIMSHOT_AUDIO ?= $(COMMONS_RIMSHOT_SOURCE_DIR)/Kevin_MacLeod_assorted_rimshots_-_13-second_roll.wav
+COMMONS_RIMSHOT_URL ?= https://upload.wikimedia.org/wikipedia/commons/c/cb/Kevin_MacLeod_assorted_rimshots_-_13-second_roll.wav
+COMMONS_RIMSHOT_SHA1 ?= 11b1e0f8e317aed2a75a7a1b0750c2d13e9221fd
+COMMONS_RIMSHOT_CANDIDATE_AUDIT ?= $(BUILD_DIR)/commons_rimshot_candidate.txt
 BPM_DIAG_TOLERANCE ?= 8
 EGMD_BPM_MAX_SECONDS ?= 20
 MDB_BPM_MAX_SECONDS ?= 20
@@ -2627,6 +2633,18 @@ test-download-fsd50k-rim-metadata-script: scripts/download_fsd50k_rim_metadata.s
 test-inspect-fsd50k-rim-metadata: tests/test_inspect_fsd50k_rim_metadata.py scripts/inspect_fsd50k_rim_metadata.py
 	$(PYTHON) tests/test_inspect_fsd50k_rim_metadata.py
 
+.PHONY: download-commons-rimshot-candidate inspect-commons-rimshot-candidate test-commons-rimshot-candidate
+download-commons-rimshot-candidate: configure-instrument-sample-store scripts/download_commons_rimshot_candidate.sh
+	$(SHELL) scripts/download_commons_rimshot_candidate.sh "$(COMMONS_RIMSHOT_AUDIO)" "$(COMMONS_RIMSHOT_URL)" "$(COMMONS_RIMSHOT_SHA1)"
+
+inspect-commons-rimshot-candidate: download-commons-rimshot-candidate scripts/inspect_commons_rimshot_candidate.py | $(BUILD_DIR)
+	$(PYTHON) scripts/inspect_commons_rimshot_candidate.py "$(COMMONS_RIMSHOT_AUDIO)" --output "$(COMMONS_RIMSHOT_CANDIDATE_AUDIT)"
+	cat "$(COMMONS_RIMSHOT_CANDIDATE_AUDIT)"
+
+test-commons-rimshot-candidate: scripts/download_commons_rimshot_candidate.sh scripts/inspect_commons_rimshot_candidate.py tests/test_inspect_commons_rimshot_candidate.py
+	sh -n scripts/download_commons_rimshot_candidate.sh
+	$(PYTHON) tests/test_inspect_commons_rimshot_candidate.py
+
 download-29k-drums: scripts/download_29k_samples_drums.sh
 	$(SHELL) scripts/download_29k_samples_drums.sh "$(SAMPLES29K_DRUMS_ARCHIVE)" "$(SAMPLES29K_DRUMS_ARCHIVE_URL)" "$(SAMPLES29K_DRUMS_ARCHIVE_MD5)" "$(PYTHON)"
 
@@ -3655,7 +3673,7 @@ analyze-real-note-attributes: $(BUILD_DIR)/real_note_full_mix_attributes.tsv scr
 	$(PYTHON) scripts/summarize_real_note_attributes.py "$(BUILD_DIR)/real_note_full_mix_attributes.tsv" $(REAL_NOTE_ATTRIBUTE_SUMMARY_ARGS)
 	@printf '%s\n' "attribute TSV: $(BUILD_DIR)/real_note_full_mix_attributes.tsv"
 
-update-detection-accuracy-report: $(BUILD_DIR)/real_note_full_mix_attributes.tsv $(GUITAR_CHORD_PRIMARY_DISPLAY_AUDIT) $(GUITAR_CHORD_TONE_RECOVERY_AUDIT) $(URMP_GOOD_SOUNDS_SAX_SHARED_PATTERN_REPORT) $(OCTAVE_CORRECTION_CROSS_CORPUS_AUDIT) $(POLYPHONIC_CANDIDATE_CAPACITY_AUDIT) inspect-urmp-bass-timing inspect-harmonic-product-octave-evidence-cached audit-dominant-seventh-extension audit-global-chord-confidence audit-same-root-guitar-quality evaluate-owner-classifier-loco evaluate-owner-classifier-quality-loco evaluate-drum-primary-loco audit-drum-false-positive-caps audit-mdb-full-mix-false-positive-caps audit-mdb-full-mix-competing-active-contexts audit-drum-false-positive-contexts audit-chord-primary-components audit-independent-piano-exact-chord-fallback audit-piano-chord-confirmation audit-piano-chord-confirm3 audit-piano-chord-tone018 audit-piano-chord-margin060 audit-piano-chord-bassbonus000 inspect-mdb-rim-coverage inspect-fsd50k-rim-metadata inspect-high-vocal-octave-evidence-cached scripts/write_detection_accuracy_report.py
+update-detection-accuracy-report: $(BUILD_DIR)/real_note_full_mix_attributes.tsv $(GUITAR_CHORD_PRIMARY_DISPLAY_AUDIT) $(GUITAR_CHORD_TONE_RECOVERY_AUDIT) $(URMP_GOOD_SOUNDS_SAX_SHARED_PATTERN_REPORT) $(OCTAVE_CORRECTION_CROSS_CORPUS_AUDIT) $(POLYPHONIC_CANDIDATE_CAPACITY_AUDIT) inspect-urmp-bass-timing inspect-harmonic-product-octave-evidence-cached audit-dominant-seventh-extension audit-global-chord-confidence audit-same-root-guitar-quality evaluate-owner-classifier-loco evaluate-owner-classifier-quality-loco evaluate-drum-primary-loco audit-drum-false-positive-caps audit-mdb-full-mix-false-positive-caps audit-mdb-full-mix-competing-active-contexts audit-drum-false-positive-contexts audit-chord-primary-components audit-independent-piano-exact-chord-fallback audit-piano-chord-confirmation audit-piano-chord-confirm3 audit-piano-chord-tone018 audit-piano-chord-margin060 audit-piano-chord-bassbonus000 inspect-mdb-rim-coverage inspect-fsd50k-rim-metadata inspect-commons-rimshot-candidate inspect-high-vocal-octave-evidence-cached scripts/write_detection_accuracy_report.py
 	$(PYTHON) scripts/write_detection_accuracy_report.py --input "$(BUILD_DIR)/real_note_full_mix_attributes.tsv" $(DETECTION_ACCURACY_CHORD_ARGS) $(DETECTION_ACCURACY_VOCAL_FULL_MIX_ARG) $(DETECTION_ACCURACY_VOCALSET_FULL_MIX_ARG) $(DETECTION_ACCURACY_VOCALSET_CLEAN_VOWEL_ARG) $(DETECTION_ACCURACY_URMP_GATE_ARG) $(DETECTION_ACCURACY_BACH10_GATE_ARGS) $(DETECTION_ACCURACY_MUSICNET_GATE_ARG) $(DETECTION_ACCURACY_MAPS_GATE_ARGS) $(DETECTION_ACCURACY_MAPS_NOTE_GATE_ARGS) $(DETECTION_ACCURACY_MAPS_ATTRIBUTE_ARG) $(DETECTION_ACCURACY_CROSS_CORPUS_CHORD_ARGS) $(DETECTION_ACCURACY_DRUM_GATE_ARG) $(DETECTION_ACCURACY_HF_DRUM_GATE_ARGS) $(DETECTION_ACCURACY_STAR_DRUMS_GATE_ARG) $(DETECTION_ACCURACY_MDB_DRUMS_GATE_ARG) $(DETECTION_ACCURACY_ROUTE_SUMMARY_ARG) $(DETECTION_ACCURACY_GOOD_SOUNDS_FULL_MIX_ARG) $(DETECTION_ACCURACY_IRMAS_LABELLED_ARG) $(DETECTION_ACCURACY_PITCH_SHIFTED_VIOLIN_ARG) $(DETECTION_ACCURACY_MEDLEY_SOLOS_ATTRIBUTE_ARG) $(DETECTION_ACCURACY_PHILHARMONIA_FULL_ARG) $(DETECTION_ACCURACY_IOWA_ORCHESTRA_FULL_ARG) $(DETECTION_ACCURACY_TINYSOL_WIND_EXACT_ARG) $(DETECTION_ACCURACY_IOWA_SAX_FULL_MIX_ARG) $(DETECTION_ACCURACY_IOWA_PIANO_FULL_MIX_ARG) $(DETECTION_ACCURACY_TINYSOL_SAX_FULL_ARG) $(DETECTION_ACCURACY_TINYSOL_FLUTE_FULL_ARG) $(DETECTION_ACCURACY_REAL_A2S_TENOR_SCALE_ARG) $(DETECTION_ACCURACY_URMP_SAX_EXACT_ARG) $(DETECTION_ACCURACY_URMP_SAX_FULL_MIX_ARG) $(DETECTION_ACCURACY_DAGSTUHL_CHOIRSET_ARG) $(DETECTION_ACCURACY_DAGSTUHL_CHOIRSET_VALIDATION_ARG) $(DETECTION_ACCURACY_DAGSTUHL_CHOIRSET_INSPECTION_ARG) $(DETECTION_ACCURACY_DAGSTUHL_CHOIRSET_EXTRACT_ARG) $(DETECTION_ACCURACY_DAGSTUHL_CHOIRSET_MANIFEST_ARG) $(DETECTION_ACCURACY_MAESTRO_REAL_MEASUREMENT_ARG) $(DETECTION_ACCURACY_MAESTRO_REAL_MANIFEST_ARG) $(DETECTION_ACCURACY_KRAISLER_ARCHIVE_ARG) $(DETECTION_ACCURACY_KRAISLER_EXTRACT_ARG) $(DETECTION_ACCURACY_KRAISLER_MANIFEST_ARG) $(DETECTION_ACCURACY_KRAISLER_MEASUREMENT_ARG) $(DETECTION_ACCURACY_KRAISLER_BPM_ARG) $(DETECTION_ACCURACY_BALLROOM_BPM_ARG) $(DETECTION_ACCURACY_BALLROOM_ANNOTATIONS_ARG) $(DETECTION_ACCURACY_EGMD_BPM_ARG) $(DETECTION_ACCURACY_BTT_ARGS) $(DETECTION_ACCURACY_CHORAL_SINGING_DATASET_ARG) $(DETECTION_ACCURACY_CHORAL_SINGING_DATASET_EXTRACT_ARG) $(DETECTION_ACCURACY_CHORAL_SINGING_DATASET_INSPECTION_ARG) $(DETECTION_ACCURACY_CHORAL_SINGING_DATASET_MANIFEST_ARG) $(DETECTION_ACCURACY_CHORAL_SINGING_DATASET_MEASUREMENT_ARG) $(DETECTION_ACCURACY_ESMUC_CHOIR_DATASET_ARG) $(DETECTION_ACCURACY_ESMUC_CHOIR_DATASET_EXTRACT_ARG) $(DETECTION_ACCURACY_ESMUC_CHOIR_DATASET_MANIFEST_ARG) $(DETECTION_ACCURACY_ESMUC_CHOIR_DATASET_MEASUREMENT_ARG) $(DETECTION_ACCURACY_ESMUC_CHOIR_DATASET_PATTERN_REPORT_ARG) $(DETECTION_ACCURACY_MIR1K_DATASET_ARCHIVE_ARG) $(DETECTION_ACCURACY_MIR1K_DATASET_EXTRACT_ARG) $(DETECTION_ACCURACY_MIR1K_FULL_MIX_ARG) $(DETECTION_ACCURACY_SCMS_ARCHIVE_ARG) $(DETECTION_ACCURACY_SCMS_INSPECTION_ARG) $(DETECTION_ACCURACY_SCMS_FULL_MIX_ARG) $(DETECTION_ACCURACY_VOCAL_EXACT_NOTE_CROSS_CORPUS_ARG) $(DETECTION_ACCURACY_HIGH_VOCAL_OCTAVE_AUDIT_ARG) $(DETECTION_ACCURACY_GUITAR_CHORD_PRIMARY_DISPLAY_AUDIT_ARG) $(DETECTION_ACCURACY_GUITAR_CHORD_TONE_RECOVERY_AUDIT_ARG) $(DETECTION_ACCURACY_URMP_GOOD_SOUNDS_SAX_SHARED_PATTERN_ARG) $(DETECTION_ACCURACY_OCTAVE_CORRECTION_CROSS_CORPUS_AUDIT_ARG) $(DETECTION_ACCURACY_GLOBAL_CHORD_CONFIDENCE_AUDIT_ARG) $(DETECTION_ACCURACY_SAME_ROOT_GUITAR_QUALITY_AUDIT_ARG) $(DETECTION_ACCURACY_GUITARSET_ATTRIBUTE_ARG) $(DETECTION_ACCURACY_OTHER_DETECTION_ARG) --output "$(DETECTION_ACCURACY_REPORT)"
 
 .PHONY: update-detection-accuracy-report-cached

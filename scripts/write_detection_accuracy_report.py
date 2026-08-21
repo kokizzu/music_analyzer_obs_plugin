@@ -483,6 +483,12 @@ FSD50K_RIM_METADATA_RE = re.compile(
     r"dev=(?P<dev>\d+) eval=(?P<eval>\d+)$",
     re.MULTILINE,
 )
+COMMONS_RIMSHOT_CANDIDATE_RE = re.compile(
+    r"^commons_rimshot_candidate: sha1_verified=(?P<sha1>[01]) "
+    r"source_labelled=(?P<labelled>[01]) expected_rolls=(?P<rolls>\d+) "
+    r"temporal_annotations=(?P<timed>[01]) ",
+    re.MULTILINE,
+)
 MDB_RIM_COVERAGE_RE = re.compile(
     r"^mdb_rim_coverage: detected=(?P<detected>\d+)/(?P<total>\d+)$",
     re.MULTILINE,
@@ -715,6 +721,17 @@ def fsd50k_rim_metadata_audit(path: Path) -> tuple[int, int, int]:
     if labelled < 0 or pure < 0 or permissive < 0 or permissive > pure or pure > labelled:
         raise ValueError(f"{path}: invalid FSD50K Rimshot metadata counts")
     return labelled, pure, permissive
+
+
+def commons_rimshot_candidate_audit(path: Path) -> tuple[int, int, int, int]:
+    """Return the source-verification state without treating it as timed truth."""
+    match = COMMONS_RIMSHOT_CANDIDATE_RE.search(path.read_text(encoding="utf-8", errors="replace"))
+    if match is None:
+        raise ValueError(f"{path}: missing Commons Rimshot candidate summary")
+    sha1_verified, labelled, rolls, timed = (int(match[name]) for name in ("sha1", "labelled", "rolls", "timed"))
+    if sha1_verified != 1 or labelled != 1 or rolls != 4 or timed not in {0, 1}:
+        raise ValueError(f"{path}: invalid Commons Rimshot candidate summary")
+    return sha1_verified, labelled, rolls, timed
 
 
 def mdb_rim_coverage(path: Path) -> tuple[int, int]:
@@ -1566,6 +1583,7 @@ def render(
     piano_chord_bassbonus000_audit_input: Path | None = None,
     piano_chord_display_gate_audit_input: Path | None = None,
     fsd50k_rim_metadata_audit_input: Path | None = None,
+    commons_rimshot_candidate_audit_input: Path | None = None,
     mdb_rim_coverage_input: Path | None = None,
 ) -> str:
     samples = load_samples(input_path)
@@ -1753,6 +1771,11 @@ def render(
     fsd50k_rim_metadata = (
         fsd50k_rim_metadata_audit(fsd50k_rim_metadata_audit_input)
         if fsd50k_rim_metadata_audit_input is not None
+        else None
+    )
+    commons_rimshot_candidate = (
+        commons_rimshot_candidate_audit(commons_rimshot_candidate_audit_input)
+        if commons_rimshot_candidate_audit_input is not None
         else None
     )
     mdb_rim = mdb_rim_coverage(mdb_rim_coverage_input) if mdb_rim_coverage_input is not None else None
@@ -3993,7 +4016,7 @@ def render(
             "",
             "## Real-drum Tom/Ride/Rim coverage checklist",
             "",
-            "The full one-shot gate has broad category counts, but its weak Tom/Ride/Rim results need independent real-acoustic replication before a class-specific runtime rule can be trusted. 29k Drums can independently cover Tom and Ride. FSD50K's fixed 200-class vocabulary has no Rimshot label, so ENST remains necessary for Rim.",
+            "The full one-shot gate has broad category counts, but its weak Tom/Ride/Rim results need independent real-acoustic replication before a class-specific runtime rule can be trusted. 29k Drums can independently cover Tom and Ride. FSD50K's fixed 200-class vocabulary has no Rimshot label. The Commons candidate is checksum-verifiable and openly licensed, but its source supplies no per-roll timestamps, so it cannot yet count as accuracy evidence.",
             "",
             "| Work item | Complete / total | Remaining | Evidence required |",
             "| --- | ---: | ---: | --- |",
@@ -4002,7 +4025,8 @@ def render(
             f"| Record all 29k Tom/Ride primary decisions for candidate evaluation | {fraction(samples29k_primary_attributes_available, 1)} | {1 - samples29k_primary_attributes_available} | verbose current and missed primary labels become a reproducible TSV; selectors still need cross-corpus runtime replay |",
             f"| Measure MDB annotated side-stick/Rim event coverage | {fraction(int(mdb_rim is not None), 1)} | {int(mdb_rim is None)} | {fraction(mdb_rim[0], mdb_rim[1]) if mdb_rim is not None else '--'} detected; calibration evidence only, not independent replication |",
             f"| Screen FSD50K fixed vocabulary for licence-compatible Rimshot clips | {fraction(int(fsd50k_rim_metadata is not None), 1)} | {int(fsd50k_rim_metadata is None)} | no audio transfer: {fsd50k_rim_metadata[0] if fsd50k_rim_metadata is not None else '--'} labelled rows, {fsd50k_rim_metadata[1] if fsd50k_rim_metadata is not None else '--'} isolated candidates, {fsd50k_rim_metadata[2] if fsd50k_rim_metadata is not None else '--'} permissive-licence candidates |",
-            "| Independently replicate Rim on real acoustic recordings | 0 / 1 (0.0%) | 1 | ENST-Drums has suitable labelled classes and a public prepared archive, but its research-use licence must be accepted and preserved; annotations alone are insufficient |",
+            f"| Verify licence-free Rimshot recording candidate | {fraction(int(commons_rimshot_candidate is not None), 1)} | {int(commons_rimshot_candidate is None)} | checksum, source label, licence, and 4 stated rolls; {commons_rimshot_candidate[3] if commons_rimshot_candidate is not None else '--'} per-roll timestamps supplied |",
+            "| Independently replicate Rim on real acoustic recordings | 0 / 1 (0.0%) | 1 | acquire source-grounded temporal annotations or a separately labelled corpus; ENST-Drums has suitable labelled classes and a public prepared archive, but remains available only after its research-use licence is accepted and preserved |",
         ]
     )
     lines.extend(
@@ -4058,6 +4082,7 @@ def main() -> int:
     parser.add_argument("--29k-drums-measurement", dest="samples29k_drums_measurement", type=Path)
     parser.add_argument("--29k-drums-primary-attributes", dest="samples29k_drums_primary_attributes", type=Path)
     parser.add_argument("--fsd50k-rim-metadata-audit", type=Path)
+    parser.add_argument("--commons-rimshot-candidate-audit", type=Path)
     parser.add_argument("--mdb-rim-coverage-input", type=Path)
     parser.add_argument("--dagstuhl-choirset-input", type=Path)
     parser.add_argument("--dagstuhl-choirset-validation", type=Path)
@@ -4276,6 +4301,7 @@ def main() -> int:
             args.piano_chord_bassbonus000_audit,
             args.piano_chord_display_gate_audit,
             args.fsd50k_rim_metadata_audit,
+            args.commons_rimshot_candidate_audit,
             args.mdb_rim_coverage_input,
         )
     except (OSError, ValueError) as error:
