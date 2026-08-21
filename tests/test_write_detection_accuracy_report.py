@@ -962,7 +962,7 @@ class DetectionAccuracyReportTest(unittest.TestCase):
             report,
         )
         self.assertIn("| Measure independent 29k Drums Tom/Ride baseline | 0 / 1 (0.0%) | 1 |", report)
-        self.assertIn("| Independently replicate Rim on real acoustic recordings | 0 / 1 (0.0%) | 1 |", report)
+        self.assertIn("| Broaden independent Rim replication beyond one isolated recording | 0 / 1 (0.0%) | 1 |", report)
         self.assertIn("ENST-Drums has suitable labelled classes and a public prepared archive", report)
         self.assertIn("| Aggregate classifier accuracy | 10 / 30 (33.3%) | 20 |", report)
         self.assertIn("## Cross-real drum false-positive cap audit", report)

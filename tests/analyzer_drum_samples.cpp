@@ -648,6 +648,8 @@ int main()
 	}
 	const int verbose_primary_limit =
 		resolve_non_negative_env("MUSIC_ANALYZER_DRUM_SAMPLE_VERBOSE_PRIMARY_LIMIT", 80);
+	const int min_samples_per_category =
+		resolve_positive_env("MUSIC_ANALYZER_DRUM_SAMPLE_MIN_SAMPLES_PER_CATEGORY", 2);
 	const int min_recall_percent = resolve_percent_env("MUSIC_ANALYZER_DRUM_SAMPLE_MIN_RECALL_PERCENT", 45);
 	const int min_precision_percent =
 		resolve_percent_env("MUSIC_ANALYZER_DRUM_SAMPLE_MIN_PRECISION_PERCENT", 0);
@@ -805,8 +807,9 @@ int main()
 		if (!required_categories[i] && totals[i] == 0)
 			continue;
 		if (required_categories[i]) {
-			runner.expect(totals[i] >= 2, std::string("expected at least two usable ") +
-							     category_name(i) + " samples, got " +
+			runner.expect(totals[i] >= min_samples_per_category, std::string("expected at least ") +
+				      std::to_string(min_samples_per_category) + " usable " +
+					     category_name(i) + " samples, got " +
 							     std::to_string(totals[i]));
 		}
 		if (totals[i] == 0)

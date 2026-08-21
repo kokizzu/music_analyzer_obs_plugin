@@ -496,6 +496,11 @@ BEAT_THIS_CONTINUOUS_INTERVAL_GATE_RE = re.compile(
     r"minimum_per_corpus=(?P<minimum>\d+) eligible=(?P<eligible>[01])$",
     re.MULTILINE,
 )
+PIXABAY_RIMSHOT_MEASUREMENT_RE = re.compile(
+    r"^pixabay_rimshot_measurement: detected=(?P<detected>\d+)/(?P<detected_total>\d+) "
+    r"primary=(?P<primary>\d+)/(?P<primary_total>\d+) snare_primary=(?P<snare_primary>\d+)/(?P<snare_total>\d+)$",
+    re.MULTILINE,
+)
 MDB_RIM_COVERAGE_RE = re.compile(
     r"^mdb_rim_coverage: detected=(?P<detected>\d+)/(?P<total>\d+)$",
     re.MULTILINE,
@@ -755,6 +760,20 @@ def beat_this_continuous_interval_gate_audit(path: Path) -> tuple[int, int, int,
         values["intervals"], values["ballroom_correct"], values["ballroom_total"], values["ballroom_wrong"],
         values["filobass_correct"], values["filobass_total"], values["filobass_wrong"], values["eligible"],
     )
+
+
+def pixabay_rimshot_measurement_audit(path: Path) -> tuple[int, int, int]:
+    match = PIXABAY_RIMSHOT_MEASUREMENT_RE.search(path.read_text(encoding="utf-8", errors="replace"))
+    if match is None:
+        raise ValueError(f"{path}: missing isolated Pixabay Rimshot measurement")
+    values = {name: int(value) for name, value in match.groupdict().items()}
+    if values["detected_total"] != 1 or values["primary_total"] != 1 or values["snare_total"] != 1:
+        raise ValueError(f"{path}: invalid isolated Pixabay Rimshot denominator")
+    if values["detected"] not in {0, 1} or values["primary"] not in {0, 1} or values["snare_primary"] not in {0, 1}:
+        raise ValueError(f"{path}: invalid isolated Pixabay Rimshot count")
+    if values["primary"] + values["snare_primary"] != 1:
+        raise ValueError(f"{path}: inconsistent isolated Pixabay Rimshot primary result")
+    return values["detected"], values["primary"], values["snare_primary"]
 
 
 def mdb_rim_coverage(path: Path) -> tuple[int, int]:
@@ -1608,6 +1627,7 @@ def render(
     piano_chord_display_gate_audit_input: Path | None = None,
     fsd50k_rim_metadata_audit_input: Path | None = None,
     commons_rimshot_candidate_audit_input: Path | None = None,
+    pixabay_rimshot_measurement_audit_input: Path | None = None,
     mdb_rim_coverage_input: Path | None = None,
 ) -> str:
     samples = load_samples(input_path)
@@ -1806,6 +1826,11 @@ def render(
         if commons_rimshot_candidate_audit_input is not None
         else None
     )
+    pixabay_rimshot_measurement = (
+        pixabay_rimshot_measurement_audit(pixabay_rimshot_measurement_audit_input)
+        if pixabay_rimshot_measurement_audit_input is not None
+        else None
+    )
     mdb_rim = mdb_rim_coverage(mdb_rim_coverage_input) if mdb_rim_coverage_input is not None else None
     electronic_piano_guitar_audit = (
         electronic_piano_guitar_route_audit(electronic_piano_guitar_route_audit_input)
@@ -1960,7 +1985,7 @@ def render(
         for candidate in (mdb_drums_gate_output, star_drums_gate_output, babyslakh_drums_gate_output)
     )
     piano_chord_evidence = 2 if piano_chord_stability is not None else 0
-    tom_ride_evidence = 2 if samples29k_counts else 0
+    tom_ride_evidence = (2 if samples29k_counts else 0) + int(pixabay_rimshot_measurement is not None)
     continuous_beat_this_evidence = int(beat_this_continuous_ballroom_bpm is not None) + int(
         beat_this_continuous_filobass_bpm is not None
     )
@@ -1979,7 +2004,7 @@ def render(
             "| --- | ---: | ---: | --- |",
             f"| 1. Calibrate drum detection | {fraction(drum_calibration_evidence, 3)} | {fraction(drum_calibration_checkpoint, 1)} | retain the early-onset HiHat rule only while it improves MDB and BabySlakh, preserves STAR, and has no protected false-positive regression |",
             f"| 2. Stabilize chord state | {fraction(piano_chord_evidence, 2)} | {fraction(int(piano_chord_display_gate is not None and piano_chord_display_gate[-1] == 1), 1)} | retain the 0.60 keyboard-only display gate only while it lowers wrong labels without correct-frame or flicker loss |",
-            f"| 3. Improve Tom/Rim/Ride | {fraction(tom_ride_evidence, 3)} | 0 / 1 (0.0%) | obtain independent Rim coverage and prove one shared class-specific improvement |",
+            f"| 3. Improve Tom/Rim/Ride | {fraction(tom_ride_evidence, 3)} | 0 / 1 (0.0%) | broaden independent Rim coverage and prove one shared class-specific improvement |",
             f"| 4. Safe live Beat This! | {fraction(continuous_beat_this_evidence, 2)} | 0 / 1 (0.0%) | continuous causal replay must have no wrong displayed BPM on both real-tempo corpora |",
             f"| 5. High-tempo GTZAN offline veto | {fraction(int(high_tempo_three_tracker_consensus is not None), 1)} | {fraction(int(high_tempo_three_tracker_consensus is not None), 1)} | retain offline-only restriction; it cannot authorize the live BPM display |",
             f"| 6. Proper bass tempo corpus | {fraction(int(filobass_bpm is not None), 1)} | {fraction(int(filobass_bpm is not None), 1)} | turn FiloBass evidence into a protected bass-led selector before any runtime BPM change |",
@@ -4071,7 +4096,8 @@ def render(
             f"| Measure MDB annotated side-stick/Rim event coverage | {fraction(int(mdb_rim is not None), 1)} | {int(mdb_rim is None)} | {fraction(mdb_rim[0], mdb_rim[1]) if mdb_rim is not None else '--'} detected; calibration evidence only, not independent replication |",
             f"| Screen FSD50K fixed vocabulary for licence-compatible Rimshot clips | {fraction(int(fsd50k_rim_metadata is not None), 1)} | {int(fsd50k_rim_metadata is None)} | no audio transfer: {fsd50k_rim_metadata[0] if fsd50k_rim_metadata is not None else '--'} labelled rows, {fsd50k_rim_metadata[1] if fsd50k_rim_metadata is not None else '--'} isolated candidates, {fsd50k_rim_metadata[2] if fsd50k_rim_metadata is not None else '--'} permissive-licence candidates |",
             f"| Verify licence-free Rimshot recording candidate | {fraction(int(commons_rimshot_candidate is not None), 1)} | {int(commons_rimshot_candidate is None)} | checksum, source label, licence, and 4 stated rolls; {commons_rimshot_candidate[3] if commons_rimshot_candidate is not None else '--'} per-roll timestamps supplied |",
-            "| Independently replicate Rim on real acoustic recordings | 0 / 1 (0.0%) | 1 | acquire source-grounded temporal annotations or a separately labelled corpus; ENST-Drums has suitable labelled classes and a public prepared archive, but remains available only after its research-use licence is accepted and preserved |",
+            f"| Measure checksum-pinned isolated real Rimshot | {fraction(int(pixabay_rimshot_measurement is not None), 1)} | {int(pixabay_rimshot_measurement is None)} | detected {pixabay_rimshot_measurement[0] if pixabay_rimshot_measurement is not None else '--'} / 1; Rim primary {pixabay_rimshot_measurement[1] if pixabay_rimshot_measurement is not None else '--'} / 1; Snare primary {pixabay_rimshot_measurement[2] if pixabay_rimshot_measurement is not None else '--'} / 1 |",
+            "| Broaden independent Rim replication beyond one isolated recording | 0 / 1 (0.0%) | 1 | acquire source-grounded temporal annotations or a second separately labelled corpus; ENST-Drums has suitable labelled classes and a public prepared archive, but remains available only after its research-use licence is accepted and preserved |",
         ]
     )
     lines.extend(
@@ -4128,6 +4154,7 @@ def main() -> int:
     parser.add_argument("--29k-drums-primary-attributes", dest="samples29k_drums_primary_attributes", type=Path)
     parser.add_argument("--fsd50k-rim-metadata-audit", type=Path)
     parser.add_argument("--commons-rimshot-candidate-audit", type=Path)
+    parser.add_argument("--pixabay-rimshot-measurement-audit", type=Path)
     parser.add_argument("--mdb-rim-coverage-input", type=Path)
     parser.add_argument("--dagstuhl-choirset-input", type=Path)
     parser.add_argument("--dagstuhl-choirset-validation", type=Path)
@@ -4349,6 +4376,7 @@ def main() -> int:
             args.piano_chord_display_gate_audit,
             args.fsd50k_rim_metadata_audit,
             args.commons_rimshot_candidate_audit,
+            args.pixabay_rimshot_measurement_audit,
             args.mdb_rim_coverage_input,
         )
     except (OSError, ValueError) as error:

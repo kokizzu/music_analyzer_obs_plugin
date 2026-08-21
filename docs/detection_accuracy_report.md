@@ -12,7 +12,7 @@ Evidence coverage means the named corpus replay or audit is available. A goal ch
 | --- | ---: | ---: | --- |
 | 1. Calibrate drum detection | 3 / 3 (100.0%) | 1 / 1 (100.0%) | retain the early-onset HiHat rule only while it improves MDB and BabySlakh, preserves STAR, and has no protected false-positive regression |
 | 2. Stabilize chord state | 2 / 2 (100.0%) | 1 / 1 (100.0%) | retain the 0.60 keyboard-only display gate only while it lowers wrong labels without correct-frame or flicker loss |
-| 3. Improve Tom/Rim/Ride | 2 / 3 (66.7%) | 0 / 1 (0.0%) | obtain independent Rim coverage and prove one shared class-specific improvement |
+| 3. Improve Tom/Rim/Ride | 3 / 3 (100.0%) | 0 / 1 (0.0%) | broaden independent Rim coverage and prove one shared class-specific improvement |
 | 4. Safe live Beat This! | 2 / 2 (100.0%) | 0 / 1 (0.0%) | continuous causal replay must have no wrong displayed BPM on both real-tempo corpora |
 | 5. High-tempo GTZAN offline veto | 1 / 1 (100.0%) | 1 / 1 (100.0%) | retain offline-only restriction; it cannot authorize the live BPM display |
 | 6. Proper bass tempo corpus | 1 / 1 (100.0%) | 1 / 1 (100.0%) | turn FiloBass evidence into a protected bass-led selector before any runtime BPM change |
@@ -2041,6 +2041,7 @@ The full one-shot gate has broad category counts, but its weak Tom/Ride/Rim resu
 | Measure MDB annotated side-stick/Rim event coverage | 1 / 1 (100.0%) | 0 | 0 / 1 (0.0%) detected; calibration evidence only, not independent replication |
 | Screen FSD50K fixed vocabulary for licence-compatible Rimshot clips | 1 / 1 (100.0%) | 0 | no audio transfer: 0 labelled rows, 0 isolated candidates, 0 permissive-licence candidates |
 | Verify licence-free Rimshot recording candidate | 1 / 1 (100.0%) | 0 | checksum, source label, licence, and 4 stated rolls; 0 per-roll timestamps supplied |
-| Independently replicate Rim on real acoustic recordings | 0 / 1 (0.0%) | 1 | acquire source-grounded temporal annotations or a separately labelled corpus; ENST-Drums has suitable labelled classes and a public prepared archive, but remains available only after its research-use licence is accepted and preserved |
+| Measure checksum-pinned isolated real Rimshot | 1 / 1 (100.0%) | 0 | detected 1 / 1; Rim primary 0 / 1; Snare primary 1 / 1 |
+| Broaden independent Rim replication beyond one isolated recording | 0 / 1 (0.0%) | 1 | acquire source-grounded temporal annotations or a second separately labelled corpus; ENST-Drums has suitable labelled classes and a public prepared archive, but remains available only after its research-use licence is accepted and preserved |
 
 Refresh with `make update-detection-accuracy-report`. Whenever a verified detection metric changes, update this report in the same commit.
