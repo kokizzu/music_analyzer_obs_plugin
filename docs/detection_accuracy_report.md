@@ -329,10 +329,10 @@ Source: `build/drum_recovery_candidate_audit.txt`
 | --- | ---: | ---: |
 | Missed annotated events searched across real corpora | 70 / 70 (100.0%) | 0 |
 | Independent real corpora represented | 2 / 2 (100.0%) | 0 |
-| Zero-false cross-real recovery shapes available for replay | 1 / 1 (100.0%) | 0 |
-| Recovery shapes with a verified overall runtime gain | 0 / 1 (0.0%) | 1 |
+| Zero-false cross-real recovery shapes replayed through runtime gates | 3 / 3 (100.0%) | 0 |
+| Recovery shapes with a verified overall runtime gain | 0 / 3 (0.0%) | 3 |
 
-The first HiHat trial was rejected: it increased MDB recall but did not improve MDB precision, did not improve STAR, and did not improve BabySlakh precision.
+All three available cross-real recovery shapes were rejected: none improves the full MDB, STAR, and BabySlakh gate without a regression.
 
 | Runtime trial | MDB true / false | STAR true / false | BabySlakh true / false | Decision |
 | --- | ---: | ---: | ---: | --- |

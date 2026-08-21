@@ -925,6 +925,8 @@ class DetectionAccuracyReportTest(unittest.TestCase):
         self.assertIn("| Protected one-shot runtime-safe contexts | 1 / 2 (50.0%) | 1 |", report)
         self.assertIn("| Early Snare onset | 139→140 / 28→28 | 39→40 / 0→0 | 140→140 / 38→39 |", report)
         self.assertIn("| Low-transient HiHat | 139→140 / 28→28 | 39→39 / 0→0 | 140→140 / 38→38 |", report)
+        self.assertIn("| Zero-false cross-real recovery shapes replayed through runtime gates | 3 / 3 (100.0%) | 0 |", report)
+        self.assertIn("| Recovery shapes with a verified overall runtime gain | 0 / 3 (0.0%) | 3 |", report)
         self.assertIn("## Canonical-first chord display audit", report)
         self.assertIn("| Correct chords rescued only by a later alias | 2 / 17 (11.8%) | 15 |", report)
         self.assertIn("| Correct chords after same-root dim7 promotion | 17 / 20 (85.0%) | 3 |", report)
