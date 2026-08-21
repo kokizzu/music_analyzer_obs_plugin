@@ -1343,7 +1343,7 @@ void draw_root_and_bpm(VisualizerRenderer *visualizer, const AnalysisSnapshot &s
 		constexpr std::array<const char *, 12> kRootNames = {
 			"C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B",
 		};
-		constexpr std::array<const char *, 4> kDeviceNames = {"LJ", "FZ", "APC", "MV"};
+		constexpr std::array<const char *, 5> kDeviceNames = {"LJ", "FZ", "APC", "MV", "AU"};
 		const auto state_color = [](DeviceConnectionState state) {
 			switch (state) {
 			case DeviceConnectionState::Connected:

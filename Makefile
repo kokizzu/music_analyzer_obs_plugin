@@ -6445,6 +6445,15 @@ test-summarize-btt-tempo-sweep: tests/test_summarize_btt_tempo_sweep.py scripts/
 inspect-beat-this-environment: scripts/inspect_beat_this_environment.py
 	$(PYTHON) scripts/inspect_beat_this_environment.py
 
+.PHONY: inspect-fretspark-sdk
+inspect-fretspark-sdk: scripts/inspect_fretspark_sdk.sh
+	bash scripts/inspect_fretspark_sdk.sh
+
+.PHONY: inspect-fretspark-sdk-path
+inspect-fretspark-sdk-path: scripts/inspect_fretspark_sdk.sh
+	@test -n "$(FRETSPARK_SDK_PATH)"
+	bash scripts/inspect_fretspark_sdk.sh FretSpark/fretspark_sdk $(FRETSPARK_SDK_PATH)
+
 .PHONY: report-beat-this-gtzan-job
 report-beat-this-gtzan-job: scripts/inspect_beat_this_environment.py
 	$(PYTHON) scripts/inspect_beat_this_environment.py --model-cache-root "$(BEAT_THIS_DIAGNOSTIC_ROOT)" --diagnostic-log "$(BEAT_THIS_DIAGNOSTIC_LOG)"

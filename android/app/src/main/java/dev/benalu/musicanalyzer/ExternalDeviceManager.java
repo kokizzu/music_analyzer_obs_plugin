@@ -44,6 +44,7 @@ final class ExternalDeviceManager implements Closeable {
     private static final int DEVICE_FRET_ZEALOT = 1;
     private static final int DEVICE_APC_MINI = 2;
     private static final int DEVICE_MVAVE = 3;
+    private static final int DEVICE_AUPHY_SCT_86PRO = 4;
 
     private static final int STATE_DISABLED = 0;
     private static final int STATE_SEARCHING = 1;
@@ -78,7 +79,8 @@ final class ExternalDeviceManager implements Closeable {
     private final Handler handler = new Handler(Looper.getMainLooper());
     private final BleTarget liteJam = new BleTarget(DEVICE_LITEJAM, false);
     private final FretZealotSdkController fretZealot;
-    private final boolean[] deviceAutoconnect = {false, true, true, false};
+    private final AuphySct86ProController auphySct86Pro;
+    private final boolean[] deviceAutoconnect = {false, true, true, false, false};
     private final boolean[] mvavePressed = new boolean[4];
     private final long[] mvavePressedAt = new long[4];
 
@@ -143,6 +145,42 @@ final class ExternalDeviceManager implements Closeable {
                 scheduleBleScanRetry();
             }
         });
+        auphySct86Pro = new AuphySct86ProController(context, new AuphySct86ProController.Listener() {
+            @Override
+            public void onConnecting() {
+                setDeviceState(DEVICE_AUPHY_SCT_86PRO, STATE_CONNECTING);
+            }
+
+            @Override
+            public void onReady() {
+                setDeviceState(DEVICE_AUPHY_SCT_86PRO, STATE_CONNECTED);
+                refreshOutputs(true);
+                if (allEnabledBleDevicesConnected()) {
+                    stopBleScan();
+                }
+            }
+
+            @Override
+            public void onLedCountChanged() {
+                refreshOutputs(true);
+            }
+
+            @Override
+            public void onDisconnected() {
+                setDeviceState(DEVICE_AUPHY_SCT_86PRO,
+                        shouldAutoconnectDevice(DEVICE_AUPHY_SCT_86PRO)
+                                ? STATE_SEARCHING : STATE_DISABLED);
+                scheduleBleScanRetry();
+            }
+
+            @Override
+            public void onError() {
+                setDeviceState(DEVICE_AUPHY_SCT_86PRO,
+                        shouldAutoconnectDevice(DEVICE_AUPHY_SCT_86PRO)
+                                ? STATE_ERROR : STATE_DISABLED);
+                scheduleBleScanRetry();
+            }
+        });
         sendStableFretZealotPacket = () -> {
             if (!started || !fretZealot.isReady() || pendingFretZealotPacket == null) {
                 fretZealotAutoReconciliationScheduled = false;
@@ -194,6 +232,7 @@ final class ExternalDeviceManager implements Closeable {
             stopBleScan();
             closeBleTarget(liteJam, STATE_DISABLED);
             closeFretZealot(STATE_DISABLED);
+            closeAuphySct86Pro(STATE_DISABLED);
             closeMidiConnection(true, STATE_DISABLED);
             closeMidiConnection(false, STATE_DISABLED);
             closeMvaveGatt(STATE_DISABLED);
@@ -220,6 +259,9 @@ final class ExternalDeviceManager implements Closeable {
                     break;
                 case DEVICE_FRET_ZEALOT:
                     closeFretZealot(STATE_DISABLED);
+                    break;
+                case DEVICE_AUPHY_SCT_86PRO:
+                    closeAuphySct86Pro(STATE_DISABLED);
                     break;
                 case DEVICE_APC_MINI:
                     closeMidiConnection(true, STATE_DISABLED);
@@ -254,12 +296,14 @@ final class ExternalDeviceManager implements Closeable {
     private boolean hasEnabledBleDevice() {
         return deviceAutoconnect[DEVICE_LITEJAM]
                 || deviceAutoconnect[DEVICE_FRET_ZEALOT]
+                || deviceAutoconnect[DEVICE_AUPHY_SCT_86PRO]
                 || deviceAutoconnect[DEVICE_MVAVE];
     }
 
     private boolean allEnabledBleDevicesConnected() {
         return (!deviceAutoconnect[DEVICE_LITEJAM] || liteJam.characteristic != null)
                 && (!deviceAutoconnect[DEVICE_FRET_ZEALOT] || fretZealot.isReady())
+                && (!deviceAutoconnect[DEVICE_AUPHY_SCT_86PRO] || auphySct86Pro.isReady())
                 && (!deviceAutoconnect[DEVICE_MVAVE] || hasMvaveConnection());
     }
 
@@ -269,6 +313,7 @@ final class ExternalDeviceManager implements Closeable {
         stopBleScan();
         closeBleTarget(liteJam, STATE_DISABLED);
         closeFretZealot(STATE_DISABLED);
+        closeAuphySct86Pro(STATE_DISABLED);
         closeMidiConnection(true, STATE_DISABLED);
         closeMidiConnection(false, STATE_DISABLED);
         closeMvaveGatt(STATE_DISABLED);
@@ -302,6 +347,9 @@ final class ExternalDeviceManager implements Closeable {
         if (shouldAutoconnectDevice(DEVICE_FRET_ZEALOT) && !fretZealot.isActive()) {
             setDeviceState(DEVICE_FRET_ZEALOT, STATE_SEARCHING);
         }
+        if (shouldAutoconnectDevice(DEVICE_AUPHY_SCT_86PRO) && !auphySct86Pro.isActive()) {
+            setDeviceState(DEVICE_AUPHY_SCT_86PRO, STATE_SEARCHING);
+        }
         if (shouldAutoconnectDevice(DEVICE_APC_MINI) && apcConnection == null && !apcOpening) {
             setDeviceState(DEVICE_APC_MINI, STATE_SEARCHING);
         }
@@ -321,6 +369,9 @@ final class ExternalDeviceManager implements Closeable {
             if (deviceAutoconnect[DEVICE_FRET_ZEALOT]) {
                 setDeviceState(DEVICE_FRET_ZEALOT, STATE_DISABLED);
             }
+            if (deviceAutoconnect[DEVICE_AUPHY_SCT_86PRO]) {
+                setDeviceState(DEVICE_AUPHY_SCT_86PRO, STATE_DISABLED);
+            }
             if (deviceAutoconnect[DEVICE_MVAVE]) {
                 setDeviceState(DEVICE_MVAVE, STATE_DISABLED);
             }
@@ -335,6 +386,9 @@ final class ExternalDeviceManager implements Closeable {
             if (deviceAutoconnect[DEVICE_FRET_ZEALOT]) {
                 setDeviceState(DEVICE_FRET_ZEALOT, STATE_ERROR);
             }
+            if (deviceAutoconnect[DEVICE_AUPHY_SCT_86PRO]) {
+                setDeviceState(DEVICE_AUPHY_SCT_86PRO, STATE_ERROR);
+            }
             if (deviceAutoconnect[DEVICE_MVAVE]) {
                 setDeviceState(DEVICE_MVAVE, STATE_ERROR);
             }
@@ -347,6 +401,9 @@ final class ExternalDeviceManager implements Closeable {
         if (shouldAutoconnectDevice(DEVICE_FRET_ZEALOT) && !fretZealot.isActive()) {
             setDeviceState(DEVICE_FRET_ZEALOT, STATE_SEARCHING);
         }
+        if (shouldAutoconnectDevice(DEVICE_AUPHY_SCT_86PRO) && !auphySct86Pro.isActive()) {
+            setDeviceState(DEVICE_AUPHY_SCT_86PRO, STATE_SEARCHING);
+        }
         if (scanning || allEnabledBleDevicesConnected()) {
             return;
         }
@@ -357,6 +414,9 @@ final class ExternalDeviceManager implements Closeable {
             }
             if (deviceAutoconnect[DEVICE_FRET_ZEALOT]) {
                 setDeviceState(DEVICE_FRET_ZEALOT, STATE_ERROR);
+            }
+            if (deviceAutoconnect[DEVICE_AUPHY_SCT_86PRO]) {
+                setDeviceState(DEVICE_AUPHY_SCT_86PRO, STATE_ERROR);
             }
             if (deviceAutoconnect[DEVICE_MVAVE]) {
                 setDeviceState(DEVICE_MVAVE, STATE_ERROR);
@@ -373,6 +433,9 @@ final class ExternalDeviceManager implements Closeable {
             }
             if (deviceAutoconnect[DEVICE_FRET_ZEALOT]) {
                 setDeviceState(DEVICE_FRET_ZEALOT, STATE_ERROR);
+            }
+            if (deviceAutoconnect[DEVICE_AUPHY_SCT_86PRO]) {
+                setDeviceState(DEVICE_AUPHY_SCT_86PRO, STATE_ERROR);
             }
             if (deviceAutoconnect[DEVICE_MVAVE]) {
                 setDeviceState(DEVICE_MVAVE, STATE_ERROR);
@@ -412,6 +475,13 @@ final class ExternalDeviceManager implements Closeable {
 
     private boolean isFretZealotName(String name) {
         return name.contains("fret zealot") || name.contains("fretzealot");
+    }
+
+    private boolean isAuphySct86ProName(String name) {
+        // Official FretSpark AUPHY patterns: SCT-86PRO-XXXX with optional
+        // hyphen/underscore/space separators. OTA advertisements are not
+        // runtime LED devices and intentionally do not match this expression.
+        return name.matches("^sct[-_ ]?86pro[-_][a-z0-9]{4}$");
     }
 
     private boolean isMvaveBleName(String name) {
@@ -688,6 +758,11 @@ final class ExternalDeviceManager implements Closeable {
         setDeviceState(DEVICE_FRET_ZEALOT, finalState);
     }
 
+    private void closeAuphySct86Pro(int finalState) {
+        auphySct86Pro.close();
+        setDeviceState(DEVICE_AUPHY_SCT_86PRO, finalState);
+    }
+
     private void closeGattQuietly(BluetoothGatt gatt) {
         try {
             gatt.close();
@@ -792,6 +867,10 @@ final class ExternalDeviceManager implements Closeable {
             queuePacket(liteJam, MusicAnalyzerNative.nativeGetLiteJamPacket(nativeHandle));
         }
         refreshFretZealotOutput(force);
+        if (auphySct86Pro.isReady()) {
+            auphySct86Pro.sendScalePixels(
+                    MusicAnalyzerNative.nativeGetAuphyScalePixels(nativeHandle, auphySct86Pro.maxFret()));
+        }
         invalidateDisplay.run();
     }
 
@@ -1129,6 +1208,10 @@ final class ExternalDeviceManager implements Closeable {
                 if (shouldAutoconnectDevice(DEVICE_FRET_ZEALOT)) {
                     fretZealot.connect(result.getDevice());
                 }
+            } else if (isAuphySct86ProName(name)) {
+                if (shouldAutoconnectDevice(DEVICE_AUPHY_SCT_86PRO)) {
+                    auphySct86Pro.connect(result.getDevice());
+                }
             } else if (isMvaveBleName(name)) {
                 connectMvaveGatt(result.getDevice());
             }
@@ -1143,6 +1226,9 @@ final class ExternalDeviceManager implements Closeable {
             }
             if (shouldAutoconnectDevice(DEVICE_FRET_ZEALOT) && !fretZealot.isActive()) {
                 setDeviceState(DEVICE_FRET_ZEALOT, STATE_ERROR);
+            }
+            if (shouldAutoconnectDevice(DEVICE_AUPHY_SCT_86PRO) && !auphySct86Pro.isActive()) {
+                setDeviceState(DEVICE_AUPHY_SCT_86PRO, STATE_ERROR);
             }
             if (shouldAutoconnectDevice(DEVICE_MVAVE) && !hasMvaveConnection()) {
                 setDeviceState(DEVICE_MVAVE, STATE_ERROR);

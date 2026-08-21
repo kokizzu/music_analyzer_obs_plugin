@@ -219,6 +219,33 @@ void test_fret_zealot_packet()
 	assert(found_d_g);
 }
 
+void test_auphy_pixels()
+{
+	const auto pixels = mao::build_auphy_major_scale_pixels(0, 13);
+	assert(!pixels.empty() && pixels.size() % 4 == 0);
+	bool found_low_e_c = false;
+	bool found_high_e_c = false;
+	bool found_open_high_e = false;
+	for (std::size_t offset = 0; offset < pixels.size(); offset += 4) {
+		const int index = pixels[offset];
+		const int fret = index / 6;
+		const int low_to_high_string = 5 - index % 6;
+		assert(fret <= 13);
+		const int note = (std::array<int, 6>{40, 45, 50, 55, 59, 64}[static_cast<std::size_t>(low_to_high_string)] + fret) % 12;
+		const int degree = mao::major_scale_degree(0, note);
+		assert(degree >= 0);
+		const auto color = mao::major_scale_colors()[static_cast<std::size_t>(degree)];
+		assert(pixels[offset + 1] == color.red && pixels[offset + 2] == color.green && pixels[offset + 3] == color.blue);
+		found_low_e_c = found_low_e_c || (index == 53 && color.red == 255 && color.green == 0 && color.blue == 0);
+		found_high_e_c = found_high_e_c || (index == 48 && color.red == 255 && color.green == 0 && color.blue == 0);
+		found_open_high_e = found_open_high_e || (index == 0 && color.red == 255 && color.green == 255 && color.blue == 0);
+	}
+	assert(found_low_e_c);
+	assert(found_high_e_c);
+	assert(found_open_high_e);
+	assert(mao::build_auphy_major_scale_pixels(0, 100).size() <= 6 * 42 * 4);
+}
+
 } // namespace
 
 int main()
@@ -228,6 +255,7 @@ int main()
 	test_apc_display();
 	test_litejam_packet();
 	test_fret_zealot_packet();
+	test_auphy_pixels();
 	std::cout << "fret_control: ok\n";
 	return 0;
 }

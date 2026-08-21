@@ -45,6 +45,8 @@ final class MusicAnalyzerNative {
 
     static native byte[] nativeGetFretZealotPacket(long handle);
 
+    static native byte[] nativeGetAuphyScalePixels(long handle, int maxFret);
+
     static native void nativeRender(long handle, Bitmap bitmap, float elapsedSeconds, float snapshotAgeSeconds);
 
     static native void nativeDestroy(long handle);

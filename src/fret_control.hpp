@@ -20,6 +20,7 @@ enum class ExternalDevice : uint8_t {
 	FretZealot,
 	ApcMini,
 	Mvave,
+	AuphySct86Pro,
 	Count,
 };
 
@@ -103,5 +104,8 @@ ControlAction mvave_action_for_switch(int switch_index, bool held);
 std::vector<uint8_t> build_apc_led_messages(int root_pitch_class, RootControlMode mode);
 std::vector<uint8_t> build_litejam_major_scale_packet(int root_pitch_class);
 std::vector<uint8_t> build_fret_zealot_major_scale_packet(int root_pitch_class);
+// Four-byte cells: firmware LED index, red, green, blue.  The AUPHY/FretSpark
+// matrix is indexed fret-major with physical strings high-E (0) to low-E (5).
+std::vector<uint8_t> build_auphy_major_scale_pixels(int root_pitch_class, int max_fret);
 
 } // namespace mao

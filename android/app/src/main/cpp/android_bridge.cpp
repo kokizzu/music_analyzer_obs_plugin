@@ -241,7 +241,7 @@ int analyzer_touch_target(const mao::VisualizerRenderer &renderer, const mao::An
 	static constexpr std::array<const char *, 12> kRootNames = {
 		"C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B",
 	};
-	static constexpr std::array<const char *, 4> kDeviceNames = {"LJ", "FZ", "APC", "MV"};
+	static constexpr std::array<const char *, 5> kDeviceNames = {"LJ", "FZ", "APC", "MV", "AU"};
 	char mode_root[24] = {};
 	const int root = std::clamp(control.effective_root, 0, 11);
 	std::snprintf(mode_root, sizeof(mode_root), "%s %s%s",
@@ -533,6 +533,17 @@ Java_dev_benalu_musicanalyzer_MusicAnalyzerNative_nativeGetFretZealotPacket(JNIE
 		return env->NewByteArray(0);
 	std::lock_guard<std::mutex> lock(state->control_mutex);
 	return copy_byte_array(env, mao::build_fret_zealot_major_scale_packet(state->fret_control.effective_root()));
+}
+
+extern "C" JNIEXPORT jbyteArray JNICALL
+Java_dev_benalu_musicanalyzer_MusicAnalyzerNative_nativeGetAuphyScalePixels(JNIEnv *env, jclass, jlong handle,
+									      jint max_fret)
+{
+	AndroidAnalyzer *state = from_handle(handle);
+	if (!state)
+		return env->NewByteArray(0);
+	std::lock_guard<std::mutex> lock(state->control_mutex);
+	return copy_byte_array(env, mao::build_auphy_major_scale_pixels(state->fret_control.effective_root(), max_fret));
 }
 
 extern "C" JNIEXPORT void JNICALL

@@ -45,6 +45,10 @@ def main():
         ROOT / "android" / "app" / "src" / "main" / "java" / "dev" / "benalu" / "musicanalyzer" /
         "FretZealotSdkController.java"
     ).read_text(encoding="utf-8")
+    auphy_sct86pro_controller = (
+        ROOT / "android" / "app" / "src" / "main" / "java" / "dev" / "benalu" / "musicanalyzer" /
+        "AuphySct86ProController.java"
+    ).read_text(encoding="utf-8")
     fret_zealot_sdk = (
         ROOT / "android" / "fz-android-sdk" / "src" / "main" / "java" / "com" / "fz" / "blelib" /
         "LEDBLELib.java"
@@ -189,6 +193,9 @@ def main():
     require("src/analyzer.cpp" in native_cmake, "Android native target must use shared analyzer.cpp")
     require("src/visualizer_renderer.cpp" in native_cmake, "Android native target must use shared renderer.cpp")
     require("src/fret_control.cpp" in native_cmake, "Android native target must use shared fret control")
+    require("beat_and_tempo_tracking/src/*.c" in native_cmake and
+            "beat_and_tempo_tracking\"" in native_cmake,
+            "Android native target must compile the pinned beat-tracker sources")
     require("android_bridge.cpp" in native_cmake, "Android native bridge missing from native target")
     require("jnigraphics" in native_cmake, "Android native target must link jnigraphics for AndroidBitmap")
     require("SDL" not in native_cmake, "Android target must not use SDL")
@@ -254,6 +261,7 @@ def main():
     require("nativeHandleMvaveSwitch" in bridge and "mvave_action_for_switch" in bridge,
             "Android JNI must route M-VAVE press/hold actions through the shared control map")
     require("nativeGetLiteJamPacket" in bridge and "nativeGetFretZealotPacket" in bridge and
+            "nativeGetAuphyScalePixels" in bridge and
             "nativeGetApcLedMessages" in bridge and "nativeIsAutomaticRootMode" in bridge,
             "Android JNI must expose all external-device output encoders")
 
@@ -298,6 +306,23 @@ def main():
             "fretZealot.sendPacket" in external_devices and
             "connectBle(fretZealot" not in external_devices,
             "Android BLE manager must delegate Fret Zealot connection and output to the SDK")
+    require("AuphySct86ProController" in external_devices and
+            "isAuphySct86ProName" in external_devices and
+            "auphySct86Pro.connect(result.getDevice())" in external_devices and
+            "nativeGetAuphyScalePixels" in external_devices and
+            "DEVICE_AUPHY_SCT_86PRO = 4" in external_devices and
+            "boolean[] deviceAutoconnect = {false, true, true, false, false}" in external_devices,
+            "Android must independently discover and render the optional AUPHY SCT-86PRO")
+    require("0000fff0-0000-1000-8000-00805f9b34fb" in auphy_sct86pro_controller and
+            "0000fff3-0000-1000-8000-00805f9b34fb" in auphy_sct86pro_controller and
+            "0000fff4-0000-1000-8000-00805f9b34fb" in auphy_sct86pro_controller and
+            "COMMAND_BATCH_BEGIN" in auphy_sct86pro_controller and
+            "COMMAND_BATCH_DATA" in auphy_sct86pro_controller and
+            "COMMAND_BATCH_END" in auphy_sct86pro_controller and
+            "MAX_LEDS_PER_PACKET = 59" in auphy_sct86pro_controller and
+            "COMMAND_QUERY_LED_CONFIG" in auphy_sct86pro_controller and
+            "value[0] & 0xff) != 0xcc" in auphy_sct86pro_controller,
+            "AUPHY must use the FretSpark notification and batched learning-LED protocol")
     require("FRET_ZEALOT_AUTO_ROOT_STABLE_MILLIS = 1250" in external_devices and
             "nativeIsAutomaticRootMode" in external_devices and
             "sendStableFretZealotPacket" in external_devices and
@@ -419,7 +444,7 @@ def main():
             "Android device manager must support direct BLE MIDI, controller input, and APC LED output")
     require("getBondedDevices" in external_devices and "openBondedMvaveIfAvailable" in external_devices,
             "Android MIDI manager must reopen an already bonded M-VAVE controller")
-    require("boolean[] deviceAutoconnect = {false, true, true, false}" in external_devices and
+    require("boolean[] deviceAutoconnect = {false, true, true, false, false}" in external_devices and
             "toggleDeviceAutoconnect" in external_devices and "shouldAutoconnectDevice" in external_devices and
             "allEnabledBleDevicesConnected" in external_devices,
             "Android must default to Fret Zealot/APC-only autoconnect and toggle each device independently")
@@ -431,7 +456,8 @@ def main():
             "M-VAVE handling must capture arbitrary MIDI values, program banks, and hardware diagnostics")
     require("kMajorColors" in fret_control and "kFretZealotMajorColors" in fret_control and
             "build_litejam_major_scale_packet" in fret_control and
-            "build_fret_zealot_major_scale_packet" in fret_control and "build_apc_led_messages" in fret_control,
+            "build_fret_zealot_major_scale_packet" in fret_control and
+            "build_auphy_major_scale_pixels" in fret_control and "build_apc_led_messages" in fret_control,
             "shared fret control must contain rainbow scale and APC output encoders")
     require("CubeSuite" in external_control_docs and "Note On" in external_control_docs and
             "Long-press" in external_control_docs,

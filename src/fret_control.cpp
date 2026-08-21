@@ -447,4 +447,29 @@ std::vector<uint8_t> build_fret_zealot_major_scale_packet(int root_pitch_class)
 	return packet;
 }
 
+std::vector<uint8_t> build_auphy_major_scale_pixels(int root_pitch_class, int max_fret)
+{
+	// FretSpark's learning-LED wire format stores the index in one byte.
+	// Keep the caller's dynamic hardware range within that protocol limit.
+	const int last_fret = std::clamp(max_fret, 0, 41);
+	std::vector<uint8_t> pixels;
+	pixels.reserve(static_cast<std::size_t>(last_fret + 1) * kStandardTuningLowToHigh.size() * 4);
+	for (std::size_t string = 0; string < kStandardTuningLowToHigh.size(); ++string) {
+		for (int fret = 0; fret <= last_fret; ++fret) {
+			const int note = normalize_pitch_class(kStandardTuningLowToHigh[string] + fret);
+			const int degree = major_scale_degree(root_pitch_class, note);
+			if (degree < 0)
+				continue;
+			const RgbColor color = kMajorColors[static_cast<std::size_t>(degree)];
+			// The native tuning table is low-E to high-E.  The official
+			// FretSpark SDK calls physical string zero high-E.
+			pixels.push_back(static_cast<uint8_t>(fret * 6 + 5 - static_cast<int>(string)));
+			pixels.push_back(color.red);
+			pixels.push_back(color.green);
+			pixels.push_back(color.blue);
+		}
+	}
+	return pixels;
+}
+
 } // namespace mao

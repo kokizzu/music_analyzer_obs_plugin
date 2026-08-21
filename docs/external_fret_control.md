@@ -1,23 +1,23 @@
 # External fretboard and root control
 
-The Android app can drive a LiteJam RGB guitar or Fret Zealot fretboard from the analyzer root while accepting root controls from an Akai APC mini mk2 or M-VAVE Chocolate Plus. All four devices are optional and discovered independently.
+The Android app can drive a LiteJam RGB guitar, Fret Zealot fretboard, or AUPHY SCT-86PRO from the analyzer root while accepting root controls from an Akai APC mini mk2 or M-VAVE Chocolate Plus. All five devices are optional and discovered independently.
 
 ## Root and scale behavior
 
 - `AUTO` follows the analyzer's most recent valid detected root. An empty/uncertain analyzer frame does not erase the last valid root.
 - `MAN` retains a separate manually selected root. Changing the manual root while `AUTO` is active does not silently switch modes.
 - Both modes render a major scale in standard guitar tuning. The degree colors are root red, second orange, third yellow, fourth green, fifth cyan, sixth blue, and seventh purple.
-- LiteJam receives frets 0-24. Fret Zealot's 15 physical fret positions (musical frets 1-15) are encoded as LED indices 0-14.
+- LiteJam receives frets 0-24. Fret Zealot's 15 physical fret positions (musical frets 1-15) are encoded as LED indices 0-14. AUPHY receives fret-major LED indices starting at the open strings, with its physical string 0 as high E.
 
 The status immediately before BPM shows the effective mode/root and each connection:
 
 ```text
-AUTO C  LJ+ FZ? APC- MV!
+AUTO C  LJ+ FZ? APC- MV! AU+
 ```
 
-`+` is connected, `?` is searching, `~` is connecting, `!` is an error, and `-` is disabled. `LJ`, `FZ`, `APC`, and `MV` mean LiteJam, Fret Zealot, APC mini mk2, and M-VAVE. Fret Zealot and APC autoconnect are enabled by default; LiteJam and M-VAVE are disabled by default. Tap one of the four device labels to toggle autoconnect only for that device. Disabling a label disconnects that device and leaves the other three unchanged. Long-press anywhere on the analyzer view to turn the global device autoconnect switch off or back on; `OFF` appears beside the root while globally disabled. Tap only the current input-source label in the top header to cycle the audio input; ordinary taps elsewhere do nothing.
+`+` is connected, `?` is searching, `~` is connecting, `!` is an error, and `-` is disabled. `LJ`, `FZ`, `APC`, `MV`, and `AU` mean LiteJam, Fret Zealot, APC mini mk2, M-VAVE, and AUPHY SCT-86PRO. Fret Zealot and APC autoconnect are enabled by default; LiteJam, M-VAVE, and AUPHY are disabled by default. Tap one of the five device labels to toggle autoconnect only for that device. Disabling a label disconnects that device and leaves the other four unchanged. Long-press anywhere on the analyzer view to turn the global device autoconnect switch off or back on; `OFF` appears beside the root while globally disabled. Tap only the current input-source label in the top header to cycle the audio input; ordinary taps elsewhere do nothing.
 
-For physical debug validation, `make android-set-root ROOT=G` switches the already-running debug app to `MAN G` and refreshes connected LiteJam, Fret Zealot, APC, and M-VAVE output without restarting audio capture. This ADB-only entry point is guarded by `BuildConfig.DEBUG`, so release builds retain normal analyzer/controller behavior.
+For physical debug validation, `make android-set-root ROOT=G` switches the already-running debug app to `MAN G` and refreshes connected LiteJam, Fret Zealot, AUPHY, APC, and M-VAVE output without restarting audio capture. This ADB-only entry point is guarded by `BuildConfig.DEBUG`, so release builds retain normal analyzer/controller behavior.
 
 ## APC mini mk2
 
@@ -99,6 +99,21 @@ On connection, the first reset marker performs the one full-board clear. Manual 
 
 The app briefly shows a rainbow `MUSIC` connection glyph, then displays the selected scale. The SDK module intentionally preserves only the LED API and modern BLE lifecycle; obsolete upstream UI and firmware-update dependencies are not bundled.
 
+## AUPHY SCT-86PRO (FretSpark)
+
+The SCT-86PRO adapter is implemented from the official open-source [FretSpark SDK](https://github.com/FretSpark/fretspark_sdk), using its `auphy` brand configuration. Discovery accepts runtime advertisements matching `SCT-86PRO-XXXX` (with the SDK's supported separator variants); OTA advertisements are deliberately excluded because this app only drives live LED boards.
+
+The controller requests MTU 247, discovers service `0000fff0-0000-1000-8000-00805f9b34fb`, writes FFF3 (`0000fff3-0000-1000-8000-00805f9b34fb`), and enables notifications on FFF4 (`0000fff4-0000-1000-8000-00805f9b34fb`). It uses the SDK framing exactly:
+
+```text
+app -> board: [0xBC, command, parameter length, parameters..., 0x55]
+board -> app: [0xCC, command, data length, data..., 0xAA]
+```
+
+After notification setup it selects matrix layout (`0x02, 0x00`), powers the panel on, and queries firmware/version (`0x1E`), LED count (`0x1F`), and LED index mode (`0x28`). The SDK-compatible initial LED count is 90; when FFF4 reports the real count, the current scale is rebuilt for `ledCount / 6 - 1` frets. This prevents a shorter SCT-86PRO board from receiving out-of-range pixels while allowing longer boards to light their full fret range.
+
+The shared native encoder converts the analyzer's low-E-to-high-E tuning into FretSpark's high-E-to-low-E string numbering: `index = fret * 6 + (5 - nativeString)`. It preserves the same seven major-scale degree colors as LiteJam. Each complete root update first clears learning LEDs (`0x22, [0x00]`), then uses the SDK learning-multiple command (`0x22, [0x02, count, index/r/g/b...]`) for up to 59 pixels. Larger boards use the SDK batch sequence `0x1C`, one or more `0x16` chunks of at most 59 pixels, and `0x1D`. Frames remain FIFO with the initial configuration and query commands, matching FretSpark's send-queue semantics.
+
 ## Hardware validation
 
-Automated tests validate mode retention, chromatic wrapping, controller maps, glyph precedence, LiteJam segment/string encoding, Fret Zealot nibble packing, and delegation through the SDK API. An APK build validates all JNI and Android APIs. Physical hardware is still required to validate advertised names on a particular firmware, left-handed/custom tuning expectations, BLE write pacing, and the selected MidiSuite preset.
+Automated tests validate mode retention, chromatic wrapping, controller maps, glyph precedence, LiteJam segment/string encoding, Fret Zealot nibble packing, AUPHY high-E-first pixel encoding, and delegation through the SDK-derived transport. An APK build validates all JNI and Android APIs. Physical hardware is still required to validate advertised names on a particular firmware, actual LED count/index direction, BLE write pacing, left-handed/custom tuning expectations, and the selected MidiSuite preset.
