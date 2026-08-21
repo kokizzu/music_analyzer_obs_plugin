@@ -26,6 +26,7 @@ enum class VisualizerLayoutMode {
 struct DrumBar {
 	float age = 0.0f;
 	float level = 0.0f;
+	bool is_peak = false;
 };
 
 struct StableDisplayState {
@@ -52,6 +53,12 @@ struct VisualizerRenderer {
 	bool show_other_row = false;
 	uint64_t drum_history_sequence = 0;
 	std::array<std::vector<DrumBar>, kDrumCount> drum_history = {};
+	std::array<float, kDrumCount> previous_drum_levels = {};
+	std::array<bool, kDrumCount> drum_peak_armed = [] {
+		std::array<bool, kDrumCount> armed = {};
+		armed.fill(true);
+		return armed;
+	}();
 	std::array<StableDisplayState, 5> stable_labels = {};
 	ExternalControlDisplay external_control = {};
 	std::vector<uint8_t> pixels;

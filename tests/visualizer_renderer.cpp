@@ -223,6 +223,26 @@ int run_visualizer_renderer_tests()
 			    renderer.stable_labels[StableVocal].label[0] == '\0',
 		    "silence should clear retained bass and vocal KEY displays", &checks, &failures);
 
+	VisualizerRenderer drum_renderer;
+	AnalysisSnapshot drum_snapshot;
+	drum_snapshot.sequence = 1;
+	drum_snapshot.drums[0].level = 0.70f;
+	append_visualizer_drum_hits(&drum_renderer, drum_snapshot);
+	expect_true(drum_renderer.drum_history[0].back().is_peak,
+		    "the first drum rise should receive a white peak accent", &checks, &failures);
+	drum_snapshot.sequence = 2;
+	append_visualizer_drum_hits(&drum_renderer, drum_snapshot);
+	expect_true(!drum_renderer.drum_history[0].back().is_peak,
+		    "an equal-height subsequent drum frame must remain orange", &checks, &failures);
+	drum_snapshot.sequence = 3;
+	drum_snapshot.drums[0].level = 0.10f;
+	append_visualizer_drum_hits(&drum_renderer, drum_snapshot);
+	drum_snapshot.sequence = 4;
+	drum_snapshot.drums[0].level = 0.70f;
+	append_visualizer_drum_hits(&drum_renderer, drum_snapshot);
+	expect_true(drum_renderer.drum_history[0].back().is_peak,
+		    "a lower drum frame must rearm the next rise's white peak accent", &checks, &failures);
+
 	if (failures != 0)
 		return 1;
 

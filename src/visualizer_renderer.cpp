@@ -504,6 +504,7 @@ void draw_drum_chart(VisualizerRenderer *visualizer, int x, int y, int w, const 
 	const int chart_h = 28;
 	const Color bg{24, 30, 38, 210};
 	const Color active_bg{242, 149, 40, 235};
+	const Color peak_bg{248, 250, 252, 255};
 	const Color border{86, 96, 111, 230};
 	const Color text{240, 244, 248, 255};
 	const int label_bar_w = std::clamp(static_cast<int>(drum.level * static_cast<float>(w) + 0.5f), 0, w);
@@ -524,7 +525,8 @@ void draw_drum_chart(VisualizerRenderer *visualizer, int x, int y, int w, const 
 			continue;
 		const int bar_x = x + std::clamp(static_cast<int>((1.0f - bar.age) * static_cast<float>(w - 4)), 0, w - 4);
 		const int bar_h = std::clamp(static_cast<int>(bar.level * static_cast<float>(chart_h - 4)), 2, chart_h - 4);
-		fill_rect(visualizer, bar_x, chart_y + chart_h - 2 - bar_h, 3, bar_h, active_bg);
+		fill_rect(visualizer, bar_x, chart_y + chart_h - 2 - bar_h, 3, bar_h,
+			  bar.is_peak ? peak_bg : active_bg);
 	}
 }
 
@@ -1521,11 +1523,19 @@ bool append_drum_hits(VisualizerRenderer *visualizer, const AnalysisSnapshot &sn
 	bool appended = false;
 	for (std::size_t i = 0; i < snapshot.drums.size(); ++i) {
 		const DrumState &drum = snapshot.drums[i];
-		if (drum.level <= 0.30f)
+		const float level = std::clamp(drum.level, 0.0f, 1.0f);
+		constexpr float kPeakDropEpsilon = 0.02f;
+		if (level + kPeakDropEpsilon < visualizer->previous_drum_levels[i])
+			visualizer->drum_peak_armed[i] = true;
+		const bool is_peak = level > 0.30f && visualizer->drum_peak_armed[i];
+		visualizer->previous_drum_levels[i] = level;
+		if (level <= 0.30f)
 			continue;
 
 		auto &history = visualizer->drum_history[i];
-		history.push_back(DrumBar{0.0f, std::clamp(drum.level, 0.0f, 1.0f)});
+		history.push_back(DrumBar{0.0f, level, is_peak});
+		if (is_peak)
+			visualizer->drum_peak_armed[i] = false;
 		if (history.size() > 64)
 			history.erase(history.begin());
 		appended = true;
