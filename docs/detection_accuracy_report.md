@@ -12,7 +12,7 @@ Evidence coverage means the named corpus replay or audit is available. A goal ch
 | --- | ---: | ---: | --- |
 | 1. Calibrate drum detection | 3 / 3 (100.0%) | 1 / 1 (100.0%) | retain the early-onset HiHat rule only while it improves MDB and BabySlakh, preserves STAR, and has no protected false-positive regression |
 | 2. Stabilize chord state | 2 / 2 (100.0%) | 1 / 1 (100.0%) | retain the 0.60 keyboard-only display gate only while it lowers wrong labels without correct-frame or flicker loss |
-| 3. Improve Tom/Rim/Ride | 3 / 3 (100.0%) | 0 / 1 (0.0%) | broaden independent Rim coverage and prove one shared class-specific improvement |
+| 3. Improve Tom/Rim/Ride | 4 / 4 (100.0%) | 0 / 1 (0.0%) | prove one shared class-specific improvement across protected corpora |
 | 4. Safe live Beat This! | 2 / 2 (100.0%) | 1 / 1 (100.0%) | optional C++ sidecar preserves the exact 20 s packet and ≥44-interval gate; it never replaces a displayable normal BPM |
 | 5. High-tempo GTZAN offline veto | 1 / 1 (100.0%) | 1 / 1 (100.0%) | retain offline-only restriction; it cannot authorize the live BPM display |
 | 6. Proper bass tempo corpus | 1 / 1 (100.0%) | 1 / 1 (100.0%) | turn FiloBass evidence into a protected bass-led selector before any runtime BPM change |
@@ -2023,7 +2023,7 @@ Source: `build/29k_samples_drums_measurement.log`. The fixture uses only publish
 
 ### Retained final-arbitration Ride recovery
 
-This runs only for non-generated one-shots with no active Ride candidate, high energy at least 0.82, and Ride/HiHat segment ratio at least 3.091. It was selected on the 29k acoustic fixture and replayed through the full, HF, and IDMT one-shot gates without a failing protected gate.
+This runs only for non-generated one-shots with no active Ride candidate, high energy at least 0.82, and Ride/HiHat segment ratio at least 3.091. It was selected on the 29k acoustic fixture. The current full one-shot Ride replay is 316 / 352 (89.8%), one sample below its 90% gate, so this remains local 29k evidence rather than an independent positive replication.
 
 | Metric | Accurate / total | Change from preserved 29k baseline |
 | --- | ---: | ---: |
@@ -2043,6 +2043,19 @@ The candidate searches below looked promising locally or had many missed samples
 | Cached Tom→Snare zero-regression screen | 509 routed Tom samples across the protected one-shot cache | closest selector fixes 52 but breaks 429 protected primary labels and creates 236 new active labels | reject: no selector satisfies the zero-regression gate |
 | HF Ride→HiHat zero-regression screen | 3 routed Ride samples in the independent high-fidelity kit | only selector fixes 3 but breaks 259 protected primary labels and creates 76 new active labels | reject: no selector satisfies the zero-regression gate |
 
+## Virtuosity Drums independent CC0 acoustic baseline
+
+Source: `build/virtuosity_drums_measurement.log`. The fixture uses only the library's named overhead-channel Snare Rimshot/Cross-stick, normal Tom, and normal/Bell Ride articulations; it excludes duplicate microphones.
+
+| Metric | Accurate / total | Remaining |
+| --- | ---: | ---: |
+| Virtuosity Drums — Tom detected | 47 / 48 (97.9%) | 1 |
+| Virtuosity Drums — Tom primary display | 45 / 48 (93.8%) | 3 |
+| Virtuosity Drums — Ride detected | 17 / 21 (81.0%) | 4 |
+| Virtuosity Drums — Ride primary display | 1 / 21 (4.8%) | 20 |
+| Virtuosity Drums — Rim detected | 18 / 28 (64.3%) | 10 |
+| Virtuosity Drums — Rim primary display | 5 / 28 (17.9%) | 23 |
+
 ## BabySlakh drum-validation checklist
 
 BabySlakh is an independently rendered 16 kHz multitrack corpus with aligned per-stem MIDI. It strengthens calibration coverage but cannot replace real-recording evidence.
@@ -2057,13 +2070,14 @@ BabySlakh is an independently rendered 16 kHz multitrack corpus with aligned per
 
 ## Real-drum Tom/Ride/Rim coverage checklist
 
-The full one-shot gate has broad category counts, but its weak Tom/Ride/Rim results need independent real-acoustic replication before a class-specific runtime rule can be trusted. 29k Drums can independently cover Tom and Ride. FSD50K's fixed 200-class vocabulary has no Rimshot label. The Commons candidate is checksum-verifiable and openly licensed, but its source supplies no per-roll timestamps, so it cannot yet count as accuracy evidence.
+The full one-shot gate has broad category counts, but its weak Tom/Ride/Rim results need independent real-acoustic replication before a class-specific runtime rule can be trusted. 29k Drums independently covers Tom and Ride; the pinned CC0 Virtuosity Drums fixture adds all three classes. FSD50K's fixed 200-class vocabulary has no Rimshot label. The Commons candidate is checksum-verifiable and openly licensed, but its source supplies no per-roll timestamps, so it cannot yet count as accuracy evidence.
 
 | Work item | Complete / total | Remaining | Evidence required |
 | --- | ---: | ---: | --- |
 | Checksum-verified 29k Drums archive inspected for Tom/Ride labels | 1 / 1 (100.0%) | 0 | inspection follows successful Zenodo MD5 and ZIP integrity verification |
 | Measure independent 29k Drums Tom/Ride baseline | 1 / 1 (100.0%) | 0 | prepared, labelled acoustic one-shot fixture and analyzer x/total results |
 | Record all 29k Tom/Ride primary decisions for candidate evaluation | 1 / 1 (100.0%) | 0 | verbose current and missed primary labels become a reproducible TSV; selectors still need cross-corpus runtime replay |
+| Measure CC0 Virtuosity Drums Rim/Tom/Ride baseline | 1 / 1 (100.0%) | 0 | Tom primary 45 / 48 (93.8%); Ride primary 1 / 21 (4.8%); Rim primary 5 / 28 (17.9%) |
 | Measure MDB annotated side-stick/Rim event coverage | 1 / 1 (100.0%) | 0 | 0 / 1 (0.0%) detected; calibration evidence only, not independent replication |
 | Screen FSD50K fixed vocabulary for licence-compatible Rimshot clips | 1 / 1 (100.0%) | 0 | no audio transfer: 0 labelled rows, 0 isolated candidates, 0 permissive-licence candidates |
 | Verify licence-free Rimshot recording candidate | 1 / 1 (100.0%) | 0 | checksum, source label, licence, and 4 stated rolls; 0 per-roll timestamps supplied |

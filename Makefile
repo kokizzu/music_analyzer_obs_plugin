@@ -242,12 +242,13 @@ DETECTION_ACCURACY_DRUM_RECOVERY_CANDIDATE_AUDIT_ARG = $(if $(wildcard $(DRUM_RE
 DETECTION_ACCURACY_CHORD_PRIMARY_COMPONENT_AUDIT_ARG = --chord-primary-component-audit "$(CHORD_PRIMARY_COMPONENT_AUDIT)"
 DETECTION_ACCURACY_POLYPHONIC_CANDIDATE_CAPACITY_AUDIT_ARG = --polyphonic-candidate-capacity-audit "$(POLYPHONIC_CANDIDATE_CAPACITY_AUDIT)"
 DETECTION_ACCURACY_HARMONIC_PRODUCT_OCTAVE_AUDIT_ARG = --harmonic-product-octave-audit "$(HARMONIC_PRODUCT_OCTAVE_AUDIT)"
-DETECTION_ACCURACY_SAME_ROOT_GUITAR_QUALITY_AUDIT_ARG = --same-root-guitar-quality-audit "$(SAME_ROOT_GUITAR_QUALITY_AUDIT)" $(DETECTION_ACCURACY_OWNER_CLASSIFIER_LOCO_AUDIT_ARG) $(DETECTION_ACCURACY_OWNER_SCORE_CALIBRATION_LOCO_AUDIT_ARG) --drum-primary-loco-audit "$(DRUM_PRIMARY_LOCO_AUDIT)" $(DETECTION_ACCURACY_DRUM_FALSE_POSITIVE_CAP_AUDIT_ARG) $(DETECTION_ACCURACY_MDB_FULL_MIX_FALSE_POSITIVE_CAP_AUDIT_ARG) $(DETECTION_ACCURACY_MDB_FULL_MIX_COMPETING_ACTIVE_CONTEXT_AUDIT_ARG) $(DETECTION_ACCURACY_DRUM_FALSE_POSITIVE_CONTEXT_AUDIT_ARG) $(DETECTION_ACCURACY_DRUM_RECOVERY_CANDIDATE_AUDIT_ARG) $(DETECTION_ACCURACY_CHORD_PRIMARY_COMPONENT_AUDIT_ARG) $(DETECTION_ACCURACY_POLYPHONIC_CANDIDATE_CAPACITY_AUDIT_ARG) $(DETECTION_ACCURACY_HARMONIC_PRODUCT_OCTAVE_AUDIT_ARG) $(DETECTION_ACCURACY_29K_DRUMS_INSPECTION_ARG) $(DETECTION_ACCURACY_29K_DRUMS_MEASUREMENT_ARG) $(DETECTION_ACCURACY_29K_DRUMS_PRIMARY_ATTRIBUTE_ARG)
+DETECTION_ACCURACY_SAME_ROOT_GUITAR_QUALITY_AUDIT_ARG = --same-root-guitar-quality-audit "$(SAME_ROOT_GUITAR_QUALITY_AUDIT)" $(DETECTION_ACCURACY_OWNER_CLASSIFIER_LOCO_AUDIT_ARG) $(DETECTION_ACCURACY_OWNER_SCORE_CALIBRATION_LOCO_AUDIT_ARG) --drum-primary-loco-audit "$(DRUM_PRIMARY_LOCO_AUDIT)" $(DETECTION_ACCURACY_DRUM_FALSE_POSITIVE_CAP_AUDIT_ARG) $(DETECTION_ACCURACY_MDB_FULL_MIX_FALSE_POSITIVE_CAP_AUDIT_ARG) $(DETECTION_ACCURACY_MDB_FULL_MIX_COMPETING_ACTIVE_CONTEXT_AUDIT_ARG) $(DETECTION_ACCURACY_DRUM_FALSE_POSITIVE_CONTEXT_AUDIT_ARG) $(DETECTION_ACCURACY_DRUM_RECOVERY_CANDIDATE_AUDIT_ARG) $(DETECTION_ACCURACY_CHORD_PRIMARY_COMPONENT_AUDIT_ARG) $(DETECTION_ACCURACY_POLYPHONIC_CANDIDATE_CAPACITY_AUDIT_ARG) $(DETECTION_ACCURACY_HARMONIC_PRODUCT_OCTAVE_AUDIT_ARG) $(DETECTION_ACCURACY_29K_DRUMS_INSPECTION_ARG) $(DETECTION_ACCURACY_29K_DRUMS_MEASUREMENT_ARG) $(DETECTION_ACCURACY_29K_DRUMS_PRIMARY_ATTRIBUTE_ARG) $(DETECTION_ACCURACY_VIRTUOSITY_DRUMS_MEASUREMENT_ARG)
 DETECTION_ACCURACY_GUITARSET_ATTRIBUTE_ARG = $(if $(wildcard $(GUITARSET_ATTRIBUTE_TSV)),--guitarset-attribute-input "$(GUITARSET_ATTRIBUTE_TSV)") $(DETECTION_ACCURACY_FSD50K_RIM_METADATA_ARG)
 DETECTION_ACCURACY_REPORT ?= docs/detection_accuracy_report.md
 DETECTION_ACCURACY_29K_DRUMS_INSPECTION_ARG = $(if $(wildcard $(SAMPLES29K_DRUMS_INSPECTION)),--29k-drums-inspection "$(SAMPLES29K_DRUMS_INSPECTION)")
 DETECTION_ACCURACY_29K_DRUMS_MEASUREMENT_ARG = $(if $(wildcard $(SAMPLES29K_DRUMS_MEASUREMENT)),--29k-drums-measurement "$(SAMPLES29K_DRUMS_MEASUREMENT)")
 DETECTION_ACCURACY_29K_DRUMS_PRIMARY_ATTRIBUTE_ARG = $(if $(wildcard $(SAMPLES29K_DRUMS_PRIMARY_ATTRIBUTE_ROWS)),--29k-drums-primary-attributes "$(SAMPLES29K_DRUMS_PRIMARY_ATTRIBUTE_ROWS)")
+DETECTION_ACCURACY_VIRTUOSITY_DRUMS_MEASUREMENT_ARG = $(if $(wildcard $(VIRTUOSITY_DRUMS_MEASUREMENT)),--virtuosity-drums-measurement "$(VIRTUOSITY_DRUMS_MEASUREMENT)")
 DETECTION_ACCURACY_FSD50K_RIM_METADATA_ARG = $(if $(wildcard $(FSD50K_RIM_METADATA_AUDIT)),--fsd50k-rim-metadata-audit "$(FSD50K_RIM_METADATA_AUDIT)") $(DETECTION_ACCURACY_COMMONS_RIMSHOT_CANDIDATE_ARG)
 DETECTION_ACCURACY_COMMONS_RIMSHOT_CANDIDATE_ARG = $(if $(wildcard $(COMMONS_RIMSHOT_CANDIDATE_AUDIT)),--commons-rimshot-candidate-audit "$(COMMONS_RIMSHOT_CANDIDATE_AUDIT)")
 DETECTION_ACCURACY_PIXABAY_RIMSHOT_MEASUREMENT_ARG = $(if $(wildcard $(PIXABAY_RIMSHOT_MEASUREMENT_AUDIT)),--pixabay-rimshot-measurement-audit "$(PIXABAY_RIMSHOT_MEASUREMENT_AUDIT)")
@@ -879,7 +880,7 @@ IDMT_DRUMS_SHARD_TARGETS := $(addprefix test-idmt-drums-samples-shard-,$(IDMT_DR
 IDMT_DRUMS_SHARD_OUTS := $(addprefix $(BUILD_DIR)/idmt_drums_samples_shard_,$(addsuffix .out,$(IDMT_DRUMS_SHARD_CATEGORIES)))
 IDMT_DRUMS_PRIMARY_ATTRIBUTE_PARTS := $(addprefix $(BUILD_DIR)/idmt_drums_primary_attribute_rows_,$(addsuffix .tsv,$(IDMT_DRUMS_SHARD_CATEGORIES)))
 IDMT_DRUMS_TEST_MAKE_JOBS = $(if $(filter -j%,$(MAKEFLAGS)),,-j$(words $(IDMT_DRUMS_SHARD_CATEGORIES)))
-DRUM_PROTECTED_PRIMARY_ATTRIBUTE_INPUTS ?= $(DRUM_SPREAD_EXACT_ATTRIBUTE_ROWS) $(HF_DRUM_KIT_PRIMARY_ATTRIBUTE_ROWS) $(IDMT_DRUMS_PRIMARY_ATTRIBUTE_ROWS) $(DRUM_FULL_EXACT_ATTRIBUTE_ROWS) $(SAMPLES29K_DRUMS_PRIMARY_ATTRIBUTE_ROWS)
+DRUM_PROTECTED_PRIMARY_ATTRIBUTE_INPUTS ?= $(DRUM_SPREAD_EXACT_ATTRIBUTE_ROWS) $(HF_DRUM_KIT_PRIMARY_ATTRIBUTE_ROWS) $(IDMT_DRUMS_PRIMARY_ATTRIBUTE_ROWS) $(DRUM_FULL_EXACT_ATTRIBUTE_ROWS) $(SAMPLES29K_DRUMS_PRIMARY_ATTRIBUTE_ROWS) $(VIRTUOSITY_DRUMS_PRIMARY_ATTRIBUTE_ROWS)
 MDB_DRUMS_SAMPLE_DIR ?= $(BUILD_DIR)/mdb_drums_full_mix_samples
 MDB_DRUMS_SOURCE_ROOT ?=
 MDB_DRUMS_AUDIO_FLAVOR ?= full_mix
@@ -916,6 +917,16 @@ ENST_DRUMS_ARCHIVE ?= $(ENST_DRUMS_SOURCE_DIR)/enstdrums_yourmt3_16k.tar.gz
 ENST_DRUMS_ARCHIVE_URL ?= https://zenodo.org/record/7831843/files/enstdrums_yourmt3_16k.tar.gz?download=1
 ENST_DRUMS_ARCHIVE_MD5 ?= 7e28c2a923e4f4162b3d83877cedb5eb
 ENST_DRUMS_LICENSE_ACCEPTED ?= 0
+VIRTUOSITY_DRUMS_REPOSITORY ?= https://github.com/sfzinstruments/virtuosity_drums.git
+VIRTUOSITY_DRUMS_BRANCH ?= master
+VIRTUOSITY_DRUMS_SOURCE_PROBE ?= $(BUILD_DIR)/virtuosity_drums_source.txt
+VIRTUOSITY_DRUMS_COMMIT ?= 9f04cf9a734527edfbb0a4eee1f674e45bbf71bc
+VIRTUOSITY_DRUMS_SOURCE_DIR ?= $(INSTRUMENT_SAMPLE_STORE_LINK)/virtuosity_drums
+VIRTUOSITY_DRUMS_SAMPLE_DIR ?= $(INSTRUMENT_SAMPLE_STORE_LINK)/virtuosity_drums_samples
+VIRTUOSITY_DRUMS_LIMIT_PER_CATEGORY ?= 48
+VIRTUOSITY_DRUMS_MIN_PER_CATEGORY ?= 20
+VIRTUOSITY_DRUMS_MEASUREMENT ?= $(BUILD_DIR)/virtuosity_drums_measurement.log
+VIRTUOSITY_DRUMS_PRIMARY_ATTRIBUTE_ROWS ?= $(BUILD_DIR)/virtuosity_drums_primary_attribute_rows.tsv
 SAMPLES29K_DRUMS_SOURCE_DIR ?= $(INSTRUMENT_SAMPLE_STORE_LINK)/29k_samples_drums
 SAMPLES29K_DRUMS_ARCHIVE ?= $(SAMPLES29K_DRUMS_SOURCE_DIR)/29kSamplesDrumsDataset.zip
 SAMPLES29K_DRUMS_ARCHIVE_URL ?= https://zenodo.org/records/4958592/files/29kSamplesDrumsDataset.zip?download=1
@@ -2663,9 +2674,43 @@ prepare-mdb-drums-samples: scripts/prepare_mdb_drums_samples.py scripts/run_with
 	$(SHELL) scripts/run_with_lock.sh "$(MDB_DRUMS_PREP_LOCK_DIR)" -- env MDB_DRUMS_SAMPLE_DIR="$(MDB_DRUMS_SAMPLE_DIR)" MDB_DRUMS_SOURCE_ROOT="$(MDB_DRUMS_SOURCE_ROOT)" MDB_DRUMS_AUDIO_FLAVOR="$(MDB_DRUMS_AUDIO_FLAVOR)" MDB_DRUMS_RECORDING_LIMIT="$(MDB_DRUMS_RECORDING_LIMIT)" MDB_DRUMS_MIN_RECORDINGS="$(MDB_DRUMS_MIN_RECORDINGS)" $(PYTHON) scripts/prepare_mdb_drums_samples.py --output "$(MDB_DRUMS_SAMPLE_DIR)" --source-root "$(MDB_DRUMS_SOURCE_ROOT)" --audio-flavor "$(MDB_DRUMS_AUDIO_FLAVOR)" --limit "$(MDB_DRUMS_RECORDING_LIMIT)" --min-recordings "$(MDB_DRUMS_MIN_RECORDINGS)"
 
 .PHONY: download-babyslakh probe-babyslakh-download test-download-babyslakh-script download-babyslakh-background stop-babyslakh-background reset-babyslakh-download-control finalize-babyslakh-download discard-babyslakh-corrupt-partial inspect-babyslakh-download inspect-babyslakh-downloader test-download-babyslakh-background-scripts test-babyslakh-background-extraction-scripts inspect-babyslakh-extraction extract-babyslakh-background test-inspect-babyslakh-archive test-extract-babyslakh-archive test-prepare-babyslakh-drums inspect-babyslakh-archive inspect-babyslakh-archive-existing extract-babyslakh inspect-babyslakh prepare-babyslakh-drums measure-babyslakh-drums
-.PHONY: download-enst-drums test-download-enst-drums-script download-29k-drums inspect-29k-drums-download inspect-29k-drums-archive prepare-29k-drums-samples measure-29k-drums analyze-29k-drums-primary-attribute-rows find-29k-drum-primary-attribute-patterns find-cached-protected-drum-primary-attribute-patterns test-download-29k-drums-script test-inspect-29k-drums-download test-inspect-29k-drums-archive test-prepare-29k-drums-samples test-measure-29k-drums-makefile download-fsd50k-rim-metadata inspect-fsd50k-rim-metadata test-download-fsd50k-rim-metadata-script test-inspect-fsd50k-rim-metadata
+.PHONY: download-enst-drums test-download-enst-drums-script probe-virtuosity-drums-source test-probe-virtuosity-drums-source download-virtuosity-drums test-download-virtuosity-drums-script prepare-virtuosity-drums-samples measure-virtuosity-drums analyze-virtuosity-drums-primary-attribute-rows find-virtuosity-drum-primary-attribute-patterns test-prepare-virtuosity-drums-samples download-29k-drums inspect-29k-drums-download inspect-29k-drums-archive prepare-29k-drums-samples measure-29k-drums analyze-29k-drums-primary-attribute-rows find-29k-drum-primary-attribute-patterns find-cached-protected-drum-primary-attribute-patterns test-download-29k-drums-script test-inspect-29k-drums-download test-inspect-29k-drums-archive test-prepare-29k-drums-samples test-measure-29k-drums-makefile download-fsd50k-rim-metadata inspect-fsd50k-rim-metadata test-download-fsd50k-rim-metadata-script test-inspect-fsd50k-rim-metadata
 download-enst-drums: scripts/download_enst_drums.sh
 	$(SHELL) scripts/download_enst_drums.sh "$(ENST_DRUMS_ARCHIVE)" "$(ENST_DRUMS_ARCHIVE_URL)" "$(ENST_DRUMS_ARCHIVE_MD5)" "$(ENST_DRUMS_LICENSE_ACCEPTED)"
+
+probe-virtuosity-drums-source: scripts/probe_virtuosity_drums_source.sh | $(BUILD_DIR)
+	$(SHELL) scripts/probe_virtuosity_drums_source.sh "$(VIRTUOSITY_DRUMS_REPOSITORY)" "$(VIRTUOSITY_DRUMS_BRANCH)" > "$(VIRTUOSITY_DRUMS_SOURCE_PROBE)"
+	cat "$(VIRTUOSITY_DRUMS_SOURCE_PROBE)"
+
+test-probe-virtuosity-drums-source: scripts/probe_virtuosity_drums_source.sh
+	sh -n scripts/probe_virtuosity_drums_source.sh
+
+download-virtuosity-drums: configure-instrument-sample-store scripts/download_virtuosity_drums.sh
+	$(SHELL) scripts/download_virtuosity_drums.sh "$(VIRTUOSITY_DRUMS_SOURCE_DIR)" "$(VIRTUOSITY_DRUMS_REPOSITORY)" "$(VIRTUOSITY_DRUMS_COMMIT)"
+
+test-download-virtuosity-drums-script: scripts/download_virtuosity_drums.sh
+	sh -n scripts/download_virtuosity_drums.sh
+
+prepare-virtuosity-drums-samples: download-virtuosity-drums scripts/prepare_virtuosity_drums_samples.py
+	$(PYTHON) scripts/prepare_virtuosity_drums_samples.py --source "$(VIRTUOSITY_DRUMS_SOURCE_DIR)" --output "$(VIRTUOSITY_DRUMS_SAMPLE_DIR)" --limit-per-category "$(VIRTUOSITY_DRUMS_LIMIT_PER_CATEGORY)" --min-per-category "$(VIRTUOSITY_DRUMS_MIN_PER_CATEGORY)"
+
+measure-virtuosity-drums: $(BUILD_DIR)/analyzer_drum_samples prepare-virtuosity-drums-samples | $(BUILD_DIR)
+	env MUSIC_ANALYZER_DRUM_SAMPLES_REQUIRED=1 MUSIC_ANALYZER_DRUM_SAMPLE_REQUIRED_CATEGORIES="tom,ride,rim" MUSIC_ANALYZER_DRUM_SAMPLE_VERBOSE_ALL=1 MUSIC_ANALYZER_DRUM_SAMPLE_VERBOSE_PRIMARY=1 MUSIC_ANALYZER_DRUM_SAMPLE_VERBOSE_PRIMARY_LIMIT=4000 MUSIC_ANALYZER_DRUM_SAMPLES_DIR="$(VIRTUOSITY_DRUMS_SAMPLE_DIR)" MUSIC_ANALYZER_DRUM_SAMPLE_MIN_RECALL_PERCENT=0 MUSIC_ANALYZER_DRUM_SAMPLE_MIN_PRECISION_PERCENT=0 MUSIC_ANALYZER_DRUM_SAMPLE_MIN_PRIMARY_RECALL_PERCENT=0 MUSIC_ANALYZER_DRUM_SAMPLE_MAX_TOM_FALSE_PERCENT=100 $(BUILD_DIR)/analyzer_drum_samples > "$(VIRTUOSITY_DRUMS_MEASUREMENT)" 2>&1
+	cat "$(VIRTUOSITY_DRUMS_MEASUREMENT)"
+	+$(MAKE) update-detection-accuracy-report-cached
+
+$(VIRTUOSITY_DRUMS_PRIMARY_ATTRIBUTE_ROWS): $(VIRTUOSITY_DRUMS_MEASUREMENT) scripts/analyze_drum_primary_debug.py | $(BUILD_DIR)
+	$(PYTHON) scripts/analyze_drum_primary_debug.py --dump-rows --include-debug-rows "$(VIRTUOSITY_DRUMS_MEASUREMENT)" > "$@"
+
+analyze-virtuosity-drums-primary-attribute-rows: measure-virtuosity-drums
+	+$(MAKE) "$(VIRTUOSITY_DRUMS_PRIMARY_ATTRIBUTE_ROWS)"
+	@printf '%s\n' "Virtuosity Drums primary attribute TSV: $(VIRTUOSITY_DRUMS_PRIMARY_ATTRIBUTE_ROWS)"
+
+find-virtuosity-drum-primary-attribute-patterns: $(VIRTUOSITY_DRUMS_PRIMARY_ATTRIBUTE_ROWS) scripts/find_drum_attribute_patterns.py
+	$(PYTHON) scripts/find_drum_attribute_patterns.py "$(VIRTUOSITY_DRUMS_PRIMARY_ATTRIBUTE_ROWS)" $(if $(PATTERN_ROUTE),--route "$(PATTERN_ROUTE)") --jobs "$(DRUM_PATTERN_JOBS)" $(PATTERN_ARGS)
+
+test-prepare-virtuosity-drums-samples: tests/test_prepare_virtuosity_drums_samples.py scripts/prepare_virtuosity_drums_samples.py
+	$(PYTHON) tests/test_prepare_virtuosity_drums_samples.py
 
 test-download-enst-drums-script: scripts/download_enst_drums.sh tests/test_download_enst_drums_script.py
 	sh -n scripts/download_enst_drums.sh

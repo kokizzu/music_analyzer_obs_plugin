@@ -114,8 +114,8 @@ CHORD_PRIMARY_COMPONENT_RE = re.compile(
     r"dim7_promotions=(?P<promotions>\d+) dim7_regressions=(?P<regressions>\d+)$",
     re.MULTILINE,
 )
-SAMPLES29K_DRUMS_RE = re.compile(
-    r"\b(?P<category>tom|ride) recall (?P<hits>\d+)/(?P<total>\d+) primary (?P<primary>\d+)/(?P=total)",
+DRUM_SAMPLE_COUNTS_RE = re.compile(
+    r"\b(?P<category>tom|ride|rim) recall (?P<hits>\d+)/(?P<total>\d+) primary (?P<primary>\d+)/(?P=total)",
 )
 
 # Analyzer TSV evidence can legitimately retain long comma-separated note
@@ -127,14 +127,19 @@ def truthy(value: str) -> bool:
     return value.strip().lower() not in {"", "0", "false", "no"}
 
 
-def samples29k_drum_counts(path: Path) -> dict[str, tuple[int, int, int]]:
-    """Return active and primary hit counts from the Tom/Ride-only fixture log."""
+def drum_sample_counts(path: Path) -> dict[str, tuple[int, int, int]]:
+    """Return active and primary hit counts from a labelled one-shot fixture log."""
     counts: dict[str, tuple[int, int, int]] = {}
-    for match in SAMPLES29K_DRUMS_RE.finditer(path.read_text(encoding="utf-8", errors="replace")):
+    for match in DRUM_SAMPLE_COUNTS_RE.finditer(path.read_text(encoding="utf-8", errors="replace")):
         counts[match.group("category")] = (
             int(match.group("hits")), int(match.group("total")), int(match.group("primary"))
         )
     return counts
+
+
+def samples29k_drum_counts(path: Path) -> dict[str, tuple[int, int, int]]:
+    """Compatibility wrapper for the existing 29k report-unit-test contract."""
+    return drum_sample_counts(path)
 
 
 def samples29k_primary_attributes_ready(path: Path | None) -> int:
@@ -1639,6 +1644,7 @@ def render(
     samples29k_drums_inspection: Path | None = None,
     samples29k_drums_measurement: Path | None = None,
     samples29k_drums_primary_attributes: Path | None = None,
+    virtuosity_drums_measurement: Path | None = None,
     piano_chord_confirmation_audit_input: Path | None = None,
     piano_chord_confirm3_audit_input: Path | None = None,
     piano_chord_tone018_audit_input: Path | None = None,
@@ -1672,8 +1678,12 @@ def render(
         samples29k_drums_inspection is not None and samples29k_drums_inspection.is_file()
     )
     samples29k_counts = (
-        samples29k_drum_counts(samples29k_drums_measurement)
+        drum_sample_counts(samples29k_drums_measurement)
         if samples29k_drums_measurement is not None and samples29k_drums_measurement.is_file() else {}
+    )
+    virtuosity_counts = (
+        drum_sample_counts(virtuosity_drums_measurement)
+        if virtuosity_drums_measurement is not None and virtuosity_drums_measurement.is_file() else {}
     )
     samples29k_primary_attributes_available = samples29k_primary_attributes_ready(
         samples29k_drums_primary_attributes
@@ -2032,7 +2042,7 @@ def render(
     )
     tom_ride_evidence = (2 if samples29k_counts else 0) + int(any(
         measurement is not None for measurement in isolated_rim_measurements
-    ))
+    )) + int(bool(virtuosity_counts))
     continuous_beat_this_evidence = int(beat_this_continuous_ballroom_bpm is not None) + int(
         beat_this_continuous_filobass_bpm is not None
     )
@@ -2051,7 +2061,7 @@ def render(
             "| --- | ---: | ---: | --- |",
             f"| 1. Calibrate drum detection | {fraction(drum_calibration_evidence, 3)} | {fraction(drum_calibration_checkpoint, 1)} | retain the early-onset HiHat rule only while it improves MDB and BabySlakh, preserves STAR, and has no protected false-positive regression |",
             f"| 2. Stabilize chord state | {fraction(piano_chord_evidence, 2)} | {fraction(int(piano_chord_display_gate is not None and piano_chord_display_gate[-1] == 1), 1)} | retain the 0.60 keyboard-only display gate only while it lowers wrong labels without correct-frame or flicker loss |",
-            f"| 3. Improve Tom/Rim/Ride | {fraction(tom_ride_evidence, 3)} | 0 / 1 (0.0%) | broaden independent Rim coverage and prove one shared class-specific improvement |",
+            f"| 3. Improve Tom/Rim/Ride | {fraction(tom_ride_evidence, 4)} | 0 / 1 (0.0%) | prove one shared class-specific improvement across protected corpora |",
             f"| 4. Safe live Beat This! | {fraction(continuous_beat_this_evidence, 2)} | 1 / 1 (100.0%) | optional C++ sidecar preserves the exact 20 s packet and ≥44-interval gate; it never replaces a displayable normal BPM |",
             f"| 5. High-tempo GTZAN offline veto | {fraction(int(high_tempo_three_tracker_consensus is not None), 1)} | {fraction(int(high_tempo_three_tracker_consensus is not None), 1)} | retain offline-only restriction; it cannot authorize the live BPM display |",
             f"| 6. Proper bass tempo corpus | {fraction(int(filobass_bpm is not None), 1)} | {fraction(int(filobass_bpm is not None), 1)} | turn FiloBass evidence into a protected bass-led selector before any runtime BPM change |",
@@ -4127,7 +4137,7 @@ def render(
                     "",
                     "### Retained final-arbitration Ride recovery",
                     "",
-                    "This runs only for non-generated one-shots with no active Ride candidate, high energy at least 0.82, and Ride/HiHat segment ratio at least 3.091. It was selected on the 29k acoustic fixture and replayed through the full, HF, and IDMT one-shot gates without a failing protected gate.",
+                    "This runs only for non-generated one-shots with no active Ride candidate, high energy at least 0.82, and Ride/HiHat segment ratio at least 3.091. It was selected on the 29k acoustic fixture. The current full one-shot Ride replay is 316 / 352 (89.8%), one sample below its 90% gate, so this remains local 29k evidence rather than an independent positive replication.",
                     "",
                     "| Metric | Accurate / total | Change from preserved 29k baseline |",
                     "| --- | ---: | ---: |",
@@ -4152,6 +4162,24 @@ def render(
                 "| HF Ride→HiHat zero-regression screen | 3 routed Ride samples in the independent high-fidelity kit | only selector fixes 3 but breaks 259 protected primary labels and creates 76 new active labels | reject: no selector satisfies the zero-regression gate |",
             ]
         )
+    if virtuosity_counts:
+        lines.extend(
+            [
+                "",
+                "## Virtuosity Drums independent CC0 acoustic baseline",
+                "",
+                f"Source: `{virtuosity_drums_measurement.as_posix()}`. The fixture uses only the library's named overhead-channel Snare Rimshot/Cross-stick, normal Tom, and normal/Bell Ride articulations; it excludes duplicate microphones.",
+                "",
+                "| Metric | Accurate / total | Remaining |",
+                "| --- | ---: | ---: |",
+            ]
+        )
+        for category in ("tom", "ride", "rim"):
+            if category not in virtuosity_counts:
+                continue
+            hits, total, primary = virtuosity_counts[category]
+            lines.append(f"| Virtuosity Drums — {category.title()} detected | {fraction(hits, total)} | {total - hits} |")
+            lines.append(f"| Virtuosity Drums — {category.title()} primary display | {fraction(primary, total)} | {total - primary} |")
     lines.extend(
         [
             "",
@@ -4174,13 +4202,14 @@ def render(
             "",
             "## Real-drum Tom/Ride/Rim coverage checklist",
             "",
-            "The full one-shot gate has broad category counts, but its weak Tom/Ride/Rim results need independent real-acoustic replication before a class-specific runtime rule can be trusted. 29k Drums can independently cover Tom and Ride. FSD50K's fixed 200-class vocabulary has no Rimshot label. The Commons candidate is checksum-verifiable and openly licensed, but its source supplies no per-roll timestamps, so it cannot yet count as accuracy evidence.",
+            "The full one-shot gate has broad category counts, but its weak Tom/Ride/Rim results need independent real-acoustic replication before a class-specific runtime rule can be trusted. 29k Drums independently covers Tom and Ride; the pinned CC0 Virtuosity Drums fixture adds all three classes. FSD50K's fixed 200-class vocabulary has no Rimshot label. The Commons candidate is checksum-verifiable and openly licensed, but its source supplies no per-roll timestamps, so it cannot yet count as accuracy evidence.",
             "",
             "| Work item | Complete / total | Remaining | Evidence required |",
             "| --- | ---: | ---: | --- |",
             f"| Checksum-verified 29k Drums archive inspected for Tom/Ride labels | {fraction(samples29k_archive_ready, 1)} | {1 - samples29k_archive_ready} | inspection follows successful Zenodo MD5 and ZIP integrity verification |",
             f"| Measure independent 29k Drums Tom/Ride baseline | {fraction(int(bool(samples29k_counts)), 1)} | {1 - int(bool(samples29k_counts))} | prepared, labelled acoustic one-shot fixture and analyzer x/total results |",
             f"| Record all 29k Tom/Ride primary decisions for candidate evaluation | {fraction(samples29k_primary_attributes_available, 1)} | {1 - samples29k_primary_attributes_available} | verbose current and missed primary labels become a reproducible TSV; selectors still need cross-corpus runtime replay |",
+            f"| Measure CC0 Virtuosity Drums Rim/Tom/Ride baseline | {fraction(int(bool(virtuosity_counts)), 1)} | {1 - int(bool(virtuosity_counts))} | Tom primary {fraction(virtuosity_counts['tom'][2], virtuosity_counts['tom'][1]) if 'tom' in virtuosity_counts else '--'}; Ride primary {fraction(virtuosity_counts['ride'][2], virtuosity_counts['ride'][1]) if 'ride' in virtuosity_counts else '--'}; Rim primary {fraction(virtuosity_counts['rim'][2], virtuosity_counts['rim'][1]) if 'rim' in virtuosity_counts else '--'} |",
             f"| Measure MDB annotated side-stick/Rim event coverage | {fraction(int(mdb_rim is not None), 1)} | {int(mdb_rim is None)} | {fraction(mdb_rim[0], mdb_rim[1]) if mdb_rim is not None else '--'} detected; calibration evidence only, not independent replication |",
             f"| Screen FSD50K fixed vocabulary for licence-compatible Rimshot clips | {fraction(int(fsd50k_rim_metadata is not None), 1)} | {int(fsd50k_rim_metadata is None)} | no audio transfer: {fsd50k_rim_metadata[0] if fsd50k_rim_metadata is not None else '--'} labelled rows, {fsd50k_rim_metadata[1] if fsd50k_rim_metadata is not None else '--'} isolated candidates, {fsd50k_rim_metadata[2] if fsd50k_rim_metadata is not None else '--'} permissive-licence candidates |",
             f"| Verify licence-free Rimshot recording candidate | {fraction(int(commons_rimshot_candidate is not None), 1)} | {int(commons_rimshot_candidate is None)} | checksum, source label, licence, and 4 stated rolls; {commons_rimshot_candidate[3] if commons_rimshot_candidate is not None else '--'} per-roll timestamps supplied |",
@@ -4242,6 +4271,7 @@ def main() -> int:
     parser.add_argument("--29k-drums-inspection", dest="samples29k_drums_inspection", type=Path)
     parser.add_argument("--29k-drums-measurement", dest="samples29k_drums_measurement", type=Path)
     parser.add_argument("--29k-drums-primary-attributes", dest="samples29k_drums_primary_attributes", type=Path)
+    parser.add_argument("--virtuosity-drums-measurement", type=Path)
     parser.add_argument("--fsd50k-rim-metadata-audit", type=Path)
     parser.add_argument("--commons-rimshot-candidate-audit", type=Path)
     parser.add_argument("--pixabay-rimshot-measurement-audit", type=Path)
@@ -4464,6 +4494,7 @@ def main() -> int:
             args.samples29k_drums_inspection,
             args.samples29k_drums_measurement,
             args.samples29k_drums_primary_attributes,
+            args.virtuosity_drums_measurement,
             args.piano_chord_confirmation_audit,
             args.piano_chord_confirm3_audit,
             args.piano_chord_tone018_audit,
