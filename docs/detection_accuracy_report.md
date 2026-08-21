@@ -340,7 +340,7 @@ Source: `build/drum_recovery_candidate_audit.txt`
 
 | Metric | Accurate / total | Remaining |
 | --- | ---: | ---: |
-| Missed annotated events searched across real corpora | 70 / 70 (100.0%) | 0 |
+| Missed annotated events searched across real corpora | 67 / 67 (100.0%) | 0 |
 | Independent real corpora represented | 2 / 2 (100.0%) | 0 |
 | Zero-false cross-real recovery shapes replayed through runtime gates | 3 / 3 (100.0%) | 0 |
 | Recovery shapes with a verified overall runtime gain | 1 / 3 (33.3%) | 2 |
