@@ -2319,7 +2319,7 @@ def render(
                 f"| Zero-false cross-real recovery shapes available for replay | {fraction(int(candidates > 0), 1)} | {int(candidates == 0)} |",
                 "| Recovery shapes with a verified overall runtime gain | 0 / 1 (0.0%) | 1 |",
                 "",
-                "The first HiHat trial was rejected: it increased MDB recall but did not improve MDB precision, did not improve STAR, and did not improve BabySlakh precision.",
+                "The first HiHat trial was rejected: it increased MDB recall but did not improve MDB precision, did not improve STAR, and did not improve BabySlakh precision. A distinct early-Snare onset trial raised MDB 139→140 and STAR 39→40 with no extra false activation, but BabySlakh stayed at 140 true events while false activations rose 38→39 (precision 78.7%→78.2%), so it is also rejected.",
             ]
         )
     if chord_primary_components is not None:
