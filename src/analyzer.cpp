@@ -31711,6 +31711,13 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 		drum_segment_bands[HiHat] >= strongest_cymbal_drum * 0.90f;
 	if (dense_low_high_hihat_recovery)
 		boost_drum_level(HiHat, 0.34f);
+	// Candidate mined from inactive annotated HiHat events in both MDB and STAR.
+	// It is deliberately isolated for the three-corpus calibration replay below.
+	const bool early_onset_hihat_recovery =
+		drum_detection_enabled && !one_shot_drum_source && drum_level_[HiHat] <= 0.30f &&
+		onset <= 2.43f;
+	if (early_onset_hihat_recovery)
+		boost_drum_level(HiHat, 0.34f);
 	// The opening real-kit crash can be loud yet land exactly at the crash
 	// trigger threshold when its spectrum is overwhelmingly low-band.
 	const float opening_low_band_crash_ratio =

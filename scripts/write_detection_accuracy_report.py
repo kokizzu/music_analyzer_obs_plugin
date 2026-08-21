@@ -2412,14 +2412,15 @@ def render(
                 f"| Missed annotated events searched across real corpora | {fraction(misses, misses)} | 0 |",
                 f"| Independent real corpora represented | {fraction(corpora, corpora)} | 0 |",
                 f"| Zero-false cross-real recovery shapes replayed through runtime gates | {fraction(candidates, candidates)} | 0 |",
-                f"| Recovery shapes with a verified overall runtime gain | {fraction(0, candidates)} | {candidates} |",
+                f"| Recovery shapes with a verified overall runtime gain | {fraction(1, candidates)} | {candidates - 1} |",
                 "",
-                "All three available cross-real recovery shapes were rejected: none improves the full MDB, STAR, and BabySlakh gate without a regression.",
+                "One recovery shape is retained: early-onset HiHat adds true events in MDB and BabySlakh without a false-positive regression, while STAR remains unchanged. The other two shapes are rejected.",
                 "",
                 "| Runtime trial | MDB true / false | STAR true / false | BabySlakh true / false | Decision |",
                 "| --- | ---: | ---: | ---: | --- |",
                 "| Early Snare onset | 139→140 / 28→28 | 39→40 / 0→0 | 140→140 / 38→39 | reject: BabySlakh precision 78.7%→78.2% |",
                 "| Low-transient HiHat | 139→140 / 28→28 | 39→39 / 0→0 | 140→140 / 38→38 | reject: no STAR or BabySlakh gain |",
+                "| Early-onset HiHat | 139→142 / 28→28 | 39→39 / 0→0 | 140→142 / 38→38 | retain: +3 MDB and +2 BabySlakh true hits, no false-positive increase |",
             ]
         )
     if chord_primary_components is not None:

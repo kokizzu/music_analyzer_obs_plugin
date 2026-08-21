@@ -343,14 +343,15 @@ Source: `build/drum_recovery_candidate_audit.txt`
 | Missed annotated events searched across real corpora | 70 / 70 (100.0%) | 0 |
 | Independent real corpora represented | 2 / 2 (100.0%) | 0 |
 | Zero-false cross-real recovery shapes replayed through runtime gates | 3 / 3 (100.0%) | 0 |
-| Recovery shapes with a verified overall runtime gain | 0 / 3 (0.0%) | 3 |
+| Recovery shapes with a verified overall runtime gain | 1 / 3 (33.3%) | 2 |
 
-All three available cross-real recovery shapes were rejected: none improves the full MDB, STAR, and BabySlakh gate without a regression.
+One recovery shape is retained: early-onset HiHat adds true events in MDB and BabySlakh without a false-positive regression, while STAR remains unchanged. The other two shapes are rejected.
 
 | Runtime trial | MDB true / false | STAR true / false | BabySlakh true / false | Decision |
 | --- | ---: | ---: | ---: | --- |
 | Early Snare onset | 139→140 / 28→28 | 39→40 / 0→0 | 140→140 / 38→39 | reject: BabySlakh precision 78.7%→78.2% |
 | Low-transient HiHat | 139→140 / 28→28 | 39→39 / 0→0 | 140→140 / 38→38 | reject: no STAR or BabySlakh gain |
+| Early-onset HiHat | 139→142 / 28→28 | 39→39 / 0→0 | 140→142 / 38→38 | retain: +3 MDB and +2 BabySlakh true hits, no false-positive increase |
 
 ## Canonical-first chord display audit
 
@@ -1950,8 +1951,8 @@ Source: `build/mdb_drums_windows.log.summary`
 
 | Metric | Accurate / total | Remaining |
 | --- | ---: | ---: |
-| MDB Drums — annotated drum events detected | 139 / 192 (72.4%) | 53 |
-| MDB Drums — detected-drum precision | 139 / 167 (83.2%) | 28 false predictions |
+| MDB Drums — annotated drum events detected | 142 / 192 (74.0%) | 50 |
+| MDB Drums — detected-drum precision | 142 / 170 (83.5%) | 28 false predictions |
 | MDB Drums — windows without a false drum | 67 / 92 (72.8%) | 25 false-positive windows |
 
 ### MDB annotated Rim-event audit
@@ -1981,8 +1982,8 @@ Source: `build/babyslakh_drums_diagnostics.log`
 
 | Metric | Accurate / total | Remaining |
 | --- | ---: | ---: |
-| BabySlakh rendered mixes — annotated drum events detected | 140 / 259 (54.1%) | 119 |
-| BabySlakh rendered mixes — detected-drum precision | 140 / 178 (78.7%) | 38 false predictions |
+| BabySlakh rendered mixes — annotated drum events detected | 142 / 259 (54.8%) | 117 |
+| BabySlakh rendered mixes — detected-drum precision | 142 / 180 (78.9%) | 38 false predictions |
 | BabySlakh rendered mixes — windows without a false drum | 48 / 80 (60.0%) | 32 false-positive windows |
 
 ## 29k Drums independent acoustic Tom/Ride baseline
