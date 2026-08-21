@@ -501,6 +501,12 @@ PIXABAY_RIMSHOT_MEASUREMENT_RE = re.compile(
     r"primary=(?P<primary>\d+)/(?P<primary_total>\d+) snare_primary=(?P<snare_primary>\d+)/(?P<snare_total>\d+)$",
     re.MULTILINE,
 )
+BEAT_THIS_SIDECAR_REPLAY_RE = re.compile(
+    r"^beat_this_sidecar_replay: rows=(?P<rows>\d+) ready=(?P<ready>\d+) "
+    r"correct=(?P<correct>\d+) wrong=(?P<wrong>\d+) withheld=(?P<withheld>\d+) "
+    r"unavailable=(?P<unavailable>\d+) max_wall_seconds=(?P<maximum>[0-9.]+)$",
+    re.MULTILINE,
+)
 MDB_RIM_COVERAGE_RE = re.compile(
     r"^mdb_rim_coverage: detected=(?P<detected>\d+)/(?P<total>\d+)$",
     re.MULTILINE,
@@ -774,6 +780,18 @@ def pixabay_rimshot_measurement_audit(path: Path) -> tuple[int, int, int]:
     if values["primary"] + values["snare_primary"] != 1:
         raise ValueError(f"{path}: inconsistent isolated Pixabay Rimshot primary result")
     return values["detected"], values["primary"], values["snare_primary"]
+
+
+def beat_this_sidecar_replay_audit(path: Path) -> tuple[int, int, int, int, int, int]:
+    match = BEAT_THIS_SIDECAR_REPLAY_RE.search(path.read_text(encoding="utf-8", errors="replace"))
+    if match is None:
+        raise ValueError(f"{path}: missing strict Beat This sidecar replay summary")
+    values = {name: int(value) for name, value in match.groupdict().items() if name != "maximum"}
+    if values["rows"] != values["ready"] + values["withheld"] + values["unavailable"]:
+        raise ValueError(f"{path}: inconsistent strict Beat This sidecar counts")
+    if values["ready"] != values["correct"] + values["wrong"]:
+        raise ValueError(f"{path}: inconsistent strict Beat This sidecar ready counts")
+    return values["rows"], values["ready"], values["correct"], values["wrong"], values["withheld"], values["unavailable"]
 
 
 def mdb_rim_coverage(path: Path) -> tuple[int, int]:
@@ -1602,6 +1620,8 @@ def render(
     beat_this_continuous_ballroom_bpm_input: Path | None = None,
     beat_this_continuous_filobass_bpm_input: Path | None = None,
     beat_this_continuous_interval_gate_audit_input: Path | None = None,
+    beat_this_sidecar_ballroom_audit_input: Path | None = None,
+    beat_this_sidecar_filobass_audit_input: Path | None = None,
     three_tempo_tracker_consensus_input: Path | None = None,
     high_tempo_three_tracker_consensus_input: Path | None = None,
     candombe_bpm_input: Path | None = None,
@@ -1707,6 +1727,14 @@ def render(
     beat_this_continuous_interval_gate = (
         beat_this_continuous_interval_gate_audit(beat_this_continuous_interval_gate_audit_input)
         if beat_this_continuous_interval_gate_audit_input else None
+    )
+    beat_this_sidecar_ballroom = (
+        beat_this_sidecar_replay_audit(beat_this_sidecar_ballroom_audit_input)
+        if beat_this_sidecar_ballroom_audit_input is not None else None
+    )
+    beat_this_sidecar_filobass = (
+        beat_this_sidecar_replay_audit(beat_this_sidecar_filobass_audit_input)
+        if beat_this_sidecar_filobass_audit_input is not None else None
     )
     three_tempo_tracker_consensus = (
         three_tempo_tracker_consensus_counts(three_tempo_tracker_consensus_input)
@@ -3688,6 +3716,24 @@ def render(
                 f"| Zero-wrong strict causal gate with ≥5 outputs per corpus | {fraction(eligible, 1)} | {1 - eligible} |",
             ]
         )
+    if beat_this_sidecar_ballroom is not None and beat_this_sidecar_filobass is not None:
+        ballroom_rows, ballroom_ready, ballroom_correct, ballroom_wrong, ballroom_withheld, ballroom_unavailable = beat_this_sidecar_ballroom
+        filobass_rows, filobass_ready, filobass_correct, filobass_wrong, filobass_withheld, filobass_unavailable = beat_this_sidecar_filobass
+        sidecar_eligible = int(ballroom_wrong == 0 and filobass_wrong == 0 and min(ballroom_ready, filobass_ready) >= 5)
+        lines.extend(
+            [
+                "",
+                "### Beat This! exact persistent-sidecar replay",
+                "",
+                f"Sources: `{beat_this_sidecar_ballroom_audit_input.as_posix()}` and `{beat_this_sidecar_filobass_audit_input.as_posix()}`. Each row crossed the binary 20-second packet boundary into one persistent external-model process. This validates the protocol and strict gate offline; it does not start or authorize an OBS backend.",
+                "",
+                "| Metric | Accurate / total | Remaining |",
+                "| --- | ---: | ---: |",
+                f"| Ballroom sidecar-ready BPM within 8 BPM | {fraction(ballroom_correct, ballroom_ready)} | {ballroom_wrong} wrong ready BPM; {ballroom_withheld} withheld, {ballroom_unavailable} unavailable |",
+                f"| FiloBass sidecar-ready BPM within 8 BPM | {fraction(filobass_correct, filobass_ready)} | {filobass_wrong} wrong ready BPM; {filobass_withheld} withheld, {filobass_unavailable} unavailable |",
+                f"| Zero-wrong sidecar replay with ≥5 ready rows per corpus | {fraction(sidecar_eligible, 1)} | {1 - sidecar_eligible} |",
+            ]
+        )
     if three_tempo_tracker_consensus is not None:
         correct, selected, newly_revealed, audited = three_tempo_tracker_consensus
         lines.extend(
@@ -3836,6 +3882,7 @@ def render(
             f"| Replay bounded trailing Beat This! windows on real-tempo corpora | {fraction(int(beat_this_rolling_ballroom_bpm is not None) + int(beat_this_rolling_filobass_bpm is not None), 2)} | {2 - int(beat_this_rolling_ballroom_bpm is not None) - int(beat_this_rolling_filobass_bpm is not None)} | window ends at each annotated output time; records correctness and processing budget |",
             f"| Validate strict causal Beat This! interval gate | {fraction(int(beat_this_continuous_interval_gate is not None and beat_this_continuous_interval_gate[-1] == 1), 1)} | {1 - int(beat_this_continuous_interval_gate is not None and beat_this_continuous_interval_gate[-1] == 1)} | ≥44 intervals: Ballroom {beat_this_continuous_interval_gate[1] if beat_this_continuous_interval_gate is not None else '--'} / {beat_this_continuous_interval_gate[2] if beat_this_continuous_interval_gate is not None else '--'}, FiloBass {beat_this_continuous_interval_gate[4] if beat_this_continuous_interval_gate is not None else '--'} / {beat_this_continuous_interval_gate[5] if beat_this_continuous_interval_gate is not None else '--'}, zero wrong values in this replay |",
             "| Specify isolated Beat This! sidecar protocol | 1 / 1 (100.0%) | 0 | disabled-by-default 20 s binary packet, persistent external model process, and the exact ≥44-interval gate; see `docs/beat_this_live_sidecar_protocol.md` |",
+            f"| Replay the exact sidecar protocol on real-tempo corpora | {fraction(int(beat_this_sidecar_ballroom is not None) + int(beat_this_sidecar_filobass is not None), 2)} | {2 - int(beat_this_sidecar_ballroom is not None) - int(beat_this_sidecar_filobass is not None)} | zero wrong ready BPM, ≥5 ready rows per corpus, and no packet shorter than 20 seconds |",
             f"| Audit phase/BTT/Beat This! offline agreement | {fraction(int(three_tempo_tracker_consensus is not None), 1)} | {int(three_tempo_tracker_consensus is None)} | every selected candidate must be correct across Ballroom, FiloBass, and GTZAN |",
             f"| Audit high-tempo GTZAN three-tracker offline veto | {fraction(int(high_tempo_three_tracker_consensus is not None), 1)} | {int(high_tempo_three_tracker_consensus is None)} | every selected ≥150 BPM GTZAN candidate must be correct across phase, BTT, and Beat This! |",
             "| Integrate bounded causal Beat This! live use | 0 / 1 (0.0%) | 1 | optional OBS-safe realtime backend must preserve the validated 20 s window and ≥44 interval gate; File2Beats remains non-causal offline inference |",
@@ -4233,6 +4280,8 @@ def main() -> int:
     parser.add_argument("--beat-this-continuous-ballroom-bpm-input", type=Path)
     parser.add_argument("--beat-this-continuous-filobass-bpm-input", type=Path)
     parser.add_argument("--beat-this-continuous-interval-gate-audit", type=Path)
+    parser.add_argument("--beat-this-sidecar-ballroom-audit", type=Path)
+    parser.add_argument("--beat-this-sidecar-filobass-audit", type=Path)
     parser.add_argument("--three-tempo-tracker-consensus-input", type=Path)
     parser.add_argument("--high-tempo-three-tracker-consensus-input", type=Path)
     parser.add_argument("--candombe-bpm-input", type=Path)
@@ -4375,6 +4424,8 @@ def main() -> int:
             args.beat_this_continuous_ballroom_bpm_input,
             args.beat_this_continuous_filobass_bpm_input,
             args.beat_this_continuous_interval_gate_audit,
+            args.beat_this_sidecar_ballroom_audit,
+            args.beat_this_sidecar_filobass_audit,
             args.three_tempo_tracker_consensus_input,
             args.high_tempo_three_tracker_consensus_input,
             args.candombe_bpm_input,

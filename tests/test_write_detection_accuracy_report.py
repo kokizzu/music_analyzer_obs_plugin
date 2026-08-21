@@ -20,6 +20,15 @@ HEADER = "\t".join(("sample_id", "family", "detected", "detected_expected_row", 
 
 
 class DetectionAccuracyReportTest(unittest.TestCase):
+    def test_strict_sidecar_replay_requires_consistent_counts(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            audit = Path(temporary) / "sidecar.txt"
+            audit.write_text(
+                "beat_this_sidecar_replay: rows=4 ready=2 correct=2 wrong=0 withheld=1 unavailable=1 max_wall_seconds=1.000\n",
+                encoding="utf-8",
+            )
+            self.assertEqual(REPORT.beat_this_sidecar_replay_audit(audit), (4, 2, 2, 0, 1, 1))
+
     def test_mdb_rim_coverage_parses_class_specific_counts(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             audit = Path(temporary) / "mdb_rim_coverage.txt"

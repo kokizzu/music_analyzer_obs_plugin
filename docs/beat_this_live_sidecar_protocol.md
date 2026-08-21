@@ -45,4 +45,6 @@ The process loads one `Audio2Beats` instance at startup. `--runtime-root` and `-
 
 ## Verification
 
-Run `make test-beat-this-live-sidecar`. It validates packet sizing, clean EOF, rejection of a short window, the 44-interval gate, and an in-memory persistent-stream replay without loading Beat This or playing audio.
+Run `make test-beat-this-live-sidecar test-measure-beat-this-live-sidecar`. These model-free checks validate packet sizing, clean EOF, rejection of a short window, the 44-interval gate, response validation, and an in-memory persistent-stream replay without loading Beat This or playing audio.
+
+For an offline model replay, run `make measure-beat-this-sidecar-ballroom measure-beat-this-sidecar-filobass`. The harness sends causal, exact 20-second packets to one persistent sidecar child per corpus and logs `ready`, `withheld`, `hit`, or `miss` outcomes. It remains evidence only: no result from this target enables or starts an OBS backend.

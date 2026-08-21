@@ -1737,6 +1737,16 @@ Source: `build/beat_this_continuous_interval_gate_audit.txt`. This rejects a Bea
 | FiloBass strict-gated BPM within 8 BPM | 8 / 8 (100.0%) | 0 wrong displayed BPM |
 | Zero-wrong strict causal gate with ≥5 outputs per corpus | 1 / 1 (100.0%) | 0 |
 
+### Beat This! exact persistent-sidecar replay
+
+Sources: `build/beat_this_sidecar_ballroom_replay.txt` and `build/beat_this_sidecar_filobass_replay.txt`. Each row crossed the binary 20-second packet boundary into one persistent external-model process. This validates the protocol and strict gate offline; it does not start or authorize an OBS backend.
+
+| Metric | Accurate / total | Remaining |
+| --- | ---: | ---: |
+| Ballroom sidecar-ready BPM within 8 BPM | 22 / 22 (100.0%) | 0 wrong ready BPM; 40 withheld, 2 unavailable |
+| FiloBass sidecar-ready BPM within 8 BPM | 8 / 8 (100.0%) | 0 wrong ready BPM; 40 withheld, 0 unavailable |
+| Zero-wrong sidecar replay with ≥5 ready rows per corpus | 1 / 1 (100.0%) | 0 |
+
 ### Three-tracker offline consensus safety audit
 
 Source: `build/three_tempo_tracker_consensus.log`. A candidate is retained only when phase, the permissive tracker, and Beat This! agree, and each individual estimate is within 8 BPM. This is offline evidence only: Beat This! uses non-causal full-context attention, so this audit cannot enable a live OBS path.
@@ -1834,6 +1844,7 @@ Tempo estimates are only displayed at calibrated confidence. Source-specific pha
 | Replay bounded trailing Beat This! windows on real-tempo corpora | 2 / 2 (100.0%) | 0 | window ends at each annotated output time; records correctness and processing budget |
 | Validate strict causal Beat This! interval gate | 1 / 1 (100.0%) | 0 | ≥44 intervals: Ballroom 23 / 23, FiloBass 8 / 8, zero wrong values in this replay |
 | Specify isolated Beat This! sidecar protocol | 1 / 1 (100.0%) | 0 | disabled-by-default 20 s binary packet, persistent external model process, and the exact ≥44-interval gate; see `docs/beat_this_live_sidecar_protocol.md` |
+| Replay the exact sidecar protocol on real-tempo corpora | 2 / 2 (100.0%) | 0 | zero wrong ready BPM, ≥5 ready rows per corpus, and no packet shorter than 20 seconds |
 | Audit phase/BTT/Beat This! offline agreement | 1 / 1 (100.0%) | 0 | every selected candidate must be correct across Ballroom, FiloBass, and GTZAN |
 | Audit high-tempo GTZAN three-tracker offline veto | 1 / 1 (100.0%) | 0 | every selected ≥150 BPM GTZAN candidate must be correct across phase, BTT, and Beat This! |
 | Integrate bounded causal Beat This! live use | 0 / 1 (0.0%) | 1 | optional OBS-safe realtime backend must preserve the validated 20 s window and ≥44 interval gate; File2Beats remains non-causal offline inference |
