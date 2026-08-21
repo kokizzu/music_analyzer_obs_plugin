@@ -10,11 +10,10 @@
 
 namespace mao {
 
-constexpr uint32_t kDefaultVisualizerWidth = 960;
-// ROOT and BPM share the final status row, so the old 540px canvas retained
-// a redundant lower margin.  520px is the smallest plugin-supported height
-// that keeps the complete layout's bottom glyphs fully visible.
-constexpr uint32_t kDefaultVisualizerHeight = 520;
+// The Complete view keeps its content compact: its narrower summary column
+// and aligned ROOT/BPM row fit inside this 840x480 canvas without empty tails.
+constexpr uint32_t kDefaultVisualizerWidth = 840;
+constexpr uint32_t kDefaultVisualizerHeight = 480;
 constexpr uint32_t kBassGuitarVisualizerWidth = 960;
 constexpr uint32_t kBassGuitarVisualizerHeight = 420;
 

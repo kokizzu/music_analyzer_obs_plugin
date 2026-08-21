@@ -742,23 +742,33 @@ struct VisualizerData {
 	gs_texture_t *texture = nullptr;
 };
 
+uint32_t visualizer_setting_width(obs_data_t *settings)
+{
+	long long configured_width = obs_data_get_int(settings, "width");
+	if (configured_width == 960) {
+		configured_width = mao::kDefaultVisualizerWidth;
+		obs_data_set_int(settings, "width", configured_width);
+	}
+	return static_cast<uint32_t>(std::clamp<long long>(configured_width, 320, 1920));
+}
+
 uint32_t visualizer_setting_height(obs_data_t *settings)
 {
 	long long configured_height = obs_data_get_int(settings, "height");
-	// Existing sources saved the former 540px default.  Migrate that specific
-	// value once so the aligned ROOT/BPM row does not retain its old empty tail.
-	if (configured_height == 540) {
+	// Existing sources saved either former default. Migrate those exact values
+	// to the compact canvas, without changing a user-selected custom height.
+	if (configured_height == 540 || configured_height == 520 || configured_height == 490) {
 		configured_height = mao::kDefaultVisualizerHeight;
 		obs_data_set_int(settings, "height", configured_height);
 	}
-	return static_cast<uint32_t>(std::clamp<long long>(configured_height, 520, 1080));
+	return static_cast<uint32_t>(std::clamp<long long>(configured_height, 480, 1080));
 }
 
 void *visualizer_create(obs_data_t *settings, obs_source_t *)
 {
 	auto *visualizer = new VisualizerData();
 	visualizer->renderer.show_other_row = false;
-	const uint32_t width = static_cast<uint32_t>(std::clamp<long long>(obs_data_get_int(settings, "width"), 320, 1920));
+	const uint32_t width = visualizer_setting_width(settings);
 	const uint32_t height = visualizer_setting_height(settings);
 	visualizer->update_fps = static_cast<uint32_t>(std::clamp<long long>(obs_data_get_int(settings, "update_fps"), 1, 30));
 	mao::resize_visualizer(&visualizer->renderer, width, height);
@@ -796,7 +806,7 @@ obs_properties_t *visualizer_properties(void *)
 {
 	obs_properties_t *props = obs_properties_create();
 	obs_properties_add_int(props, "width", "Width", 320, 1920, 10);
-	obs_properties_add_int(props, "height", "Height", 520, 1080, 10);
+	obs_properties_add_int(props, "height", "Height", 480, 1080, 10);
 	obs_properties_add_int_slider(props, "update_fps", "Visualizer update FPS", 1, 30, 1);
 	return props;
 }
@@ -808,7 +818,7 @@ void visualizer_update(void *data, obs_data_t *settings)
 		return;
 
 	std::lock_guard<std::mutex> lock(visualizer->mutex);
-	const uint32_t width = static_cast<uint32_t>(std::clamp<long long>(obs_data_get_int(settings, "width"), 320, 1920));
+	const uint32_t width = visualizer_setting_width(settings);
 	const uint32_t height = visualizer_setting_height(settings);
 	visualizer->update_fps = static_cast<uint32_t>(std::clamp<long long>(obs_data_get_int(settings, "update_fps"), 1, 30));
 	if (width != visualizer->renderer.width || height != visualizer->renderer.height) {

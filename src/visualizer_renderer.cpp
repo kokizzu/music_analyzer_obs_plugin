@@ -66,13 +66,13 @@ float note_cell_render_level(const NoteCell &cell)
 }
 
 struct VisualLayout {
-	int label_x = 28;
-	int note_x = 150;
+	int label_x = 14;
+	int note_x = 136;
 	int note_w = 480;
 	int chord_x = 654;
 	int stable_x = 782;
 	int chord_w = 72;
-	int stable_w = 92;
+	int stable_w = 48;
 };
 
 VisualLayout visual_layout(const VisualizerRenderer *visualizer)
@@ -82,7 +82,7 @@ VisualLayout visual_layout(const VisualizerRenderer *visualizer)
 	static constexpr int kMinNoteWidth = 360;
 	static constexpr int kNoteToChordGap = 24;
 	static constexpr int kColumnGap = 12;
-	static constexpr int kRightMargin = 28;
+	static constexpr int kRightMargin = 14;
 
 	layout.stable_x = std::max(layout.note_x + kMinNoteWidth + kNoteToChordGap + layout.chord_w + kColumnGap,
 					   width - kRightMargin - layout.stable_w);
@@ -95,7 +95,7 @@ VisualLayout bass_guitar_visual_layout(const VisualizerRenderer *visualizer)
 {
 	VisualLayout layout;
 	const int width = static_cast<int>(visualizer->width);
-	static constexpr int kRightMargin = 28;
+	static constexpr int kRightMargin = 14;
 	static constexpr int kNoteToChordGap = 24;
 	static constexpr int kColumnGap = 12;
 	layout.stable_x = width - kRightMargin - layout.stable_w;
@@ -1214,7 +1214,7 @@ void draw_visualizer_header(VisualizerRenderer *visualizer, const AnalysisSnapsh
 {
 	constexpr uint32_t kHeaderScale = 3;
 	const int title_y = std::max(0, 24 + y_offset);
-	int title_x = 28;
+	int title_x = 14;
 	draw_text(visualizer, title_x, title_y, "MUSIC ANALYZER", kHeaderScale, Color{246, 248, 251, 255});
 	title_x += text_width("MUSIC ANALYZER  ", kHeaderScale);
 	if (mode_label && mode_label[0]) {
@@ -1230,12 +1230,12 @@ void draw_visualizer_header(VisualizerRenderer *visualizer, const AnalysisSnapsh
 }
 
 void draw_drum_row(VisualizerRenderer *visualizer, const AnalysisSnapshot &snapshot, int label_y, int chart_y,
-		   int min_drum_w = 106, int max_drum_w = 150, uint32_t label_scale = 2)
+		   int min_drum_w = 90, int max_drum_w = 150, uint32_t label_scale = 2)
 {
-	draw_text(visualizer, 28, label_y, "DRUMS", 3, kLabelColor);
-	const int drum_start_x = 150;
+	draw_text(visualizer, 14, label_y, "DRUMS", 3, kLabelColor);
+	const int drum_start_x = 136;
 	const int drum_gap = 6;
-	const int drum_right_margin = 22;
+	const int drum_right_margin = 14;
 	const int available_w = static_cast<int>(visualizer->width) - drum_start_x - drum_right_margin -
 				static_cast<int>(snapshot.drums.size() - 1) * drum_gap;
 	const int raw_drum_w = std::max(1, available_w / static_cast<int>(snapshot.drums.size()));
@@ -1260,7 +1260,7 @@ void draw_note_column_headers(VisualizerRenderer *visualizer, const VisualLayout
 	// Bass and vocal show their current note rather than a harmonic chord in
 	// this summary column, so label it as a key.
 	draw_text(visualizer, layout.chord_x, y, "KEY", 2, kLabelColor);
-	draw_text(visualizer, layout.stable_x, y, "SUSTAIN", 2, kLabelColor);
+	draw_text(visualizer, layout.stable_x, y, "SUS", 2, kLabelColor);
 }
 
 [[maybe_unused]] void format_bpm_candidate_list(char *output, std::size_t output_size, const AnalysisSnapshot &snapshot)
@@ -1324,7 +1324,7 @@ void draw_root_and_bpm(VisualizerRenderer *visualizer, const AnalysisSnapshot &s
 {
 	// ROOT and BPM are a single bottom status row.  Keeping one baseline here
 	// prevents a layout-specific caller from accidentally separating them.
-	draw_root_candidates(visualizer, 28, baseline_y, snapshot.root_candidates, snapshot.root.label);
+	draw_root_candidates(visualizer, 14, baseline_y, snapshot.root_candidates, snapshot.root.label);
 
 	char bpm_value[16] = {};
 	char bpm_confidence[16] = {};
@@ -1338,7 +1338,7 @@ void draw_root_and_bpm(VisualizerRenderer *visualizer, const AnalysisSnapshot &s
 	}
 	const int total_width = text_width("BPM ", 2) + text_width(bpm_value, 2) +
 				(bpm_confidence[0] ? text_width(" ", 2) + text_width(bpm_confidence, 2) : 0);
-	int bpm_x = std::max(28, static_cast<int>(visualizer->width) - 28 - total_width);
+	int bpm_x = std::max(14, static_cast<int>(visualizer->width) - 14 - total_width);
 	if (visualizer->external_control.visible) {
 		constexpr std::array<const char *, 12> kRootNames = {
 			"C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B",
@@ -1384,7 +1384,7 @@ void draw_root_and_bpm(VisualizerRenderer *visualizer, const AnalysisSnapshot &s
 		int control_width = text_width(mode_root, 2);
 		for (std::size_t i = 0; i < kDeviceNames.size(); ++i)
 			control_width += text_width(" ", 2) + text_width(kDeviceNames[i], 2) + text_width("+", 2);
-		int control_x = std::max(28, bpm_x - 14 - control_width);
+		int control_x = std::max(14, bpm_x - 14 - control_width);
 		draw_text(visualizer, control_x, baseline_y, mode_root, 2, kWhiteTextColor);
 		control_x += text_width(mode_root, 2);
 		for (std::size_t i = 0; i < kDeviceNames.size(); ++i) {

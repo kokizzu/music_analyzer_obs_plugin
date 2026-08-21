@@ -34,6 +34,14 @@ int run_visualizer_renderer_tests()
 {
 	int checks = 0;
 	int failures = 0;
+	expect_true(kDefaultVisualizerWidth == 840 && kDefaultVisualizerHeight == 480,
+		    "the Complete visualizer defaults should use the compact canvas", &checks, &failures);
+	VisualizerRenderer compact_layout_renderer;
+	resize_visualizer(&compact_layout_renderer, kDefaultVisualizerWidth, kDefaultVisualizerHeight);
+	const VisualLayout compact_layout = visual_layout(&compact_layout_renderer);
+	expect_true(compact_layout.label_x == 14 &&
+			    compact_layout.stable_x + compact_layout.stable_w == kDefaultVisualizerWidth - 14,
+		    "Complete layout should use a matching 14-pixel left/right content margin", &checks, &failures);
 
 	char band[8] = {};
 	format_band_percentage(band, sizeof(band), 0.0f);
