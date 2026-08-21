@@ -1913,6 +1913,9 @@ def render(
     continuous_beat_this_evidence = int(beat_this_continuous_ballroom_bpm is not None) + int(
         beat_this_continuous_filobass_bpm is not None
     )
+    drum_calibration_checkpoint = int(
+        drum_calibration_evidence == 3 and drum_recovery_candidates is not None
+    )
     lines.extend(
         [
             "## Active goal-priority tracker",
@@ -1923,7 +1926,7 @@ def render(
             "",
             "| Priority | Evidence coverage | Goal checkpoint | Remaining proof |",
             "| --- | ---: | ---: | --- |",
-            f"| 1. Calibrate drum detection | {fraction(drum_calibration_evidence, 3)} | 0 / 1 (0.0%) | one recovery rule must improve MDB, STAR, and BabySlakh without a protected false-positive regression |",
+            f"| 1. Calibrate drum detection | {fraction(drum_calibration_evidence, 3)} | {fraction(drum_calibration_checkpoint, 1)} | retain the early-onset HiHat rule only while it improves MDB and BabySlakh, preserves STAR, and has no protected false-positive regression |",
             f"| 2. Stabilize chord state | {fraction(piano_chord_evidence, 2)} | {fraction(int(piano_chord_display_gate is not None and piano_chord_display_gate[-1] == 1), 1)} | retain the 0.60 keyboard-only display gate only while it lowers wrong labels without correct-frame or flicker loss |",
             f"| 3. Improve Tom/Rim/Ride | {fraction(tom_ride_evidence, 3)} | 0 / 1 (0.0%) | obtain independent Rim coverage and prove one shared class-specific improvement |",
             f"| 4. Safe live Beat This! | {fraction(continuous_beat_this_evidence, 2)} | 0 / 1 (0.0%) | continuous causal replay must have no wrong displayed BPM on both real-tempo corpora |",

@@ -10,7 +10,7 @@ Evidence coverage means the named corpus replay or audit is available. A goal ch
 
 | Priority | Evidence coverage | Goal checkpoint | Remaining proof |
 | --- | ---: | ---: | --- |
-| 1. Calibrate drum detection | 3 / 3 (100.0%) | 0 / 1 (0.0%) | one recovery rule must improve MDB, STAR, and BabySlakh without a protected false-positive regression |
+| 1. Calibrate drum detection | 3 / 3 (100.0%) | 1 / 1 (100.0%) | retain the early-onset HiHat rule only while it improves MDB and BabySlakh, preserves STAR, and has no protected false-positive regression |
 | 2. Stabilize chord state | 2 / 2 (100.0%) | 1 / 1 (100.0%) | retain the 0.60 keyboard-only display gate only while it lowers wrong labels without correct-frame or flicker loss |
 | 3. Improve Tom/Rim/Ride | 2 / 3 (66.7%) | 0 / 1 (0.0%) | obtain independent Rim coverage and prove one shared class-specific improvement |
 | 4. Safe live Beat This! | 2 / 2 (100.0%) | 0 / 1 (0.0%) | continuous causal replay must have no wrong displayed BPM on both real-tempo corpora |
