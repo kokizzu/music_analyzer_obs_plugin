@@ -35,6 +35,12 @@ class DetectionAccuracyReportTest(unittest.TestCase):
             )
             self.assertEqual(REPORT.fsd50k_rim_metadata_audit(audit), (0, 0, 0))
 
+    def test_pixabay_rimshot_measurement_requires_one_consistent_primary(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            audit = Path(temporary) / "pixabay_rimshot.txt"
+            audit.write_text("pixabay_rimshot_measurement: detected=1/1 primary=0/1 snare_primary=1/1\n", encoding="utf-8")
+            self.assertEqual(REPORT.pixabay_rimshot_measurement_audit(audit), (1, 0, 1))
+
     def test_visual_expected_pitch_lit_matches_pitch_class_at_threshold(self) -> None:
         self.assertTrue(
             REPORT.visual_expected_pitch_lit(
@@ -963,7 +969,7 @@ class DetectionAccuracyReportTest(unittest.TestCase):
         )
         self.assertIn("| Measure independent 29k Drums Tom/Ride baseline | 0 / 1 (0.0%) | 1 |", report)
         self.assertIn("| Broaden independent Rim replication beyond one isolated recording | 0 / 1 (0.0%) | 1 |", report)
-        self.assertIn("ENST-Drums has suitable labelled classes and a public prepared archive", report)
+        self.assertIn("ENST-Drums remains an additional labelled-corpus path", report)
         self.assertIn("| Aggregate classifier accuracy | 10 / 30 (33.3%) | 20 |", report)
         self.assertIn("## Cross-real drum false-positive cap audit", report)
         self.assertIn("| Cross-real candidates safe on protected one-shot primaries | 0 / 2 (0.0%) | 2 |", report)

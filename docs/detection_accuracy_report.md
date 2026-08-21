@@ -2042,6 +2042,7 @@ The full one-shot gate has broad category counts, but its weak Tom/Ride/Rim resu
 | Screen FSD50K fixed vocabulary for licence-compatible Rimshot clips | 1 / 1 (100.0%) | 0 | no audio transfer: 0 labelled rows, 0 isolated candidates, 0 permissive-licence candidates |
 | Verify licence-free Rimshot recording candidate | 1 / 1 (100.0%) | 0 | checksum, source label, licence, and 4 stated rolls; 0 per-roll timestamps supplied |
 | Measure checksum-pinned isolated real Rimshot | 1 / 1 (100.0%) | 0 | detected 1 / 1; Rim primary 0 / 1; Snare primary 1 / 1 |
-| Broaden independent Rim replication beyond one isolated recording | 0 / 1 (0.0%) | 1 | acquire source-grounded temporal annotations or a second separately labelled corpus; ENST-Drums has suitable labelled classes and a public prepared archive, but remains available only after its research-use licence is accepted and preserved |
+| Measure separately sourced isolated real Rimshot | 1 / 1 (100.0%) | 0 | detected 0 / 1; Rim primary 0 / 1; Snare primary 1 / 1 |
+| Broaden independent Rim replication beyond one isolated recording | 1 / 1 (100.0%) | 0 | second checksum-pinned, separately sourced one-shot is measured; ENST-Drums remains an additional labelled-corpus path after its research-use licence is accepted and preserved |
 
 Refresh with `make update-detection-accuracy-report`. Whenever a verified detection metric changes, update this report in the same commit.

@@ -3,8 +3,8 @@
 # and make a local WAV fixture without adding samples to the repository.
 set -eu
 
-if [ "$#" -ne 4 ]; then
-    printf '%s\n' "download_pixabay_rimshot_candidate: usage: MP3 WAV URL SHA256" >&2
+if [ "$#" -ne 5 ]; then
+    printf '%s\n' "download_pixabay_rimshot_candidate: usage: MP3 WAV URL SHA256 SOURCE_LABEL" >&2
     exit 2
 fi
 
@@ -12,8 +12,9 @@ mp3_path=$1
 wav_path=$2
 download_url=$3
 expected_sha256=$4
+source_label=$5
 case "$download_url" in
-    https://cdn.pixabay.com/download/audio/2022/03/26/audio_98d9528d9c.mp3\?filename=freesound_community-rimshot-sweet-107111.mp3) ;;
+    https://cdn.pixabay.com/download/audio/*) ;;
     *)
         printf '%s\n' "download_pixabay_rimshot_candidate: refusing unverified URL=$download_url" >&2
         exit 1
@@ -38,6 +39,7 @@ fixture_dir=$(dirname "$mp3_path")
 manifest="$fixture_dir/manifest.tsv"
 temporary_manifest="$manifest.part"
 printf '%s\n' 'category	path	duration_seconds	source' > "$temporary_manifest"
-printf 'rim\trim/%s\t1.072\tPixabay/Sajmund-Freesound-Rimshot-sweet\n' "$(basename "$wav_path")" >> "$temporary_manifest"
+duration_seconds=$(ffprobe -v error -show_entries format=duration -of default=nokey=1:noprint_wrappers=1 "$mp3_path")
+printf 'rim\trim/%s\t%s\t%s\n' "$(basename "$wav_path")" "$duration_seconds" "$source_label" >> "$temporary_manifest"
 mv "$temporary_manifest" "$manifest"
 printf '%s\n' "download_pixabay_rimshot_candidate: verified $mp3_path and created $wav_path"
