@@ -489,6 +489,13 @@ COMMONS_RIMSHOT_CANDIDATE_RE = re.compile(
     r"temporal_annotations=(?P<timed>[01]) ",
     re.MULTILINE,
 )
+BEAT_THIS_CONTINUOUS_INTERVAL_GATE_RE = re.compile(
+    r"^beat_this_continuous_interval_gate: minimum_intervals=(?P<intervals>-?\d+) "
+    r"ballroom_correct=(?P<ballroom_correct>\d+)/(?P<ballroom_total>\d+) ballroom_wrong=(?P<ballroom_wrong>\d+) "
+    r"filobass_correct=(?P<filobass_correct>\d+)/(?P<filobass_total>\d+) filobass_wrong=(?P<filobass_wrong>\d+) "
+    r"minimum_per_corpus=(?P<minimum>\d+) eligible=(?P<eligible>[01])$",
+    re.MULTILINE,
+)
 MDB_RIM_COVERAGE_RE = re.compile(
     r"^mdb_rim_coverage: detected=(?P<detected>\d+)/(?P<total>\d+)$",
     re.MULTILINE,
@@ -732,6 +739,22 @@ def commons_rimshot_candidate_audit(path: Path) -> tuple[int, int, int, int]:
     if sha1_verified != 1 or labelled != 1 or rolls != 4 or timed not in {0, 1}:
         raise ValueError(f"{path}: invalid Commons Rimshot candidate summary")
     return sha1_verified, labelled, rolls, timed
+
+
+def beat_this_continuous_interval_gate_audit(path: Path) -> tuple[int, int, int, int, int, int, int, int]:
+    match = BEAT_THIS_CONTINUOUS_INTERVAL_GATE_RE.search(path.read_text(encoding="utf-8", errors="replace"))
+    if match is None:
+        raise ValueError(f"{path}: missing Beat This continuous interval-gate summary")
+    values = {name: int(value) for name, value in match.groupdict().items()}
+    if values["eligible"] == 1:
+        if values["intervals"] < 0 or values["ballroom_wrong"] != 0 or values["filobass_wrong"] != 0:
+            raise ValueError(f"{path}: unsafe Beat This interval gate")
+        if min(values["ballroom_correct"], values["filobass_correct"]) < values["minimum"]:
+            raise ValueError(f"{path}: insufficient safe Beat This interval-gate outputs")
+    return (
+        values["intervals"], values["ballroom_correct"], values["ballroom_total"], values["ballroom_wrong"],
+        values["filobass_correct"], values["filobass_total"], values["filobass_wrong"], values["eligible"],
+    )
 
 
 def mdb_rim_coverage(path: Path) -> tuple[int, int]:
@@ -1559,6 +1582,7 @@ def render(
     beat_this_rolling_filobass_bpm_input: Path | None = None,
     beat_this_continuous_ballroom_bpm_input: Path | None = None,
     beat_this_continuous_filobass_bpm_input: Path | None = None,
+    beat_this_continuous_interval_gate_audit_input: Path | None = None,
     three_tempo_tracker_consensus_input: Path | None = None,
     high_tempo_three_tracker_consensus_input: Path | None = None,
     candombe_bpm_input: Path | None = None,
@@ -1657,6 +1681,10 @@ def render(
     beat_this_continuous_filobass_bpm = (
         beat_this_rolling_tempo_counts(beat_this_continuous_filobass_bpm_input)
         if beat_this_continuous_filobass_bpm_input else None
+    )
+    beat_this_continuous_interval_gate = (
+        beat_this_continuous_interval_gate_audit(beat_this_continuous_interval_gate_audit_input)
+        if beat_this_continuous_interval_gate_audit_input else None
     )
     three_tempo_tracker_consensus = (
         three_tempo_tracker_consensus_counts(three_tempo_tracker_consensus_input)
@@ -3600,6 +3628,22 @@ def render(
             accurate, total, on_budget = values
             lines.append(f"| {name} continuous causal BPM within 8 BPM | {fraction(accurate, total)} | {total - accurate} |")
             lines.append(f"| {name} continuous outputs processed within their audio duration | {fraction(on_budget, total)} | {total - on_budget} |")
+    if beat_this_continuous_interval_gate is not None:
+        intervals, ballroom_correct, ballroom_total, ballroom_wrong, filobass_correct, filobass_total, filobass_wrong, eligible = beat_this_continuous_interval_gate
+        lines.extend(
+            [
+                "",
+                "### Beat This! strict causal interval-count gate",
+                "",
+                f"Source: `{beat_this_continuous_interval_gate_audit_input.as_posix()}`. This rejects a Beat This! value unless its bounded causal window contains at least {intervals} usable beat intervals. The gate removed every observed wrong value in both corpora, but it is diagnostic-only until an optional realtime backend can preserve the exact same gate.",
+                "",
+                "| Metric | Accurate / total | Remaining |",
+                "| --- | ---: | ---: |",
+                f"| Ballroom strict-gated BPM within 8 BPM | {fraction(ballroom_correct, ballroom_total)} | {ballroom_wrong} wrong displayed BPM |",
+                f"| FiloBass strict-gated BPM within 8 BPM | {fraction(filobass_correct, filobass_total)} | {filobass_wrong} wrong displayed BPM |",
+                f"| Zero-wrong strict causal gate with ≥5 outputs per corpus | {fraction(eligible, 1)} | {1 - eligible} |",
+            ]
+        )
     if three_tempo_tracker_consensus is not None:
         correct, selected, newly_revealed, audited = three_tempo_tracker_consensus
         lines.extend(
@@ -4136,6 +4180,7 @@ def main() -> int:
     parser.add_argument("--beat-this-rolling-filobass-bpm-input", type=Path)
     parser.add_argument("--beat-this-continuous-ballroom-bpm-input", type=Path)
     parser.add_argument("--beat-this-continuous-filobass-bpm-input", type=Path)
+    parser.add_argument("--beat-this-continuous-interval-gate-audit", type=Path)
     parser.add_argument("--three-tempo-tracker-consensus-input", type=Path)
     parser.add_argument("--high-tempo-three-tracker-consensus-input", type=Path)
     parser.add_argument("--candombe-bpm-input", type=Path)
@@ -4277,6 +4322,7 @@ def main() -> int:
             args.beat_this_rolling_filobass_bpm_input,
             args.beat_this_continuous_ballroom_bpm_input,
             args.beat_this_continuous_filobass_bpm_input,
+            args.beat_this_continuous_interval_gate_audit,
             args.three_tempo_tracker_consensus_input,
             args.high_tempo_three_tracker_consensus_input,
             args.candombe_bpm_input,

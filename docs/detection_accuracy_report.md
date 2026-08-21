@@ -1727,6 +1727,16 @@ Each stable segment is replayed at 10 and 20 seconds using only its trailing 20-
 | FiloBass continuous causal BPM within 8 BPM | 38 / 96 (39.6%) | 58 |
 | FiloBass continuous outputs processed within their audio duration | 96 / 96 (100.0%) | 0 |
 
+### Beat This! strict causal interval-count gate
+
+Source: `build/beat_this_continuous_interval_gate_audit.txt`. This rejects a Beat This! value unless its bounded causal window contains at least 44 usable beat intervals. The gate removed every observed wrong value in both corpora, but it is diagnostic-only until an optional realtime backend can preserve the exact same gate.
+
+| Metric | Accurate / total | Remaining |
+| --- | ---: | ---: |
+| Ballroom strict-gated BPM within 8 BPM | 23 / 23 (100.0%) | 0 wrong displayed BPM |
+| FiloBass strict-gated BPM within 8 BPM | 8 / 8 (100.0%) | 0 wrong displayed BPM |
+| Zero-wrong strict causal gate with ≥5 outputs per corpus | 1 / 1 (100.0%) | 0 |
+
 ### Three-tracker offline consensus safety audit
 
 Source: `build/three_tempo_tracker_consensus.log`. A candidate is retained only when phase, the permissive tracker, and Beat This! agree, and each individual estimate is within 8 BPM. This is offline evidence only: Beat This! uses non-causal full-context attention, so this audit cannot enable a live OBS path.
