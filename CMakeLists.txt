@@ -18,6 +18,7 @@ file(GLOB PERMISSIVE_BEAT_TRACKER_SOURCES "${PERMISSIVE_BEAT_TRACKER_DIR}/src/*.
 
 add_library(music-analyzer-obs MODULE
     src/analyzer.cpp
+    src/beat_this_sidecar_client.cpp
     ${PERMISSIVE_BEAT_TRACKER_SOURCES}
     src/audacious_title.cpp
     src/audacious_overlay.cpp
@@ -25,6 +26,12 @@ add_library(music-analyzer-obs MODULE
     src/visualizer_renderer.cpp
     src/plugin.cpp
 )
+
+add_executable(beat_this_sidecar_client_tests tests/beat_this_sidecar_client.cpp src/beat_this_sidecar_client.cpp)
+target_include_directories(beat_this_sidecar_client_tests PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/src
+)
+target_compile_options(beat_this_sidecar_client_tests PRIVATE -Wall -Wextra)
 
 # Keep Audacious title replacement exclusive to the Linux OBS plugin. Source
 # registration and final texture drawing retain the original implementation.
@@ -135,6 +142,7 @@ add_test(NAME analyzer_cases COMMAND analyzer_cases)
 add_test(NAME fret_control_tests COMMAND fret_control_tests)
 add_test(NAME audacious_title_tests COMMAND audacious_title_tests)
 add_test(NAME unicode_title_renderer_tests COMMAND unicode_title_renderer_tests)
+add_test(NAME beat_this_sidecar_client_tests COMMAND beat_this_sidecar_client_tests ${CMAKE_CURRENT_SOURCE_DIR}/tests/fake_beat_this_sidecar.py)
 if(SDL2_FOUND)
     add_test(NAME standalone_self_test COMMAND music-analyzer-standalone --self-test)
     set_tests_properties(standalone_self_test PROPERTIES

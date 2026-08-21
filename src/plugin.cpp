@@ -1,4 +1,5 @@
 #include "analyzer.hpp"
+#include "beat_this_sidecar_client.hpp"
 #include "visualizer_renderer.hpp"
 
 #include <obs-module.h>
@@ -16,6 +17,7 @@
 #include <cstdio>
 #include <cstring>
 #include <mutex>
+#include <new>
 #include <string>
 #include <thread>
 #include <vector>
@@ -31,6 +33,9 @@ namespace {
 
 constexpr const char *kFilterId = "music_analyzer_filter";
 constexpr const char *kVisualizerId = "music_analyzer_overlay";
+constexpr std::size_t kBeatThisSidecarMaxSamples =
+	static_cast<std::size_t>(mao::kBeatThisMaxSampleRate) * mao::kBeatThisWindowSeconds;
+constexpr std::chrono::seconds kBeatThisSidecarCandidateLifetime{25};
 static_assert((mao::kAnalysisWindow & (mao::kAnalysisWindow - 1)) == 0, "analysis window must be a power of two");
 
 std::mutex g_snapshot_mutex;
@@ -159,6 +164,7 @@ struct FilterData {
 	std::atomic<uint32_t> sensitivity_percent{100};
 	std::atomic<bool> parent_name_resolved{false};
 	std::atomic<uint64_t> direct_audio_frames_seen{0};
+	std::atomic<bool> beat_this_sidecar_enabled{false};
 	uint32_t samples_until_analysis = 2400;
 	char source_name[64] = {};
 	char pending_source_name[64] = {};
@@ -181,9 +187,174 @@ struct FilterData {
 	bool pending = false;
 	mao::AnalysisSettings pending_settings;
 	mao::AnalysisEngine engine;
+
+	// The audio callback writes one of these buffers only.  The optional
+	// sidecar worker reads the other buffer after it has been filled with one
+	// exact 20-second window, so no model work or packet allocation reaches the
+	// callback.  They are allocated only from create/update, never from audio.
+	std::array<std::vector<float>, 2> beat_this_sidecar_buffers;
+	std::size_t beat_this_sidecar_write_pos = 0;
+	uint8_t beat_this_sidecar_active_buffer = 0;
+	std::mutex beat_this_sidecar_mutex;
+	std::condition_variable beat_this_sidecar_cv;
+	std::thread beat_this_sidecar_worker;
+	bool stop_beat_this_sidecar_worker = false;
+	bool beat_this_sidecar_pending = false;
+	bool beat_this_sidecar_warm_pending = false;
+	uint8_t beat_this_sidecar_pending_buffer = 0;
+	uint32_t beat_this_sidecar_pending_rate = 0;
+	uint64_t beat_this_sidecar_generation = 0;
+	mao::BeatThisSidecarConfig beat_this_sidecar_config;
+	float beat_this_sidecar_bpm = 0.0f;
+	std::chrono::steady_clock::time_point beat_this_sidecar_bpm_at = {};
+	bool beat_this_sidecar_bpm_ready = false;
 };
 
 void master_audio_callback(void *param, size_t, struct audio_data *audio);
+
+mao::BeatThisSidecarConfig read_beat_this_sidecar_config(obs_data_t *settings)
+{
+	mao::BeatThisSidecarConfig config;
+	config.python_command = obs_data_get_string(settings, "beat_this_python");
+	config.runner_path = obs_data_get_string(settings, "beat_this_runner");
+	config.runtime_root = obs_data_get_string(settings, "beat_this_runtime_root");
+	config.model_cache_root = obs_data_get_string(settings, "beat_this_model_cache_root");
+	config.checkpoint = obs_data_get_string(settings, "beat_this_checkpoint");
+	if (config.checkpoint.empty())
+		config.checkpoint = "final0";
+	config.response_timeout_ms = static_cast<uint32_t>(std::clamp<long long>(
+		obs_data_get_int(settings, "beat_this_timeout_ms"), 500, 10000));
+	return config;
+}
+
+void reset_beat_this_sidecar_capture(FilterData *filter)
+{
+	std::lock_guard<std::mutex> lock(filter->audio_mutex);
+	filter->beat_this_sidecar_write_pos = 0;
+	filter->beat_this_sidecar_active_buffer = 0;
+}
+
+bool prepare_beat_this_sidecar_buffers(FilterData *filter)
+{
+	try {
+		for (auto &buffer : filter->beat_this_sidecar_buffers) {
+			if (buffer.size() != kBeatThisSidecarMaxSamples)
+				buffer.assign(kBeatThisSidecarMaxSamples, 0.0f);
+		}
+	} catch (const std::bad_alloc &) {
+		blog(LOG_WARNING, "Music Analyzer: Beat This sidecar buffers could not be allocated; leaving it disabled");
+		return false;
+	}
+	reset_beat_this_sidecar_capture(filter);
+	return true;
+}
+
+void update_beat_this_sidecar_config(FilterData *filter, obs_data_t *settings)
+{
+	const bool requested = obs_data_get_bool(settings, "enable_beat_this_sidecar");
+	const mao::BeatThisSidecarConfig config = read_beat_this_sidecar_config(settings);
+	const bool enabled = requested && mao::BeatThisSidecarClient::valid_config(config) &&
+			     prepare_beat_this_sidecar_buffers(filter);
+	filter->beat_this_sidecar_enabled.store(enabled, std::memory_order_release);
+	{
+		std::lock_guard<std::mutex> lock(filter->beat_this_sidecar_mutex);
+		++filter->beat_this_sidecar_generation;
+		filter->beat_this_sidecar_config = config;
+		filter->beat_this_sidecar_warm_pending = enabled;
+		filter->beat_this_sidecar_bpm = 0.0f;
+		filter->beat_this_sidecar_bpm_ready = false;
+	}
+	filter->beat_this_sidecar_cv.notify_one();
+	if (requested && !enabled)
+		blog(LOG_WARNING, "Music Analyzer: Beat This sidecar needs explicit Python, runner, runtime, and cache paths");
+}
+
+void capture_beat_this_sidecar_sample(FilterData *filter, float sample)
+{
+	if (!filter->beat_this_sidecar_enabled.load(std::memory_order_acquire))
+		return;
+	const uint32_t sample_rate = filter->sample_rate.load(std::memory_order_relaxed);
+	const std::size_t required_samples = static_cast<std::size_t>(sample_rate) * mao::kBeatThisWindowSeconds;
+	if (!mao::BeatThisSidecarClient::valid_packet_shape(sample_rate, required_samples))
+		return;
+	std::vector<float> &buffer = filter->beat_this_sidecar_buffers[filter->beat_this_sidecar_active_buffer];
+	if (buffer.size() < required_samples)
+		return;
+	buffer[filter->beat_this_sidecar_write_pos++] = sample;
+	if (filter->beat_this_sidecar_write_pos < required_samples)
+		return;
+
+	filter->beat_this_sidecar_write_pos = 0;
+	std::lock_guard<std::mutex> lock(filter->beat_this_sidecar_mutex);
+	if (filter->beat_this_sidecar_pending)
+		return;
+	filter->beat_this_sidecar_pending_buffer = filter->beat_this_sidecar_active_buffer;
+	filter->beat_this_sidecar_pending_rate = sample_rate;
+	filter->beat_this_sidecar_pending = true;
+	filter->beat_this_sidecar_active_buffer = static_cast<uint8_t>(1U - filter->beat_this_sidecar_active_buffer);
+	filter->beat_this_sidecar_cv.notify_one();
+}
+
+void beat_this_sidecar_worker(FilterData *filter)
+{
+	mao::BeatThisSidecarClient client;
+	for (;;) {
+		mao::BeatThisSidecarConfig config;
+		uint8_t buffer_index = 0;
+		uint32_t sample_rate = 0;
+		uint64_t generation = 0;
+		{
+			std::unique_lock<std::mutex> lock(filter->beat_this_sidecar_mutex);
+			filter->beat_this_sidecar_cv.wait(lock, [&]() {
+				return filter->stop_beat_this_sidecar_worker || filter->beat_this_sidecar_warm_pending ||
+				       filter->beat_this_sidecar_pending;
+			});
+			if (filter->stop_beat_this_sidecar_worker) {
+				client.stop();
+				return;
+			}
+			if (filter->beat_this_sidecar_warm_pending) {
+				filter->beat_this_sidecar_warm_pending = false;
+				config = filter->beat_this_sidecar_config;
+				lock.unlock();
+				if (!client.warm(config))
+					blog(LOG_WARNING, "Music Analyzer: Beat This sidecar process could not start");
+				continue;
+			}
+			buffer_index = filter->beat_this_sidecar_pending_buffer;
+			sample_rate = filter->beat_this_sidecar_pending_rate;
+			generation = filter->beat_this_sidecar_generation;
+			config = filter->beat_this_sidecar_config;
+		}
+
+		const std::size_t sample_count = static_cast<std::size_t>(sample_rate) * mao::kBeatThisWindowSeconds;
+		mao::BeatThisSidecarReply reply;
+		const bool received = client.request(config, filter->beat_this_sidecar_buffers[buffer_index].data(),
+						     sample_count, sample_rate, &reply);
+
+		std::lock_guard<std::mutex> lock(filter->beat_this_sidecar_mutex);
+		filter->beat_this_sidecar_pending = false;
+		if (received && reply.ready &&
+		    filter->beat_this_sidecar_enabled.load(std::memory_order_acquire) &&
+		    generation == filter->beat_this_sidecar_generation) {
+			filter->beat_this_sidecar_bpm = reply.bpm;
+			filter->beat_this_sidecar_bpm_at = std::chrono::steady_clock::now();
+			filter->beat_this_sidecar_bpm_ready = true;
+		}
+	}
+}
+
+void apply_beat_this_sidecar_fallback(FilterData *filter, mao::AnalysisSnapshot *snapshot)
+{
+	if (!filter || !snapshot || snapshot->bpm_confidence >= mao::kBpmDisplayConfidenceThreshold)
+		return;
+	std::lock_guard<std::mutex> lock(filter->beat_this_sidecar_mutex);
+	if (!filter->beat_this_sidecar_bpm_ready ||
+	    std::chrono::steady_clock::now() - filter->beat_this_sidecar_bpm_at > kBeatThisSidecarCandidateLifetime)
+		return;
+	snapshot->estimated_bpm = filter->beat_this_sidecar_bpm;
+	snapshot->bpm_confidence = mao::kBpmDisplayConfidenceThreshold;
+}
 
 void copy_ring_to_pending(FilterData *filter, const char *source_label)
 {
@@ -332,6 +503,7 @@ void process_audio_planes(FilterData *filter, const float *const *planes, uint32
 		}
 		filter->ring[filter->write_pos] = std::clamp(mixed, -2.0f, 2.0f);
 		filter->write_pos = (filter->write_pos + 1) & (mao::kAnalysisWindow - 1);
+		capture_beat_this_sidecar_sample(filter, std::clamp(mixed, -2.0f, 2.0f));
 		++filter->audio_frames_seen;
 
 		if (--filter->samples_until_analysis == 0) {
@@ -396,6 +568,7 @@ void analyzer_worker(FilterData *filter)
 		snapshot.audio_seen = true;
 		snapshot.audio_frames = audio_frames;
 		snapshot.analyzed_windows = analyzed_windows;
+		apply_beat_this_sidecar_fallback(filter, &snapshot);
 		publish_snapshot(snapshot);
 	}
 }
@@ -429,11 +602,13 @@ void *filter_create(obs_data_t *settings, obs_source_t *source)
 				std::memory_order_relaxed);
 	filter->legacy_window.store(obs_data_get_bool(settings, "legacy_window"), std::memory_order_relaxed);
 	filter->sensitivity_percent.store(static_cast<uint32_t>(std::clamp<long long>(obs_data_get_int(settings, "sensitivity"), 50, 200)),
-					  std::memory_order_relaxed);
+				  std::memory_order_relaxed);
+	update_beat_this_sidecar_config(filter, settings);
 
 	publish_filter_ready(filter);
 	connect_master_audio(filter);
 	filter->worker = std::thread(analyzer_worker, filter);
+	filter->beat_this_sidecar_worker = std::thread(beat_this_sidecar_worker, filter);
 	return filter;
 }
 
@@ -452,6 +627,13 @@ void filter_destroy(void *data)
 	filter->worker_cv.notify_one();
 	if (filter->worker.joinable())
 		filter->worker.join();
+	{
+		std::lock_guard<std::mutex> lock(filter->beat_this_sidecar_mutex);
+		filter->stop_beat_this_sidecar_worker = true;
+	}
+	filter->beat_this_sidecar_cv.notify_one();
+	if (filter->beat_this_sidecar_worker.joinable())
+		filter->beat_this_sidecar_worker.join();
 
 	delete filter;
 }
@@ -462,6 +644,13 @@ void filter_defaults(obs_data_t *settings)
 	obs_data_set_default_int(settings, "window_ms", mao::kDefaultAnalysisWindowMs);
 	obs_data_set_default_bool(settings, "legacy_window", false);
 	obs_data_set_default_int(settings, "sensitivity", 100);
+	obs_data_set_default_bool(settings, "enable_beat_this_sidecar", false);
+	obs_data_set_default_string(settings, "beat_this_python", "python3");
+	obs_data_set_default_string(settings, "beat_this_runner", "");
+	obs_data_set_default_string(settings, "beat_this_runtime_root", "");
+	obs_data_set_default_string(settings, "beat_this_model_cache_root", "");
+	obs_data_set_default_string(settings, "beat_this_checkpoint", "final0");
+	obs_data_set_default_int(settings, "beat_this_timeout_ms", 4000);
 }
 
 obs_properties_t *filter_properties(void *)
@@ -471,6 +660,16 @@ obs_properties_t *filter_properties(void *)
 	obs_properties_add_int_slider(props, "window_ms", "Analysis window (ms)", 20, 170, 5);
 	obs_properties_add_bool(props, "legacy_window", "Use legacy 4096-sample analysis window");
 	obs_properties_add_int_slider(props, "sensitivity", "Drum sensitivity (%)", 50, 200, 5);
+	obs_properties_add_bool(props, "enable_beat_this_sidecar", "Enable experimental Beat This BPM fallback");
+	obs_properties_add_text(props, "beat_this_python", "Beat This Python command", OBS_TEXT_DEFAULT);
+	obs_properties_add_path(props, "beat_this_runner", "Beat This runner (explicit local file)", OBS_PATH_FILE,
+			       "Python script (*.py)", nullptr);
+	obs_properties_add_path(props, "beat_this_runtime_root", "Beat This runtime root (external storage)", OBS_PATH_DIRECTORY,
+			       nullptr, nullptr);
+	obs_properties_add_path(props, "beat_this_model_cache_root", "Beat This model cache (external storage)", OBS_PATH_DIRECTORY,
+			       nullptr, nullptr);
+	obs_properties_add_text(props, "beat_this_checkpoint", "Beat This cached checkpoint", OBS_TEXT_DEFAULT);
+	obs_properties_add_int_slider(props, "beat_this_timeout_ms", "Beat This response timeout (ms)", 500, 10000, 500);
 	return props;
 }
 
@@ -491,7 +690,8 @@ void filter_update(void *data, obs_data_t *settings)
 	filter->window_ms.store(static_cast<uint32_t>(window_ms), std::memory_order_relaxed);
 	filter->legacy_window.store(obs_data_get_bool(settings, "legacy_window"), std::memory_order_relaxed);
 	filter->sensitivity_percent.store(static_cast<uint32_t>(std::clamp<long long>(obs_data_get_int(settings, "sensitivity"), 50, 200)),
-					  std::memory_order_relaxed);
+				  std::memory_order_relaxed);
+	update_beat_this_sidecar_config(filter, settings);
 	filter->parent_name_resolved.store(refresh_source_name(filter), std::memory_order_relaxed);
 	publish_filter_ready(filter);
 }

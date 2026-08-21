@@ -1,18 +1,18 @@
 # Beat This! live sidecar protocol
 
-The Beat This! model remains disabled by default and is not started by the OBS plugin. This protocol defines the only permissible route for a future opt-in backend, so model loading and inference cannot run in the audio callback.
+The Beat This! model remains disabled by default. The OBS filter now exposes an experimental opt-in backend, but it cannot start unless the user supplies explicit local paths for Python, this runner, the external runtime, and the external model cache. Model loading and inference never run in the audio callback.
 
 ## Boundary
 
 ```text
-OBS audio callback → existing bounded analyzer ring → optional worker-owned 20 s buffer
+OBS audio callback → existing bounded analyzer ring → two preallocated 20 s buffers
                                                      ↓
                                          persistent sidecar process
                                                      ↓
                                       gated BPM reply or no BPM reply
 ```
 
-The callback must only copy samples into preallocated storage. It must never spawn a process, wait for the sidecar, allocate model data, import Python, or replace a normal BPM value. The optional worker permits only one outstanding request; a timeout, malformed response, child exit, or late result is discarded and leaves the existing analyzer output unchanged.
+The callback only writes samples into preallocated storage. It never spawns a process, waits for the sidecar, allocates a packet/model, imports Python, or replaces a normal BPM value. The optional worker warms one persistent child after opt-in and permits only one outstanding request. Its stdin is nonblocking and deadline-bounded; a timeout, malformed response, child exit, or late result is discarded. A ready sidecar BPM is used only while the existing analyzer BPM is below its calibrated display threshold, and expires after 25 seconds.
 
 ## Packet contract
 
@@ -37,7 +37,7 @@ A reply has `status: "ready"` only when all of these are true:
 | usable Beat This intervals | at least 44 |
 | derived BPM | finite and positive |
 
-Otherwise the sidecar emits `status: "gated"` with `bpm: 0.0`. This preserves the interval gate from the causal replay: 23/23 selected Ballroom outputs and 8/8 selected FiloBass outputs were within 8 BPM, with zero observed wrong values. That evidence is still insufficient to enable OBS integration: it must be reproduced by the future worker using this exact protocol and show no wrong displayed BPM across both corpora.
+Otherwise the sidecar emits `status: "gated"` with `bpm: 0.0`. This preserves the interval gate from the causal replay: 23/23 selected Ballroom outputs and 8/8 selected FiloBass outputs were within 8 BPM, with zero observed wrong values. The OBS boundary uses the same packet and reply gate; its model-free persistent-child test sends two exact packets and its static guard verifies callback isolation, normal-BPM precedence, expiry, and bounded I/O.
 
 ## Model and storage constraints
 
@@ -45,6 +45,6 @@ The process loads one `Audio2Beats` instance at startup. `--runtime-root` and `-
 
 ## Verification
 
-Run `make test-beat-this-live-sidecar test-measure-beat-this-live-sidecar`. These model-free checks validate packet sizing, clean EOF, rejection of a short window, the 44-interval gate, response validation, and an in-memory persistent-stream replay without loading Beat This or playing audio.
+Run `make test-beat-this-live-sidecar test-measure-beat-this-live-sidecar test-beat-this-sidecar-client test-beat-this-obs-sidecar`. These model-free checks validate packet sizing, clean EOF, rejection of a short window, the 44-interval gate, response validation, a C++ persistent-child replay, and the OBS callback/worker safety boundary without loading Beat This or playing audio.
 
-For an offline model replay, run `make measure-beat-this-sidecar-ballroom measure-beat-this-sidecar-filobass`. The harness sends causal, exact 20-second packets to one persistent sidecar child per corpus and logs `ready`, `withheld`, `hit`, or `miss` outcomes. It remains evidence only: no result from this target enables or starts an OBS backend.
+For an offline model replay, run `make measure-beat-this-sidecar-ballroom measure-beat-this-sidecar-filobass`. The harness sends causal, exact 20-second packets to one persistent sidecar child per corpus and logs `ready`, `withheld`, `hit`, or `miss` outcomes. It remains evidence only; the OBS backend stays disabled until explicitly configured in that filter's properties.

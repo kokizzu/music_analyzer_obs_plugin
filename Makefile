@@ -1723,7 +1723,7 @@ RENDERER_OBJ := $(BUILD_DIR)/visualizer_renderer.o
 BTT_SOURCE_DIR := third_party/beat_and_tempo_tracking
 BTT_C_SOURCES := $(wildcard $(BTT_SOURCE_DIR)/src/*.c)
 BTT_OBJS := $(patsubst $(BTT_SOURCE_DIR)/src/%.c,$(BUILD_DIR)/btt_%.o,$(BTT_C_SOURCES))
-PLUGIN_OBJS := $(BUILD_DIR)/analyzer.o $(RENDERER_OBJ) $(BUILD_DIR)/plugin.o $(BTT_OBJS)
+PLUGIN_OBJS := $(BUILD_DIR)/analyzer.o $(RENDERER_OBJ) $(BUILD_DIR)/beat_this_sidecar_client.o $(BUILD_DIR)/plugin.o $(BTT_OBJS)
 ANALYZER_TEST_OBJ := $(BUILD_DIR)/analyzer_test.o $(BTT_OBJS)
 TEST_BINS := $(BUILD_DIR)/fret_control_tests $(BUILD_DIR)/visualizer_renderer_tests $(BUILD_DIR)/analyzer_internal $(BUILD_DIR)/analyzer_smoke $(BUILD_DIR)/analyzer_cases $(BUILD_DIR)/analyzer_midi_ranges $(BUILD_DIR)/analyzer_urmp $(BUILD_DIR)/analyzer_musicnet $(BUILD_DIR)/analyzer_multtipop $(BUILD_DIR)/analyzer_guitarset $(BUILD_DIR)/analyzer_maestro $(BUILD_DIR)/analyzer_egmd $(BUILD_DIR)/analyzer_drum_samples $(BUILD_DIR)/analyzer_instrument_samples $(BUILD_DIR)/analyzer_real_note_samples $(BUILD_DIR)/analyzer_instrument_family_samples
 BTT_PROBE := $(BUILD_DIR)/btt_tempo_probe
@@ -1987,7 +1987,7 @@ GUITARSET_ATTRIBUTE_GATE_ENV ?= MUSIC_ANALYZER_GUITARSET_ATTRIBUTE_ONLY=1 MUSIC_
 .PHONY: find-real-note-octave-displacement-cached
 .PHONY: analyze-real-note-misses-serial analyze-real-note-misses-parallel analyze-real-note-misses-shard-%
 .PHONY: test-vocadito-samples-full-mix-parallel-unlocked
-.PHONY: test-parallel test-core-parallel test-analysis-scripts-parallel test-fixtures-parallel test-fixtures-parallel-isolated test-real-note-sample-shards test-real-note-sample-shards-unlocked test-real-note-sample-shard-% $(REAL_NOTE_SAMPLE_PARALLEL_TARGETS) test-real-note-samples-full-mix-serial test-real-note-samples-full-mix-parallel test-real-note-samples-full-mix-parallel-unlocked test-real-note-samples-full-mix-detector-parallel test-real-note-visual-strength test-real-note-full-mix-shard-check test-real-note-sample-shard-check test-instrument-samples-serial test-instrument-samples-parallel test-visualizer-renderer test-analyzer-internal test-analyzer-smoke test-analyzer-cases test-analyzer-midi-ranges test-analyzer-urmp test-analyzer-musicnet test-analyzer-multtipop test-analyzer-guitarset test-analyzer-maestro test-analyzer-egmd
+.PHONY: test-parallel test-core-parallel test-analysis-scripts-parallel test-fixtures-parallel test-fixtures-parallel-isolated test-real-note-sample-shards test-real-note-sample-shards-unlocked test-real-note-sample-shard-% $(REAL_NOTE_SAMPLE_PARALLEL_TARGETS) test-real-note-samples-full-mix-serial test-real-note-samples-full-mix-parallel test-real-note-samples-full-mix-parallel-unlocked test-real-note-samples-full-mix-detector-parallel test-real-note-visual-strength test-real-note-full-mix-shard-check test-real-note-sample-shard-check test-instrument-samples-serial test-instrument-samples-parallel test-visualizer-renderer test-analyzer-internal test-analyzer-smoke test-analyzer-cases test-analyzer-midi-ranges test-analyzer-urmp test-analyzer-musicnet test-analyzer-multtipop test-analyzer-guitarset test-analyzer-maestro test-analyzer-egmd test-beat-this-sidecar-client
 .PHONY: prepare-real-goal-fixtures-parallel $(REAL_GOAL_FIXTURE_PREP_TARGETS)
 .PHONY: test-drum-real-world-samples-parallel test-drum-real-world-samples-full-parallel test-real-world-samples-parallel test-real-world-samples-full-parallel test-real-world-samples-max-parallel test-drum-samples-optional test-drum-samples-spread-optional test-drum-machine-samples-optional test-drum-samples-full-optional test-idmt-bass-lines-samples-optional test-idmt-guitar-samples-optional test-good-sounds-samples-optional test-medley-solos-samples-optional test-medley-solos-samples-serial test-medley-solos-samples-parallel test-medley-solos-samples-parallel-unlocked test-medley-solos-samples-shard-% test-maps-piano-samples-optional test-maps-piano-note-samples-optional test-bach10-mf0-synth-samples-optional test-bach10-mf0-synth-samples-serial test-bach10-mf0-synth-samples-parallel test-bach10-mf0-synth-samples-parallel-unlocked test-bach10-mf0-synth-samples-shard-% analyze-bach10-mf0-synth-chord-misses analyze-bach10-mf0-synth-pitch-misses test-vocalset-samples-optional test-vocalset-samples-full-mix-optional
 .PHONY: test-drum-samples-full-serial test-drum-samples-full-parallel test-drum-samples-full-parallel-unlocked test-drum-samples-full-shard-% test-drum-machine-samples-serial test-drum-machine-samples-parallel test-drum-machine-samples-parallel-unlocked test-drum-machine-samples-shard-% test-hf-drum-kit-samples-serial test-hf-drum-kit-samples-parallel test-hf-drum-kit-samples-parallel-unlocked test-hf-drum-kit-samples-shard-% test-idmt-drums-samples-serial test-idmt-drums-samples-parallel test-idmt-drums-samples-parallel-unlocked test-idmt-drums-samples-shard-% test-drum-samples-full-parallel-optional test-drum-sample-shard-check
@@ -2133,6 +2133,15 @@ $(BUILD_DIR)/music-analyzer-obs.so: $(PLUGIN_OBJS)
 
 $(BUILD_DIR)/plugin.o: src/plugin.cpp src/analyzer.hpp src/visualizer_renderer.hpp $(SIMDE_DEP) | $(BUILD_DIR)
 	$(CXX) $(CXXFLAGS) $(OBS_CFLAGS) $(LOCAL_SIMDE_CFLAGS) -I$(OBS_INCLUDEDIR)/obs -Isrc -c $< -o $@
+
+$(BUILD_DIR)/beat_this_sidecar_client.o: src/beat_this_sidecar_client.cpp src/beat_this_sidecar_client.hpp | $(BUILD_DIR)
+	$(CXX) $(CXXFLAGS) -Isrc -c $< -o $@
+
+$(BUILD_DIR)/beat_this_sidecar_client_tests.o: tests/beat_this_sidecar_client.cpp src/beat_this_sidecar_client.hpp | $(BUILD_DIR)
+	tmp="$@.$$$$.tmp"; $(CXX) $(CXXFLAGS) -Isrc -c $< -o "$$tmp" && mv "$$tmp" "$@"
+
+$(BUILD_DIR)/beat_this_sidecar_client_tests: $(BUILD_DIR)/beat_this_sidecar_client.o $(BUILD_DIR)/beat_this_sidecar_client_tests.o
+	tmp="$@.$$$$.tmp"; $(CXX) -o "$$tmp" $^ && mv "$$tmp" "$@"
 
 $(BUILD_DIR)/analyzer.o: src/analyzer.cpp src/analyzer.hpp $(BTT_SOURCE_DIR)/BTT.h | $(BUILD_DIR)
 	$(CXX) $(CXXFLAGS) $(OBS_CFLAGS) -Isrc -I$(BTT_SOURCE_DIR) -c $< -o $@
@@ -6155,6 +6164,9 @@ test-fret-control: $(BUILD_DIR)/fret_control_tests scripts/run_with_duration.sh
 test-visualizer-renderer: $(BUILD_DIR)/visualizer_renderer_tests scripts/run_with_duration.sh
 	$(RUN_WITH_DURATION) visualizer_renderer_tests $(BUILD_DIR)/visualizer_renderer_tests
 
+test-beat-this-sidecar-client: $(BUILD_DIR)/beat_this_sidecar_client_tests tests/fake_beat_this_sidecar.py scripts/run_with_duration.sh
+	$(RUN_WITH_DURATION) beat_this_sidecar_client_tests $(BUILD_DIR)/beat_this_sidecar_client_tests "$(CURDIR)/tests/fake_beat_this_sidecar.py"
+
 test-analyzer-smoke: $(BUILD_DIR)/analyzer_smoke scripts/run_with_duration.sh
 	$(RUN_WITH_DURATION) analyzer_smoke $(BUILD_DIR)/analyzer_smoke
 
@@ -6392,7 +6404,7 @@ inspect-beat-this-environment: scripts/inspect_beat_this_environment.py
 report-beat-this-gtzan-job: scripts/inspect_beat_this_environment.py
 	$(PYTHON) scripts/inspect_beat_this_environment.py --model-cache-root "$(BEAT_THIS_DIAGNOSTIC_ROOT)" --diagnostic-log "$(BEAT_THIS_DIAGNOSTIC_LOG)"
 
-.PHONY: install-beat-this-diagnostic test-measure-beat-this-bpm test-measure-beat-this-rolling-bpm test-beat-this-live-sidecar test-measure-beat-this-live-sidecar test-summarize-beat-this-sidecar-replay measure-beat-this-gtzan-rhythm measure-beat-this-ballroom measure-beat-this-filobass measure-beat-this-rolling-ballroom measure-beat-this-rolling-filobass measure-beat-this-continuous-ballroom measure-beat-this-continuous-filobass measure-beat-this-sidecar-ballroom measure-beat-this-sidecar-filobass measure-beat-this-sidecar-ballroom-prepared measure-beat-this-sidecar-filobass-prepared summarize-beat-this-sidecar-ballroom summarize-beat-this-sidecar-filobass audit-beat-this-continuous-interval-gate test-audit-beat-this-continuous-interval-gate summarize-beat-this-gtzan-rhythm summarize-beat-this-real-tempo summarize-beat-this-rolling-tempo
+.PHONY: install-beat-this-diagnostic test-measure-beat-this-bpm test-measure-beat-this-rolling-bpm test-beat-this-live-sidecar test-measure-beat-this-live-sidecar test-summarize-beat-this-sidecar-replay test-beat-this-obs-sidecar measure-beat-this-gtzan-rhythm measure-beat-this-ballroom measure-beat-this-filobass measure-beat-this-rolling-ballroom measure-beat-this-rolling-filobass measure-beat-this-continuous-ballroom measure-beat-this-continuous-filobass measure-beat-this-sidecar-ballroom measure-beat-this-sidecar-filobass measure-beat-this-sidecar-ballroom-prepared measure-beat-this-sidecar-filobass-prepared summarize-beat-this-sidecar-ballroom summarize-beat-this-sidecar-filobass audit-beat-this-continuous-interval-gate test-audit-beat-this-continuous-interval-gate summarize-beat-this-gtzan-rhythm summarize-beat-this-real-tempo summarize-beat-this-rolling-tempo
 install-beat-this-diagnostic: configure-instrument-sample-store scripts/setup_beat_this_diagnostic.sh
 	bash scripts/setup_beat_this_diagnostic.sh "$(BEAT_THIS_DIAGNOSTIC_ROOT)" "$(BEAT_THIS_RUNTIME_ROOT)" "$(PYTHON)"
 
@@ -6407,6 +6419,9 @@ test-beat-this-live-sidecar: tests/test_beat_this_live_sidecar.py scripts/beat_t
 
 test-measure-beat-this-live-sidecar: tests/test_measure_beat_this_live_sidecar.py scripts/measure_beat_this_live_sidecar.py scripts/beat_this_live_sidecar.py scripts/measure_beat_this_bpm.py
 	$(PYTHON) tests/test_measure_beat_this_live_sidecar.py
+
+test-beat-this-obs-sidecar: tests/test_beat_this_obs_sidecar.py src/plugin.cpp src/beat_this_sidecar_client.cpp
+	$(PYTHON) tests/test_beat_this_obs_sidecar.py
 
 test-summarize-beat-this-sidecar-replay: tests/test_summarize_beat_this_sidecar_replay.py scripts/summarize_beat_this_sidecar_replay.py
 	$(PYTHON) tests/test_summarize_beat_this_sidecar_replay.py

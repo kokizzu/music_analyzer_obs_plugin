@@ -13,7 +13,7 @@ Evidence coverage means the named corpus replay or audit is available. A goal ch
 | 1. Calibrate drum detection | 3 / 3 (100.0%) | 1 / 1 (100.0%) | retain the early-onset HiHat rule only while it improves MDB and BabySlakh, preserves STAR, and has no protected false-positive regression |
 | 2. Stabilize chord state | 2 / 2 (100.0%) | 1 / 1 (100.0%) | retain the 0.60 keyboard-only display gate only while it lowers wrong labels without correct-frame or flicker loss |
 | 3. Improve Tom/Rim/Ride | 3 / 3 (100.0%) | 0 / 1 (0.0%) | broaden independent Rim coverage and prove one shared class-specific improvement |
-| 4. Safe live Beat This! | 2 / 2 (100.0%) | 0 / 1 (0.0%) | continuous causal replay must have no wrong displayed BPM on both real-tempo corpora |
+| 4. Safe live Beat This! | 2 / 2 (100.0%) | 1 / 1 (100.0%) | optional C++ sidecar preserves the exact 20 s packet and ≥44-interval gate; it never replaces a displayable normal BPM |
 | 5. High-tempo GTZAN offline veto | 1 / 1 (100.0%) | 1 / 1 (100.0%) | retain offline-only restriction; it cannot authorize the live BPM display |
 | 6. Proper bass tempo corpus | 1 / 1 (100.0%) | 1 / 1 (100.0%) | turn FiloBass evidence into a protected bass-led selector before any runtime BPM change |
 
@@ -1845,9 +1845,10 @@ Tempo estimates are only displayed at calibrated confidence. Source-specific pha
 | Validate strict causal Beat This! interval gate | 1 / 1 (100.0%) | 0 | ≥44 intervals: Ballroom 23 / 23, FiloBass 8 / 8, zero wrong values in this replay |
 | Specify isolated Beat This! sidecar protocol | 1 / 1 (100.0%) | 0 | disabled-by-default 20 s binary packet, persistent external model process, and the exact ≥44-interval gate; see `docs/beat_this_live_sidecar_protocol.md` |
 | Replay the exact sidecar protocol on real-tempo corpora | 2 / 2 (100.0%) | 0 | zero wrong ready BPM, ≥5 ready rows per corpus, and no packet shorter than 20 seconds |
+| Compile and model-free test the OBS sidecar boundary | 1 / 1 (100.0%) | 0 | a persistent-child test sends two exact 20 s packets; static checks enforce disabled-by-default, callback isolation, timeout-bounded I/O, expiry, and normal-BPM precedence |
 | Audit phase/BTT/Beat This! offline agreement | 1 / 1 (100.0%) | 0 | every selected candidate must be correct across Ballroom, FiloBass, and GTZAN |
 | Audit high-tempo GTZAN three-tracker offline veto | 1 / 1 (100.0%) | 0 | every selected ≥150 BPM GTZAN candidate must be correct across phase, BTT, and Beat This! |
-| Integrate bounded causal Beat This! live use | 0 / 1 (0.0%) | 1 | optional OBS-safe realtime backend must preserve the validated 20 s window and ≥44 interval gate; File2Beats remains non-causal offline inference |
+| Integrate bounded causal Beat This! live use | 1 / 1 (100.0%) | 0 | opt-in OBS worker sends only exact 20 s packets, rejects malformed/gated/late replies, expires fallback BPM, and never replaces a displayable normal BPM |
 | IDMT real-bass timing metadata qualifies as beat truth | 0 / 17 (0.0%) | 17 | only corpus-supplied tempo/beat/pattern fields count; note onsets are insufficient |
 | Audit URMP double-bass timing provenance | 1 / 1 (100.0%) | 0 | distinguish audio-aligned note annotations from explicit metrical grids |
 | URMP double-bass stems qualify as beat truth | 0 / 3 (0.0%) | 3 | original score MIDI alone is not audio-aligned timing evidence |
