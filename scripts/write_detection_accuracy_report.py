@@ -1536,6 +1536,7 @@ def render(
     piano_chord_confirm3_audit_input: Path | None = None,
     piano_chord_tone018_audit_input: Path | None = None,
     piano_chord_margin060_audit_input: Path | None = None,
+    piano_chord_bassbonus000_audit_input: Path | None = None,
     fsd50k_rim_metadata_audit_input: Path | None = None,
     mdb_rim_coverage_input: Path | None = None,
 ) -> str:
@@ -1709,6 +1710,11 @@ def render(
     piano_chord_margin060 = (
         piano_chord_confirmation_audit(piano_chord_margin060_audit_input)
         if piano_chord_margin060_audit_input is not None
+        else None
+    )
+    piano_chord_bassbonus000 = (
+        piano_chord_confirmation_audit(piano_chord_bassbonus000_audit_input)
+        if piano_chord_bassbonus000_audit_input is not None
         else None
     )
     fsd50k_rim_metadata = (
@@ -3248,7 +3254,7 @@ def render(
                     f"| Audited continuous stable-chord sequences | {fraction(sequences, sequences)} | 0 |",
                 ]
             )
-        if piano_chord_confirmation is not None or piano_chord_confirm3 is not None or piano_chord_tone018 is not None or piano_chord_margin060 is not None:
+        if piano_chord_confirmation is not None or piano_chord_confirm3 is not None or piano_chord_tone018 is not None or piano_chord_margin060 is not None or piano_chord_bassbonus000 is not None:
             lines.extend(
                 [
                     "",
@@ -3290,6 +3296,13 @@ def render(
                 lines.append(
                     f"| 0.05 ambiguity margin through 0.60 confidence | {fraction(margin060_correct, margin060_frames)} | {margin060_wrong} | {margin060_flickers} | rejected; suppresses 3 wrong MAESTRO labels but gains no correct frame |"
                 )
+            if piano_chord_bassbonus000 is not None:
+                (_unused_baseline_correct, bassbonus_correct, bassbonus_frames, _unused_baseline_wrong,
+                 bassbonus_wrong, _unused_baseline_flickers, bassbonus_flickers,
+                 _unused_retained) = piano_chord_bassbonus000
+                lines.append(
+                    f"| Zero bass-root candidate bonus | {fraction(bassbonus_correct, bassbonus_frames)} | {bassbonus_wrong} | {bassbonus_flickers} | rejected; piano gain fails broad analyzer-case regression coverage |"
+                )
             sources = []
             if piano_chord_confirmation_audit_input is not None:
                 sources.append(f"`{piano_chord_confirmation_audit_input.as_posix()}`")
@@ -3299,6 +3312,8 @@ def render(
                 sources.append(f"`{piano_chord_tone018_audit_input.as_posix()}`")
             if piano_chord_margin060_audit_input is not None:
                 sources.append(f"`{piano_chord_margin060_audit_input.as_posix()}`")
+            if piano_chord_bassbonus000_audit_input is not None:
+                sources.append(f"`{piano_chord_bassbonus000_audit_input.as_posix()}`")
             lines.extend(["", f"Sources: {', '.join(sources)}"])
         if piano_exact_fallback is not None:
             corpora, candidates = piano_exact_fallback
@@ -3987,6 +4002,7 @@ def main() -> int:
     parser.add_argument("--piano-chord-confirm3-audit", type=Path)
     parser.add_argument("--piano-chord-tone018-audit", type=Path)
     parser.add_argument("--piano-chord-margin060-audit", type=Path)
+    parser.add_argument("--piano-chord-bassbonus000-audit", type=Path)
     parser.add_argument("--kraisler-archive", type=Path)
     parser.add_argument("--kraisler-extraction", type=Path)
     parser.add_argument("--kraisler-manifest", type=Path)
@@ -4164,6 +4180,7 @@ def main() -> int:
             args.piano_chord_confirm3_audit,
             args.piano_chord_tone018_audit,
             args.piano_chord_margin060_audit,
+            args.piano_chord_bassbonus000_audit,
             args.fsd50k_rim_metadata_audit,
             args.mdb_rim_coverage_input,
         )
