@@ -1045,7 +1045,7 @@ class DetectionAccuracyReportTest(unittest.TestCase):
         self.assertIn("| FiloBass rolling BPM within 8 BPM | 0 / 1 (0.0%) | 1 |", report)
         self.assertIn("| FiloBass rolling windows processed within their audio duration | 0 / 1 (0.0%) | 1 |", report)
         self.assertIn("| Replay bounded trailing Beat This! windows on real-tempo corpora | 2 / 2 (100.0%) | 0 |", report)
-        self.assertIn("| Demonstrate bounded causal Beat This! live use | 0 / 1 (0.0%) | 1 |", report)
+        self.assertIn("| Integrate bounded causal Beat This! live use | 0 / 1 (0.0%) | 1 |", report)
         self.assertIn("## FiloBass real bass-led annotated-tempo diagnostic", report)
         self.assertIn("### FiloBass raw bass-attack feasibility diagnostic", report)
         self.assertIn("### FiloBass source-grid energy feasibility diagnostic", report)
