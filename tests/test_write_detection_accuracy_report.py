@@ -788,7 +788,7 @@ class DetectionAccuracyReportTest(unittest.TestCase):
             )
             high_three_tracker_consensus = Path(temporary) / "high_three_tracker_consensus.log"
             high_three_tracker_consensus.write_text(
-                "three-tracker consensus sweep: corpora=3 rows=3 min_expected=150.00\n"
+                "three-tracker consensus sweep: corpora=1 rows=3 min_expected=150.00\n"
                 "three-tracker consensus viable: none\n",
                 encoding="utf-8",
             )
