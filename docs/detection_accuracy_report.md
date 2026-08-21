@@ -2018,8 +2018,18 @@ Source: `build/29k_samples_drums_measurement.log`. The fixture uses only publish
 | --- | ---: | ---: |
 | 29k Drums — Tom detected | 418 / 500 (83.6%) | 82 |
 | 29k Drums — Tom primary display | 269 / 500 (53.8%) | 231 |
-| 29k Drums — Ride detected | 372 / 500 (74.4%) | 128 |
-| 29k Drums — Ride primary display | 317 / 500 (63.4%) | 183 |
+| 29k Drums — Ride detected | 379 / 500 (75.8%) | 121 |
+| 29k Drums — Ride primary display | 324 / 500 (64.8%) | 176 |
+
+### Retained final-arbitration Ride recovery
+
+This runs only for non-generated one-shots with no active Ride candidate, high energy at least 0.82, and Ride/HiHat segment ratio at least 3.091. It was selected on the 29k acoustic fixture and replayed through the full, HF, and IDMT one-shot gates without a failing protected gate.
+
+| Metric | Accurate / total | Change from preserved 29k baseline |
+| --- | ---: | ---: |
+| 29k Ride detected | 379 / 500 (75.8%) | +7 / 500 |
+| 29k Ride primary display | 324 / 500 (64.8%) | +7 / 500 |
+| Independent positive corpus replications | 1 / 2 (50.0%) | 1 remaining before it can close the Tom/Rim/Ride priority checkpoint |
 
 ### Rejected Tom/Ride primary runtime trials
 

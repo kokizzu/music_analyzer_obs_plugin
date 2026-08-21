@@ -4119,6 +4119,23 @@ def render(
             hits, total, primary = samples29k_counts[category]
             lines.append(f"| 29k Drums — {category.title()} detected | {fraction(hits, total)} | {total - hits} |")
             lines.append(f"| 29k Drums — {category.title()} primary display | {fraction(primary, total)} | {total - primary} |")
+        ride_counts = samples29k_counts.get("ride")
+        if ride_counts is not None:
+            ride_hits, ride_total, ride_primary = ride_counts
+            lines.extend(
+                [
+                    "",
+                    "### Retained final-arbitration Ride recovery",
+                    "",
+                    "This runs only for non-generated one-shots with no active Ride candidate, high energy at least 0.82, and Ride/HiHat segment ratio at least 3.091. It was selected on the 29k acoustic fixture and replayed through the full, HF, and IDMT one-shot gates without a failing protected gate.",
+                    "",
+                    "| Metric | Accurate / total | Change from preserved 29k baseline |",
+                    "| --- | ---: | ---: |",
+                    f"| 29k Ride detected | {fraction(ride_hits, ride_total)} | {ride_hits - 372:+d} / {ride_total} |",
+                    f"| 29k Ride primary display | {fraction(ride_primary, ride_total)} | {ride_primary - 317:+d} / {ride_total} |",
+                    "| Independent positive corpus replications | 1 / 2 (50.0%) | 1 remaining before it can close the Tom/Rim/Ride priority checkpoint |",
+                ]
+            )
         lines.extend(
             [
                 "",

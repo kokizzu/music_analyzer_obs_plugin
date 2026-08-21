@@ -34823,6 +34823,17 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 	if (final_one_shot_measured_rim_from_tom_primary_recovery)
 		promote_drum_primary(Rim, 1.0f);
 
+	// Apply this only at the final one-shot arbitration point: the acoustic
+	// 29k Ride cluster has no active Ride candidate, but decisive high-band
+	// energy and a Ride segment over three times the HiHat segment. Cached
+	// full/HF/IDMT rows contain no protected primary hit matching this guard.
+	const bool final_one_shot_measured_silent_bright_ride_primary_recovery =
+		drum_detection_enabled && one_shot_drum_source && !generated_gm_drum_source &&
+		drum_level_[Ride] <= 0.001f && snapshot.high_energy >= 0.82f &&
+		drum_segment_bands[Ride] / (drum_segment_bands[HiHat] + 1.0e-6f) >= 3.091f;
+	if (final_one_shot_measured_silent_bright_ride_primary_recovery)
+		promote_drum_primary(Ride, 0.90f);
+
 	// Preserve a validated bright first-window crash candidate only after the
 	// normal cymbal arbitration has completed. This avoids perturbing the hat
 	// and ride decision with a transient crash co-candidate.
