@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Compare the protected two-frame chord switch gate with a one-frame trial."""
+"""Compare a protected chord-display baseline with a trial."""
 
 from __future__ import annotations
 
@@ -34,9 +34,14 @@ def render(baseline_paths: list[Path], trial_paths: list[Path]) -> str:
     if baseline_frames != trial_frames:
         raise ValueError("baseline and trial frame totals differ")
     # Correct labels may only be gained if the existing no-flicker invariant is
-    # still met.  A chord display that briefly leaves a correct label is worse
-    # than a delayed replacement in a live overlay.
-    eligible = trial_correct > baseline_correct and trial_flickers <= baseline_flickers
+    # still met and the trial does not create extra wrong labels. A chord display
+    # that briefly leaves a correct label or replaces no-label states with wrong
+    # labels is worse than a delayed replacement in a live overlay.
+    eligible = (
+        trial_correct > baseline_correct
+        and trial_wrong <= baseline_wrong
+        and trial_flickers <= baseline_flickers
+    )
     return (
         "piano_chord_confirmation_audit: "
         f"baseline_correct={baseline_correct}/{baseline_frames} baseline_wrong={baseline_wrong} "

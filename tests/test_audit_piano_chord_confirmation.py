@@ -42,6 +42,23 @@ class PianoChordConfirmationAuditTest(unittest.TestCase):
             "retained_confirm_frames=2 eligible=0",
         )
 
+    def test_rejects_accuracy_gain_that_adds_wrong_labels(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            baseline = [root / "baseline-a.tsv", root / "baseline-b.tsv"]
+            trial = [root / "trial-a.tsv", root / "trial-b.tsv"]
+            self.write(baseline[0], ["C", "C", "--"])
+            self.write(baseline[1], ["C", "C", "--"])
+            self.write(trial[0], ["C", "C", "D"])
+            self.write(trial[1], ["C", "C", "C"])
+            output = MODULE.render(baseline, trial)
+        self.assertEqual(
+            output,
+            "piano_chord_confirmation_audit: baseline_correct=4/6 baseline_wrong=0 "
+            "baseline_flickers=0 trial_correct=5/6 trial_wrong=1 trial_flickers=0 "
+            "retained_confirm_frames=2 eligible=0",
+        )
+
 
 if __name__ == "__main__":
     unittest.main()

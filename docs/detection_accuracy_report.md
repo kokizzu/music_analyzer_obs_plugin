@@ -1571,8 +1571,9 @@ A replacement-confirmation trial is retained only if it improves correct stable-
 | Two-frame replacement confirmation | 96 / 530 (18.1%) | 243 | 0 | retained |
 | One-frame replacement confirmation | 104 / 530 (19.6%) | 235 | 3 | rejected; retain 2 frames |
 | Three-frame replacement confirmation | 95 / 530 (17.9%) | 244 | 0 | rejected; MAESTRO drops 70→67 correct frames |
+| Lower 0.18 pitch-class presence | 99 / 530 (18.7%) | 245 | 0 | rejected; MAESTRO has no correct-frame gain and wrong labels rise 243→244 |
 
-Sources: `build/piano_chord_confirmation_audit.txt`, `build/piano_chord_confirm3_audit.txt`
+Sources: `build/piano_chord_confirmation_audit.txt`, `build/piano_chord_confirm3_audit.txt`, `build/piano_chord_tone018_audit.txt`
 
 ### Independent-piano exact fallback audit
 
