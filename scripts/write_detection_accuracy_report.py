@@ -468,6 +468,12 @@ PIANO_CHORD_CONFIRMATION_RE = re.compile(
     r"eligible=(?P<eligible>[01])$",
     re.MULTILINE,
 )
+FSD50K_RIM_METADATA_RE = re.compile(
+    r"^fsd50k_rim_metadata: rimshot_labelled_rows=(?P<labelled>\d+) "
+    r"pure_rimshot_candidates=(?P<pure>\d+) permissive_cc_candidates=(?P<permissive>\d+) "
+    r"dev=(?P<dev>\d+) eval=(?P<eval>\d+)$",
+    re.MULTILINE,
+)
 
 URMP_COVERAGE_RE = re.compile(
     r"analyzer_urmp: coverage: discovered (?P<discovered>\d+) piece dirs, loadable "
@@ -685,6 +691,17 @@ def piano_chord_confirmation_audit(path: Path) -> tuple[int, int, int, int, int,
     return (values["baseline_correct"], values["trial_correct"], values["frames"],
             values["baseline_wrong"], values["trial_wrong"], values["baseline_flickers"],
             values["trial_flickers"], values["retained"])
+
+
+def fsd50k_rim_metadata_audit(path: Path) -> tuple[int, int, int]:
+    """Return labelled, isolated, and licence-compatible FSD50K Rimshot counts."""
+    match = FSD50K_RIM_METADATA_RE.search(path.read_text(encoding="utf-8", errors="replace"))
+    if match is None:
+        raise ValueError(f"{path}: missing FSD50K Rimshot metadata summary")
+    labelled, pure, permissive = (int(match[name]) for name in ("labelled", "pure", "permissive"))
+    if labelled < 0 or pure < 0 or permissive < 0 or permissive > pure or pure > labelled:
+        raise ValueError(f"{path}: invalid FSD50K Rimshot metadata counts")
+    return labelled, pure, permissive
 
 
 def maps_chord_miss_rows(path: Path) -> list[tuple[str, int, int]]:
@@ -1500,6 +1517,7 @@ def render(
     samples29k_drums_measurement: Path | None = None,
     samples29k_drums_primary_attributes: Path | None = None,
     piano_chord_confirmation_audit_input: Path | None = None,
+    fsd50k_rim_metadata_audit_input: Path | None = None,
 ) -> str:
     samples = load_samples(input_path)
     babyslakh_archive_ready = int(babyslakh_archive is not None and babyslakh_archive.is_file())
@@ -1648,6 +1666,11 @@ def render(
     piano_chord_confirmation = (
         piano_chord_confirmation_audit(piano_chord_confirmation_audit_input)
         if piano_chord_confirmation_audit_input is not None
+        else None
+    )
+    fsd50k_rim_metadata = (
+        fsd50k_rim_metadata_audit(fsd50k_rim_metadata_audit_input)
+        if fsd50k_rim_metadata_audit_input is not None
         else None
     )
     electronic_piano_guitar_audit = (
@@ -3742,13 +3765,14 @@ def render(
             "",
             "## Real-drum Tom/Ride/Rim coverage checklist",
             "",
-            "The full one-shot gate has broad category counts, but its weak Tom/Ride/Rim results need independent real-acoustic replication before a class-specific runtime rule can be trusted. 29k Drums can independently cover Tom and Ride; ENST remains necessary for Rim.",
+            "The full one-shot gate has broad category counts, but its weak Tom/Ride/Rim results need independent real-acoustic replication before a class-specific runtime rule can be trusted. 29k Drums can independently cover Tom and Ride. FSD50K's fixed 200-class vocabulary has no Rimshot label, so ENST remains necessary for Rim.",
             "",
             "| Work item | Complete / total | Remaining | Evidence required |",
             "| --- | ---: | ---: | --- |",
             f"| Checksum-verified 29k Drums archive inspected for Tom/Ride labels | {fraction(samples29k_archive_ready, 1)} | {1 - samples29k_archive_ready} | inspection follows successful Zenodo MD5 and ZIP integrity verification |",
             f"| Measure independent 29k Drums Tom/Ride baseline | {fraction(int(bool(samples29k_counts)), 1)} | {1 - int(bool(samples29k_counts))} | prepared, labelled acoustic one-shot fixture and analyzer x/total results |",
             f"| Record all 29k Tom/Ride primary decisions for candidate evaluation | {fraction(samples29k_primary_attributes_available, 1)} | {1 - samples29k_primary_attributes_available} | verbose current and missed primary labels become a reproducible TSV; selectors still need cross-corpus runtime replay |",
+            f"| Screen FSD50K fixed vocabulary for licence-compatible Rimshot clips | {fraction(int(fsd50k_rim_metadata is not None), 1)} | {int(fsd50k_rim_metadata is None)} | no audio transfer: {fsd50k_rim_metadata[0] if fsd50k_rim_metadata is not None else '--'} labelled rows, {fsd50k_rim_metadata[1] if fsd50k_rim_metadata is not None else '--'} isolated candidates, {fsd50k_rim_metadata[2] if fsd50k_rim_metadata is not None else '--'} permissive-licence candidates |",
             "| Independently replicate Rim on real acoustic recordings | 0 / 1 (0.0%) | 1 | ENST-Drums has suitable labelled classes and a public prepared archive, but its research-use licence must be accepted and preserved; annotations alone are insufficient |",
         ]
     )
@@ -3804,6 +3828,7 @@ def main() -> int:
     parser.add_argument("--29k-drums-inspection", dest="samples29k_drums_inspection", type=Path)
     parser.add_argument("--29k-drums-measurement", dest="samples29k_drums_measurement", type=Path)
     parser.add_argument("--29k-drums-primary-attributes", dest="samples29k_drums_primary_attributes", type=Path)
+    parser.add_argument("--fsd50k-rim-metadata-audit", type=Path)
     parser.add_argument("--dagstuhl-choirset-input", type=Path)
     parser.add_argument("--dagstuhl-choirset-validation", type=Path)
     parser.add_argument("--dagstuhl-choirset-inspection", type=Path)
@@ -4006,6 +4031,7 @@ def main() -> int:
             args.samples29k_drums_measurement,
             args.samples29k_drums_primary_attributes,
             args.piano_chord_confirmation_audit,
+            args.fsd50k_rim_metadata_audit,
         )
     except (OSError, ValueError) as error:
         parser.error(str(error))

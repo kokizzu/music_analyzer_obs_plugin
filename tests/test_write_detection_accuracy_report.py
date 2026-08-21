@@ -20,6 +20,15 @@ HEADER = "\t".join(("sample_id", "family", "detected", "detected_expected_row", 
 
 
 class DetectionAccuracyReportTest(unittest.TestCase):
+    def test_fsd50k_rim_metadata_audit_accepts_zero_label_preflight(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            audit = Path(temporary) / "fsd50k_rim_metadata.txt"
+            audit.write_text(
+                "fsd50k_rim_metadata: rimshot_labelled_rows=0 pure_rimshot_candidates=0 permissive_cc_candidates=0 dev=0 eval=0\n",
+                encoding="utf-8",
+            )
+            self.assertEqual(REPORT.fsd50k_rim_metadata_audit(audit), (0, 0, 0))
+
     def test_visual_expected_pitch_lit_matches_pitch_class_at_threshold(self) -> None:
         self.assertTrue(
             REPORT.visual_expected_pitch_lit(
