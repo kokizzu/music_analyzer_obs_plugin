@@ -3955,6 +3955,18 @@ def render(
             hits, total, primary = samples29k_counts[category]
             lines.append(f"| 29k Drums — {category.title()} detected | {fraction(hits, total)} | {total - hits} |")
             lines.append(f"| 29k Drums — {category.title()} primary display | {fraction(primary, total)} | {total - primary} |")
+        lines.extend(
+            [
+                "",
+                "### Rejected Tom-primary runtime trial",
+                "",
+                "The two-feature 29k selector `high energy ≤0.316` with an inactive Tom looked safe in the local attribute table, but failed the broader protected one-shot replay and is not enabled.",
+                "",
+                "| Trial | Independent 29k result | Protected one-shot result | Decision |",
+                "| --- | ---: | ---: | --- |",
+                "| Low-high inactive Tom from Snare | Tom primary 269→318 / 500; Ride 317→317 / 500 | Snare primary 133→87 / 160; Tom false 199→253 | reject: severe Snare regression |",
+            ]
+        )
     lines.extend(
         [
             "",

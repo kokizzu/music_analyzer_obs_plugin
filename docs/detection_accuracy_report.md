@@ -1997,6 +1997,14 @@ Source: `build/29k_samples_drums_measurement.log`. The fixture uses only publish
 | 29k Drums — Ride detected | 372 / 500 (74.4%) | 128 |
 | 29k Drums — Ride primary display | 317 / 500 (63.4%) | 183 |
 
+### Rejected Tom-primary runtime trial
+
+The two-feature 29k selector `high energy ≤0.316` with an inactive Tom looked safe in the local attribute table, but failed the broader protected one-shot replay and is not enabled.
+
+| Trial | Independent 29k result | Protected one-shot result | Decision |
+| --- | ---: | ---: | --- |
+| Low-high inactive Tom from Snare | Tom primary 269→318 / 500; Ride 317→317 / 500 | Snare primary 133→87 / 160; Tom false 199→253 | reject: severe Snare regression |
+
 ## BabySlakh drum-validation checklist
 
 BabySlakh is an independently rendered 16 kHz multitrack corpus with aligned per-stem MIDI. It strengthens calibration coverage but cannot replace real-recording evidence.
