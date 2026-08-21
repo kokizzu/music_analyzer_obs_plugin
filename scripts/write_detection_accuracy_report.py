@@ -474,6 +474,10 @@ FSD50K_RIM_METADATA_RE = re.compile(
     r"dev=(?P<dev>\d+) eval=(?P<eval>\d+)$",
     re.MULTILINE,
 )
+MDB_RIM_COVERAGE_RE = re.compile(
+    r"^mdb_rim_coverage: detected=(?P<detected>\d+)/(?P<total>\d+)$",
+    re.MULTILINE,
+)
 
 URMP_COVERAGE_RE = re.compile(
     r"analyzer_urmp: coverage: discovered (?P<discovered>\d+) piece dirs, loadable "
@@ -702,6 +706,16 @@ def fsd50k_rim_metadata_audit(path: Path) -> tuple[int, int, int]:
     if labelled < 0 or pure < 0 or permissive < 0 or permissive > pure or pure > labelled:
         raise ValueError(f"{path}: invalid FSD50K Rimshot metadata counts")
     return labelled, pure, permissive
+
+
+def mdb_rim_coverage(path: Path) -> tuple[int, int]:
+    match = MDB_RIM_COVERAGE_RE.search(path.read_text(encoding="utf-8", errors="replace"))
+    if match is None:
+        raise ValueError(f"{path}: missing MDB Rim coverage summary")
+    detected, total = (int(match[name]) for name in ("detected", "total"))
+    if total <= 0 or detected < 0 or detected > total:
+        raise ValueError(f"{path}: invalid MDB Rim coverage counts")
+    return detected, total
 
 
 def maps_chord_miss_rows(path: Path) -> list[tuple[str, int, int]]:
@@ -1518,6 +1532,7 @@ def render(
     samples29k_drums_primary_attributes: Path | None = None,
     piano_chord_confirmation_audit_input: Path | None = None,
     fsd50k_rim_metadata_audit_input: Path | None = None,
+    mdb_rim_coverage_input: Path | None = None,
 ) -> str:
     samples = load_samples(input_path)
     babyslakh_archive_ready = int(babyslakh_archive is not None and babyslakh_archive.is_file())
@@ -1673,6 +1688,7 @@ def render(
         if fsd50k_rim_metadata_audit_input is not None
         else None
     )
+    mdb_rim = mdb_rim_coverage(mdb_rim_coverage_input) if mdb_rim_coverage_input is not None else None
     electronic_piano_guitar_audit = (
         electronic_piano_guitar_route_audit(electronic_piano_guitar_route_audit_input)
         if electronic_piano_guitar_route_audit_input is not None
@@ -3692,6 +3708,23 @@ def render(
         for label, accurate, total, remainder_unit in egmd_drum_rows(mdb_drums_gate_output, "MDB Drums"):
             remainder = f"{total - accurate} {remainder_unit}" if remainder_unit else str(total - accurate)
             lines.append(f"| {label} | {fraction(accurate, total)} | {remainder} |")
+        if mdb_rim is not None:
+            detected, total = mdb_rim
+            lines.extend(
+                [
+                    "",
+                    "### MDB annotated Rim-event audit",
+                    "",
+                    "MDB is already part of the real-mix calibration evidence, so this single side-stick/Rim "
+                    "event does not replace independent acoustic replication.",
+                    "",
+                    f"Source: `{mdb_rim_coverage_input.as_posix()}`.",
+                    "",
+                    "| Metric | Accurate / total | Remaining |",
+                    "| --- | ---: | ---: |",
+                    f"| MDB annotated Rim events detected | {fraction(detected, total)} | {total - detected} |",
+                ]
+            )
         lines.extend(
             [
                 "",
@@ -3772,6 +3805,7 @@ def render(
             f"| Checksum-verified 29k Drums archive inspected for Tom/Ride labels | {fraction(samples29k_archive_ready, 1)} | {1 - samples29k_archive_ready} | inspection follows successful Zenodo MD5 and ZIP integrity verification |",
             f"| Measure independent 29k Drums Tom/Ride baseline | {fraction(int(bool(samples29k_counts)), 1)} | {1 - int(bool(samples29k_counts))} | prepared, labelled acoustic one-shot fixture and analyzer x/total results |",
             f"| Record all 29k Tom/Ride primary decisions for candidate evaluation | {fraction(samples29k_primary_attributes_available, 1)} | {1 - samples29k_primary_attributes_available} | verbose current and missed primary labels become a reproducible TSV; selectors still need cross-corpus runtime replay |",
+            f"| Measure MDB annotated side-stick/Rim event coverage | {fraction(int(mdb_rim is not None), 1)} | {int(mdb_rim is None)} | {fraction(mdb_rim[0], mdb_rim[1]) if mdb_rim is not None else '--'} detected; calibration evidence only, not independent replication |",
             f"| Screen FSD50K fixed vocabulary for licence-compatible Rimshot clips | {fraction(int(fsd50k_rim_metadata is not None), 1)} | {int(fsd50k_rim_metadata is None)} | no audio transfer: {fsd50k_rim_metadata[0] if fsd50k_rim_metadata is not None else '--'} labelled rows, {fsd50k_rim_metadata[1] if fsd50k_rim_metadata is not None else '--'} isolated candidates, {fsd50k_rim_metadata[2] if fsd50k_rim_metadata is not None else '--'} permissive-licence candidates |",
             "| Independently replicate Rim on real acoustic recordings | 0 / 1 (0.0%) | 1 | ENST-Drums has suitable labelled classes and a public prepared archive, but its research-use licence must be accepted and preserved; annotations alone are insufficient |",
         ]
@@ -3829,6 +3863,7 @@ def main() -> int:
     parser.add_argument("--29k-drums-measurement", dest="samples29k_drums_measurement", type=Path)
     parser.add_argument("--29k-drums-primary-attributes", dest="samples29k_drums_primary_attributes", type=Path)
     parser.add_argument("--fsd50k-rim-metadata-audit", type=Path)
+    parser.add_argument("--mdb-rim-coverage-input", type=Path)
     parser.add_argument("--dagstuhl-choirset-input", type=Path)
     parser.add_argument("--dagstuhl-choirset-validation", type=Path)
     parser.add_argument("--dagstuhl-choirset-inspection", type=Path)
@@ -4032,6 +4067,7 @@ def main() -> int:
             args.samples29k_drums_primary_attributes,
             args.piano_chord_confirmation_audit,
             args.fsd50k_rim_metadata_audit,
+            args.mdb_rim_coverage_input,
         )
     except (OSError, ValueError) as error:
         parser.error(str(error))

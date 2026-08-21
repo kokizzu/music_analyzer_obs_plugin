@@ -20,6 +20,12 @@ HEADER = "\t".join(("sample_id", "family", "detected", "detected_expected_row", 
 
 
 class DetectionAccuracyReportTest(unittest.TestCase):
+    def test_mdb_rim_coverage_parses_class_specific_counts(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            audit = Path(temporary) / "mdb_rim_coverage.txt"
+            audit.write_text("mdb_rim_coverage: detected=0/1\n", encoding="utf-8")
+            self.assertEqual(REPORT.mdb_rim_coverage(audit), (0, 1))
+
     def test_fsd50k_rim_metadata_audit_accepts_zero_label_preflight(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             audit = Path(temporary) / "fsd50k_rim_metadata.txt"

@@ -1920,6 +1920,16 @@ Source: `build/mdb_drums_windows.log.summary`
 | MDB Drums — detected-drum precision | 139 / 167 (83.2%) | 28 false predictions |
 | MDB Drums — windows without a false drum | 67 / 92 (72.8%) | 25 false-positive windows |
 
+### MDB annotated Rim-event audit
+
+MDB is already part of the real-mix calibration evidence, so this single side-stick/Rim event does not replace independent acoustic replication.
+
+Source: `build/mdb_rim_coverage.txt`.
+
+| Metric | Accurate / total | Remaining |
+| --- | ---: | ---: |
+| MDB annotated Rim events detected | 0 / 1 (0.0%) | 1 |
+
 ### MDB multi-recording Snare-context replay
 
 The best source-scoped offline candidate (`kick_body ≥36.36`, `upper_tom ≤17.85`) covered three MDB false-positive recordings with no protected one-shot loss. In a rebuilt MDB, STAR, and BabySlakh replay it did not suppress an actual active Snare or improve a protected metric. The runtime trial was removed; the tables above and below are refreshed from the retained baseline outputs.
@@ -1973,6 +1983,7 @@ The full one-shot gate has broad category counts, but its weak Tom/Ride/Rim resu
 | Checksum-verified 29k Drums archive inspected for Tom/Ride labels | 1 / 1 (100.0%) | 0 | inspection follows successful Zenodo MD5 and ZIP integrity verification |
 | Measure independent 29k Drums Tom/Ride baseline | 1 / 1 (100.0%) | 0 | prepared, labelled acoustic one-shot fixture and analyzer x/total results |
 | Record all 29k Tom/Ride primary decisions for candidate evaluation | 1 / 1 (100.0%) | 0 | verbose current and missed primary labels become a reproducible TSV; selectors still need cross-corpus runtime replay |
+| Measure MDB annotated side-stick/Rim event coverage | 1 / 1 (100.0%) | 0 | 0 / 1 (0.0%) detected; calibration evidence only, not independent replication |
 | Screen FSD50K fixed vocabulary for licence-compatible Rimshot clips | 1 / 1 (100.0%) | 0 | no audio transfer: 0 labelled rows, 0 isolated candidates, 0 permissive-licence candidates |
 | Independently replicate Rim on real acoustic recordings | 0 / 1 (0.0%) | 1 | ENST-Drums has suitable labelled classes and a public prepared archive, but its research-use licence must be accepted and preserved; annotations alone are insufficient |
 
