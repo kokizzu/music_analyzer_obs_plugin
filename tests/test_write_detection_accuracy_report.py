@@ -738,6 +738,12 @@ class DetectionAccuracyReportTest(unittest.TestCase):
                 "protected_runtime_safe=1/2\n",
                 encoding="utf-8",
             )
+            drum_recovery_candidate_audit = Path(temporary) / "drum_recovery_candidate_audit.txt"
+            drum_recovery_candidate_audit.write_text(
+                "drum_recovery_candidate_audit: corpora=2 missed_events=70 "
+                "cross_real_zero_false_candidates=3\n",
+                encoding="utf-8",
+            )
             chord_primary_component_audit = Path(temporary) / "chord_primary_component_audit.txt"
             chord_primary_component_audit.write_text(
                 "chord_primary_component_audit: any_hit=17/20 primary_hit=15/20 alias_rescued=2 "
@@ -854,6 +860,7 @@ class DetectionAccuracyReportTest(unittest.TestCase):
                 mdb_full_mix_false_positive_cap_audit_input=mdb_full_mix_false_positive_cap_audit,
                 mdb_full_mix_competing_active_context_audit_input=mdb_full_mix_competing_active_context_audit,
                 drum_false_positive_context_audit_input=drum_false_positive_context_audit,
+                drum_recovery_candidate_audit_input=drum_recovery_candidate_audit,
                 chord_primary_component_audit_input=chord_primary_component_audit,
                 urmp_bass_timing_audit_input=urmp_bass_timing,
                 idmt_bass_tempo_metadata_input=idmt_bass_timing,
@@ -907,6 +914,8 @@ class DetectionAccuracyReportTest(unittest.TestCase):
         self.assertIn("| Further source-scoped context work available | 0 / 6 (0.0%) | 6 |", report)
         self.assertIn("## Two-feature cross-real drum false-positive context audit", report)
         self.assertIn("| Protected one-shot runtime-safe contexts | 1 / 2 (50.0%) | 1 |", report)
+        self.assertIn("| Early Snare onset | 139→140 / 28→28 | 39→40 / 0→0 | 140→140 / 38→39 |", report)
+        self.assertIn("| Low-transient HiHat | 139→140 / 28→28 | 39→39 / 0→0 | 140→140 / 38→38 |", report)
         self.assertIn("## Canonical-first chord display audit", report)
         self.assertIn("| Correct chords rescued only by a later alias | 2 / 17 (11.8%) | 15 |", report)
         self.assertIn("| Correct chords after same-root dim7 promotion | 17 / 20 (85.0%) | 3 |", report)

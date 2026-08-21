@@ -332,7 +332,12 @@ Source: `build/drum_recovery_candidate_audit.txt`
 | Zero-false cross-real recovery shapes available for replay | 1 / 1 (100.0%) | 0 |
 | Recovery shapes with a verified overall runtime gain | 0 / 1 (0.0%) | 1 |
 
-The first HiHat trial was rejected: it increased MDB recall but did not improve MDB precision, did not improve STAR, and did not improve BabySlakh precision. A distinct early-Snare onset trial raised MDB 139→140 and STAR 39→40 with no extra false activation, but BabySlakh stayed at 140 true events while false activations rose 38→39 (precision 78.7%→78.2%), so it is also rejected.
+The first HiHat trial was rejected: it increased MDB recall but did not improve MDB precision, did not improve STAR, and did not improve BabySlakh precision.
+
+| Runtime trial | MDB true / false | STAR true / false | BabySlakh true / false | Decision |
+| --- | ---: | ---: | ---: | --- |
+| Early Snare onset | 139→140 / 28→28 | 39→40 / 0→0 | 140→140 / 38→39 | reject: BabySlakh precision 78.7%→78.2% |
+| Low-transient HiHat | 139→140 / 28→28 | 39→39 / 0→0 | 140→140 / 38→38 | reject: no STAR or BabySlakh gain |
 
 ## Canonical-first chord display audit
 
