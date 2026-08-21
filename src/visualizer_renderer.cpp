@@ -1314,10 +1314,11 @@ void format_bpm_value(char *output, std::size_t output_size, const AnalysisSnaps
 	std::snprintf(output, output_size, "--");
 }
 
-void draw_root_and_bpm(VisualizerRenderer *visualizer, const AnalysisSnapshot &snapshot, int root_y,
-		       int bpm_y_override = -1)
+void draw_root_and_bpm(VisualizerRenderer *visualizer, const AnalysisSnapshot &snapshot, int baseline_y)
 {
-	draw_root_candidates(visualizer, 28, root_y, snapshot.root_candidates, snapshot.root.label);
+	// ROOT and BPM are a single bottom status row.  Keeping one baseline here
+	// prevents a layout-specific caller from accidentally separating them.
+	draw_root_candidates(visualizer, 28, baseline_y, snapshot.root_candidates, snapshot.root.label);
 
 	char bpm_value[16] = {};
 	char bpm_confidence[16] = {};
@@ -1329,7 +1330,6 @@ void draw_root_and_bpm(VisualizerRenderer *visualizer, const AnalysisSnapshot &s
 		format_bpm_value(bpm_value, sizeof(bpm_value), snapshot);
 		bpm_confidence[0] = '\0';
 	}
-	const int bpm_y = bpm_y_override >= 0 ? bpm_y_override : std::max(0, static_cast<int>(visualizer->height) - 18);
 	const int total_width = text_width("BPM ", 2) + text_width(bpm_value, 2) +
 				(bpm_confidence[0] ? text_width(" ", 2) + text_width(bpm_confidence, 2) : 0);
 	int bpm_x = std::max(28, static_cast<int>(visualizer->width) - 28 - total_width);
@@ -1379,24 +1379,24 @@ void draw_root_and_bpm(VisualizerRenderer *visualizer, const AnalysisSnapshot &s
 		for (std::size_t i = 0; i < kDeviceNames.size(); ++i)
 			control_width += text_width(" ", 2) + text_width(kDeviceNames[i], 2) + text_width("+", 2);
 		int control_x = std::max(28, bpm_x - 14 - control_width);
-		draw_text(visualizer, control_x, bpm_y, mode_root, 2, kWhiteTextColor);
+		draw_text(visualizer, control_x, baseline_y, mode_root, 2, kWhiteTextColor);
 		control_x += text_width(mode_root, 2);
 		for (std::size_t i = 0; i < kDeviceNames.size(); ++i) {
 			control_x += text_width(" ", 2);
 			const DeviceConnectionState state = visualizer->external_control.devices[i];
-			draw_text(visualizer, control_x, bpm_y, kDeviceNames[i], 2, state_color(state));
+			draw_text(visualizer, control_x, baseline_y, kDeviceNames[i], 2, state_color(state));
 			control_x += text_width(kDeviceNames[i], 2);
-			draw_text(visualizer, control_x, bpm_y, state_suffix(state), 2, state_color(state));
+			draw_text(visualizer, control_x, baseline_y, state_suffix(state), 2, state_color(state));
 			control_x += text_width("+", 2);
 		}
 	}
-	draw_text(visualizer, bpm_x, bpm_y, "BPM", 2, kLabelColor);
+	draw_text(visualizer, bpm_x, baseline_y, "BPM", 2, kLabelColor);
 	bpm_x += text_width("BPM ", 2);
-	draw_text(visualizer, bpm_x, bpm_y, bpm_value, 2, kWhiteTextColor);
+	draw_text(visualizer, bpm_x, baseline_y, bpm_value, 2, kWhiteTextColor);
 	bpm_x += text_width(bpm_value, 2);
 	if (bpm_confidence[0]) {
 		bpm_x += text_width(" ", 2);
-		draw_text(visualizer, bpm_x, bpm_y, bpm_confidence, 2, kLabelColor);
+		draw_text(visualizer, bpm_x, baseline_y, bpm_confidence, 2, kLabelColor);
 	}
 }
 
@@ -1479,7 +1479,7 @@ void render_bass_guitar_pixels(VisualizerRenderer *visualizer, const AnalysisSna
 				      visualizer->stable_labels[StableGuitar].label, degree_root_pitch_class, true);
 
 	const int root_y = std::max(row_y + 6, static_cast<int>(visualizer->height) - 42 + y_shift);
-	draw_root_and_bpm(visualizer, snapshot, root_y, root_y);
+	draw_root_and_bpm(visualizer, snapshot, root_y);
 }
 
 void render_pixels(VisualizerRenderer *visualizer, const AnalysisSnapshot &snapshot, float snapshot_age)
