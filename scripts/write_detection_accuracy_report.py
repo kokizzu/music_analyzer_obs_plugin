@@ -3958,13 +3958,14 @@ def render(
         lines.extend(
             [
                 "",
-                "### Rejected Tom-primary runtime trial",
+                "### Rejected Tom/Ride primary runtime trials",
                 "",
-                "The two-feature 29k selector `high energy ≤0.316` with an inactive Tom looked safe in the local attribute table, but failed the broader protected one-shot replay and is not enabled.",
+                "Each two-feature 29k selector below looked safe in the local attribute table, but failed the broader protected one-shot replay and is not enabled.",
                 "",
                 "| Trial | Independent 29k result | Protected one-shot result | Decision |",
                 "| --- | ---: | ---: | --- |",
                 "| Low-high inactive Tom from Snare | Tom primary 269→318 / 500; Ride 317→317 / 500 | Snare primary 133→87 / 160; Tom false 199→253 | reject: severe Snare regression |",
+                "| Ride from HiHat segment tie | Tom primary 269→269 / 500; Ride 317→332 / 500 | HiHat primary 141→136 / 160; Tom primary 126→124 / 160 | reject: protected HiHat and Tom regressions |",
             ]
         )
     lines.extend(
