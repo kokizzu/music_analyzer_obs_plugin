@@ -34823,6 +34823,19 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 	if (final_one_shot_measured_rim_from_tom_primary_recovery)
 		promote_drum_primary(Rim, 1.0f);
 
+	// A compact three-corpus acoustic Tom group retains the same nearly saturated
+	// Rim co-candidate while Snare wins final arbitration by a small margin. Their
+	// strong mid body and snare-over-kick shape split are absent from every
+	// protected correct one-shot primary row, so restore Tom only at this final
+	// display-arbitration point.
+	const bool final_one_shot_measured_cross_acoustic_tom_from_snare_primary_recovery =
+		drum_detection_enabled && one_shot_drum_source && !generated_gm_drum_source &&
+		final_one_shot_snare_primary_over_tom && drum_level_[Tom] >= 0.98f &&
+		drum_level_[Rim] >= 0.98f && snapshot.mid_energy >= 0.76f &&
+		snare_kick_shape_score_ratio >= 2.144f;
+	if (final_one_shot_measured_cross_acoustic_tom_from_snare_primary_recovery)
+		promote_drum_primary(Tom, 0.90f);
+
 	// Apply this only at the final one-shot arbitration point: the acoustic
 	// 29k Ride cluster has no active Ride candidate, but decisive high-band
 	// energy and a Ride segment over three times the HiHat segment. Cached

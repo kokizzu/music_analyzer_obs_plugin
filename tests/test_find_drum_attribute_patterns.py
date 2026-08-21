@@ -123,6 +123,7 @@ def run_patterns(
     use_top_routes: bool = False, top_routes: int = 5, jobs: int = 1,
     profile_fields: int = 0, max_new_active_samples: int | None = None,
     max_primary_break_samples: int | None = None,
+    require_positive_sources: tuple[str, ...] = (),
 ) -> str:
     command = [
         sys.executable,
@@ -157,6 +158,8 @@ def run_patterns(
         command.extend(["--max-primary-break-samples", str(max_primary_break_samples)])
     if include_merged_rows:
         command.append("--include-merged-rows")
+    for source in require_positive_sources:
+        command.extend(["--require-positive-source", source])
     completed = subprocess.run(
         command,
         cwd=ROOT,
@@ -289,6 +292,12 @@ def main() -> int:
             encoding="utf-8",
         )
         multi_tsv_output = run_patterns(tsv_path, tsv_path_2, row_examples=4)
+        multi_source_required_output = run_patterns(
+            tsv_path,
+            tsv_path_2,
+            row_examples=0,
+            require_positive_sources=("drum", "drum_second"),
+        )
         zero_denominator_path = pathlib.Path(tmpdir) / "zero_denominator.tsv"
         zero_denominator_path.write_text(
             "\n".join(
@@ -386,6 +395,7 @@ def main() -> int:
     assert "route tom->kick positives=3 rows=3 protected_correct=5 rows=5" in multi_tsv_output
     assert "drum:tom/001.wav tom->kick" in multi_tsv_output
     assert "drum_second:tom/001.wav tom->kick" in multi_tsv_output
+    assert "sources=drum,drum_second" in multi_source_required_output
     assert "route tom->snare positives=2 rows=2" in zero_denominator_output
     assert "1000000000" not in zero_denominator_output
     assert "snare_kick_level_ratio" not in zero_denominator_output

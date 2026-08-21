@@ -94,6 +94,7 @@ class RuleResult:
     new_active_samples: int
     primary_break_rows: int
     primary_break_samples: int
+    positive_sources: tuple[str, ...]
     positive_examples: list[dict[str, str]]
     negative_examples: list[dict[str, str]]
     new_active_examples: list[dict[str, str]]
@@ -192,6 +193,7 @@ class RoutePatternSettings:
     include_merged_rows: bool
     min_route_positive_samples: int
     min_route_positive_rows: int
+    required_positive_sources: tuple[str, ...]
     profile_fields: int
 
 
@@ -488,6 +490,18 @@ def selected_samples_from_mask(rows: list[dict[str, str]], row_mask: int, limit:
     return selected
 
 
+def sources_from_mask(rows: list[dict[str, str]], row_mask: int) -> tuple[str, ...]:
+    """Return the input corpora represented by a selected row mask."""
+    sources: set[str] = set()
+    while row_mask:
+        bit = row_mask & -row_mask
+        source = rows[bit.bit_length() - 1].get("source", "")
+        if source:
+            sources.add(source)
+        row_mask ^= bit
+    return tuple(sorted(sources))
+
+
 def side_effect_base_masks(rows: list[dict[str, str]], target_category: str) -> SideEffectMaskSet:
     foreign_mask = 0
     new_active_mask = 0
@@ -571,6 +585,7 @@ def result_from_masks(
         new_active_samples=new_active_samples,
         primary_break_rows=primary_break_mask.bit_count(),
         primary_break_samples=primary_break_samples,
+        positive_sources=sources_from_mask(positive_rows, positive_mask),
         positive_examples=selected_samples_from_mask(positive_rows, positive_mask, show_examples),
         negative_examples=selected_samples_from_mask(negative_rows, negative_mask, show_examples),
         new_active_examples=selected_samples_from_mask(all_rows, new_active_mask, show_examples),
@@ -954,6 +969,7 @@ def print_route_patterns(
     show_examples: int,
     show_near_misses: int,
     include_merged_positives: bool,
+    required_positive_sources: tuple[str, ...],
     profile_fields: int,
     max_new_active_samples: int | None,
     max_primary_break_samples: int | None,
@@ -1055,7 +1071,14 @@ def print_route_patterns(
             existing = deduped.get(result.rule)
             if existing is None or rank_result(result) < rank_result(existing):
                 deduped[result.rule] = result
-        return sorted(deduped.values(), key=rank_result)
+        return sorted(
+            (
+                result
+                for result in deduped.values()
+                if all(source in result.positive_sources for source in required_positive_sources)
+            ),
+            key=rank_result,
+        )
 
     def print_rules(rules: list[RuleResult]) -> None:
         for result in rules:
@@ -1066,7 +1089,8 @@ def print_route_patterns(
                 f"new-active={result.new_active_samples} rows={result.new_active_rows} "
                 f"primary-break={result.primary_break_samples} rows={result.primary_break_rows} "
                 f"side_rows={result.side_effect_rows} net_rows={result.net_rows} "
-                f"gain_per_side={format_gain_ratio(result.gain_per_side_effect_row)} :: {result.rule}"
+                f"gain_per_side={format_gain_ratio(result.gain_per_side_effect_row)} "
+                f"sources={','.join(result.positive_sources)} :: {result.rule}"
             )
             if show_examples <= 0:
                 continue
@@ -1144,6 +1168,7 @@ def route_patterns_text(
             settings.show_examples,
             settings.show_near_misses,
             settings.include_merged_rows,
+            settings.required_positive_sources,
             settings.profile_fields,
             settings.max_new_active_samples,
             settings.max_primary_break_samples,
@@ -1211,6 +1236,15 @@ def main() -> int:
         help="mine drum rows whose expected level was credited from a later frame as positives",
     )
     parser.add_argument(
+        "--require-positive-source",
+        action="append",
+        default=[],
+        help=(
+            "require every reported selector to repair a positive row from this input corpus stem; "
+            "repeat for cross-corpus selectors"
+        ),
+    )
+    parser.add_argument(
         "--jobs",
         type=int,
         default=1,
@@ -1271,6 +1305,7 @@ def main() -> int:
         include_merged_rows=args.include_merged_rows,
         min_route_positive_samples=min_route_positive_samples,
         min_route_positive_rows=min_route_positive_rows,
+        required_positive_sources=tuple(sorted(set(args.require_positive_source))),
         profile_fields=max(0, args.profile_fields),
     )
     jobs = min(max(1, args.jobs), len(routes))

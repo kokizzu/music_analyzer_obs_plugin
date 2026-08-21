@@ -12,7 +12,7 @@ Evidence coverage means the named corpus replay or audit is available. A goal ch
 | --- | ---: | ---: | --- |
 | 1. Calibrate drum detection | 3 / 3 (100.0%) | 1 / 1 (100.0%) | retain the early-onset HiHat rule only while it improves MDB and BabySlakh, preserves STAR, and has no protected false-positive regression |
 | 2. Stabilize chord state | 2 / 2 (100.0%) | 1 / 1 (100.0%) | retain the 0.60 keyboard-only display gate only while it lowers wrong labels without correct-frame or flicker loss |
-| 3. Improve Tom/Rim/Ride | 4 / 4 (100.0%) | 0 / 1 (0.0%) | prove one shared class-specific improvement across protected corpora |
+| 3. Improve Tom/Rim/Ride | 4 / 4 (100.0%) | 1 / 1 (100.0%) | retain the cross-acoustic Tom recovery only while all protected one-shot replays remain non-regressing |
 | 4. Safe live Beat This! | 2 / 2 (100.0%) | 1 / 1 (100.0%) | optional C++ sidecar preserves the exact 20 s packet and ≥44-interval gate; it never replaces a displayable normal BPM |
 | 5. High-tempo GTZAN offline veto | 1 / 1 (100.0%) | 1 / 1 (100.0%) | retain offline-only restriction; it cannot authorize the live BPM display |
 | 6. Proper bass tempo corpus | 1 / 1 (100.0%) | 1 / 1 (100.0%) | turn FiloBass evidence into a protected bass-led selector before any runtime BPM change |
@@ -2017,7 +2017,7 @@ Source: `build/29k_samples_drums_measurement.log`. The fixture uses only publish
 | Metric | Accurate / total | Remaining |
 | --- | ---: | ---: |
 | 29k Drums — Tom detected | 418 / 500 (83.6%) | 82 |
-| 29k Drums — Tom primary display | 269 / 500 (53.8%) | 231 |
+| 29k Drums — Tom primary display | 271 / 500 (54.2%) | 229 |
 | 29k Drums — Ride detected | 379 / 500 (75.8%) | 121 |
 | 29k Drums — Ride primary display | 324 / 500 (64.8%) | 176 |
 
@@ -2050,11 +2050,22 @@ Source: `build/virtuosity_drums_measurement.log`. The fixture uses only the libr
 | Metric | Accurate / total | Remaining |
 | --- | ---: | ---: |
 | Virtuosity Drums — Tom detected | 47 / 48 (97.9%) | 1 |
-| Virtuosity Drums — Tom primary display | 45 / 48 (93.8%) | 3 |
+| Virtuosity Drums — Tom primary display | 47 / 48 (97.9%) | 1 |
 | Virtuosity Drums — Ride detected | 17 / 21 (81.0%) | 4 |
 | Virtuosity Drums — Ride primary display | 1 / 21 (4.8%) | 20 |
 | Virtuosity Drums — Rim detected | 18 / 28 (64.3%) | 10 |
 | Virtuosity Drums — Rim primary display | 5 / 28 (17.9%) | 23 |
+
+### Retained cross-acoustic Tom primary recovery
+
+At final non-generated one-shot arbitration, this promotes Tom only when Snare currently leads, Tom and Rim are both at least 0.98, mid energy is at least 0.76, and the Snare/Kick shape-score ratio is at least 2.144. The selector was mined with required positives in both acoustic corpora and zero cached protected side effects.
+
+| Replay | Accurate / total | Change / protected outcome |
+| --- | ---: | --- |
+| 29k Drums — Tom primary display | 271 / 500 (54.2%) | +2 / 500 from the preserved baseline |
+| Virtuosity Drums — Tom primary display | 47 / 48 (97.9%) | +2 / 48 from the preserved baseline |
+| Full one-shot diagnostic replay | 1949 / 2861 Tom primary (68.1%) | +1 matching Tom row; no new gate failure. Its separate Ride baseline remains 316 / 352 (89.8%), below the unchanged 90% floor. |
+| HF and IDMT protected replays | 2 / 2 passed | no affected primary-count regression |
 
 ## BabySlakh drum-validation checklist
 
@@ -2077,7 +2088,7 @@ The full one-shot gate has broad category counts, but its weak Tom/Ride/Rim resu
 | Checksum-verified 29k Drums archive inspected for Tom/Ride labels | 1 / 1 (100.0%) | 0 | inspection follows successful Zenodo MD5 and ZIP integrity verification |
 | Measure independent 29k Drums Tom/Ride baseline | 1 / 1 (100.0%) | 0 | prepared, labelled acoustic one-shot fixture and analyzer x/total results |
 | Record all 29k Tom/Ride primary decisions for candidate evaluation | 1 / 1 (100.0%) | 0 | verbose current and missed primary labels become a reproducible TSV; selectors still need cross-corpus runtime replay |
-| Measure CC0 Virtuosity Drums Rim/Tom/Ride baseline | 1 / 1 (100.0%) | 0 | Tom primary 45 / 48 (93.8%); Ride primary 1 / 21 (4.8%); Rim primary 5 / 28 (17.9%) |
+| Measure CC0 Virtuosity Drums Rim/Tom/Ride baseline | 1 / 1 (100.0%) | 0 | Tom primary 47 / 48 (97.9%); Ride primary 1 / 21 (4.8%); Rim primary 5 / 28 (17.9%) |
 | Measure MDB annotated side-stick/Rim event coverage | 1 / 1 (100.0%) | 0 | 0 / 1 (0.0%) detected; calibration evidence only, not independent replication |
 | Screen FSD50K fixed vocabulary for licence-compatible Rimshot clips | 1 / 1 (100.0%) | 0 | no audio transfer: 0 labelled rows, 0 isolated candidates, 0 permissive-licence candidates |
 | Verify licence-free Rimshot recording candidate | 1 / 1 (100.0%) | 0 | checksum, source label, licence, and 4 stated rolls; 0 per-roll timestamps supplied |

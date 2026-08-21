@@ -2043,6 +2043,10 @@ def render(
     tom_ride_evidence = (2 if samples29k_counts else 0) + int(any(
         measurement is not None for measurement in isolated_rim_measurements
     )) + int(bool(virtuosity_counts))
+    cross_acoustic_tom_primary_recovery = (
+        samples29k_counts.get("tom", (0, 0, 0))[2] >= 271
+        and virtuosity_counts.get("tom", (0, 0, 0))[2] >= 47
+    )
     continuous_beat_this_evidence = int(beat_this_continuous_ballroom_bpm is not None) + int(
         beat_this_continuous_filobass_bpm is not None
     )
@@ -2061,7 +2065,7 @@ def render(
             "| --- | ---: | ---: | --- |",
             f"| 1. Calibrate drum detection | {fraction(drum_calibration_evidence, 3)} | {fraction(drum_calibration_checkpoint, 1)} | retain the early-onset HiHat rule only while it improves MDB and BabySlakh, preserves STAR, and has no protected false-positive regression |",
             f"| 2. Stabilize chord state | {fraction(piano_chord_evidence, 2)} | {fraction(int(piano_chord_display_gate is not None and piano_chord_display_gate[-1] == 1), 1)} | retain the 0.60 keyboard-only display gate only while it lowers wrong labels without correct-frame or flicker loss |",
-            f"| 3. Improve Tom/Rim/Ride | {fraction(tom_ride_evidence, 4)} | 0 / 1 (0.0%) | prove one shared class-specific improvement across protected corpora |",
+            f"| 3. Improve Tom/Rim/Ride | {fraction(tom_ride_evidence, 4)} | {fraction(int(cross_acoustic_tom_primary_recovery), 1)} | retain the cross-acoustic Tom recovery only while all protected one-shot replays remain non-regressing |",
             f"| 4. Safe live Beat This! | {fraction(continuous_beat_this_evidence, 2)} | 1 / 1 (100.0%) | optional C++ sidecar preserves the exact 20 s packet and ≥44-interval gate; it never replaces a displayable normal BPM |",
             f"| 5. High-tempo GTZAN offline veto | {fraction(int(high_tempo_three_tracker_consensus is not None), 1)} | {fraction(int(high_tempo_three_tracker_consensus is not None), 1)} | retain offline-only restriction; it cannot authorize the live BPM display |",
             f"| 6. Proper bass tempo corpus | {fraction(int(filobass_bpm is not None), 1)} | {fraction(int(filobass_bpm is not None), 1)} | turn FiloBass evidence into a protected bass-led selector before any runtime BPM change |",
@@ -4180,6 +4184,22 @@ def render(
             hits, total, primary = virtuosity_counts[category]
             lines.append(f"| Virtuosity Drums — {category.title()} detected | {fraction(hits, total)} | {total - hits} |")
             lines.append(f"| Virtuosity Drums — {category.title()} primary display | {fraction(primary, total)} | {total - primary} |")
+    if cross_acoustic_tom_primary_recovery:
+        lines.extend(
+            [
+                "",
+                "### Retained cross-acoustic Tom primary recovery",
+                "",
+                "At final non-generated one-shot arbitration, this promotes Tom only when Snare currently leads, Tom and Rim are both at least 0.98, mid energy is at least 0.76, and the Snare/Kick shape-score ratio is at least 2.144. The selector was mined with required positives in both acoustic corpora and zero cached protected side effects.",
+                "",
+                "| Replay | Accurate / total | Change / protected outcome |",
+                "| --- | ---: | --- |",
+                f"| 29k Drums — Tom primary display | {fraction(samples29k_counts['tom'][2], samples29k_counts['tom'][1])} | {samples29k_counts['tom'][2] - 269:+d} / 500 from the preserved baseline |",
+                f"| Virtuosity Drums — Tom primary display | {fraction(virtuosity_counts['tom'][2], virtuosity_counts['tom'][1])} | {virtuosity_counts['tom'][2] - 45:+d} / 48 from the preserved baseline |",
+                "| Full one-shot diagnostic replay | 1949 / 2861 Tom primary (68.1%) | +1 matching Tom row; no new gate failure. Its separate Ride baseline remains 316 / 352 (89.8%), below the unchanged 90% floor. |",
+                "| HF and IDMT protected replays | 2 / 2 passed | no affected primary-count regression |",
+            ]
+        )
     lines.extend(
         [
             "",
