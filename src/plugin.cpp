@@ -764,12 +764,19 @@ uint32_t visualizer_setting_height(obs_data_t *settings)
 	return static_cast<uint32_t>(std::clamp<long long>(configured_height, 480, 1080));
 }
 
+uint8_t visualizer_background_opacity(obs_data_t *settings)
+{
+	const long long percent = std::clamp<long long>(obs_data_get_int(settings, "background_opacity_percent"), 0, 100);
+	return static_cast<uint8_t>((percent * 255 + 50) / 100);
+}
+
 void *visualizer_create(obs_data_t *settings, obs_source_t *)
 {
 	auto *visualizer = new VisualizerData();
 	visualizer->renderer.show_other_row = false;
 	const uint32_t width = visualizer_setting_width(settings);
 	const uint32_t height = visualizer_setting_height(settings);
+	visualizer->renderer.background_opacity = visualizer_background_opacity(settings);
 	visualizer->update_fps = static_cast<uint32_t>(std::clamp<long long>(obs_data_get_int(settings, "update_fps"), 1, 30));
 	mao::resize_visualizer(&visualizer->renderer, width, height);
 	mao::render_visualizer(&visualizer->renderer, read_snapshot(), 0.0f);
@@ -799,6 +806,7 @@ void visualizer_defaults(obs_data_t *settings)
 {
 	obs_data_set_default_int(settings, "width", mao::kDefaultVisualizerWidth);
 	obs_data_set_default_int(settings, "height", mao::kDefaultVisualizerHeight);
+	obs_data_set_default_int(settings, "background_opacity_percent", 55);
 	obs_data_set_default_int(settings, "update_fps", 10);
 }
 
@@ -807,6 +815,7 @@ obs_properties_t *visualizer_properties(void *)
 	obs_properties_t *props = obs_properties_create();
 	obs_properties_add_int(props, "width", "Width", 320, 1920, 10);
 	obs_properties_add_int(props, "height", "Height", 480, 1080, 10);
+	obs_properties_add_int_slider(props, "background_opacity_percent", "Background opacity (%)", 0, 100, 1);
 	obs_properties_add_int_slider(props, "update_fps", "Visualizer update FPS", 1, 30, 1);
 	return props;
 }
@@ -820,6 +829,7 @@ void visualizer_update(void *data, obs_data_t *settings)
 	std::lock_guard<std::mutex> lock(visualizer->mutex);
 	const uint32_t width = visualizer_setting_width(settings);
 	const uint32_t height = visualizer_setting_height(settings);
+	visualizer->renderer.background_opacity = visualizer_background_opacity(settings);
 	visualizer->update_fps = static_cast<uint32_t>(std::clamp<long long>(obs_data_get_int(settings, "update_fps"), 1, 30));
 	if (width != visualizer->renderer.width || height != visualizer->renderer.height) {
 		mao::resize_visualizer(&visualizer->renderer, width, height);

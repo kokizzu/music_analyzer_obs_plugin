@@ -45,6 +45,7 @@ struct StableDisplayState {
 struct VisualizerRenderer {
 	uint32_t width = kDefaultVisualizerWidth;
 	uint32_t height = kDefaultVisualizerHeight;
+	uint8_t background_opacity = 140;
 	VisualizerLayoutMode layout_mode = VisualizerLayoutMode::Complete;
 	// OTHERS is intentionally dormant: it is neither detected nor rendered in
 	// the live visualizers.  Keep this local fallback false as well as the

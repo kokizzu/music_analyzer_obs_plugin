@@ -1492,9 +1492,10 @@ void render_pixels(VisualizerRenderer *visualizer, const AnalysisSnapshot &snaps
 {
 	std::fill(visualizer->pixels.begin(), visualizer->pixels.end(), 0);
 
-	// Let the OBS scene remain subtly visible behind the visualizer while the
-	// brighter panels and labels retain their existing contrast.
-	fill_rect(visualizer, 0, 0, visualizer->width, visualizer->height, Color{12, 16, 22, 175});
+	// Let the OBS scene remain visible behind the visualizer while the brighter
+	// panels and labels retain their existing contrast.
+	fill_rect(visualizer, 0, 0, visualizer->width, visualizer->height,
+		  Color{12, 16, 22, visualizer->background_opacity});
 
 	if (visualizer->layout_mode == VisualizerLayoutMode::BassGuitar)
 		render_bass_guitar_pixels(visualizer, snapshot, snapshot_age);

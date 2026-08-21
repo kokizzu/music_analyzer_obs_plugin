@@ -36,6 +36,8 @@ int run_visualizer_renderer_tests()
 	int failures = 0;
 	expect_true(kDefaultVisualizerWidth == 840 && kDefaultVisualizerHeight == 480,
 		    "the Complete visualizer defaults should use the compact canvas", &checks, &failures);
+	expect_true(VisualizerRenderer{}.background_opacity == 140,
+		    "the visualizer background default should be 20 percent lower than the prior alpha", &checks, &failures);
 	VisualizerRenderer compact_layout_renderer;
 	resize_visualizer(&compact_layout_renderer, kDefaultVisualizerWidth, kDefaultVisualizerHeight);
 	const VisualLayout compact_layout = visual_layout(&compact_layout_renderer);
