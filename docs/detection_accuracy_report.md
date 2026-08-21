@@ -1833,6 +1833,7 @@ Tempo estimates are only displayed at calibrated confidence. Source-specific pha
 | Benchmark Beat This! on independent real-tempo corpora | 2 / 2 (100.0%) | 0 | Ballroom and FiloBass annotated stable segments; CPU-only offline evidence |
 | Replay bounded trailing Beat This! windows on real-tempo corpora | 2 / 2 (100.0%) | 0 | window ends at each annotated output time; records correctness and processing budget |
 | Validate strict causal Beat This! interval gate | 1 / 1 (100.0%) | 0 | ≥44 intervals: Ballroom 23 / 23, FiloBass 8 / 8, zero wrong values in this replay |
+| Specify isolated Beat This! sidecar protocol | 1 / 1 (100.0%) | 0 | disabled-by-default 20 s binary packet, persistent external model process, and the exact ≥44-interval gate; see `docs/beat_this_live_sidecar_protocol.md` |
 | Audit phase/BTT/Beat This! offline agreement | 1 / 1 (100.0%) | 0 | every selected candidate must be correct across Ballroom, FiloBass, and GTZAN |
 | Audit high-tempo GTZAN three-tracker offline veto | 1 / 1 (100.0%) | 0 | every selected ≥150 BPM GTZAN candidate must be correct across phase, BTT, and Beat This! |
 | Integrate bounded causal Beat This! live use | 0 / 1 (0.0%) | 1 | optional OBS-safe realtime backend must preserve the validated 20 s window and ≥44 interval gate; File2Beats remains non-causal offline inference |

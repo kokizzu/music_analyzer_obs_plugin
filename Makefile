@@ -6354,7 +6354,7 @@ inspect-beat-this-environment: scripts/inspect_beat_this_environment.py
 report-beat-this-gtzan-job: scripts/inspect_beat_this_environment.py
 	$(PYTHON) scripts/inspect_beat_this_environment.py --model-cache-root "$(BEAT_THIS_DIAGNOSTIC_ROOT)" --diagnostic-log "$(BEAT_THIS_DIAGNOSTIC_LOG)"
 
-.PHONY: install-beat-this-diagnostic test-measure-beat-this-bpm test-measure-beat-this-rolling-bpm measure-beat-this-gtzan-rhythm measure-beat-this-ballroom measure-beat-this-filobass measure-beat-this-rolling-ballroom measure-beat-this-rolling-filobass measure-beat-this-continuous-ballroom measure-beat-this-continuous-filobass audit-beat-this-continuous-interval-gate test-audit-beat-this-continuous-interval-gate summarize-beat-this-gtzan-rhythm summarize-beat-this-real-tempo summarize-beat-this-rolling-tempo
+.PHONY: install-beat-this-diagnostic test-measure-beat-this-bpm test-measure-beat-this-rolling-bpm test-beat-this-live-sidecar measure-beat-this-gtzan-rhythm measure-beat-this-ballroom measure-beat-this-filobass measure-beat-this-rolling-ballroom measure-beat-this-rolling-filobass measure-beat-this-continuous-ballroom measure-beat-this-continuous-filobass audit-beat-this-continuous-interval-gate test-audit-beat-this-continuous-interval-gate summarize-beat-this-gtzan-rhythm summarize-beat-this-real-tempo summarize-beat-this-rolling-tempo
 install-beat-this-diagnostic: configure-instrument-sample-store scripts/setup_beat_this_diagnostic.sh
 	bash scripts/setup_beat_this_diagnostic.sh "$(BEAT_THIS_DIAGNOSTIC_ROOT)" "$(BEAT_THIS_RUNTIME_ROOT)" "$(PYTHON)"
 
@@ -6363,6 +6363,9 @@ test-measure-beat-this-bpm: tests/test_measure_beat_this_bpm.py scripts/measure_
 
 test-measure-beat-this-rolling-bpm: tests/test_measure_beat_this_rolling_bpm.py scripts/measure_beat_this_rolling_bpm.py scripts/measure_beat_this_bpm.py
 	$(PYTHON) tests/test_measure_beat_this_rolling_bpm.py
+
+test-beat-this-live-sidecar: tests/test_beat_this_live_sidecar.py scripts/beat_this_live_sidecar.py scripts/measure_beat_this_bpm.py
+	$(PYTHON) tests/test_beat_this_live_sidecar.py
 
 test-summarize-beat-this-bpm: tests/test_summarize_beat_this_bpm.py scripts/summarize_beat_this_bpm.py
 	$(PYTHON) tests/test_summarize_beat_this_bpm.py
