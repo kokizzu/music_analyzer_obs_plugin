@@ -4,6 +4,19 @@ This dashboard is generated from the deterministic full-mix real-note attribute 
 
 Source: `build/real_note_full_mix_attributes.tsv`
 
+## Active goal-priority tracker
+
+Evidence coverage means the named corpus replay or audit is available. A goal checkpoint counts only a safe enabled change, the required offline veto, or a qualified corpus; diagnostic and rejected trials never count as ready.
+
+| Priority | Evidence coverage | Goal checkpoint | Remaining proof |
+| --- | ---: | ---: | --- |
+| 1. Calibrate drum detection | 3 / 3 (100.0%) | 0 / 1 (0.0%) | one recovery rule must improve MDB, STAR, and BabySlakh without a protected false-positive regression |
+| 2. Stabilize chord state | 2 / 2 (100.0%) | 0 / 1 (0.0%) | a change must raise correct stable-chord frames without raising wrong frames or flicker |
+| 3. Improve Tom/Rim/Ride | 2 / 3 (66.7%) | 0 / 1 (0.0%) | obtain independent Rim coverage and prove one shared class-specific improvement |
+| 4. Safe live Beat This! | 2 / 2 (100.0%) | 0 / 1 (0.0%) | continuous causal replay must have no wrong displayed BPM on both real-tempo corpora |
+| 5. High-tempo GTZAN offline veto | 1 / 1 (100.0%) | 1 / 1 (100.0%) | retain offline-only restriction; it cannot authorize the live BPM display |
+| 6. Proper bass tempo corpus | 1 / 1 (100.0%) | 1 / 1 (100.0%) | turn FiloBass evidence into a protected bass-led selector before any runtime BPM change |
+
 ## Runtime OTHERS output
 
 The catch-all OTHERS detector and renderer are intentionally disabled. Its historical rows remain below as baseline evidence only; they are not active runtime output.

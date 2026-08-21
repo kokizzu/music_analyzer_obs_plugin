@@ -1871,6 +1871,34 @@ def render(
         f"Source: `{input_path.as_posix()}`",
         "",
     ]
+    drum_calibration_evidence = sum(
+        int(candidate is not None and candidate.is_file())
+        for candidate in (mdb_drums_gate_output, star_drums_gate_output, babyslakh_drums_gate_output)
+    )
+    piano_chord_evidence = 2 if piano_chord_stability is not None else 0
+    tom_ride_evidence = 2 if samples29k_counts else 0
+    continuous_beat_this_evidence = int(beat_this_continuous_ballroom_bpm is not None) + int(
+        beat_this_continuous_filobass_bpm is not None
+    )
+    lines.extend(
+        [
+            "## Active goal-priority tracker",
+            "",
+            "Evidence coverage means the named corpus replay or audit is available. A goal checkpoint "
+            "counts only a safe enabled change, the required offline veto, or a qualified corpus; "
+            "diagnostic and rejected trials never count as ready.",
+            "",
+            "| Priority | Evidence coverage | Goal checkpoint | Remaining proof |",
+            "| --- | ---: | ---: | --- |",
+            f"| 1. Calibrate drum detection | {fraction(drum_calibration_evidence, 3)} | 0 / 1 (0.0%) | one recovery rule must improve MDB, STAR, and BabySlakh without a protected false-positive regression |",
+            f"| 2. Stabilize chord state | {fraction(piano_chord_evidence, 2)} | 0 / 1 (0.0%) | a change must raise correct stable-chord frames without raising wrong frames or flicker |",
+            f"| 3. Improve Tom/Rim/Ride | {fraction(tom_ride_evidence, 3)} | 0 / 1 (0.0%) | obtain independent Rim coverage and prove one shared class-specific improvement |",
+            f"| 4. Safe live Beat This! | {fraction(continuous_beat_this_evidence, 2)} | 0 / 1 (0.0%) | continuous causal replay must have no wrong displayed BPM on both real-tempo corpora |",
+            f"| 5. High-tempo GTZAN offline veto | {fraction(int(high_tempo_three_tracker_consensus is not None), 1)} | {fraction(int(high_tempo_three_tracker_consensus is not None), 1)} | retain offline-only restriction; it cannot authorize the live BPM display |",
+            f"| 6. Proper bass tempo corpus | {fraction(int(filobass_bpm is not None), 1)} | {fraction(int(filobass_bpm is not None), 1)} | turn FiloBass evidence into a protected bass-led selector before any runtime BPM change |",
+            "",
+        ]
+    )
     if other_detection_disabled:
         lines.extend(
             [

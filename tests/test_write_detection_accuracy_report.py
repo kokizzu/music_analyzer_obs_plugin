@@ -920,6 +920,10 @@ class DetectionAccuracyReportTest(unittest.TestCase):
             )
 
         self.assertIn("| Any detected note | 2 / 3 (66.7%) | 1 |", report)
+        self.assertIn("## Active goal-priority tracker", report)
+        self.assertIn("| 1. Calibrate drum detection | 3 / 3 (100.0%) | 0 / 1 (0.0%) |", report)
+        self.assertIn("| 4. Safe live Beat This! | 2 / 2 (100.0%) | 0 / 1 (0.0%) |", report)
+        self.assertIn("| 6. Proper bass tempo corpus | 1 / 1 (100.0%) | 1 / 1 (100.0%) |", report)
         self.assertIn("| Expected instrument row | 2 / 3 (66.7%) | 1 |", report)
         self.assertIn("| Primary display row | 1 / 3 (33.3%) | 2 |", report)
         self.assertIn("| Visual primary row | 2 / 3 (66.7%) | 1 |", report)
