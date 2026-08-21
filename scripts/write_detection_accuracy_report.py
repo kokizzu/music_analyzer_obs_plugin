@@ -460,6 +460,14 @@ PIANO_CHORD_STABILITY_RE = re.compile(
     r"transient_losses=(?P<transient_losses>\d+)$",
     re.MULTILINE,
 )
+PIANO_CHORD_CONFIRMATION_RE = re.compile(
+    r"^piano_chord_confirmation_audit: baseline_correct=(?P<baseline_correct>\d+)/(?P<frames>\d+) "
+    r"baseline_wrong=(?P<baseline_wrong>\d+) baseline_flickers=(?P<baseline_flickers>\d+) "
+    r"trial_correct=(?P<trial_correct>\d+)/(?P<trial_frames>\d+) trial_wrong=(?P<trial_wrong>\d+) "
+    r"trial_flickers=(?P<trial_flickers>\d+) retained_confirm_frames=(?P<retained>\d+) "
+    r"eligible=(?P<eligible>[01])$",
+    re.MULTILINE,
+)
 
 URMP_COVERAGE_RE = re.compile(
     r"analyzer_urmp: coverage: discovered (?P<discovered>\d+) piece dirs, loadable "
@@ -663,6 +671,20 @@ def piano_chord_stability_evidence(path: Path) -> tuple[int, int, int, int, int,
             transient_losses > sequences):
         raise ValueError(f"{path}: invalid continuous piano chord-state counts")
     return sequences, frames, correct, no_label, wrong, transient_losses
+
+
+def piano_chord_confirmation_audit(path: Path) -> tuple[int, int, int, int, int, int, int, int]:
+    match = PIANO_CHORD_CONFIRMATION_RE.search(path.read_text(encoding="utf-8", errors="replace"))
+    if match is None:
+        raise ValueError(f"{path}: missing piano chord confirmation audit summary")
+    values = {name: int(match[name]) for name in match.groupdict()}
+    if values["frames"] <= 0 or values["trial_frames"] != values["frames"]:
+        raise ValueError(f"{path}: inconsistent piano chord confirmation frame totals")
+    if values["retained"] not in {1, 2} or values["eligible"] not in {0, 1}:
+        raise ValueError(f"{path}: invalid piano chord confirmation decision")
+    return (values["baseline_correct"], values["trial_correct"], values["frames"],
+            values["baseline_wrong"], values["trial_wrong"], values["baseline_flickers"],
+            values["trial_flickers"], values["retained"])
 
 
 def maps_chord_miss_rows(path: Path) -> list[tuple[str, int, int]]:
@@ -1477,6 +1499,7 @@ def render(
     samples29k_drums_inspection: Path | None = None,
     samples29k_drums_measurement: Path | None = None,
     samples29k_drums_primary_attributes: Path | None = None,
+    piano_chord_confirmation_audit_input: Path | None = None,
 ) -> str:
     samples = load_samples(input_path)
     babyslakh_archive_ready = int(babyslakh_archive is not None and babyslakh_archive.is_file())
@@ -1620,6 +1643,11 @@ def render(
     piano_exact_fallback = (
         independent_piano_exact_fallback_audit(independent_piano_exact_chord_fallback_audit_input)
         if independent_piano_exact_chord_fallback_audit_input
+        else None
+    )
+    piano_chord_confirmation = (
+        piano_chord_confirmation_audit(piano_chord_confirmation_audit_input)
+        if piano_chord_confirmation_audit_input is not None
         else None
     )
     electronic_piano_guitar_audit = (
@@ -3148,6 +3176,24 @@ def render(
                     f"| Audited continuous stable-chord sequences | {fraction(sequences, sequences)} | 0 |",
                 ]
             )
+        if piano_chord_confirmation is not None:
+            baseline_correct, trial_correct, trial_frames, baseline_wrong, trial_wrong, baseline_flickers, trial_flickers, retained_frames = piano_chord_confirmation
+            lines.extend(
+                [
+                    "",
+                    "### Chord switch-confirmation audit",
+                    "",
+                    "A one-frame replacement trial is retained only if it improves correct stable-state frames "
+                    "without reintroducing correct-loss-recovery flicker.",
+                    "",
+                    f"Source: `{piano_chord_confirmation_audit_input.as_posix()}`",
+                    "",
+                    "| Candidate | Correct stable frames | Wrong labels | Correct-loss-recovery flickers | Decision |",
+                    "| --- | ---: | ---: | ---: | --- |",
+                    f"| Two-frame replacement confirmation | {fraction(baseline_correct, trial_frames)} | {baseline_wrong} | {baseline_flickers} | retained |",
+                    f"| One-frame replacement confirmation | {fraction(trial_correct, trial_frames)} | {trial_wrong} | {trial_flickers} | rejected; retain {retained_frames} frames |",
+                ]
+            )
         if piano_exact_fallback is not None:
             corpora, candidates = piano_exact_fallback
             lines.extend(
@@ -3789,6 +3835,7 @@ def main() -> int:
     parser.add_argument("--independent-piano-chord-state-evidence", type=Path)
     parser.add_argument("--independent-piano-chord-stability-evidence", type=Path)
     parser.add_argument("--independent-piano-exact-chord-fallback-audit", type=Path)
+    parser.add_argument("--piano-chord-confirmation-audit", type=Path)
     parser.add_argument("--kraisler-archive", type=Path)
     parser.add_argument("--kraisler-extraction", type=Path)
     parser.add_argument("--kraisler-manifest", type=Path)
@@ -3958,6 +4005,7 @@ def main() -> int:
             args.samples29k_drums_inspection,
             args.samples29k_drums_measurement,
             args.samples29k_drums_primary_attributes,
+            args.piano_chord_confirmation_audit,
         )
     except (OSError, ValueError) as error:
         parser.error(str(error))

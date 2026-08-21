@@ -1557,6 +1557,17 @@ Source: `build/independent_piano_chord_stability.txt`
 | Correct-loss-recovery flickers across audited sequences | 106 / 106 (100.0%) | 0 |
 | Audited continuous stable-chord sequences | 106 / 106 (100.0%) | 0 |
 
+### Chord switch-confirmation audit
+
+A one-frame replacement trial is retained only if it improves correct stable-state frames without reintroducing correct-loss-recovery flicker.
+
+Source: `build/piano_chord_confirmation_audit.txt`
+
+| Candidate | Correct stable frames | Wrong labels | Correct-loss-recovery flickers | Decision |
+| --- | ---: | ---: | ---: | --- |
+| Two-frame replacement confirmation | 96 / 530 (18.1%) | 243 | 0 | retained |
+| One-frame replacement confirmation | 104 / 530 (19.6%) | 235 | 3 | rejected; retain 2 frames |
+
 ### Independent-piano exact fallback audit
 
 This tests whether an unlabeled exact pitch-class set can safely restore a chord label. A fallback must be correct on every observed no-label window in both independent corpora.
