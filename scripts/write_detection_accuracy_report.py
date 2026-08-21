@@ -1513,6 +1513,8 @@ def render(
     beat_this_filobass_bpm_input: Path | None = None,
     beat_this_rolling_ballroom_bpm_input: Path | None = None,
     beat_this_rolling_filobass_bpm_input: Path | None = None,
+    beat_this_continuous_ballroom_bpm_input: Path | None = None,
+    beat_this_continuous_filobass_bpm_input: Path | None = None,
     three_tempo_tracker_consensus_input: Path | None = None,
     high_tempo_three_tracker_consensus_input: Path | None = None,
     candombe_bpm_input: Path | None = None,
@@ -1598,6 +1600,14 @@ def render(
     beat_this_rolling_filobass_bpm = (
         beat_this_rolling_tempo_counts(beat_this_rolling_filobass_bpm_input)
         if beat_this_rolling_filobass_bpm_input else None
+    )
+    beat_this_continuous_ballroom_bpm = (
+        beat_this_rolling_tempo_counts(beat_this_continuous_ballroom_bpm_input)
+        if beat_this_continuous_ballroom_bpm_input else None
+    )
+    beat_this_continuous_filobass_bpm = (
+        beat_this_rolling_tempo_counts(beat_this_continuous_filobass_bpm_input)
+        if beat_this_continuous_filobass_bpm_input else None
     )
     three_tempo_tracker_consensus = (
         three_tempo_tracker_consensus_counts(three_tempo_tracker_consensus_input)
@@ -3422,6 +3432,27 @@ def render(
             accurate, total, on_budget = values
             lines.append(f"| {name} rolling BPM within 8 BPM | {fraction(accurate, total)} | {total - accurate} |")
             lines.append(f"| {name} rolling windows processed within their audio duration | {fraction(on_budget, total)} | {total - on_budget} |")
+    if beat_this_continuous_ballroom_bpm is not None or beat_this_continuous_filobass_bpm is not None:
+        lines.extend(
+            [
+                "",
+                "### Beat This! continuous causal replay",
+                "",
+                "Each stable segment is replayed at 10 and 20 seconds using only its trailing 20-second audio window. This is a stronger causal diagnostic, but a corpus with wrong outputs cannot authorize OBS integration.",
+                "",
+                "| Metric | Accurate / total | Remaining |",
+                "| --- | ---: | ---: |",
+            ]
+        )
+        for name, values in (
+            ("Ballroom", beat_this_continuous_ballroom_bpm),
+            ("FiloBass", beat_this_continuous_filobass_bpm),
+        ):
+            if values is None:
+                continue
+            accurate, total, on_budget = values
+            lines.append(f"| {name} continuous causal BPM within 8 BPM | {fraction(accurate, total)} | {total - accurate} |")
+            lines.append(f"| {name} continuous outputs processed within their audio duration | {fraction(on_budget, total)} | {total - on_budget} |")
     if three_tempo_tracker_consensus is not None:
         correct, selected, newly_revealed, audited = three_tempo_tracker_consensus
         lines.extend(
@@ -3937,6 +3968,8 @@ def main() -> int:
     parser.add_argument("--beat-this-filobass-bpm-input", type=Path)
     parser.add_argument("--beat-this-rolling-ballroom-bpm-input", type=Path)
     parser.add_argument("--beat-this-rolling-filobass-bpm-input", type=Path)
+    parser.add_argument("--beat-this-continuous-ballroom-bpm-input", type=Path)
+    parser.add_argument("--beat-this-continuous-filobass-bpm-input", type=Path)
     parser.add_argument("--three-tempo-tracker-consensus-input", type=Path)
     parser.add_argument("--high-tempo-three-tracker-consensus-input", type=Path)
     parser.add_argument("--candombe-bpm-input", type=Path)
@@ -4076,6 +4109,8 @@ def main() -> int:
             args.beat_this_filobass_bpm_input,
             args.beat_this_rolling_ballroom_bpm_input,
             args.beat_this_rolling_filobass_bpm_input,
+            args.beat_this_continuous_ballroom_bpm_input,
+            args.beat_this_continuous_filobass_bpm_input,
             args.three_tempo_tracker_consensus_input,
             args.high_tempo_three_tracker_consensus_input,
             args.candombe_bpm_input,

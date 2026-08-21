@@ -815,6 +815,16 @@ class DetectionAccuracyReportTest(unittest.TestCase):
                 "Beat This rolling tempo diag\tid=1\texpected=100.00\traw=200.00\twindow_seconds=20.000\twall_seconds=21.000\terror=100.00\tstatus=miss\n",
                 encoding="utf-8",
             )
+            beat_this_continuous_ballroom = Path(temporary) / "beat_this_continuous_ballroom.log"
+            beat_this_continuous_ballroom.write_text(
+                "Beat This rolling tempo diag\tid=1\toutput=1\texpected=120.00\traw=120.00\twindow_seconds=20.000\twall_seconds=3.000\terror=0.00\tstatus=hit\n",
+                encoding="utf-8",
+            )
+            beat_this_continuous_filobass = Path(temporary) / "beat_this_continuous_filobass.log"
+            beat_this_continuous_filobass.write_text(
+                "Beat This rolling tempo diag\tid=1\toutput=1\texpected=100.00\traw=200.00\twindow_seconds=20.000\twall_seconds=21.000\terror=100.00\tstatus=miss\n",
+                encoding="utf-8",
+            )
             ballroom_annotations = Path(temporary) / "ballroom-annotations"
             (ballroom_annotations / ".git").mkdir(parents=True)
             report = REPORT.render(
@@ -878,6 +888,8 @@ class DetectionAccuracyReportTest(unittest.TestCase):
                 beat_this_filobass_bpm_input=beat_this_filobass,
                 beat_this_rolling_ballroom_bpm_input=beat_this_rolling_ballroom,
                 beat_this_rolling_filobass_bpm_input=beat_this_rolling_filobass,
+                beat_this_continuous_ballroom_bpm_input=beat_this_continuous_ballroom,
+                beat_this_continuous_filobass_bpm_input=beat_this_continuous_filobass,
                 three_tempo_tracker_consensus_input=three_tracker_consensus,
                 high_tempo_three_tracker_consensus_input=high_three_tracker_consensus,
                 ballroom_annotations=ballroom_annotations,
@@ -984,6 +996,9 @@ class DetectionAccuracyReportTest(unittest.TestCase):
         self.assertIn("| Benchmark Beat This! on independent real-tempo corpora | 2 / 2 (100.0%) | 0 |", report)
         self.assertIn("| Audit phase/BTT/Beat This! offline agreement | 1 / 1 (100.0%) | 0 |", report)
         self.assertIn("### Beat This! bounded rolling-window replay", report)
+        self.assertIn("### Beat This! continuous causal replay", report)
+        self.assertIn("| Ballroom continuous causal BPM within 8 BPM | 1 / 1 (100.0%) | 0 |", report)
+        self.assertIn("| FiloBass continuous causal BPM within 8 BPM | 0 / 1 (0.0%) | 1 |", report)
         self.assertIn("| Ballroom rolling BPM within 8 BPM | 1 / 1 (100.0%) | 0 |", report)
         self.assertIn("| FiloBass rolling BPM within 8 BPM | 0 / 1 (0.0%) | 1 |", report)
         self.assertIn("| FiloBass rolling windows processed within their audio duration | 0 / 1 (0.0%) | 1 |", report)

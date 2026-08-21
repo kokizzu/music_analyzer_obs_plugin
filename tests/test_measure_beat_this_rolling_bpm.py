@@ -19,6 +19,10 @@ def main() -> int:
     assert MODULE.rolling_window_bounds(3000, 100, 10.0, 20.0, 20.0) == (1000, 3000, 0.0, 20.0)
     assert MODULE.rolling_window_bounds(3000, 100, 3.0, 20.0, 20.0) == (300, 2300, 0.0, 20.0)
     assert MODULE.rolling_window_bounds(5000, 100, 30.0, 20.0, 25.0) == (2500, 5000, 5.0, 20.0)
+    assert MODULE.continuous_window_bounds(5000, 100, 30.0, 20.0, 20.0, 10.0, 10.0) == [
+        (2000, 4000, 10.0, 10.0),
+        (3000, 5000, 0.0, 20.0),
+    ]
     try:
         MODULE.rolling_window_bounds(3000, 100, 10.0, 20.0, 10.0)
     except ValueError:

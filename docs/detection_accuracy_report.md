@@ -1698,6 +1698,17 @@ Each estimate receives only the trailing window ending at the annotated stable-w
 | FiloBass rolling BPM within 8 BPM | 16 / 48 (33.3%) | 32 |
 | FiloBass rolling windows processed within their audio duration | 48 / 48 (100.0%) | 0 |
 
+### Beat This! continuous causal replay
+
+Each stable segment is replayed at 10 and 20 seconds using only its trailing 20-second audio window. This is a stronger causal diagnostic, but a corpus with wrong outputs cannot authorize OBS integration.
+
+| Metric | Accurate / total | Remaining |
+| --- | ---: | ---: |
+| Ballroom continuous causal BPM within 8 BPM | 126 / 128 (98.4%) | 2 |
+| Ballroom continuous outputs processed within their audio duration | 128 / 128 (100.0%) | 0 |
+| FiloBass continuous causal BPM within 8 BPM | 38 / 96 (39.6%) | 58 |
+| FiloBass continuous outputs processed within their audio duration | 96 / 96 (100.0%) | 0 |
+
 ### Three-tracker offline consensus safety audit
 
 Source: `build/three_tempo_tracker_consensus.log`. A candidate is retained only when phase, the permissive tracker, and Beat This! agree, and each individual estimate is within 8 BPM. This is offline evidence only: Beat This! uses non-causal full-context attention, so this audit cannot enable a live OBS path.
