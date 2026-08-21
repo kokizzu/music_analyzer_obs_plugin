@@ -1476,7 +1476,8 @@ void append_maestro_attribute_row(std::ostream &out, const Recording &recording,
 
 void print_chord_state_audit_header(std::ostream &out)
 {
-	out << "recording\tanchor_sample\tframe\tcenter_sample\texpected_chords\tkeyboard_chord\tchord_hit\n";
+	out << "recording\tanchor_sample\tframe\tcenter_sample\texpected_chords\tkeyboard_chord"
+	       "\tkeyboard_chord_confidence\tkeyboard_chord_reason\tchord_hit\n";
 }
 
 bool keyboard_chord_hit(const mao::AnalysisSnapshot &snapshot, const CandidateWindow &candidate)
@@ -1528,6 +1529,7 @@ bool append_chord_state_audit_sequence(std::ostream &out, const Recording &recor
 		out << recording.id << '\t' << anchor.center_sample << '\t'
 		    << static_cast<int>(index) - kFramesBefore << '\t' << expected[index].center_sample << '\t'
 		    << join_labels(anchor.chord_labels) << '\t' << snapshot.keyboard_chord.label << '\t'
+		    << snapshot.keyboard_chord.confidence << '\t' << snapshot.keyboard_chord_debug_reason << '\t'
 		    << (keyboard_chord_hit(snapshot, anchor) ? 1 : 0) << '\n';
 	}
 	return true;

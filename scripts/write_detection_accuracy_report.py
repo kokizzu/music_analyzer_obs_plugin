@@ -468,6 +468,15 @@ PIANO_CHORD_CONFIRMATION_RE = re.compile(
     r"eligible=(?P<eligible>[01])$",
     re.MULTILINE,
 )
+PIANO_CHORD_DISPLAY_GATE_RE = re.compile(
+    r"^piano_chord_display_gate: floor=(?P<floor>[0-9.]+) "
+    r"baseline_correct=(?P<baseline_correct>\d+)/(?P<frames>\d+) "
+    r"baseline_wrong=(?P<baseline_wrong>\d+) baseline_flickers=(?P<baseline_flickers>\d+) "
+    r"trial_correct=(?P<trial_correct>\d+)/(?P<trial_frames>\d+) "
+    r"trial_wrong=(?P<trial_wrong>\d+) trial_flickers=(?P<trial_flickers>\d+) "
+    r"eligible=(?P<eligible>[01])$",
+    re.MULTILINE,
+)
 FSD50K_RIM_METADATA_RE = re.compile(
     r"^fsd50k_rim_metadata: rimshot_labelled_rows=(?P<labelled>\d+) "
     r"pure_rimshot_candidates=(?P<pure>\d+) permissive_cc_candidates=(?P<permissive>\d+) "
@@ -907,6 +916,24 @@ def route_profile_audit(path: Path, expected_comparisons: int) -> tuple[int, int
         int(source["samples"]),
         sum(int(match["samples"]) > 0 for match in comparisons),
         len(comparisons),
+    )
+
+
+def piano_chord_display_gate_audit(path: Path) -> tuple[float, int, int, int, int, int, int, int, int]:
+    """Return the protected baseline/trial totals for the keyboard display gate."""
+    match = PIANO_CHORD_DISPLAY_GATE_RE.search(path.read_text(encoding="utf-8", errors="replace"))
+    if match is None:
+        raise ValueError(f"{path}: missing piano chord display-gate summary")
+    return (
+        float(match["floor"]),
+        int(match["baseline_correct"]),
+        int(match["frames"]),
+        int(match["baseline_wrong"]),
+        int(match["baseline_flickers"]),
+        int(match["trial_correct"]),
+        int(match["trial_wrong"]),
+        int(match["trial_flickers"]),
+        int(match["eligible"]),
     )
 
 
@@ -1537,6 +1564,7 @@ def render(
     piano_chord_tone018_audit_input: Path | None = None,
     piano_chord_margin060_audit_input: Path | None = None,
     piano_chord_bassbonus000_audit_input: Path | None = None,
+    piano_chord_display_gate_audit_input: Path | None = None,
     fsd50k_rim_metadata_audit_input: Path | None = None,
     mdb_rim_coverage_input: Path | None = None,
 ) -> str:
@@ -1717,6 +1745,11 @@ def render(
         if piano_chord_bassbonus000_audit_input is not None
         else None
     )
+    piano_chord_display_gate = (
+        piano_chord_display_gate_audit(piano_chord_display_gate_audit_input)
+        if piano_chord_display_gate_audit_input is not None
+        else None
+    )
     fsd50k_rim_metadata = (
         fsd50k_rim_metadata_audit(fsd50k_rim_metadata_audit_input)
         if fsd50k_rim_metadata_audit_input is not None
@@ -1891,7 +1924,7 @@ def render(
             "| Priority | Evidence coverage | Goal checkpoint | Remaining proof |",
             "| --- | ---: | ---: | --- |",
             f"| 1. Calibrate drum detection | {fraction(drum_calibration_evidence, 3)} | 0 / 1 (0.0%) | one recovery rule must improve MDB, STAR, and BabySlakh without a protected false-positive regression |",
-            f"| 2. Stabilize chord state | {fraction(piano_chord_evidence, 2)} | 0 / 1 (0.0%) | a change must raise correct stable-chord frames without raising wrong frames or flicker |",
+            f"| 2. Stabilize chord state | {fraction(piano_chord_evidence, 2)} | {fraction(int(piano_chord_display_gate is not None and piano_chord_display_gate[-1] == 1), 1)} | retain the 0.60 keyboard-only display gate only while it lowers wrong labels without correct-frame or flicker loss |",
             f"| 3. Improve Tom/Rim/Ride | {fraction(tom_ride_evidence, 3)} | 0 / 1 (0.0%) | obtain independent Rim coverage and prove one shared class-specific improvement |",
             f"| 4. Safe live Beat This! | {fraction(continuous_beat_this_evidence, 2)} | 0 / 1 (0.0%) | continuous causal replay must have no wrong displayed BPM on both real-tempo corpora |",
             f"| 5. High-tempo GTZAN offline veto | {fraction(int(high_tempo_three_tracker_consensus is not None), 1)} | {fraction(int(high_tempo_three_tracker_consensus is not None), 1)} | retain offline-only restriction; it cannot authorize the live BPM display |",
@@ -3282,7 +3315,7 @@ def render(
                     f"| Audited continuous stable-chord sequences | {fraction(sequences, sequences)} | 0 |",
                 ]
             )
-        if piano_chord_confirmation is not None or piano_chord_confirm3 is not None or piano_chord_tone018 is not None or piano_chord_margin060 is not None or piano_chord_bassbonus000 is not None:
+        if piano_chord_confirmation is not None or piano_chord_confirm3 is not None or piano_chord_tone018 is not None or piano_chord_margin060 is not None or piano_chord_bassbonus000 is not None or piano_chord_display_gate is not None:
             lines.extend(
                 [
                     "",
@@ -3331,6 +3364,18 @@ def render(
                 lines.append(
                     f"| Zero bass-root candidate bonus | {fraction(bassbonus_correct, bassbonus_frames)} | {bassbonus_wrong} | {bassbonus_flickers} | rejected; piano gain fails broad analyzer-case regression coverage |"
                 )
+            if piano_chord_display_gate is not None:
+                (display_floor, display_baseline_correct, display_frames, display_baseline_wrong,
+                 display_baseline_flickers, display_trial_correct, display_trial_wrong,
+                 display_trial_flickers, display_eligible) = piano_chord_display_gate
+                hidden_wrong = display_baseline_wrong - display_trial_wrong
+                decision = (
+                    f"enabled; hides {hidden_wrong} wrong labels with no correct-frame or flicker loss"
+                    if display_eligible else "rejected; protected display gate not met"
+                )
+                lines.append(
+                    f"| Keyboard-only confidence ≥{display_floor:.2f} | {fraction(display_trial_correct, display_frames)} | {display_trial_wrong} | {display_trial_flickers} | {decision} |"
+                )
             sources = []
             if piano_chord_confirmation_audit_input is not None:
                 sources.append(f"`{piano_chord_confirmation_audit_input.as_posix()}`")
@@ -3342,6 +3387,8 @@ def render(
                 sources.append(f"`{piano_chord_margin060_audit_input.as_posix()}`")
             if piano_chord_bassbonus000_audit_input is not None:
                 sources.append(f"`{piano_chord_bassbonus000_audit_input.as_posix()}`")
+            if piano_chord_display_gate_audit_input is not None:
+                sources.append(f"`{piano_chord_display_gate_audit_input.as_posix()}`")
             lines.extend(["", f"Sources: {', '.join(sources)}"])
         if piano_exact_fallback is not None:
             corpora, candidates = piano_exact_fallback
@@ -4031,6 +4078,7 @@ def main() -> int:
     parser.add_argument("--piano-chord-tone018-audit", type=Path)
     parser.add_argument("--piano-chord-margin060-audit", type=Path)
     parser.add_argument("--piano-chord-bassbonus000-audit", type=Path)
+    parser.add_argument("--piano-chord-display-gate-audit", type=Path)
     parser.add_argument("--kraisler-archive", type=Path)
     parser.add_argument("--kraisler-extraction", type=Path)
     parser.add_argument("--kraisler-manifest", type=Path)
@@ -4209,6 +4257,7 @@ def main() -> int:
             args.piano_chord_tone018_audit,
             args.piano_chord_margin060_audit,
             args.piano_chord_bassbonus000_audit,
+            args.piano_chord_display_gate_audit,
             args.fsd50k_rim_metadata_audit,
             args.mdb_rim_coverage_input,
         )

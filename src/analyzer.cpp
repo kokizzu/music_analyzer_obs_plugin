@@ -147,6 +147,10 @@ constexpr float kChordConfidenceFloor = 0.36f;
 constexpr float kChordCandidateMarginFloor = 0.025f;
 constexpr float kChordMarginConfidenceCeiling = 0.40f;
 constexpr float kChordWeakExtensionMargin = 0.16f;
+// Continuous MAPS/MAESTRO replay confirms this suppresses wrong keyboard-chord
+// labels without hiding a correct stable label. This is display-only: chord
+// tracking continues so a later confident frame can appear immediately.
+constexpr float kKeyboardChordDisplayConfidenceFloor = 0.60f;
 constexpr float kChordStrongExtensionToneFloor = 0.32f;
 constexpr float kChordStrongExtensionCoreRatio = 0.36f;
 constexpr float kGuitarCagedPresenceFloor = 0.50f;
@@ -36381,6 +36385,8 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 							     allow_smoothed_extensions);
 		stabilize_chord(snapshot.keyboard_chord, keyboard_chord_tracking_, raw_keyboard_chord,
 				smoothed_keyboard_chord, true, interval_seconds);
+		if (snapshot.keyboard_chord.confidence < kKeyboardChordDisplayConfidenceFloor)
+			clear_instrument_state(snapshot.keyboard_chord);
 		if (!mixed_source)
 			append_strict_symmetric_dim7_aliases(snapshot.keyboard_chord,
 						      note_grid_chroma(snapshot.keyboard_notes), 0.26f);

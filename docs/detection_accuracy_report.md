@@ -11,7 +11,7 @@ Evidence coverage means the named corpus replay or audit is available. A goal ch
 | Priority | Evidence coverage | Goal checkpoint | Remaining proof |
 | --- | ---: | ---: | --- |
 | 1. Calibrate drum detection | 3 / 3 (100.0%) | 0 / 1 (0.0%) | one recovery rule must improve MDB, STAR, and BabySlakh without a protected false-positive regression |
-| 2. Stabilize chord state | 2 / 2 (100.0%) | 0 / 1 (0.0%) | a change must raise correct stable-chord frames without raising wrong frames or flicker |
+| 2. Stabilize chord state | 2 / 2 (100.0%) | 1 / 1 (100.0%) | retain the 0.60 keyboard-only display gate only while it lowers wrong labels without correct-frame or flicker loss |
 | 3. Improve Tom/Rim/Ride | 2 / 3 (66.7%) | 0 / 1 (0.0%) | obtain independent Rim coverage and prove one shared class-specific improvement |
 | 4. Safe live Beat This! | 2 / 2 (100.0%) | 0 / 1 (0.0%) | continuous causal replay must have no wrong displayed BPM on both real-tempo corpora |
 | 5. High-tempo GTZAN offline veto | 1 / 1 (100.0%) | 1 / 1 (100.0%) | retain offline-only restriction; it cannot authorize the live BPM display |
@@ -1571,7 +1571,7 @@ Source: `build/independent_piano_chord_stability.txt`
 | Metric | Accurate / total | Remaining |
 | --- | ---: | ---: |
 | Annotated stable chord-state frames with the expected keyboard chord | 96 / 530 (18.1%) | 434 |
-| Chord-state frames that retained a label | 339 / 530 (64.0%) | 191 no-label frames |
+| Chord-state frames that retained a label | 321 / 530 (60.6%) | 209 no-label frames |
 | Correct-loss-recovery flickers across audited sequences | 106 / 106 (100.0%) | 0 |
 | Audited continuous stable-chord sequences | 106 / 106 (100.0%) | 0 |
 
@@ -1587,8 +1587,9 @@ A replacement-confirmation trial is retained only if it improves correct stable-
 | Lower 0.18 pitch-class presence | 99 / 530 (18.7%) | 245 | 0 | rejected; MAESTRO has no correct-frame gain and wrong labels rise 243→244 |
 | 0.05 ambiguity margin through 0.60 confidence | 96 / 530 (18.1%) | 240 | 0 | rejected; suppresses 3 wrong MAESTRO labels but gains no correct frame |
 | Zero bass-root candidate bonus | 102 / 530 (19.2%) | 237 | 0 | rejected; piano gain fails broad analyzer-case regression coverage |
+| Keyboard-only confidence ≥0.60 | 96 / 530 (18.1%) | 225 | 0 | enabled; hides 18 wrong labels with no correct-frame or flicker loss |
 
-Sources: `build/piano_chord_confirmation_audit.txt`, `build/piano_chord_confirm3_audit.txt`, `build/piano_chord_tone018_audit.txt`, `build/piano_chord_margin060_audit.txt`, `build/piano_chord_bassbonus000_audit.txt`
+Sources: `build/piano_chord_confirmation_audit.txt`, `build/piano_chord_confirm3_audit.txt`, `build/piano_chord_tone018_audit.txt`, `build/piano_chord_margin060_audit.txt`, `build/piano_chord_bassbonus000_audit.txt`, `build/piano_chord_display_gate_audit.txt`
 
 ### Independent-piano exact fallback audit
 

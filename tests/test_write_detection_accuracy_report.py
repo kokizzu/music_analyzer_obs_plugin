@@ -826,6 +826,13 @@ class DetectionAccuracyReportTest(unittest.TestCase):
                 "retained_confirm_frames=1 eligible=1\n",
                 encoding="utf-8",
             )
+            piano_chord_display_gate = Path(temporary) / "piano_chord_display_gate.txt"
+            piano_chord_display_gate.write_text(
+                "piano_chord_display_gate: floor=0.60 baseline_correct=96/530 "
+                "baseline_wrong=243 baseline_flickers=0 trial_correct=96/530 "
+                "trial_wrong=225 trial_flickers=0 eligible=1\n",
+                encoding="utf-8",
+            )
             beat_this_rolling_ballroom = Path(temporary) / "beat_this_rolling_ballroom.log"
             beat_this_rolling_ballroom.write_text(
                 "Beat This rolling tempo diag\tid=1\texpected=120.00\traw=120.00\twindow_seconds=20.000\twall_seconds=3.000\terror=0.00\tstatus=hit\n",
@@ -891,6 +898,7 @@ class DetectionAccuracyReportTest(unittest.TestCase):
                 piano_chord_tone018_audit_input=piano_chord_tone018,
                 piano_chord_margin060_audit_input=piano_chord_margin060,
                 piano_chord_bassbonus000_audit_input=piano_chord_bassbonus000,
+                piano_chord_display_gate_audit_input=piano_chord_display_gate,
                 kraisler_archive=kraisler_archive,
                 kraisler_extraction=kraisler_extraction,
                 kraisler_manifest=kraisler_manifest,
@@ -922,6 +930,7 @@ class DetectionAccuracyReportTest(unittest.TestCase):
         self.assertIn("| Any detected note | 2 / 3 (66.7%) | 1 |", report)
         self.assertIn("## Active goal-priority tracker", report)
         self.assertIn("| 1. Calibrate drum detection | 3 / 3 (100.0%) | 0 / 1 (0.0%) |", report)
+        self.assertIn("| 2. Stabilize chord state | 2 / 2 (100.0%) | 1 / 1 (100.0%) |", report)
         self.assertIn("| 4. Safe live Beat This! | 2 / 2 (100.0%) | 0 / 1 (0.0%) |", report)
         self.assertIn("| 6. Proper bass tempo corpus | 1 / 1 (100.0%) | 1 / 1 (100.0%) |", report)
         self.assertIn("| Expected instrument row | 2 / 3 (66.7%) | 1 |", report)
@@ -944,6 +953,7 @@ class DetectionAccuracyReportTest(unittest.TestCase):
         self.assertIn("| Lower 0.18 pitch-class presence | 99 / 530 (18.7%) | 245 | 0 |", report)
         self.assertIn("| 0.05 ambiguity margin through 0.60 confidence | 96 / 530 (18.1%) | 240 | 0 |", report)
         self.assertIn("| Zero bass-root candidate bonus | 102 / 530 (19.2%) | 237 | 0 |", report)
+        self.assertIn("| Keyboard-only confidence ≥0.60 | 96 / 530 (18.1%) | 225 | 0 | enabled; hides 18 wrong labels", report)
         self.assertIn("| Annotated stable chord-state frames with the expected keyboard chord | 4 / 10 (40.0%) | 6 |", report)
         self.assertIn("### Independent-piano exact fallback audit", report)
         self.assertIn("| Cross-piano runtime-safe exact pitch-class fallback available | 0 / 1 (0.0%) | 1 |", report)
