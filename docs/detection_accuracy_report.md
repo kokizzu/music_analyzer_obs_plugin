@@ -69,8 +69,9 @@ Source: `build/polyphonic_candidate_capacity_audit.txt`
 | SATB corpora reaching the 24-candidate cap | 0 / 3 (0.0%) | 3 |
 | Missing pitch-class windows explained by capacity | 0 / 427 (0.0%) | 427 |
 | 4% full-mix candidate-floor trial safe across SATB corpora | 0 / 1 (0.0%) | 1 |
+| 18% raw-fundamental supplement safe across SATB corpora and GuitarSet | 0 / 1 (0.0%) | 1 |
 
-No SATB corpus reaches the cap, so expanding candidate capacity is not an evidence-based recall fix. The 4% floor trial reduced visible vocal routing in the prepared SATB fixtures, so the 8% floor is retained.
+No SATB corpus reaches the cap, so expanding candidate capacity is not an evidence-based recall fix. The 4% floor trial reduced visible vocal routing in the prepared SATB fixtures, so the 8% floor is retained. The 18% raw-fundamental supplement raised exact chords from DCS/CSD/ESMUC 39/45/67 to 39/46/69, but reduced note precision in every corpus and produced only 398/511 GuitarSet primary chord hits against the 400-hit guard, so it is removed.
 
 ## Harmonic-product octave-correction audit
 
