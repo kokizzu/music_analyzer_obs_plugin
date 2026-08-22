@@ -147,10 +147,11 @@ constexpr float kChordConfidenceFloor = 0.36f;
 constexpr float kChordCandidateMarginFloor = 0.025f;
 constexpr float kChordMarginConfidenceCeiling = 0.40f;
 constexpr float kChordWeakExtensionMargin = 0.16f;
-// Continuous MAPS/MAESTRO replay confirms this suppresses wrong keyboard-chord
-// labels without hiding a correct stable label. This is display-only: chord
-// tracking continues so a later confident frame can appear immediately.
-constexpr float kKeyboardChordDisplayConfidenceFloor = 0.60f;
+// Continuous MAPS/MAESTRO replay confirms this suppresses additional wrong
+// keyboard-chord labels without hiding a correct stable label. This is
+// display-only: chord tracking continues so a later confident frame can
+// appear immediately.
+constexpr float kKeyboardChordDisplayConfidenceFloor = 0.70f;
 constexpr float kChordStrongExtensionToneFloor = 0.32f;
 constexpr float kChordStrongExtensionCoreRatio = 0.36f;
 constexpr float kGuitarCagedPresenceFloor = 0.50f;

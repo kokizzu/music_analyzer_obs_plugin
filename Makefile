@@ -1087,6 +1087,7 @@ MAESTRO_REAL_CHORD_STATE_CONFIRM3_AUDIT ?= $(BUILD_DIR)/maestro_real_chord_state
 MAESTRO_REAL_CHORD_STATE_TONE018_AUDIT ?= $(BUILD_DIR)/maestro_real_chord_state_tone018_audit.tsv
 MAESTRO_REAL_CHORD_STATE_MARGIN060_AUDIT ?= $(BUILD_DIR)/maestro_real_chord_state_margin060_audit.tsv
 MAESTRO_REAL_CHORD_STATE_BASSBONUS000_AUDIT ?= $(BUILD_DIR)/maestro_real_chord_state_bassbonus000_audit.tsv
+MAESTRO_REAL_CHORD_STATE_CONFIDENCE070_AUDIT ?= $(BUILD_DIR)/maestro_real_chord_state_confidence070.tsv
 INDEPENDENT_PIANO_CHORD_STABILITY_OUTPUT ?= $(BUILD_DIR)/independent_piano_chord_stability.txt
 PIANO_CHORD_CONFIRMATION_AUDIT ?= $(BUILD_DIR)/piano_chord_confirmation_audit.txt
 PIANO_CHORD_CONFIRM3_AUDIT ?= $(BUILD_DIR)/piano_chord_confirm3_audit.txt
@@ -1095,6 +1096,7 @@ PIANO_CHORD_MARGIN060_AUDIT ?= $(BUILD_DIR)/piano_chord_margin060_audit.txt
 PIANO_CHORD_BASSBONUS000_AUDIT ?= $(BUILD_DIR)/piano_chord_bassbonus000_audit.txt
 PIANO_CHORD_DISPLAY_CONFIDENCE_AUDIT ?= $(BUILD_DIR)/piano_chord_display_confidence_audit.txt
 PIANO_CHORD_DISPLAY_GATE_AUDIT ?= $(BUILD_DIR)/piano_chord_display_gate_audit.txt
+MAPS_PIANO_CHORD_STATE_CONFIDENCE070_AUDIT ?= $(BUILD_DIR)/maps_piano_chord_state_confidence070.tsv
 PIANO_CHORD_STATE_AUDIT_MAX_SEQUENCES ?= 64
 KRAISLER_SOURCE_DIR ?= $(INSTRUMENT_SAMPLE_STORE_LINK)/kraisler
 KRAISLER_ARCHIVE ?= $(KRAISLER_SOURCE_DIR)/KRAISLER.zip
@@ -6081,7 +6083,7 @@ test-independent-piano-chord-states: tests/test_summarize_independent_piano_chor
 # Replays contiguous annotated stable-chord windows through one AnalysisEngine.
 # This specifically tests the runtime switch-confirm/no-label hold behavior,
 # whereas the normal attributes intentionally analyze each window independently.
-.PHONY: measure-maps-piano-chord-state-cached measure-maestro-real-chord-state-cached analyze-independent-piano-chord-stability-cached test-summarize-piano-chord-state-audit audit-piano-chord-confirmation audit-piano-chord-confirm3 audit-piano-chord-tone018 audit-piano-chord-margin060 audit-piano-chord-bassbonus000 audit-piano-chord-display-confidence test-audit-piano-chord-confirmation test-audit-piano-chord-display-confidence
+.PHONY: measure-maps-piano-chord-state-cached measure-maestro-real-chord-state-cached measure-maps-piano-chord-display-gate070 measure-maestro-real-chord-display-gate070 analyze-independent-piano-chord-stability-cached test-summarize-piano-chord-state-audit audit-piano-chord-confirmation audit-piano-chord-confirm3 audit-piano-chord-tone018 audit-piano-chord-margin060 audit-piano-chord-bassbonus000 audit-piano-chord-display-confidence test-audit-piano-chord-confirmation test-audit-piano-chord-display-confidence
 measure-maps-piano-chord-state-cached: $(BUILD_DIR)/analyzer_maestro scripts/run_with_duration.sh | $(BUILD_DIR)
 	@test -s "$(MAPS_PIANO_SAMPLE_DIR)/maestro-v3.0.0.csv" && test -d "$(MAPS_PIANO_SAMPLE_DIR)/maps" || { printf '%s\n' "missing prepared MAPS piano CSV or audio under $(MAPS_PIANO_SAMPLE_DIR); run make prepare-maps-piano-samples first"; exit 2; }
 	$(RUN_WITH_DURATION) maps_piano_chord_state_audit env MUSIC_ANALYZER_MAESTRO_ROOT="$(MAPS_PIANO_SAMPLE_DIR)" MUSIC_ANALYZER_MAESTRO_REQUIRED=1 MUSIC_ANALYZER_MAESTRO_REQUIRED_RECORDINGS=1 MUSIC_ANALYZER_MAESTRO_REQUIRED_WINDOWS=1 MUSIC_ANALYZER_MAESTRO_MAX_WINDOWS_PER_RECORDING=1 MUSIC_ANALYZER_MAESTRO_INSPECT_ONLY=1 MUSIC_ANALYZER_MAESTRO_CHORD_STATE_AUDIT_TSV="$(MAPS_PIANO_CHORD_STATE_AUDIT)" MUSIC_ANALYZER_MAESTRO_CHORD_STATE_AUDIT_MAX_SEQUENCES="$(PIANO_CHORD_STATE_AUDIT_MAX_SEQUENCES)" $(BUILD_DIR)/analyzer_maestro
@@ -6089,6 +6091,12 @@ measure-maps-piano-chord-state-cached: $(BUILD_DIR)/analyzer_maestro scripts/run
 measure-maestro-real-chord-state-cached: $(BUILD_DIR)/analyzer_maestro scripts/run_with_duration.sh | $(BUILD_DIR)
 	@test -s "$(MAESTRO_REAL_SAMPLE_DIR)/maestro-v3.0.0.csv" || { printf '%s\n' "missing prepared MAESTRO CSV under $(MAESTRO_REAL_SAMPLE_DIR); run make prepare-maestro-real-samples first"; exit 2; }
 	$(RUN_WITH_DURATION) maestro_real_chord_state_audit env MUSIC_ANALYZER_MAESTRO_ROOT="$(MAESTRO_REAL_SAMPLE_DIR)" MUSIC_ANALYZER_MAESTRO_REQUIRED=1 MUSIC_ANALYZER_MAESTRO_REQUIRED_RECORDINGS=1 MUSIC_ANALYZER_MAESTRO_REQUIRED_WINDOWS=1 MUSIC_ANALYZER_MAESTRO_MAX_WINDOWS_PER_RECORDING=1 MUSIC_ANALYZER_MAESTRO_INSPECT_ONLY=1 MUSIC_ANALYZER_MAESTRO_CHORD_STATE_AUDIT_TSV="$(MAESTRO_REAL_CHORD_STATE_AUDIT)" MUSIC_ANALYZER_MAESTRO_CHORD_STATE_AUDIT_MAX_SEQUENCES="$(PIANO_CHORD_STATE_AUDIT_MAX_SEQUENCES)" $(BUILD_DIR)/analyzer_maestro
+
+measure-maps-piano-chord-display-gate070:
+	+$(MAKE) measure-maps-piano-chord-state-cached MAPS_PIANO_CHORD_STATE_AUDIT="$(MAPS_PIANO_CHORD_STATE_CONFIDENCE070_AUDIT)"
+
+measure-maestro-real-chord-display-gate070:
+	+$(MAKE) measure-maestro-real-chord-state-cached MAESTRO_REAL_CHORD_STATE_AUDIT="$(MAESTRO_REAL_CHORD_STATE_CONFIDENCE070_AUDIT)"
 
 analyze-independent-piano-chord-stability-cached: scripts/summarize_piano_chord_state_audit.py | $(BUILD_DIR)
 	@test -s "$(MAPS_PIANO_CHORD_STATE_AUDIT)" || { printf '%s\n' "missing cached $(MAPS_PIANO_CHORD_STATE_AUDIT); run make measure-maps-piano-chord-state-cached first"; exit 2; }
@@ -6132,8 +6140,8 @@ test-audit-piano-chord-display-confidence: tests/test_audit_piano_chord_display_
 	$(PYTHON) tests/test_audit_piano_chord_display_confidence.py
 
 audit-piano-chord-display-gate: scripts/audit_piano_chord_display_gate.py
-	@test -s "$(BUILD_DIR)/maps_piano_chord_state_confidence_baseline.tsv" && test -s "$(BUILD_DIR)/maestro_real_chord_state_confidence_baseline.tsv" && test -s "$(BUILD_DIR)/maps_piano_chord_state_confidence060.tsv" && test -s "$(BUILD_DIR)/maestro_real_chord_state_confidence060.tsv" || { printf '%s\n' "missing cached baseline or 0.60 display-gate piano replays"; exit 2; }
-	@tmp="$(PIANO_CHORD_DISPLAY_GATE_AUDIT).$$$$.tmp"; $(PYTHON) scripts/audit_piano_chord_display_gate.py --baseline "$(BUILD_DIR)/maps_piano_chord_state_confidence_baseline.tsv" "$(BUILD_DIR)/maestro_real_chord_state_confidence_baseline.tsv" --trial "$(BUILD_DIR)/maps_piano_chord_state_confidence060.tsv" "$(BUILD_DIR)/maestro_real_chord_state_confidence060.tsv" --floor 0.60 > "$$tmp" && mv "$$tmp" "$(PIANO_CHORD_DISPLAY_GATE_AUDIT)" && cat "$(PIANO_CHORD_DISPLAY_GATE_AUDIT)"
+	@test -s "$(BUILD_DIR)/maps_piano_chord_state_confidence060.tsv" && test -s "$(BUILD_DIR)/maestro_real_chord_state_confidence060.tsv" && test -s "$(MAPS_PIANO_CHORD_STATE_CONFIDENCE070_AUDIT)" && test -s "$(MAESTRO_REAL_CHORD_STATE_CONFIDENCE070_AUDIT)" || { printf '%s\n' "missing cached 0.60 or 0.70 display-gate piano replays"; exit 2; }
+	@tmp="$(PIANO_CHORD_DISPLAY_GATE_AUDIT).$$$$.tmp"; $(PYTHON) scripts/audit_piano_chord_display_gate.py --baseline "$(BUILD_DIR)/maps_piano_chord_state_confidence060.tsv" "$(BUILD_DIR)/maestro_real_chord_state_confidence060.tsv" --trial "$(MAPS_PIANO_CHORD_STATE_CONFIDENCE070_AUDIT)" "$(MAESTRO_REAL_CHORD_STATE_CONFIDENCE070_AUDIT)" --floor 0.70 > "$$tmp" && mv "$$tmp" "$(PIANO_CHORD_DISPLAY_GATE_AUDIT)" && cat "$(PIANO_CHORD_DISPLAY_GATE_AUDIT)"
 
 test-audit-piano-chord-display-gate: tests/test_audit_piano_chord_display_gate.py scripts/audit_piano_chord_display_gate.py
 	$(PYTHON) tests/test_audit_piano_chord_display_gate.py

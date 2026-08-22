@@ -2064,7 +2064,7 @@ def render(
             "| Priority | Evidence coverage | Goal checkpoint | Remaining proof |",
             "| --- | ---: | ---: | --- |",
             f"| 1. Calibrate drum detection | {fraction(drum_calibration_evidence, 3)} | {fraction(drum_calibration_checkpoint, 1)} | retain the early-onset HiHat rule only while it improves MDB and BabySlakh, preserves STAR, and has no protected false-positive regression |",
-            f"| 2. Stabilize chord state | {fraction(piano_chord_evidence, 2)} | {fraction(int(piano_chord_display_gate is not None and piano_chord_display_gate[-1] == 1), 1)} | retain the 0.60 keyboard-only display gate only while it lowers wrong labels without correct-frame or flicker loss |",
+            f"| 2. Stabilize chord state | {fraction(piano_chord_evidence, 2)} | {fraction(int(piano_chord_display_gate is not None and piano_chord_display_gate[-1] == 1), 1)} | retain the 0.70 keyboard-only display gate only while it lowers wrong labels without correct-frame or flicker loss |",
             f"| 3. Improve Tom/Rim/Ride | {fraction(tom_ride_evidence, 4)} | {fraction(int(cross_acoustic_tom_primary_recovery), 1)} | retain the cross-acoustic Tom recovery only while all protected one-shot replays remain non-regressing |",
             f"| 4. Safe live Beat This! | {fraction(continuous_beat_this_evidence, 2)} | 1 / 1 (100.0%) | optional C++ sidecar preserves the exact 20 s packet and ≥44-interval gate; it never replaces a displayable normal BPM |",
             f"| 5. High-tempo GTZAN offline veto | {fraction(int(high_tempo_three_tracker_consensus is not None), 1)} | {fraction(int(high_tempo_three_tracker_consensus is not None), 1)} | retain offline-only restriction; it cannot authorize the live BPM display |",

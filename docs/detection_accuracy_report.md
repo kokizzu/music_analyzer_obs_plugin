@@ -11,7 +11,7 @@ Evidence coverage means the named corpus replay or audit is available. A goal ch
 | Priority | Evidence coverage | Goal checkpoint | Remaining proof |
 | --- | ---: | ---: | --- |
 | 1. Calibrate drum detection | 3 / 3 (100.0%) | 1 / 1 (100.0%) | retain the early-onset HiHat rule only while it improves MDB and BabySlakh, preserves STAR, and has no protected false-positive regression |
-| 2. Stabilize chord state | 2 / 2 (100.0%) | 1 / 1 (100.0%) | retain the 0.60 keyboard-only display gate only while it lowers wrong labels without correct-frame or flicker loss |
+| 2. Stabilize chord state | 2 / 2 (100.0%) | 1 / 1 (100.0%) | retain the 0.70 keyboard-only display gate only while it lowers wrong labels without correct-frame or flicker loss |
 | 3. Improve Tom/Rim/Ride | 4 / 4 (100.0%) | 1 / 1 (100.0%) | retain the cross-acoustic Tom recovery only while all protected one-shot replays remain non-regressing |
 | 4. Safe live Beat This! | 2 / 2 (100.0%) | 1 / 1 (100.0%) | optional C++ sidecar preserves the exact 20 s packet and ≥44-interval gate; it never replaces a displayable normal BPM |
 | 5. High-tempo GTZAN offline veto | 1 / 1 (100.0%) | 1 / 1 (100.0%) | retain offline-only restriction; it cannot authorize the live BPM display |
@@ -1591,7 +1591,7 @@ A replacement-confirmation trial is retained only if it improves correct stable-
 | Lower 0.18 pitch-class presence | 99 / 530 (18.7%) | 245 | 0 | rejected; MAESTRO has no correct-frame gain and wrong labels rise 243→244 |
 | 0.05 ambiguity margin through 0.60 confidence | 96 / 530 (18.1%) | 240 | 0 | rejected; suppresses 3 wrong MAESTRO labels but gains no correct frame |
 | Zero bass-root candidate bonus | 102 / 530 (19.2%) | 237 | 0 | rejected; piano gain fails broad analyzer-case regression coverage |
-| Keyboard-only confidence ≥0.60 | 96 / 530 (18.1%) | 225 | 0 | enabled; hides 18 wrong labels with no correct-frame or flicker loss |
+| Keyboard-only confidence ≥0.70 | 96 / 530 (18.1%) | 219 | 0 | enabled; hides 6 wrong labels with no correct-frame or flicker loss |
 
 Sources: `build/piano_chord_confirmation_audit.txt`, `build/piano_chord_confirm3_audit.txt`, `build/piano_chord_tone018_audit.txt`, `build/piano_chord_margin060_audit.txt`, `build/piano_chord_bassbonus000_audit.txt`, `build/piano_chord_display_gate_audit.txt`
 
@@ -1927,10 +1927,10 @@ Source: `build/drum_full_exact_attribute_rows.tsv`
 | Metric | Accurate / total | Remaining |
 | --- | ---: | ---: |
 | Full drum gate — primary kick | 6206 / 6505 (95.4%) | 299 |
-| Full drum gate — primary snare | 4016 / 5390 (74.5%) | 1374 |
+| Full drum gate — primary snare | 4013 / 5390 (74.5%) | 1377 |
 | Full drum gate — primary hihat | 1990 / 2358 (84.4%) | 368 |
 | Full drum gate — primary crash | 569 / 788 (72.2%) | 219 |
-| Full drum gate — primary tom | 1946 / 2861 (68.0%) | 915 |
+| Full drum gate — primary tom | 1949 / 2861 (68.1%) | 912 |
 | Full drum gate — primary ride | 238 / 352 (67.6%) | 114 |
 | Full drum gate — primary rim | 332 / 504 (65.9%) | 172 |
 
