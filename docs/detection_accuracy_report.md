@@ -1143,10 +1143,10 @@ Source: `build/vocadito_full_mix_attributes.tsv`
 | Metric | Accurate / total | Remaining |
 | --- | ---: | ---: |
 | Vocadito vocals — Any detected note | 354 / 354 (100.0%) | 0 |
-| Vocadito vocals — Expected instrument row | 309 / 354 (87.3%) | 45 |
-| Vocadito vocals — Lit expected pitch class | 172 / 354 (48.6%) | 182 |
-| Vocadito vocals — Primary display row | 47 / 354 (13.3%) | 307 |
-| Vocadito vocals — Visual primary row | 34 / 354 (9.6%) | 320 |
+| Vocadito vocals — Expected instrument row | 310 / 354 (87.6%) | 44 |
+| Vocadito vocals — Lit expected pitch class | 179 / 354 (50.6%) | 175 |
+| Vocadito vocals — Primary display row | 57 / 354 (16.1%) | 297 |
+| Vocadito vocals — Visual primary row | 42 / 354 (11.9%) | 312 |
 
 ## VocalSet full-mix vocal routing
 
@@ -1156,11 +1156,11 @@ Source: `build/vocalset_full_mix_attributes.tsv`
 
 | Metric | Accurate / total | Remaining |
 | --- | ---: | ---: |
-| VocalSet vocals — Any detected note | 2365 / 2389 (99.0%) | 24 |
-| VocalSet vocals — Expected instrument row | 1390 / 2389 (58.2%) | 999 |
-| VocalSet vocals — Lit expected pitch class | 795 / 2389 (33.3%) | 1594 |
-| VocalSet vocals — Primary display row | 216 / 2389 (9.0%) | 2173 |
-| VocalSet vocals — Visual primary row | 209 / 2389 (8.7%) | 2180 |
+| VocalSet vocals — Any detected note | 2388 / 2389 (100.0%) | 1 |
+| VocalSet vocals — Expected instrument row | 1406 / 2389 (58.9%) | 983 |
+| VocalSet vocals — Lit expected pitch class | 809 / 2389 (33.9%) | 1580 |
+| VocalSet vocals — Primary display row | 226 / 2389 (9.5%) | 2163 |
+| VocalSet vocals — Visual primary row | 205 / 2389 (8.6%) | 2184 |
 
 ### Focused clean-vowel regression
 
