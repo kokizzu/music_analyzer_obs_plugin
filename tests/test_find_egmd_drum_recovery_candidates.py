@@ -23,6 +23,7 @@ def main() -> int:
     misses, candidates = MODULE.find_candidates(corpora)
     assert misses == 2
     assert any(item.text() == "snare band>=8" and item.recovered == (("MDB", 1), ("STAR", 1)) for item in candidates)
+    assert not any(item.feature in {"transient", "onset"} and item.operator == "<=" for item in candidates)
     blocked = {"MDB": [event({"snare"}, 0.0, 8.0), event({"kick"}, 0.0, 9.0)], "STAR": [event({"snare"}, 0.0, 9.0), event({"hihat"}, 0.0, 3.0)]}
     _, candidates = MODULE.find_candidates(blocked)
     assert not any(item.category == "snare" and item.feature == "band" and item.operator == ">=" for item in candidates)

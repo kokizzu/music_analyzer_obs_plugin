@@ -12,6 +12,14 @@ from evaluate_egmd_drum_recovery import DrumEvent, active, read_events, value
 
 CATEGORIES = ("kick", "snare", "hihat", "crash", "tom", "ride", "rim")
 FEATURES = ("trigger_ratio", "band", "seg", "shape", "level", "low", "mid", "high", "rms", "transient", "onset", "kick_body", "snare_body", "tom_body", "snare_crack", "upper_tom", "body_shape")
+# A recovery must be supported by an event, never by a settled/no-event frame.
+# In particular, `onset <= threshold` rediscovered the obsolete unconditional
+# HiHat recovery and would hold an idle OBS input active.  Both envelope-ratio
+# features may only contribute positive event-strength lower bounds.
+FEATURE_OPERATORS = {
+    "transient": (">=",),
+    "onset": (">=",),
+}
 
 
 def feature_value(event: DrumEvent, category: str, feature: str) -> float:
@@ -57,7 +65,7 @@ def find_candidates(corpora: dict[str, list[DrumEvent]]) -> tuple[int, list[Cand
     for category in CATEGORIES:
         missed = [event for events in corpora.values() for event in events if category in event.expected and not active(event, category)]
         for feature in FEATURES:
-            for operator in (">=", "<="):
+            for operator in FEATURE_OPERATORS.get(feature, (">=", "<=")):
                 for threshold in sorted({feature_value(event, category, feature) for event in missed}):
                     safe, recovered = candidate_counts(Candidate(category, feature, operator, threshold, ()), corpora)
                     if safe:
