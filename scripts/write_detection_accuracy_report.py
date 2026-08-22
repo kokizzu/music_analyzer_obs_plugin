@@ -2114,8 +2114,9 @@ def render(
                 "| 4% full-mix candidate-floor trial safe across SATB corpora | 0 / 1 (0.0%) | 1 |",
                 "| 18% raw-fundamental supplement safe across SATB corpora and GuitarSet | 0 / 1 (0.0%) | 1 |",
                 "| Raw missing-pitch energy separates labelled tones from extras | 0 / 1 (0.0%) | 1 |",
+                "| 45% complex-harmonic tuning fallback safe across SATB corpora | 0 / 1 (0.0%) | 1 |",
                 "",
-                "No SATB corpus reaches the cap, so expanding candidate capacity is not an evidence-based recall fix. The 4% floor trial reduced visible vocal routing in the prepared SATB fixtures, so the 8% floor is retained. The 18% raw-fundamental supplement raised exact chords from DCS/CSD/ESMUC 39/45/67 to 39/46/69, but reduced note precision in every corpus and produced only 398/511 GuitarSet primary chord hits against the 400-hit guard, so it is removed. At the same 18% raw-energy floor, labelled missing pitch classes are only 77/325 DCS, 60/171 CSD, and 50/260 ESMUC, versus 429/512, 385/433, and 811/897 unlabelled extras; raw energy cannot safely distinguish them.",
+                "No SATB corpus reaches the cap, so expanding candidate capacity is not an evidence-based recall fix. The 4% floor trial reduced visible vocal routing in the prepared SATB fixtures, so the 8% floor is retained. The 18% raw-fundamental supplement raised exact chords from DCS/CSD/ESMUC 39/45/67 to 39/46/69, but reduced note precision in every corpus and produced only 398/511 GuitarSet primary chord hits against the 400-hit guard, so it is removed. At the same 18% raw-energy floor, labelled missing pitch classes are only 77/325 DCS, 60/171 CSD, and 50/260 ESMUC, versus 429/512, 385/433, and 811/897 unlabelled extras; raw energy cannot safely distinguish them. Raising only complex-harmonic fallback scale from 38% to 45% improved exact chords to 40/45/69, but reduced note precision from 57.67%/52.01%/45.25% to 57.43%/51.65%/45.24%, so the 38% scale is retained.",
             ]
         )
     if harmonic_product_octave is not None:

@@ -71,8 +71,9 @@ Source: `build/polyphonic_candidate_capacity_audit.txt`
 | 4% full-mix candidate-floor trial safe across SATB corpora | 0 / 1 (0.0%) | 1 |
 | 18% raw-fundamental supplement safe across SATB corpora and GuitarSet | 0 / 1 (0.0%) | 1 |
 | Raw missing-pitch energy separates labelled tones from extras | 0 / 1 (0.0%) | 1 |
+| 45% complex-harmonic tuning fallback safe across SATB corpora | 0 / 1 (0.0%) | 1 |
 
-No SATB corpus reaches the cap, so expanding candidate capacity is not an evidence-based recall fix. The 4% floor trial reduced visible vocal routing in the prepared SATB fixtures, so the 8% floor is retained. The 18% raw-fundamental supplement raised exact chords from DCS/CSD/ESMUC 39/45/67 to 39/46/69, but reduced note precision in every corpus and produced only 398/511 GuitarSet primary chord hits against the 400-hit guard, so it is removed. At the same 18% raw-energy floor, labelled missing pitch classes are only 77/325 DCS, 60/171 CSD, and 50/260 ESMUC, versus 429/512, 385/433, and 811/897 unlabelled extras; raw energy cannot safely distinguish them.
+No SATB corpus reaches the cap, so expanding candidate capacity is not an evidence-based recall fix. The 4% floor trial reduced visible vocal routing in the prepared SATB fixtures, so the 8% floor is retained. The 18% raw-fundamental supplement raised exact chords from DCS/CSD/ESMUC 39/45/67 to 39/46/69, but reduced note precision in every corpus and produced only 398/511 GuitarSet primary chord hits against the 400-hit guard, so it is removed. At the same 18% raw-energy floor, labelled missing pitch classes are only 77/325 DCS, 60/171 CSD, and 50/260 ESMUC, versus 429/512, 385/433, and 811/897 unlabelled extras; raw energy cannot safely distinguish them. Raising only complex-harmonic fallback scale from 38% to 45% improved exact chords to 40/45/69, but reduced note precision from 57.67%/52.01%/45.25% to 57.43%/51.65%/45.24%, so the 38% scale is retained.
 
 ## Harmonic-product octave-correction audit
 
@@ -198,8 +199,8 @@ Source: `build/guitarset_attributes.tsv`
 
 | Metric | Accurate / total | Remaining |
 | --- | ---: | ---: |
-| Guitar pitch-class recall | 4446 / 5451 (81.6%) | 1005 |
-| Exact guitar chord recall | 1141 / 1491 (76.5%) | 350 |
+| Guitar pitch-class recall | 4449 / 5451 (81.6%) | 1002 |
+| Exact guitar chord recall | 1143 / 1491 (76.7%) | 348 |
 
 ## Cross-corpus same-root guitar-quality audit
 
@@ -238,8 +239,8 @@ Source: `build/owner_classifier_quality_loco_audit.txt`
 | Metric | Accurate / total | Remaining |
 | --- | ---: | ---: |
 | LOCO corpora improved over current owner | 8 / 9 (88.9%) | 1 |
-| Aggregate current-owner accuracy | 13057 / 62546 (20.9%) | 49489 |
-| Aggregate quality-model accuracy | 15741 / 62546 (25.2%) | 46805 |
+| Aggregate current-owner accuracy | 13067 / 65549 (19.9%) | 52482 |
+| Aggregate quality-model accuracy | 17284 / 65549 (26.4%) | 48265 |
 | Runtime quality-model classifier eligible | 0 / 1 (0.0%) | 1 |
 | Shared confidence-margin overrides with a protected gain | 0 / 11 (0.0%) | 11 |
 
@@ -363,12 +364,12 @@ Source: `build/chord_primary_component_audit.txt`
 
 | Metric | Accurate / total | Remaining |
 | --- | ---: | ---: |
-| Correct chords with any displayed alias | 154 / 1415 (10.9%) | 1261 |
-| Correct chords with only the first displayed component | 152 / 1415 (10.7%) | 1263 |
-| Correct chords rescued only by a later alias | 2 / 154 (1.3%) | 152 |
+| Correct chords with any displayed alias | 317 / 1415 (22.4%) | 1098 |
+| Correct chords with only the first displayed component | 315 / 1415 (22.3%) | 1100 |
+| Correct chords rescued only by a later alias | 2 / 317 (0.6%) | 315 |
 | Canonical-first runtime display eligible | 0 / 1 (0.0%) | 1 |
-| Correct chords after same-root dim7 promotion | 154 / 1415 (10.9%) | 1261 |
-| Same-root dim7 runtime promotions observed | 10 / 1415 (0.7%) | 1405 |
+| Correct chords after same-root dim7 promotion | 317 / 1415 (22.4%) | 1098 |
+| Same-root dim7 runtime promotions observed | 1 / 1415 (0.1%) | 1414 |
 | Known correct-primary labels lost by promotion | 0 / 1415 (0.0%) | 0 |
 | Same-root dim7 runtime display eligible | 1 / 1 (100.0%) | 0 |
 
@@ -908,14 +909,14 @@ Source: `build/vocal_exact_note_cross_corpus.tsv`
 | CSD — exact MIDI only in foreign row | 274 / 576 (47.6%) | 302 |
 | CSD — pitch class only (wrong octave) | 94 / 576 (16.3%) | 482 |
 | CSD — no expected pitch class | 140 / 576 (24.3%) | 436 |
-| DCS — exact MIDI in vocal row | 78 / 984 (7.9%) | 906 |
-| DCS — exact MIDI only in foreign row | 355 / 984 (36.1%) | 629 |
-| DCS — pitch class only (wrong octave) | 221 / 984 (22.5%) | 763 |
-| DCS — no expected pitch class | 330 / 984 (33.5%) | 654 |
-| ESMUC — exact MIDI in vocal row | 76 / 902 (8.4%) | 826 |
-| ESMUC — exact MIDI only in foreign row | 570 / 902 (63.2%) | 332 |
-| ESMUC — pitch class only (wrong octave) | 76 / 902 (8.4%) | 826 |
-| ESMUC — no expected pitch class | 180 / 902 (20.0%) | 722 |
+| DCS — exact MIDI in vocal row | 79 / 984 (8.0%) | 905 |
+| DCS — exact MIDI only in foreign row | 394 / 984 (40.0%) | 590 |
+| DCS — pitch class only (wrong octave) | 246 / 984 (25.0%) | 738 |
+| DCS — no expected pitch class | 265 / 984 (26.9%) | 719 |
+| ESMUC — exact MIDI in vocal row | 104 / 902 (11.5%) | 798 |
+| ESMUC — exact MIDI only in foreign row | 546 / 902 (60.5%) | 356 |
+| ESMUC — pitch class only (wrong octave) | 114 / 902 (12.6%) | 788 |
+| ESMUC — no expected pitch class | 138 / 902 (15.3%) | 764 |
 | MIR1K — exact MIDI in vocal row | 501 / 2280 (22.0%) | 1779 |
 | MIR1K — exact MIDI only in foreign row | 1408 / 2280 (61.8%) | 872 |
 | MIR1K — pitch class only (wrong octave) | 233 / 2280 (10.2%) | 2047 |
@@ -924,14 +925,14 @@ Source: `build/vocal_exact_note_cross_corpus.tsv`
 | SCMS — exact MIDI only in foreign row | 4040 / 7095 (56.9%) | 3055 |
 | SCMS — pitch class only (wrong octave) | 673 / 7095 (9.5%) | 6422 |
 | SCMS — no expected pitch class | 670 / 7095 (9.4%) | 6425 |
-| Vocadito — exact MIDI in vocal row | 744 / 2284 (32.6%) | 1540 |
-| Vocadito — exact MIDI only in foreign row | 937 / 2284 (41.0%) | 1347 |
-| Vocadito — pitch class only (wrong octave) | 251 / 2284 (11.0%) | 2033 |
-| Vocadito — no expected pitch class | 352 / 2284 (15.4%) | 1932 |
-| VocalSet — exact MIDI in vocal row | 3065 / 17344 (17.7%) | 14279 |
-| VocalSet — exact MIDI only in foreign row | 7963 / 17344 (45.9%) | 9381 |
-| VocalSet — pitch class only (wrong octave) | 1909 / 17344 (11.0%) | 15435 |
-| VocalSet — no expected pitch class | 4407 / 17344 (25.4%) | 12937 |
+| Vocadito — exact MIDI in vocal row | 762 / 2316 (32.9%) | 1554 |
+| Vocadito — exact MIDI only in foreign row | 1018 / 2316 (44.0%) | 1298 |
+| Vocadito — pitch class only (wrong octave) | 303 / 2316 (13.1%) | 2013 |
+| Vocadito — no expected pitch class | 233 / 2316 (10.1%) | 2083 |
+| VocalSet — exact MIDI in vocal row | 3167 / 18039 (17.6%) | 14872 |
+| VocalSet — exact MIDI only in foreign row | 9746 / 18039 (54.0%) | 8293 |
+| VocalSet — pitch class only (wrong octave) | 2695 / 18039 (14.9%) | 15344 |
+| VocalSet — no expected pitch class | 2431 / 18039 (13.5%) | 15608 |
 
 ## Dagstuhl ChoirSet (DCS) real-audio measurement
 
@@ -1446,9 +1447,9 @@ These rows count expected labeled chord-analysis windows (not full-mix samples).
 | Gaps Guitar Full — primary displayed chord windows | 176 / 540 (32.6%) | 364 |
 | Gaps Guitar Full — expected guitar pitch classes | 1519 / 1957 (77.6%) | 438 |
 | Gaps Guitar Full — power-chord exact windows | 22 / 39 (56.4%) | 17 |
-| Guitarset — exact chord windows | 1141 / 1491 (76.5%) | 350 |
-| Guitarset — primary displayed chord windows | 622 / 1491 (41.7%) | 869 |
-| Guitarset — expected guitar pitch classes | 4356 / 5340 (81.6%) | 984 |
+| Guitarset — exact chord windows | 1143 / 1491 (76.7%) | 348 |
+| Guitarset — primary displayed chord windows | 621 / 1491 (41.6%) | 870 |
+| Guitarset — expected guitar pitch classes | 4358 / 5340 (81.6%) | 982 |
 | Guitarset — power-chord exact windows | 1 / 2 (50.0%) | 1 |
 
 ## URMP real multitrack gate

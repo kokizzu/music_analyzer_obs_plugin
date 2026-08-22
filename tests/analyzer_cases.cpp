@@ -7915,6 +7915,29 @@ void check_real_drum_track_embedded_hihat_survives_bleed_cap(Runner &runner)
 			      std::to_string(snapshot.drums[mao::HiHat].level));
 }
 
+void check_steady_high_frequency_input_does_not_hold_hihat(Runner &runner)
+{
+	mao::AnalysisEngine engine;
+	mao::AnalysisSettings settings = mao_test::default_settings();
+	settings.input_mode = mao::AnalysisInputMode::FullMix;
+	settings.analysis_interval_seconds = 0.05f;
+
+	// This models a quiet, steady high-frequency OBS/interface floor.  It may
+	// resemble a cymbal spectrally, but without an onset it must not continually
+	// refresh an active HiHat display.
+	mao_test::Buffer steady_high = {};
+	mao_test::add_sine(steady_high, 6000.0f, 0.018f);
+	mao::AnalysisSnapshot snapshot = {};
+	for (int frame = 0; frame < 16; ++frame)
+		snapshot = engine.analyze(steady_high.data(), steady_high.size(), settings, "OBS MIX", 0);
+
+	runner.expect(!snapshot.drums[mao::HiHat].active,
+		      "steady high-frequency OBS input: expected hihat inactive, level " +
+			      std::to_string(snapshot.drums[mao::HiHat].level) + " onset " +
+			      std::to_string(snapshot.drum_debug_onset) + " transient " +
+			      std::to_string(snapshot.drum_debug_transient_ratio));
+}
+
 void check_low_level_mic_aux_parts(Runner &runner)
 {
 	{
@@ -8743,6 +8766,7 @@ int main()
 	check_layered_midi_instrument_voices(runner);
 	check_real_drum_track_tom_bleed_suppression(runner);
 	check_real_drum_track_embedded_hihat_survives_bleed_cap(runner);
+	check_steady_high_frequency_input_does_not_hold_hihat(runner);
 	check_same_instrument_timbre_variants(runner);
 	check_distorted_midi_guitar_timbre(runner);
 	check_isolated_guitar_octave_harmonic_display(runner);

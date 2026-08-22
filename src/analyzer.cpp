@@ -31778,7 +31778,7 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 	// It is deliberately isolated for the three-corpus calibration replay below.
 	const bool early_onset_hihat_recovery =
 		drum_detection_enabled && !one_shot_drum_source && drum_level_[HiHat] <= 0.30f &&
-		onset <= 2.43f;
+		drum_transient && onset <= 2.43f;
 	if (early_onset_hihat_recovery)
 		boost_drum_level(HiHat, 0.34f);
 	// The opening real-kit crash can be loud yet land exactly at the crash
