@@ -3840,6 +3840,13 @@ refresh-choir-chord-accuracy:
 	+$(MAKE) measure-esmuc-choir-dataset
 	+$(MAKE) update-detection-accuracy-report-cached
 
+.PHONY: inspect-satb-missing-pitch-evidence test-inspect-satb-missing-pitch-evidence
+inspect-satb-missing-pitch-evidence: scripts/inspect_satb_missing_pitch_evidence.py
+	$(PYTHON) scripts/inspect_satb_missing_pitch_evidence.py --input "DCS=$(DAGSTUHL_CHOIRSET_ATTRIBUTE_OUTPUT)" --input "CSD=$(CHORAL_SINGING_DATASET_ATTRIBUTE_OUTPUT)" --input "ESMUC=$(ESMUC_CHOIR_DATASET_ATTRIBUTE_OUTPUT)"
+
+test-inspect-satb-missing-pitch-evidence: tests/test_inspect_satb_missing_pitch_evidence.py scripts/inspect_satb_missing_pitch_evidence.py
+	$(PYTHON) tests/test_inspect_satb_missing_pitch_evidence.py
+
 .PHONY: update-detection-accuracy-report-cached
 update-detection-accuracy-report-cached: scripts/write_detection_accuracy_report.py
 	@test -f "$(BUILD_DIR)/real_note_full_mix_attributes.tsv" || { printf '%s\n' "missing build/real_note_full_mix_attributes.tsv; run make update-detection-accuracy-report first"; exit 2; }
