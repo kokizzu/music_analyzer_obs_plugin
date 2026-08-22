@@ -30997,11 +30997,20 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 	const bool drum_detection_enabled = input_mode == AnalysisInputMode::FullMix;
 	const RangeResult current_bass_drum_suppression_hint =
 		dominant_bass_note(detection_note_powers, kBassMinMidi, kDefaultBassMaxMidi, true);
+	// A settled, treble-heavy OBS mix can resemble a soft cymbal in a short
+	// spectrum, even though it has neither an onset nor a drum transient.  Do
+	// not let that sustained tone repeatedly light HiHat; named drum tracks and
+	// every corroborated transient retain the normal cymbal path.
+	const bool sustained_treble_idle_drum_suppressed =
+		!named_drum_source && !drum_transient && onset <= 1.10f &&
+		snapshot.high_energy >= 0.45f;
 	const bool tonal_soft_drum_suppressed =
-		!named_drum_source && !drum_transient && onset >= 1.60f &&
-		(strict_tuned_note_count > 0 ||
-		 current_bass_drum_suppression_hint.confidence >= 0.20f ||
-		 tracked_bass_confidence_ >= 0.20f);
+		!named_drum_source && !drum_transient &&
+		((onset >= 1.60f &&
+		  (strict_tuned_note_count > 0 ||
+		   current_bass_drum_suppression_hint.confidence >= 0.20f ||
+		   tracked_bass_confidence_ >= 0.20f)) ||
+		 sustained_treble_idle_drum_suppressed);
 	bool tempo_event = false;
 	bool initial_crash_onset_detected = false;
 	for (std::size_t i = 0; i < kDrumCount; ++i) {

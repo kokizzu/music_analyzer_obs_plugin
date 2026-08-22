@@ -10,7 +10,7 @@ Evidence coverage means the named corpus replay or audit is available. A goal ch
 
 | Priority | Evidence coverage | Goal checkpoint | Remaining proof |
 | --- | ---: | ---: | --- |
-| 1. Calibrate drum detection | 3 / 3 (100.0%) | 1 / 1 (100.0%) | retain the early-onset HiHat rule only while it improves MDB and BabySlakh, preserves STAR, and has no protected false-positive regression |
+| 1. Calibrate drum detection | 3 / 3 (100.0%) | 1 / 1 (100.0%) | retain the early-onset HiHat rule and its idle-treble OBS guard only while they improve MDB and BabySlakh, preserve STAR, and have no protected false-positive regression |
 | 2. Stabilize chord state | 2 / 2 (100.0%) | 1 / 1 (100.0%) | retain the 0.70 keyboard-only display gate only while it lowers wrong labels without correct-frame or flicker loss |
 | 3. Improve Tom/Rim/Ride | 4 / 4 (100.0%) | 1 / 1 (100.0%) | retain the cross-acoustic Tom recovery only while all protected one-shot replays remain non-regressing |
 | 4. Safe live Beat This! | 2 / 2 (100.0%) | 1 / 1 (100.0%) | optional C++ sidecar preserves the exact 20 s packet and ≥44-interval gate; it never replaces a displayable normal BPM |
@@ -346,9 +346,9 @@ Source: `build/drum_recovery_candidate_audit.txt`
 | Missed annotated events searched across real corpora | 70 / 70 (100.0%) | 0 |
 | Independent real corpora represented | 2 / 2 (100.0%) | 0 |
 | Zero-false cross-real recovery shapes replayed through runtime gates | 0 / 0 (0.0%) | 0 |
-| Recovery shapes with a verified overall runtime gain | 1 / 0 (0.0%) | -1 |
+| Recovery shapes with a verified overall runtime gain | 1 / 1 (100.0%) | 0 |
 
-One recovery shape is retained: early-onset HiHat adds true events in MDB and BabySlakh without a false-positive regression, while STAR remains unchanged. The other two shapes are rejected.
+One recovery shape is retained: early-onset HiHat adds true events in MDB and BabySlakh without a false-positive regression, while STAR remains unchanged. Its non-named-source idle-treble guard keeps a settled OBS mix from lighting HiHat without suppressing corroborated transient or named-drum events. The other two shapes are rejected.
 
 | Runtime trial | MDB true / false | STAR true / false | BabySlakh true / false | Decision |
 | --- | ---: | ---: | ---: | --- |
@@ -2009,8 +2009,8 @@ Source: `build/babyslakh_drums_diagnostics.log`
 
 | Metric | Accurate / total | Remaining |
 | --- | ---: | ---: |
-| BabySlakh rendered mixes — annotated drum events detected | 142 / 259 (54.8%) | 117 |
-| BabySlakh rendered mixes — detected-drum precision | 142 / 180 (78.9%) | 38 false predictions |
+| BabySlakh rendered mixes — annotated drum events detected | 141 / 259 (54.4%) | 118 |
+| BabySlakh rendered mixes — detected-drum precision | 141 / 179 (78.8%) | 38 false predictions |
 | BabySlakh rendered mixes — windows without a false drum | 48 / 80 (60.0%) | 32 false-positive windows |
 
 ## 29k Drums independent acoustic Tom/Ride baseline

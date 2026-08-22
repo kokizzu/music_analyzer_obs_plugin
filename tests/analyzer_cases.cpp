@@ -7935,7 +7935,11 @@ void check_steady_high_frequency_input_does_not_hold_hihat(Runner &runner)
 		      "steady high-frequency OBS input: expected hihat inactive, level " +
 			      std::to_string(snapshot.drums[mao::HiHat].level) + " onset " +
 			      std::to_string(snapshot.drum_debug_onset) + " transient " +
-			      std::to_string(snapshot.drum_debug_transient_ratio));
+			      std::to_string(snapshot.drum_debug_transient_ratio) + " energy " +
+			      std::to_string(snapshot.low_energy) + "/" +
+			      std::to_string(snapshot.mid_energy) + "/" +
+			      std::to_string(snapshot.high_energy) + " flags " +
+			      std::to_string(snapshot.drum_debug_rule_flags));
 }
 
 void check_low_level_mic_aux_parts(Runner &runner)
