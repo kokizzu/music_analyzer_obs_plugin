@@ -14352,6 +14352,28 @@ bool chord_label_has_exact_component(const char *label, const char *component)
 	return false;
 }
 
+bool chord_labels_share_exact_component(const char *left, const char *right)
+{
+	if (!left || !right || !*left || !*right)
+		return false;
+	const char *cursor = left;
+	while (*cursor) {
+		const char *end = std::strchr(cursor, '=');
+		const std::size_t length = end ? static_cast<std::size_t>(end - cursor) : std::strlen(cursor);
+		if (length > 0 && length < 32) {
+			char component[32] = {};
+			std::memcpy(component, cursor, length);
+			component[length] = '\0';
+			if (chord_label_has_exact_component(right, component))
+				return true;
+		}
+		if (!end)
+			break;
+		cursor = end + 1;
+	}
+	return false;
+}
+
 bool chord_label_contains_all_components(const char *label, const char *required)
 {
 	if (!label || !required || !*label || !*required || label[0] == '-' || required[0] == '-')
@@ -37081,9 +37103,15 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 				single_note_probe_residue || low_mid_smoothed_residue ||
 				noisy_smoothed_residue || distorted_opposite_third_residue ||
 				distorted_root_residue;
+			const bool corroborated_extended_guitar_chord =
+				chord_label_has_guitar_extension_or_alteration(snapshot.guitar_chord.label) &&
+				chord_label_has_guitar_extension_or_alteration(raw_guitar_chord.label) &&
+				chord_label_has_guitar_extension_or_alteration(smoothed_guitar_chord.label) &&
+				chord_labels_share_exact_component(raw_guitar_chord.label,
+								  smoothed_guitar_chord.label);
 			const bool allow_root_fifth_recovery =
 				rms < 0.384f && snapshot.mid_energy >= 0.30f;
-			if (clear_guitar_residue &&
+			if (clear_guitar_residue && !corroborated_extended_guitar_chord &&
 			    !(allow_root_fifth_recovery &&
 			      recover_stronger_later_plain_guitar_root_alias_from_source(
 				    snapshot.guitar_chord, raw_guitar_chord,
