@@ -395,10 +395,14 @@ def main():
             "if (containsScaleResetMarker && needsInitialScaleReset)" in fret_zealot_sdk_controller,
             "Fret Zealot scale packets must reset the board only after a new connection")
     require("ScaleFrame" in fret_zealot_sdk_controller and
-            "writeScaleFrameDelta" in fret_zealot_sdk_controller and
+            "flushNextScaleFrameBatch" in fret_zealot_sdk_controller and
+            "LEGACY_SCALE_COMMANDS_PER_FLUSH = 12" in fret_zealot_sdk_controller and
             "STRING_COUNT" in fret_zealot_sdk_controller and
-            "FRET_COUNT" in fret_zealot_sdk_controller,
-            "Fret Zealot root changes must calculate a non-blinking LED delta")
+            "FRET_COUNT" in fret_zealot_sdk_controller and
+            "queuedScaleFrameRequiresReconciliation" in fret_zealot_sdk_controller and
+            "activeScaleFrameReconcilesWholeBoard" in fret_zealot_sdk_controller and
+            "activeScaleFrameClearsNonTargets" in fret_zealot_sdk_controller,
+            "Fret Zealot AUTO root changes must use bounded target and stale-clear batches")
     require("sdk.set_all((byte) 0, (byte) 0, (byte) 0" in fret_zealot_sdk_controller,
             "Fret Zealot must use the vendor full-board black reset command once per session")
     require("fretZealotPixelForStandardTuningString" in fret_zealot_sdk_controller and
@@ -412,24 +416,14 @@ def main():
             "if (activeScaleFrame != null)" in fret_zealot_sdk_controller and
             "startScaleFrame(queued, false, reconcileWholeBoard)" in fret_zealot_sdk_controller,
             "Fret Zealot root changes must coalesce safely while BLE writes are active")
-    require("writeScaleFrameDelta" in fret_zealot_sdk_controller and
-            "if (target.lit[string][fret]" in fret_zealot_sdk_controller and
-            "if (current.lit[string][fret] && !target.lit[string][fret])" in fret_zealot_sdk_controller,
+    require("activeScaleFramePhase == 0" in fret_zealot_sdk_controller and
+            "boolean needsTarget" in fret_zealot_sdk_controller and
+            "boolean needsClear" in fret_zealot_sdk_controller,
             "Fret Zealot must light new notes before turning obsolete notes off")
-    require("writeScaleFrameReconciliation" in fret_zealot_sdk_controller and
-            "Reassert every target pixel." in fret_zealot_sdk_controller,
-            "A stable Fret Zealot AUTO root must replay every scale pixel")
-    require("activeScaleFrameRequiresClearPass" in fret_zealot_sdk_controller and
-            "writeScaleFrameNonTargetClear" in fret_zealot_sdk_controller and
-            "The target LEDs are now all present." in fret_zealot_sdk_controller,
-            "Fret Zealot AUTO scale replacement must clear obsolete LEDs only after target LEDs settle")
-    require("activeScaleFrameRequiresTargetReassert" in fret_zealot_sdk_controller and
-            "writeScaleFrameReconciliation(completed);" in fret_zealot_sdk_controller and
-            "must not commit a partial new scale" in fret_zealot_sdk_controller,
-            "Fret Zealot scale reconciliation must reassert target LEDs before stale clears")
-    require("boolean boardReset = false;" in fret_zealot_sdk_controller and
-            "activeScaleFrameRequiresClearPass = !boardReset;" in fret_zealot_sdk_controller,
-            "Fret Zealot must skip stale-pixel clears after its session reset")
+    require("sdk.set_all((byte) 0, (byte) 0, (byte) 0" in fret_zealot_sdk_controller and
+            "commands < LEGACY_SCALE_COMMANDS_PER_FLUSH" in fret_zealot_sdk_controller and
+            "sdk.sendCommandFlush(() -> onScaleFrameFlushed(target))" in fret_zealot_sdk_controller,
+            "Fret Zealot AUTO root changes must pace every target and stale-clear batch")
     require("Fret Zealot LED service ready; sending current scale" in fret_zealot_sdk_controller and
             "listener.onReady();" in fret_zealot_sdk_controller,
             "Fret Zealot must render the current scale directly after its session is ready")

@@ -25,6 +25,9 @@ final class FretZealotSdkController implements Closeable {
     // packet is applied to its LEDs. Keep the frame active briefly so AUTO
     // root changes coalesce instead of building deltas from an unfinished map.
     private static final long LEGACY_FRAME_SETTLE_MILLIS = 250L;
+    // The first-generation board can acknowledge a large BLE payload before it
+    // has applied every LED command. Keep each flushed command buffer bounded.
+    private static final int LEGACY_SCALE_COMMANDS_PER_FLUSH = 12;
 
     interface Listener {
         void onConnecting();
@@ -49,15 +52,10 @@ final class FretZealotSdkController implements Closeable {
     private ScaleFrame activeScaleFrame;
     private ScaleFrame queuedScaleFrame;
     private boolean queuedScaleFrameRequiresReconciliation;
-    // A complete replacement is sent as target LEDs then non-target clears.
-    // Splitting those operations keeps each legacy board frame small enough to
-    // apply reliably without blacking out the whole fretboard.
-    private boolean activeScaleFrameRequiresClearPass;
-    // A legacy Fret Zealot can acknowledge a complete BLE payload before its
-    // LED processor has applied every command. Reassert targets once before
-    // any stale-pixel clear so a dropped first pass never becomes a partial
-    // scale that remains on the board.
-    private boolean activeScaleFrameRequiresTargetReassert;
+    private boolean activeScaleFrameReconcilesWholeBoard;
+    private boolean activeScaleFrameClearsNonTargets;
+    private int activeScaleFramePhase;
+    private int activeScaleFrameCursor;
 
     FretZealotSdkController(Context context, Listener listener) {
         sdk = LEDBLELib.getInstance(context.getApplicationContext());
@@ -261,8 +259,10 @@ final class FretZealotSdkController implements Closeable {
         activeScaleFrame = null;
         queuedScaleFrame = null;
         queuedScaleFrameRequiresReconciliation = false;
-        activeScaleFrameRequiresClearPass = false;
-        activeScaleFrameRequiresTargetReassert = false;
+        activeScaleFrameReconcilesWholeBoard = false;
+        activeScaleFrameClearsNonTargets = false;
+        activeScaleFramePhase = 0;
+        activeScaleFrameCursor = 0;
     }
 
     private void onScaleFrameFlushed(ScaleFrame completed) {
@@ -273,20 +273,7 @@ final class FretZealotSdkController implements Closeable {
         if (!active || closing || activeScaleFrame != completed) {
             return;
         }
-        if (activeScaleFrameRequiresTargetReassert) {
-            activeScaleFrameRequiresTargetReassert = false;
-            sdk.sendCommandBufferClear();
-            writeScaleFrameReconciliation(completed);
-            sdk.sendCommandFlush(() -> onScaleFrameFlushed(completed));
-            return;
-        }
-        if (activeScaleFrameRequiresClearPass) {
-            activeScaleFrameRequiresClearPass = false;
-            // The target LEDs are now all present. Clear the rest in a second,
-            // smaller frame so a new AUTO root never appears only partially.
-            sdk.sendCommandBufferClear();
-            writeScaleFrameNonTargetClear(completed);
-            sdk.sendCommandFlush(() -> onScaleFrameFlushed(completed));
+        if (flushNextScaleFrameBatch(completed)) {
             return;
         }
         committedScaleFrame = completed;
@@ -302,75 +289,64 @@ final class FretZealotSdkController implements Closeable {
 
     private void startScaleFrame(ScaleFrame target, boolean containsScaleResetMarker,
             boolean reconcileWholeBoard) {
-        sdk.sendCommandBufferClear();
         boolean boardReset = false;
         if (containsScaleResetMarker && needsInitialScaleReset) {
-            sdk.set_all((byte) 0, (byte) 0, (byte) 0, LOWEST_SDK_INTENSITY, (byte) 0);
             needsInitialScaleReset = false;
             boardReset = true;
         }
-        if (reconcileWholeBoard) {
-            writeScaleFrameReconciliation(target);
-            // The second target pass runs after the first pass has settled.
-            // It is deliberately ordered before stale clears: a frame that
-            // loses one legacy command must not commit a partial new scale.
-            activeScaleFrameRequiresTargetReassert = true;
-            activeScaleFrameRequiresClearPass = !boardReset;
-        } else {
-            // Manual updates are deltas. Sending a full clear here can overrun
-            // legacy firmware and leave only a partial scale visible.
-            writeScaleFrameDelta(committedScaleFrame, target);
-            activeScaleFrameRequiresTargetReassert = false;
-            activeScaleFrameRequiresClearPass = false;
-        }
         activeScaleFrame = target;
-        sdk.sendCommandFlush(() -> onScaleFrameFlushed(target));
+        activeScaleFrameReconcilesWholeBoard = reconcileWholeBoard;
+        activeScaleFrameClearsNonTargets = reconcileWholeBoard && !boardReset;
+        activeScaleFramePhase = 0;
+        activeScaleFrameCursor = 0;
+        if (boardReset) {
+            sdk.sendCommandBufferClear();
+            sdk.set_all((byte) 0, (byte) 0, (byte) 0, LOWEST_SDK_INTENSITY, (byte) 0);
+            sdk.sendCommandFlush(() -> onScaleFrameFlushed(target));
+            return;
+        }
+        if (!flushNextScaleFrameBatch(target)) {
+            finishScaleFrame(target);
+        }
     }
 
-    // The controller applies set commands serially, including within one BLE
-    // batch. Light new/recoloured notes first, then clear obsolete notes, so
-    // first-generation 20-byte writes retain a continuous visible scale.
-    private void writeScaleFrameDelta(ScaleFrame current, ScaleFrame target) {
-        for (int string = 0; string < STRING_COUNT; ++string) {
-            for (int fret = 0; fret < FRET_COUNT; ++fret) {
-                if (target.lit[string][fret] && !target.samePixel(current, string, fret)) {
+    private boolean flushNextScaleFrameBatch(ScaleFrame target) {
+        while (activeScaleFramePhase < 2) {
+            sdk.sendCommandBufferClear();
+            int commands = 0;
+            while (activeScaleFrameCursor < STRING_COUNT * FRET_COUNT
+                    && commands < LEGACY_SCALE_COMMANDS_PER_FLUSH) {
+                int string = activeScaleFrameCursor / FRET_COUNT;
+                int fret = activeScaleFrameCursor % FRET_COUNT;
+                ++activeScaleFrameCursor;
+                if (activeScaleFramePhase == 0) {
+                    boolean needsTarget = target.lit[string][fret]
+                            && (activeScaleFrameReconcilesWholeBoard
+                            || !target.samePixel(committedScaleFrame, string, fret));
+                    if (!needsTarget) {
+                        continue;
+                    }
                     setPixel(string, fret, target.red[string][fret], target.green[string][fret],
                             target.blue[string][fret], target.effect[string][fret]);
-                }
-            }
-        }
-        for (int string = 0; string < STRING_COUNT; ++string) {
-            for (int fret = 0; fret < FRET_COUNT; ++fret) {
-                if (current.lit[string][fret] && !target.lit[string][fret]) {
+                } else {
+                    boolean needsClear = activeScaleFrameClearsNonTargets
+                            ? !target.lit[string][fret]
+                            : committedScaleFrame.lit[string][fret] && !target.lit[string][fret];
+                    if (!needsClear) {
+                        continue;
+                    }
                     setPixel(string, fret, (byte) 0, (byte) 0, (byte) 0, (byte) 0);
                 }
+                ++commands;
             }
-        }
-    }
-
-    // The legacy board can occasionally finish only part of a previous frame
-    // while AUTO root estimates are changing. Reassert every target pixel.
-    // The preceding delta already retires obsolete pixels, and batching those
-    // clears here makes the recovery frame large enough to fail partially.
-    private void writeScaleFrameReconciliation(ScaleFrame target) {
-        for (int string = 0; string < STRING_COUNT; ++string) {
-            for (int fret = 0; fret < FRET_COUNT; ++fret) {
-                if (target.lit[string][fret]) {
-                    setPixel(string, fret, target.red[string][fret], target.green[string][fret],
-                            target.blue[string][fret], target.effect[string][fret]);
-                }
+            if (commands > 0) {
+                sdk.sendCommandFlush(() -> onScaleFrameFlushed(target));
+                return true;
             }
+            ++activeScaleFramePhase;
+            activeScaleFrameCursor = 0;
         }
-    }
-
-    private void writeScaleFrameNonTargetClear(ScaleFrame target) {
-        for (int string = 0; string < STRING_COUNT; ++string) {
-            for (int fret = 0; fret < FRET_COUNT; ++fret) {
-                if (!target.lit[string][fret]) {
-                    setPixel(string, fret, (byte) 0, (byte) 0, (byte) 0, (byte) 0);
-                }
-            }
-        }
+        return false;
     }
 
     private void setPixel(int string, int fret, byte red, byte green, byte blue, byte effect) {
