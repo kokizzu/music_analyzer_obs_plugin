@@ -18675,7 +18675,7 @@ float plain_guitar_component_primary_score(const ParsedRootChord &component,
 	const float opposite_third =
 		strongest_grid_pitch_level(display_grid, analysis_grid,
 					   component.root + (component.quality == RootChordQuality::Minor ? 4 : 3));
-	if (anchor < 0.08f)
+	if (anchor < 0.02f)
 		return -1.0f;
 	if (third_level < std::max(0.012f, anchor * 0.018f) && display_tones + analysis_tones < 5)
 		return -1.0f;
