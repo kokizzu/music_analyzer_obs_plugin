@@ -7643,3 +7643,15 @@ search-repo:
 .PHONY: show-repo-lines
 show-repo-lines:
 	@sh scripts/show_repo_lines.sh "$(FILE)" "$(START)" "$(END)"
+
+.PHONY: analyze-real-note-guitar-misses
+analyze-real-note-guitar-misses: build/analyzer_real_note_samples
+	python3 scripts/analyze_real_note_guitar_misses.py
+
+.PHONY: test-real-note-guitar-full-mix-recall
+test-real-note-guitar-full-mix-recall: analyze-real-note-guitar-misses
+	python3 scripts/check_real_note_guitar_full_mix_recall.py
+
+.PHONY: report-real-note-guitar-misses
+report-real-note-guitar-misses:
+	python3 scripts/analyze_real_note_guitar_misses.py --report

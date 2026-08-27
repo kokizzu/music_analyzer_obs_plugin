@@ -3485,7 +3485,7 @@ bool noisy_other_owned_low_acoustic_guitar_supported(const FullMixDebugCandidate
 	const float fourth = debug.harmonic_ratios[3];
 	const float fifth = debug.harmonic_ratios[4];
 	return debug.other_score >= 0.78f &&
-	       debug.guitar_score >= 0.12f &&
+	       debug.guitar_score >= 0.070f &&
 	       debug.guitar_score <= 0.24f &&
 	       debug.spectral_level >= 0.14f &&
 	       debug.spectral_level <= 0.38f &&
@@ -3496,10 +3496,10 @@ bool noisy_other_owned_low_acoustic_guitar_supported(const FullMixDebugCandidate
 	       debug.local_noise_level >= 0.12f &&
 	       debug.local_noise_level <= 0.56f &&
 	       debug.spectral_centroid >= 0.50f &&
-	       debug.spectral_centroid <= 0.68f &&
+	       debug.spectral_centroid <= 0.75f &&
 	       debug.spectral_slope >= 0.95f &&
-	       second >= 0.42f &&
-	       third >= 2.50f &&
+	       second >= 0.40f &&
+	       third >= 1.00f &&
 	       fourth >= 0.50f &&
 	       fifth >= 0.20f;
 }
