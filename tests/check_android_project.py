@@ -331,10 +331,12 @@ def main():
             "fretZealot.isScaleFrameInFlight()" in external_devices and
             "FRET_ZEALOT_FRAME_IDLE_RETRY_MILLIS" in external_devices and
             "retryFretZealotAutoReconciliation();" in external_devices and
-            "partial scales are worse than a briefly older root" in external_devices and
+            "partial scales are worse" in external_devices and
+            "than a briefly older root" in external_devices and
             "handler.removeCallbacks(sendStableFretZealotPacket);" in external_devices and
-            "fretZealot.sendPacket(packet, true);" in external_devices,
-            "Android must debounce AUTO scale updates without leaving partial scales")
+            "fretZealot.sendPacket(packet, true);" in external_devices and
+            "This also applies to the first render after a connection." in external_devices,
+            "Android AUTO root updates must not bypass stabilization after connection")
     require("if (!force && Arrays.equals(packet, lastFretZealotPacket)) {\n            // A device-state revision" in external_devices and
             "cancelling it leaves a first-generation board showing only the" in external_devices,
             "An unchanged Fret Zealot packet must not cancel its scheduled AUTO reconciliation")

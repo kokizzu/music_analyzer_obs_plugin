@@ -899,21 +899,12 @@ final class ExternalDeviceManager implements Closeable {
             fretZealot.sendPacket(packet, false);
             return;
         }
-        if (force) {
-            // The first render after a new connection has no previous complete
-            // AUTO scale to preserve. Send it directly; the controller's
-            // session reset handles the board's initial blank state.
-            handler.removeCallbacks(sendStableFretZealotPacket);
-            pendingFretZealotPacket = null;
-            fretZealotAutoReconciliationScheduled = false;
-            fretZealot.sendPacket(packet, true);
-            return;
-        }
         pendingFretZealotPacket = Arrays.copyOf(packet, packet.length);
-        // Preserve the last complete scale until the root has been quiet long
-        // enough for the slow first-generation controller to apply one full
-        // replacement. A constantly changing estimate must not stream frames
-        // to the board: partial scales are worse than a briefly older root.
+        // This also applies to the first render after a connection. The legacy
+        // controller needs several bounded batches to apply a full scale, so a
+        // forced refresh must not bypass AUTO-root stabilization and begin a
+        // frame from a root that is still changing: partial scales are worse
+        // than a briefly older root.
         handler.removeCallbacks(sendStableFretZealotPacket);
         fretZealotAutoReconciliationScheduled = true;
         handler.postDelayed(sendStableFretZealotPacket, FRET_ZEALOT_AUTO_ROOT_STABLE_MILLIS);
