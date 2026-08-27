@@ -30917,7 +30917,7 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 		snapshot.mid_energy >= snapshot.low_energy * 0.62f &&
 		(strongest_cymbal_drum <= 1.0e-6f || strongest_cymbal_drum <= strongest_body_drum * 0.24f);
 	const bool kick_backed_snare_transient =
-		!one_shot_drum_source && drum_transient && onset >= 1.55f &&
+		drum_transient && onset >= 1.55f &&
 		drum_segment_bands[Kick] >= strongest_shell_drum * 0.32f &&
 		drum_segment_bands[Snare] >= strongest_shell_drum * 0.12f &&
 		snare_body >= kick_body * 0.26f &&
@@ -31308,7 +31308,11 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 	// different calibration path.
 	const bool mixed_mid_dominant_kick_bleed =
 		drum_detection_enabled && !one_shot_drum_source && drum_level_[Kick] > 0.30f &&
-		snapshot.mid_energy >= 0.39f;
+		snapshot.mid_energy >= 0.39f &&
+		!(snapshot.low_energy >= 0.42f && snapshot.mid_energy <= 0.46f &&
+		  kick_body >= 90.0f && onset >= 1.0f &&
+		  snapshot.drum_debug_trigger_scores[Kick] >=
+			  snapshot.drum_debug_trigger_thresholds[Kick] * 3.0f);
 	if (mixed_mid_dominant_kick_bleed)
 		cap_drum_level(Kick, 0.28f);
 
@@ -34143,6 +34147,7 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 		const bool final_real_mix_short_low_treble_snare_context_false_positive =
 			drum_detection_enabled &&
 			!one_shot_drum_source &&
+			!drum_transient &&
 			drum_level_[Snare] > 0.30f &&
 			snapshot.high_energy <= 0.08f &&
 			snapshot.drum_debug_onset <= 3.27f;
@@ -34155,7 +34160,8 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 		const bool source_scoped_kick_heavy_snare_false_positive =
 			kEnableSourceScopedKickHeavySnareFalsePositiveCap &&
 			drum_detection_enabled && !one_shot_drum_source &&
-			drum_level_[Snare] > 0.30f && kick_body >= 108.56f && rms <= 0.2712f;
+			drum_level_[Snare] > 0.30f && !kick_backed_snare_transient &&
+			kick_body >= 108.56f && rms <= 0.2712f;
 		if (source_scoped_kick_heavy_snare_false_positive)
 			cap_drum_level(Snare, 0.28f);
 
