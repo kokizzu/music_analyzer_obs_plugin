@@ -22,13 +22,9 @@ final class FretZealotSdkController implements Closeable {
     // yellow. 3/15 retains the calibrated Fret Zealot hue order at low power.
     private static final int LOWEST_CHANNEL_MAX = 3;
     // The original Fret Zealot reports GATT completion before the last legacy
-    // packet is applied to its LEDs. Keep the frame active briefly so AUTO
-    // root changes coalesce instead of building deltas from an unfinished map.
-    private static final long LEGACY_FRAME_SETTLE_MILLIS = 250L;
-    // Some first-generation boards apply the packet but never deliver the
-    // corresponding SDK callback. This fallback must be slower than the normal
-    // callback path, and is guarded so it cannot advance a later batch twice.
-    private static final long LEGACY_BATCH_FALLBACK_MILLIS = 750L;
+    // packet is applied to its LEDs. Keep the frame active until each batch has
+    // physically settled so AUTO-root changes coalesce without interleaving.
+    private static final long LEGACY_BATCH_SETTLE_MILLIS = 750L;
     // The first-generation board can acknowledge a large BLE payload before it
     // has applied every LED command. Keep each flushed command buffer bounded.
     private static final int LEGACY_SCALE_COMMANDS_PER_FLUSH = 12;
@@ -273,12 +269,12 @@ final class FretZealotSdkController implements Closeable {
 
     private void onScaleFrameFlushed(ScaleFrame completed, int batchId) {
         handler.postDelayed(
-                () -> finishScaleFrameBatch(completed, batchId), LEGACY_FRAME_SETTLE_MILLIS);
+                () -> finishScaleFrameBatch(completed, batchId), LEGACY_BATCH_SETTLE_MILLIS);
     }
 
     private void scheduleScaleFrameBatchFallback(ScaleFrame completed, int batchId) {
         handler.postDelayed(
-                () -> finishScaleFrameBatch(completed, batchId), LEGACY_BATCH_FALLBACK_MILLIS);
+                () -> finishScaleFrameBatch(completed, batchId), LEGACY_BATCH_SETTLE_MILLIS);
     }
 
     private void finishScaleFrameBatch(ScaleFrame completed, int batchId) {
