@@ -381,7 +381,8 @@ def main():
             "mainHandler.postDelayed(this::sendNextChunk, settleMillis)" in fret_zealot_sdk,
             "First-generation Fret Zealot packets must be paced for its LED processor")
     require("LEGACY_FRAME_SETTLE_MILLIS = 250L" in fret_zealot_sdk_controller and
-            "handler.postDelayed(() -> finishScaleFrame(completed)" in fret_zealot_sdk_controller and
+            "finishScaleFrameBatch(completed, batchId)" in fret_zealot_sdk_controller and
+            "batchId != activeScaleFrameBatchId" in fret_zealot_sdk_controller and
             "activeScaleFrame != completed" in fret_zealot_sdk_controller,
             "Fret Zealot must not commit a root frame before its LEDs settle")
     require("enableNotifications" in fret_zealot_gatt and
@@ -422,7 +423,8 @@ def main():
             "Fret Zealot must light new notes before turning obsolete notes off")
     require("sdk.set_all((byte) 0, (byte) 0, (byte) 0" in fret_zealot_sdk_controller and
             "commands < LEGACY_SCALE_COMMANDS_PER_FLUSH" in fret_zealot_sdk_controller and
-            "sdk.sendCommandFlush(() -> onScaleFrameFlushed(target))" in fret_zealot_sdk_controller,
+            "sdk.sendCommandFlush(() -> onScaleFrameFlushed(target, batchId))" in fret_zealot_sdk_controller and
+            "scheduleScaleFrameBatchFallback(target, batchId)" in fret_zealot_sdk_controller,
             "Fret Zealot AUTO root changes must pace every target and stale-clear batch")
     require("Fret Zealot LED service ready; sending current scale" in fret_zealot_sdk_controller and
             "listener.onReady();" in fret_zealot_sdk_controller,

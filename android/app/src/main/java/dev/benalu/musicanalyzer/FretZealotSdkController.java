@@ -25,6 +25,10 @@ final class FretZealotSdkController implements Closeable {
     // packet is applied to its LEDs. Keep the frame active briefly so AUTO
     // root changes coalesce instead of building deltas from an unfinished map.
     private static final long LEGACY_FRAME_SETTLE_MILLIS = 250L;
+    // Some first-generation boards apply the packet but never deliver the
+    // corresponding SDK callback. This fallback must be slower than the normal
+    // callback path, and is guarded so it cannot advance a later batch twice.
+    private static final long LEGACY_BATCH_FALLBACK_MILLIS = 750L;
     // The first-generation board can acknowledge a large BLE payload before it
     // has applied every LED command. Keep each flushed command buffer bounded.
     private static final int LEGACY_SCALE_COMMANDS_PER_FLUSH = 12;
@@ -56,6 +60,7 @@ final class FretZealotSdkController implements Closeable {
     private boolean activeScaleFrameClearsNonTargets;
     private int activeScaleFramePhase;
     private int activeScaleFrameCursor;
+    private int activeScaleFrameBatchId;
 
     FretZealotSdkController(Context context, Listener listener) {
         sdk = LEDBLELib.getInstance(context.getApplicationContext());
@@ -263,10 +268,27 @@ final class FretZealotSdkController implements Closeable {
         activeScaleFrameClearsNonTargets = false;
         activeScaleFramePhase = 0;
         activeScaleFrameCursor = 0;
+        ++activeScaleFrameBatchId;
     }
 
-    private void onScaleFrameFlushed(ScaleFrame completed) {
-        handler.postDelayed(() -> finishScaleFrame(completed), LEGACY_FRAME_SETTLE_MILLIS);
+    private void onScaleFrameFlushed(ScaleFrame completed, int batchId) {
+        handler.postDelayed(
+                () -> finishScaleFrameBatch(completed, batchId), LEGACY_FRAME_SETTLE_MILLIS);
+    }
+
+    private void scheduleScaleFrameBatchFallback(ScaleFrame completed, int batchId) {
+        handler.postDelayed(
+                () -> finishScaleFrameBatch(completed, batchId), LEGACY_BATCH_FALLBACK_MILLIS);
+    }
+
+    private void finishScaleFrameBatch(ScaleFrame completed, int batchId) {
+        if (!active || closing || activeScaleFrame != completed || batchId != activeScaleFrameBatchId) {
+            return;
+        }
+        // Invalidate both the callback and fallback for this batch before a
+        // subsequent batch can be submitted.
+        ++activeScaleFrameBatchId;
+        finishScaleFrame(completed);
     }
 
     private void finishScaleFrame(ScaleFrame completed) {
@@ -302,7 +324,9 @@ final class FretZealotSdkController implements Closeable {
         if (boardReset) {
             sdk.sendCommandBufferClear();
             sdk.set_all((byte) 0, (byte) 0, (byte) 0, LOWEST_SDK_INTENSITY, (byte) 0);
-            sdk.sendCommandFlush(() -> onScaleFrameFlushed(target));
+            int batchId = ++activeScaleFrameBatchId;
+            sdk.sendCommandFlush(() -> onScaleFrameFlushed(target, batchId));
+            scheduleScaleFrameBatchFallback(target, batchId);
             return;
         }
         if (!flushNextScaleFrameBatch(target)) {
@@ -340,7 +364,9 @@ final class FretZealotSdkController implements Closeable {
                 ++commands;
             }
             if (commands > 0) {
-                sdk.sendCommandFlush(() -> onScaleFrameFlushed(target));
+                int batchId = ++activeScaleFrameBatchId;
+                sdk.sendCommandFlush(() -> onScaleFrameFlushed(target, batchId));
+                scheduleScaleFrameBatchFallback(target, batchId);
                 return true;
             }
             ++activeScaleFramePhase;
