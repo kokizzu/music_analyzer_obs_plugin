@@ -7698,6 +7698,10 @@ plan-mir1k-vocal-test-fixtures:
 apply-mir1k-vocal-test-fixtures:
 	python3 scripts/sync_mir1k_vocal_test_fixtures.py apply
 
+.PHONY: test-mir1k-vocal-full-mix
+test-mir1k-vocal-full-mix: $(BUILD_DIR)/analyzer_real_note_samples tests/fixtures/mir1k_clean_vocals/manifest.tsv scripts/run_with_duration.sh
+	$(RUN_WITH_DURATION) analyzer_mir1k_vocal_full_mix env MUSIC_ANALYZER_REAL_NOTE_SAMPLES_REQUIRED=1 MUSIC_ANALYZER_REAL_NOTE_REQUIRED_SAMPLES=221 MUSIC_ANALYZER_REAL_NOTE_FULL_MIX=1 MUSIC_ANALYZER_REAL_NOTE_SAMPLE_ROOT="tests/fixtures/mir1k_clean_vocals" MUSIC_ANALYZER_REAL_NOTE_MIN_VOCALS=221 MUSIC_ANALYZER_REAL_NOTE_MIN_VOCALS_EXPECTED_ROW_PERCENT=70 $(BUILD_DIR)/analyzer_real_note_samples
+
 .PHONY: plan-clean-mir1k-vocal-test-fixture-stale
 plan-clean-mir1k-vocal-test-fixture-stale:
 	python3 scripts/clean_mir1k_vocal_test_fixture_stale.py plan
