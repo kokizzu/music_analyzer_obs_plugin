@@ -92,6 +92,10 @@ final class ExternalDeviceManager implements Closeable {
     private long lastOutputRevision;
     private byte[] lastFretZealotPacket;
     private byte[] pendingFretZealotPacket;
+    // The legacy board can acknowledge a multi-batch frame before every LED
+    // has physically latched it. Replay one settled AUTO frame after its first
+    // full pass so an occasional partial write does not require reconnecting.
+    private byte[] fretZealotAutoRecoveryPacket;
     // AUTO-root revisions are debounced before they reach the legacy board.
     // While the estimator is still changing, keep its last complete scale
     // rather than risking a partly applied replacement.
@@ -102,6 +106,7 @@ final class ExternalDeviceManager implements Closeable {
     // audio stops or the device reconnects.
     private boolean fretZealotAutoInitialScalePending;
     private final Runnable sendStableFretZealotPacket;
+    private final Runnable replayStableFretZealotPacket;
 
     private MidiManager midiManager;
     private boolean midiCallbackRegistered;
@@ -206,6 +211,24 @@ final class ExternalDeviceManager implements Closeable {
             // A genuinely stable AUTO root gets one complete scale replay.
             // Do not stream deltas while the estimator is still revising its
             // root: legacy boards can apply only a prefix of those frames.
+            fretZealot.sendPacket(packet, true);
+            scheduleFretZealotAutoRecovery(packet);
+        };
+        replayStableFretZealotPacket = () -> {
+            if (!started || !fretZealot.isReady() || fretZealotAutoRecoveryPacket == null
+                    || !Arrays.equals(fretZealotAutoRecoveryPacket, lastFretZealotPacket)) {
+                fretZealotAutoRecoveryPacket = null;
+                return;
+            }
+            if (fretZealot.isScaleFrameInFlight()) {
+                retryFretZealotAutoRecovery();
+                return;
+            }
+            byte[] packet = fretZealotAutoRecoveryPacket;
+            fretZealotAutoRecoveryPacket = null;
+            // This is intentionally one replay, not a delta stream. It repairs
+            // a physical board that acknowledged only a prefix of the first
+            // legacy frame while keeping the currently selected root intact.
             fretZealot.sendPacket(packet, true);
         };
     }
@@ -758,7 +781,9 @@ final class ExternalDeviceManager implements Closeable {
 
     private void closeFretZealot(int finalState) {
         handler.removeCallbacks(sendStableFretZealotPacket);
+        handler.removeCallbacks(replayStableFretZealotPacket);
         pendingFretZealotPacket = null;
+        fretZealotAutoRecoveryPacket = null;
         fretZealotAutoReconciliationScheduled = false;
         lastFretZealotPacket = null;
         fretZealot.close();
@@ -897,6 +922,8 @@ final class ExternalDeviceManager implements Closeable {
             return;
         }
         lastFretZealotPacket = Arrays.copyOf(packet, packet.length);
+        handler.removeCallbacks(replayStableFretZealotPacket);
+        fretZealotAutoRecoveryPacket = null;
         if (fretZealot.needsInitialScaleReset()) {
             if (MusicAnalyzerNative.nativeIsAutomaticRootMode(nativeHandle)
                     && fretZealot.prepareForAutomaticScale()) {
@@ -947,6 +974,16 @@ final class ExternalDeviceManager implements Closeable {
     private void retryFretZealotAutoReconciliation() {
         handler.postDelayed(sendStableFretZealotPacket,
                 FRET_ZEALOT_FRAME_IDLE_RETRY_MILLIS);
+    }
+
+    private void scheduleFretZealotAutoRecovery(byte[] packet) {
+        fretZealotAutoRecoveryPacket = Arrays.copyOf(packet, packet.length);
+        handler.removeCallbacks(replayStableFretZealotPacket);
+        handler.postDelayed(replayStableFretZealotPacket, FRET_ZEALOT_FRAME_IDLE_RETRY_MILLIS);
+    }
+
+    private void retryFretZealotAutoRecovery() {
+        handler.postDelayed(replayStableFretZealotPacket, FRET_ZEALOT_FRAME_IDLE_RETRY_MILLIS);
     }
 
     private void sendMidi(MidiInputPort inputPort, byte[] messages) {

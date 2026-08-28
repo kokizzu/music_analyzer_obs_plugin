@@ -7660,3 +7660,7 @@ guitarset-debug-windows: build/analyzer_guitarset
 
 report-guitarset-major-minor-debug:
 	python3 scripts/report_guitarset_major_minor_debug.py
+
+.PHONY: check-fret-zealot-auto-recovery
+check-fret-zealot-auto-recovery:
+	python3 scripts/check_fret_zealot_auto_recovery.py
