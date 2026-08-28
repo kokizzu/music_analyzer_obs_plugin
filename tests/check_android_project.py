@@ -388,10 +388,11 @@ def main():
             "writeChunkBytes <= LEGACY_CHUNK_BYTES" in fret_zealot_sdk and
             "mainHandler.postDelayed(this::sendNextChunk, settleMillis)" in fret_zealot_sdk,
             "First-generation Fret Zealot packets must be paced for its LED processor")
-    require("LEGACY_BATCH_SETTLE_MILLIS = 120L" in fret_zealot_sdk_controller and
+    require("LEGACY_BATCH_SETTLE_MILLIS = 750L" in fret_zealot_sdk_controller and
             "finishScaleFrameBatch(completed, batchId)" in fret_zealot_sdk_controller and
             "batchId != activeScaleFrameBatchId" in fret_zealot_sdk_controller and
-            "activeScaleFrame != completed" in fret_zealot_sdk_controller,
+            "activeScaleFrame != completed" in fret_zealot_sdk_controller and
+            "LEGACY_FRAME_SETTLE_MILLIS = 300L" in fret_zealot_sdk_controller,
             "Fret Zealot must not commit a root frame before its LEDs settle")
     require("enableNotifications" in fret_zealot_gatt and
             "CLIENT_CHARACTERISTIC_CONFIG" in fret_zealot_attributes and
