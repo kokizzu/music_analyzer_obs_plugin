@@ -12,6 +12,7 @@
 #include <dirent.h>
 #include <fstream>
 #include <map>
+#include <memory>
 #include <set>
 #include <string>
 #include <sys/stat.h>
@@ -1041,7 +1042,11 @@ std::vector<CandidateWindow> select_candidate_windows(const Recording &recording
 
 mao::AnalysisSnapshot analyze_confirmed_buffer(const mao_test::Buffer &buffer, uint32_t sample_rate)
 {
-	mao::AnalysisEngine engine;
+	// AnalysisEngine carries sizeable analysis and temporal state. The corpus
+	// replay also holds decoded audio and, in the Basic Pitch bridge, a two
+	// second model input on the caller stack; keep the engine heap-backed so a
+	// valid dense choir window cannot trip the harness stack guard.
+	auto engine = std::make_unique<mao::AnalysisEngine>();
 	mao::AnalysisSettings settings = mao_test::default_settings();
 	settings.sample_rate = sample_rate;
 	settings.analysis_interval_seconds = 0.05f;
@@ -1049,7 +1054,7 @@ mao::AnalysisSnapshot analyze_confirmed_buffer(const mao_test::Buffer &buffer, u
 
 	mao::AnalysisSnapshot snapshot = {};
 	for (int frame = 0; frame < 3; ++frame)
-		snapshot = engine.analyze(buffer.data(), buffer.size(), settings, "MusicNet labeled real mix", 0);
+		snapshot = engine->analyze(buffer.data(), buffer.size(), settings, "MusicNet labeled real mix", 0);
 	return snapshot;
 }
 

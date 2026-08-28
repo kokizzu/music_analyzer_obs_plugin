@@ -7,6 +7,19 @@ ACTIVE_GOAL_FILE ?= /home/kyz/.codex/attachments/46ea0f9b-3fe5-461f-90f6-07da1a9
 show-active-goal: scripts/show_active_goal.sh
 	$(SHELL) scripts/show_active_goal.sh "$(ACTIVE_GOAL_FILE)"
 
+.PHONY: list-make-targets test-list-make-targets find-repo-text test-find-repo-text
+list-make-targets: scripts/list_make_targets.py
+	$(PYTHON) scripts/list_make_targets.py Makefile "$(TERM)"
+
+test-list-make-targets: scripts/list_make_targets.py
+	$(PYTHON) scripts/list_make_targets.py Makefile detection >/dev/null
+
+find-repo-text: scripts/find_repo_text.py
+	$(PYTHON) scripts/find_repo_text.py "$(or $(SCOPE),.)" "$(TEXT)" "$(or $(MAX_RESULTS),100)"
+
+test-find-repo-text: scripts/find_repo_text.py
+	$(PYTHON) scripts/find_repo_text.py scripts find_repo_text 1 >/dev/null
+
 # Explicitly approved, resumable external corpus acquisitions. This registry
 # is task-scoped: a target belongs here only while it is an active accuracy
 # coverage gap, rather than merely being supported by the project.
@@ -20,6 +33,51 @@ ARIA2C ?= aria2c
 BUILD_DIR ?= build
 INSTRUMENT_SAMPLE_STORE ?= /media/kyz/sshflashtor/InstrumentSamples
 INSTRUMENT_SAMPLE_STORE_LINK ?= $(BUILD_DIR)/InstrumentSamples
+ONNXRUNTIME_VERSION ?= 1.29.0
+ONNXRUNTIME_ROOT ?= $(BUILD_DIR)/onnxruntime-linux-x64-$(ONNXRUNTIME_VERSION)
+ONNXRUNTIME_HEADER ?= $(ONNXRUNTIME_ROOT)/include/onnxruntime_c_api.h
+ONNXRUNTIME_LIBRARY ?= $(ONNXRUNTIME_ROOT)/lib/libonnxruntime.so
+BASIC_PITCH_ONNX_MODEL ?= $(BUILD_DIR)/basic_pitch/nmp.onnx
+ZEROX808_CC0_REPOSITORY ?= https://github.com/averagenative/0x808.git
+ZEROX808_CC0_SOURCE_DIR ?= $(INSTRUMENT_SAMPLE_STORE_LINK)/0x808_cc0
+ZEROX808_RIM_SAMPLE_DIR ?= $(INSTRUMENT_SAMPLE_STORE_LINK)/0x808_rim_samples
+ZEROX808_RIM_MEASUREMENT ?= $(BUILD_DIR)/0x808_rim_measurement.log
+ZEROX808_RIM_PRIMARY_DEBUG_OUT ?= $(BUILD_DIR)/0x808_rim_primary_debug.out
+ZEROX808_RIM_PRIMARY_DEBUG_ERR ?= $(BUILD_DIR)/0x808_rim_primary_debug.err
+ZEROX808_RIM_PRIMARY_ATTRIBUTE_ROWS ?= $(BUILD_DIR)/0x808_rim_primary_attribute_rows.tsv
+ZEROX808_VIRTUOSITY_RIM_CANDIDATE_AUDIT ?= $(BUILD_DIR)/0x808_virtuosity_rim_candidate_audit.txt
+UNRULY_CROSS_SOURCE_RIM_CANDIDATE_AUDIT ?= $(BUILD_DIR)/unruly_cross_source_rim_candidate_audit.txt
+UNRULY_RIM_PRIMARY_CANDIDATE_AUDIT ?= $(BUILD_DIR)/unruly_rim_primary_candidate_audit.txt
+RIM_PRIMARY_CANDIDATE_AUDIT ?= $(BUILD_DIR)/rim_primary_candidate_audit.txt
+UNRULY_DRUMS_ARCHIVE_URL ?= https://github.com/sfzinstruments/karoryfer.unruly-drums/releases/download/v1.100/Unruly_Drums_1100.zip
+UNRULY_DRUMS_SOURCE_DIR ?= $(INSTRUMENT_SAMPLE_STORE_LINK)/unruly_drums_cc0
+UNRULY_DRUMS_ARCHIVE ?= $(UNRULY_DRUMS_SOURCE_DIR)/Unruly_Drums_1100.zip
+UNRULY_DRUMS_RIM_SAMPLE_DIR ?= $(INSTRUMENT_SAMPLE_STORE_LINK)/unruly_drums_rim_samples
+UNRULY_DRUMS_RIM_MEASUREMENT ?= $(BUILD_DIR)/unruly_drums_rim_measurement.log
+UNRULY_DRUMS_RIM_PRIMARY_DEBUG_OUT ?= $(BUILD_DIR)/unruly_drums_rim_primary_debug.out
+UNRULY_DRUMS_RIM_PRIMARY_DEBUG_ERR ?= $(BUILD_DIR)/unruly_drums_rim_primary_debug.err
+UNRULY_DRUMS_RIM_PRIMARY_ATTRIBUTE_ROWS ?= $(BUILD_DIR)/unruly_drums_rim_primary_attribute_rows.tsv
+UNRULY_DRUMS_DOWNLOAD_CHUNKS ?= 4
+AGPT_GUITAR_SOURCE_DIR ?= $(INSTRUMENT_SAMPLE_STORE_LINK)/agpt_guitar
+AGPT_GUITAR_ARCHIVE ?= $(AGPT_GUITAR_SOURCE_DIR)/aGPTset_z.zip
+AGPT_GUITAR_ARCHIVE_URL ?= https://zenodo.org/records/10159492/files/aGPTset_z.zip?download=1
+AGPT_GUITAR_ARCHIVE_MD5 ?= 1dff8103f9ad6e1a86cee2e5e39cbe87
+AGPT_GUITAR_EXTRACTED_DIR ?= $(AGPT_GUITAR_SOURCE_DIR)/extracted
+AGPT_GUITAR_SAMPLE_DIR ?= $(AGPT_GUITAR_SOURCE_DIR)/prepared_notes
+AGPT_GUITAR_SAMPLE_LIMIT ?= 2000
+AGPT_GUITAR_MIN_GUITAR ?= 1000
+AGPT_GUITAR_MAX_FAILURES ?= 999999
+AGPT_GUITAR_MEASUREMENT ?= $(BUILD_DIR)/agpt_guitar_measurement.tsv
+AGPT_GUITAR_FULL_MIX_ATTRIBUTE_TSV ?= $(BUILD_DIR)/agpt_guitar_full_mix_attributes.tsv
+AGPT_GUITAR_FULL_MIX_MEASUREMENT ?= $(BUILD_DIR)/agpt_guitar_full_mix_measurement.out
+AGPT_GUITAR_VISUAL_PRIMARY_MEASUREMENT ?= $(BUILD_DIR)/agpt_guitar_visual_primary.tsv
+AGPT_GUITAR_VISUAL_PATTERN_REPORT ?= $(BUILD_DIR)/agpt_guitar_visual_pattern_report.txt
+AGPT_GUITAR_VISUAL_PATTERN_MAX_CONDITIONS ?= 3
+AGPT_GUITAR_VISUAL_PATTERN_BEAM_WIDTH ?= 240
+DREANSS_SOURCE_DIR ?= $(INSTRUMENT_SAMPLE_STORE_LINK)/dreanss
+DREANSS_ANNOTATION_ARCHIVE ?= $(DREANSS_SOURCE_DIR)/dreanss_v1.zip
+DREANSS_ANNOTATION_ARCHIVE_URL ?= https://zenodo.org/records/1290739/files/dreanss_v1.zip?download=1
+DREANSS_ANNOTATION_ARCHIVE_MD5 ?= 17b7554ac68cabd84b513f23bb9e967c
 
 .PHONY: start-approved-corpus-downloads stop-approved-corpus-downloads report-approved-corpus-downloads show-approved-corpus-download-log test-approved-corpus-download-manager queue-filobass-bpm-after-download queue-candombe-bpm-after-download test-validate-maestro-subset-archive
 start-approved-corpus-downloads: scripts/start_approved_corpus_downloads.sh scripts/run_approved_corpus_download.sh
@@ -70,6 +128,87 @@ test-validate-maestro-subset-archive: tests/test_validate_maestro_subset_archive
 .PHONY: inspect-maestro-audit-capacity
 inspect-maestro-audit-capacity: scripts/inspect_storage_capacity.py
 	$(PYTHON) scripts/inspect_storage_capacity.py "$(INSTRUMENT_SAMPLE_STORE)"
+
+.PHONY: download-agpt-guitar-samples test-download-agpt-guitar-samples
+download-agpt-guitar-samples: scripts/download_agpt_guitar_samples.sh | $(INSTRUMENT_SAMPLE_STORE_LINK)
+	$(SHELL) scripts/download_agpt_guitar_samples.sh "$(AGPT_GUITAR_ARCHIVE)" "$(AGPT_GUITAR_ARCHIVE_URL)" "$(AGPT_GUITAR_ARCHIVE_MD5)"
+
+test-download-agpt-guitar-samples: scripts/download_agpt_guitar_samples.sh
+	$(SHELL) -n scripts/download_agpt_guitar_samples.sh
+
+.PHONY: extract-agpt-guitar-samples test-extract-agpt-guitar-samples
+extract-agpt-guitar-samples: scripts/extract_agpt_guitar_samples.sh download-agpt-guitar-samples | $(INSTRUMENT_SAMPLE_STORE_LINK)
+	$(SHELL) scripts/extract_agpt_guitar_samples.sh "$(AGPT_GUITAR_ARCHIVE)" "$(AGPT_GUITAR_EXTRACTED_DIR)"
+
+test-extract-agpt-guitar-samples: scripts/extract_agpt_guitar_samples.sh
+	$(SHELL) -n scripts/extract_agpt_guitar_samples.sh
+
+.PHONY: start-agpt-guitar-extraction test-start-agpt-guitar-extraction
+start-agpt-guitar-extraction: scripts/start_agpt_guitar_extraction.sh scripts/extract_agpt_guitar_samples.sh $(AGPT_GUITAR_ARCHIVE) | $(INSTRUMENT_SAMPLE_STORE_LINK)
+	$(SHELL) scripts/start_agpt_guitar_extraction.sh "$(CURDIR)/scripts/extract_agpt_guitar_samples.sh" "$(AGPT_GUITAR_ARCHIVE)" "$(AGPT_GUITAR_EXTRACTED_DIR)"
+
+test-start-agpt-guitar-extraction: scripts/start_agpt_guitar_extraction.sh
+	$(SHELL) -n scripts/start_agpt_guitar_extraction.sh
+
+.PHONY: prepare-agpt-guitar-samples test-prepare-agpt-guitar-samples
+prepare-agpt-guitar-samples: scripts/prepare_agpt_guitar_samples.py extract-agpt-guitar-samples | $(INSTRUMENT_SAMPLE_STORE_LINK)
+	$(PYTHON) scripts/prepare_agpt_guitar_samples.py --source "$(AGPT_GUITAR_EXTRACTED_DIR)" --output "$(AGPT_GUITAR_SAMPLE_DIR)" --limit "$(AGPT_GUITAR_SAMPLE_LIMIT)" --min-samples "$(AGPT_GUITAR_MIN_GUITAR)" --ffmpeg "$(FFMPEG)"
+
+test-prepare-agpt-guitar-samples: tests/test_prepare_agpt_guitar_samples.py scripts/prepare_agpt_guitar_samples.py
+	$(PYTHON) tests/test_prepare_agpt_guitar_samples.py
+
+.PHONY: test-agpt-guitar-samples test-agpt-guitar-samples-parallel
+test-agpt-guitar-samples test-agpt-guitar-samples-parallel: REAL_NOTE_SAMPLE_TAG := agpt_guitar
+test-agpt-guitar-samples test-agpt-guitar-samples-parallel: REAL_NOTE_SAMPLE_ROOT := $(AGPT_GUITAR_SAMPLE_DIR)
+test-agpt-guitar-samples test-agpt-guitar-samples-parallel: REAL_NOTE_SAMPLE_REQUIRED_SAMPLES := $(AGPT_GUITAR_MIN_GUITAR)
+test-agpt-guitar-samples test-agpt-guitar-samples-parallel: REAL_NOTE_SAMPLE_MIN_GUITAR := $(AGPT_GUITAR_MIN_GUITAR)
+test-agpt-guitar-samples test-agpt-guitar-samples-parallel: REAL_NOTE_SAMPLE_MAX_FAILURES := $(AGPT_GUITAR_MAX_FAILURES)
+test-agpt-guitar-samples: test-agpt-guitar-samples-parallel
+test-agpt-guitar-samples-parallel: $(BUILD_DIR)/analyzer_real_note_samples prepare-agpt-guitar-samples scripts/run_with_duration.sh
+	+$(RUN_REAL_NOTE_SAMPLE_SHARDS)
+
+.PHONY: download-dreanss-annotations test-download-dreanss-annotations
+download-dreanss-annotations: scripts/download_dreanss_annotations.sh | $(INSTRUMENT_SAMPLE_STORE_LINK)
+	$(SHELL) scripts/download_dreanss_annotations.sh "$(DREANSS_ANNOTATION_ARCHIVE)" "$(DREANSS_ANNOTATION_ARCHIVE_URL)" "$(DREANSS_ANNOTATION_ARCHIVE_MD5)"
+
+test-download-dreanss-annotations: scripts/download_dreanss_annotations.sh
+	$(SHELL) -n scripts/download_dreanss_annotations.sh
+
+.PHONY: discover-dreanss-audio-sources test-discover-dreanss-audio-sources
+discover-dreanss-audio-sources: scripts/discover_dreanss_audio_sources.sh
+	$(SHELL) scripts/discover_dreanss_audio_sources.sh
+
+test-discover-dreanss-audio-sources: scripts/discover_dreanss_audio_sources.sh
+	$(SHELL) -n scripts/discover_dreanss_audio_sources.sh
+
+.PHONY: inspect-agpt-guitar-download test-inspect-agpt-guitar-download
+inspect-agpt-guitar-download: scripts/inspect_agpt_guitar_download.sh
+	$(SHELL) scripts/inspect_agpt_guitar_download.sh "$(AGPT_GUITAR_ARCHIVE)"
+
+test-inspect-agpt-guitar-download: scripts/inspect_agpt_guitar_download.sh
+	$(SHELL) -n scripts/inspect_agpt_guitar_download.sh
+
+.PHONY: wait-agpt-guitar-download
+wait-agpt-guitar-download: scripts/inspect_agpt_guitar_download.sh
+	$(SHELL) scripts/inspect_agpt_guitar_download.sh "$(AGPT_GUITAR_ARCHIVE)" "25"
+
+.PHONY: inspect-zip-archive inspect-agpt-guitar-archive test-inspect-agpt-guitar-archive test-inspect-zip-archive
+inspect-zip-archive: scripts/inspect_zip_archive.py
+	@test -n "$(ZIP_ARCHIVE)" || { printf '%s\n' 'set ZIP_ARCHIVE=path/to/archive.zip'; exit 2; }
+	$(PYTHON) scripts/inspect_zip_archive.py "$(ZIP_ARCHIVE)"
+
+inspect-agpt-guitar-archive: scripts/inspect_agpt_guitar_archive.py $(AGPT_GUITAR_ARCHIVE)
+	python3 scripts/inspect_agpt_guitar_archive.py "$(AGPT_GUITAR_ARCHIVE)"
+
+test-inspect-agpt-guitar-archive: tests/test_inspect_agpt_guitar_archive.py scripts/inspect_agpt_guitar_archive.py
+	python3 tests/test_inspect_agpt_guitar_archive.py
+
+test-inspect-zip-archive: tests/test_inspect_zip_archive.py scripts/inspect_zip_archive.py
+	python3 tests/test_inspect_zip_archive.py
+
+.PHONY: inspect-dreanss-annotations
+inspect-dreanss-annotations: scripts/inspect_zip_archive.py $(DREANSS_ANNOTATION_ARCHIVE)
+	python3 scripts/inspect_zip_archive.py "$(DREANSS_ANNOTATION_ARCHIVE)"
 
 .PHONY: inspect-maestro-real-subset
 inspect-maestro-real-subset: scripts/inspect_maestro_real_subset.py
@@ -145,6 +284,8 @@ ESMUC_CHOIR_DATASET_MEASUREMENT_OUTPUT ?= $(BUILD_DIR)/esmuc_choir_dataset_measu
 ESMUC_CHOIR_DATASET_PATTERN_OUTPUT ?= $(BUILD_DIR)/esmuc_choir_dataset_pattern_rows.tsv
 ESMUC_CHOIR_DATASET_CROSS_CORPUS_OWNERSHIP_OUTPUT ?= $(BUILD_DIR)/esmuc_choir_dataset_cross_corpus_ownership.tsv
 ESMUC_CHOIR_DATASET_SHARED_OWNERSHIP_PATTERN_REPORT ?= $(BUILD_DIR)/esmuc_choir_dataset_shared_ownership_pattern_report.txt
+ESMUC_SHARED_VOCAL_MAX_CONDITIONS ?= 2
+ESMUC_SHARED_VOCAL_FILTER_ARGS ?=
 ESMUC_CHOIR_DATASET_ARCHIVE_URL ?= https://zenodo.org/records/5848990/files/EsmucChoirDataset_v1.0.0.zip?download=1
 ESMUC_CHOIR_DATASET_ARCHIVE_MD5 ?= ba2b4b5c4326dbe0a6d391167fa30574
 ESMUC_CHOIR_DATASET_DOWNLOAD_CONNECTIONS ?= 8
@@ -233,6 +374,7 @@ CHORD_PRIMARY_COMPONENT_AUDIT ?= $(BUILD_DIR)/chord_primary_component_audit.txt
 CHORD_PRIMARY_COMPONENT_ARGS ?=
 POLYPHONIC_CANDIDATE_CAPACITY_AUDIT ?= $(BUILD_DIR)/polyphonic_candidate_capacity_audit.txt
 HARMONIC_PRODUCT_OCTAVE_AUDIT ?= $(BUILD_DIR)/harmonic_product_octave_audit.txt
+SATB_RELATIVE_CHROMA_SELECTOR_AUDIT ?= $(BUILD_DIR)/satb_relative_chroma_selector_audit.txt
 DETECTION_ACCURACY_OWNER_CLASSIFIER_LOCO_AUDIT_ARG = --owner-classifier-loco-audit "$(OWNER_CLASSIFIER_LOCO_AUDIT)" --owner-classifier-quality-loco-audit "$(OWNER_CLASSIFIER_QUALITY_LOCO_AUDIT)"
 DETECTION_ACCURACY_OWNER_SCORE_CALIBRATION_LOCO_AUDIT_ARG = --owner-score-calibration-loco-audit "$(OWNER_SCORE_CALIBRATION_LOCO_AUDIT)"
 DETECTION_ACCURACY_DRUM_FALSE_POSITIVE_CAP_AUDIT_ARG = --drum-false-positive-cap-audit "$(DRUM_FALSE_POSITIVE_CAP_AUDIT)"
@@ -243,8 +385,9 @@ DETECTION_ACCURACY_DRUM_RECOVERY_CANDIDATE_AUDIT_ARG = $(if $(wildcard $(DRUM_RE
 DETECTION_ACCURACY_CHORD_PRIMARY_COMPONENT_AUDIT_ARG = --chord-primary-component-audit "$(CHORD_PRIMARY_COMPONENT_AUDIT)"
 DETECTION_ACCURACY_POLYPHONIC_CANDIDATE_CAPACITY_AUDIT_ARG = --polyphonic-candidate-capacity-audit "$(POLYPHONIC_CANDIDATE_CAPACITY_AUDIT)"
 DETECTION_ACCURACY_HARMONIC_PRODUCT_OCTAVE_AUDIT_ARG = --harmonic-product-octave-audit "$(HARMONIC_PRODUCT_OCTAVE_AUDIT)"
-DETECTION_ACCURACY_SAME_ROOT_GUITAR_QUALITY_AUDIT_ARG = --same-root-guitar-quality-audit "$(SAME_ROOT_GUITAR_QUALITY_AUDIT)" $(DETECTION_ACCURACY_OWNER_CLASSIFIER_LOCO_AUDIT_ARG) $(DETECTION_ACCURACY_OWNER_SCORE_CALIBRATION_LOCO_AUDIT_ARG) --drum-primary-loco-audit "$(DRUM_PRIMARY_LOCO_AUDIT)" $(DETECTION_ACCURACY_DRUM_FALSE_POSITIVE_CAP_AUDIT_ARG) $(DETECTION_ACCURACY_MDB_FULL_MIX_FALSE_POSITIVE_CAP_AUDIT_ARG) $(DETECTION_ACCURACY_MDB_FULL_MIX_COMPETING_ACTIVE_CONTEXT_AUDIT_ARG) $(DETECTION_ACCURACY_DRUM_FALSE_POSITIVE_CONTEXT_AUDIT_ARG) $(DETECTION_ACCURACY_DRUM_RECOVERY_CANDIDATE_AUDIT_ARG) $(DETECTION_ACCURACY_CHORD_PRIMARY_COMPONENT_AUDIT_ARG) $(DETECTION_ACCURACY_POLYPHONIC_CANDIDATE_CAPACITY_AUDIT_ARG) $(DETECTION_ACCURACY_HARMONIC_PRODUCT_OCTAVE_AUDIT_ARG) $(DETECTION_ACCURACY_29K_DRUMS_INSPECTION_ARG) $(DETECTION_ACCURACY_29K_DRUMS_MEASUREMENT_ARG) $(DETECTION_ACCURACY_29K_DRUMS_PRIMARY_ATTRIBUTE_ARG) $(DETECTION_ACCURACY_VIRTUOSITY_DRUMS_MEASUREMENT_ARG)
-DETECTION_ACCURACY_GUITARSET_ATTRIBUTE_ARG = $(if $(wildcard $(GUITARSET_ATTRIBUTE_TSV)),--guitarset-attribute-input "$(GUITARSET_ATTRIBUTE_TSV)") $(DETECTION_ACCURACY_FSD50K_RIM_METADATA_ARG)
+DETECTION_ACCURACY_SATB_RELATIVE_CHROMA_SELECTOR_AUDIT_ARG = --satb-relative-chroma-selector-audit "$(SATB_RELATIVE_CHROMA_SELECTOR_AUDIT)"
+DETECTION_ACCURACY_SAME_ROOT_GUITAR_QUALITY_AUDIT_ARG = --same-root-guitar-quality-audit "$(SAME_ROOT_GUITAR_QUALITY_AUDIT)" $(DETECTION_ACCURACY_OWNER_CLASSIFIER_LOCO_AUDIT_ARG) $(DETECTION_ACCURACY_OWNER_SCORE_CALIBRATION_LOCO_AUDIT_ARG) --drum-primary-loco-audit "$(DRUM_PRIMARY_LOCO_AUDIT)" $(DETECTION_ACCURACY_DRUM_FALSE_POSITIVE_CAP_AUDIT_ARG) $(DETECTION_ACCURACY_MDB_FULL_MIX_FALSE_POSITIVE_CAP_AUDIT_ARG) $(DETECTION_ACCURACY_MDB_FULL_MIX_COMPETING_ACTIVE_CONTEXT_AUDIT_ARG) $(DETECTION_ACCURACY_DRUM_FALSE_POSITIVE_CONTEXT_AUDIT_ARG) $(DETECTION_ACCURACY_DRUM_RECOVERY_CANDIDATE_AUDIT_ARG) $(DETECTION_ACCURACY_CHORD_PRIMARY_COMPONENT_AUDIT_ARG) $(DETECTION_ACCURACY_POLYPHONIC_CANDIDATE_CAPACITY_AUDIT_ARG) $(DETECTION_ACCURACY_HARMONIC_PRODUCT_OCTAVE_AUDIT_ARG) $(DETECTION_ACCURACY_SATB_RELATIVE_CHROMA_SELECTOR_AUDIT_ARG) $(DETECTION_ACCURACY_29K_DRUMS_INSPECTION_ARG) $(DETECTION_ACCURACY_29K_DRUMS_MEASUREMENT_ARG) $(DETECTION_ACCURACY_29K_DRUMS_PRIMARY_ATTRIBUTE_ARG) $(DETECTION_ACCURACY_VIRTUOSITY_DRUMS_MEASUREMENT_ARG)
+DETECTION_ACCURACY_GUITARSET_ATTRIBUTE_ARG = $(if $(wildcard $(GUITARSET_ATTRIBUTE_TSV)),--guitarset-attribute-input "$(GUITARSET_ATTRIBUTE_TSV)") $(if $(wildcard $(GUITAR_TECHS_ISOLATED_VISUAL_AUDIT)),--guitar-techs-isolated-visual-audit "$(GUITAR_TECHS_ISOLATED_VISUAL_AUDIT)") $(if $(wildcard $(IDMT_GUITAR_ISOLATED_VISUAL_AUDIT)),--idmt-guitar-isolated-visual-audit "$(IDMT_GUITAR_ISOLATED_VISUAL_AUDIT)") $(if $(wildcard $(AGPT_GUITAR_MEASUREMENT)),--agpt-guitar-measurement "$(AGPT_GUITAR_MEASUREMENT)") $(if $(wildcard $(AGPT_GUITAR_VISUAL_PRIMARY_MEASUREMENT)),--agpt-guitar-visual-primary "$(AGPT_GUITAR_VISUAL_PRIMARY_MEASUREMENT)") $(if $(wildcard $(AGPT_GUITAR_VISUAL_PATTERN_REPORT)),--agpt-guitar-visual-mining "$(AGPT_GUITAR_VISUAL_PATTERN_REPORT)") $(if $(wildcard $(CROSS_CORPUS_GUITAR_PRIMARY_ORDER_AUDIT)),--cross-corpus-guitar-primary-order-audit "$(CROSS_CORPUS_GUITAR_PRIMARY_ORDER_AUDIT)") $(DETECTION_ACCURACY_FSD50K_RIM_METADATA_ARG)
 DETECTION_ACCURACY_REPORT ?= docs/detection_accuracy_report.md
 DETECTION_ACCURACY_29K_DRUMS_INSPECTION_ARG = $(if $(wildcard $(SAMPLES29K_DRUMS_INSPECTION)),--29k-drums-inspection "$(SAMPLES29K_DRUMS_INSPECTION)")
 DETECTION_ACCURACY_29K_DRUMS_MEASUREMENT_ARG = $(if $(wildcard $(SAMPLES29K_DRUMS_MEASUREMENT)),--29k-drums-measurement "$(SAMPLES29K_DRUMS_MEASUREMENT)")
@@ -259,7 +402,9 @@ DETECTION_ACCURACY_FSD50K_RIM_METADATA_ARG += $(DETECTION_ACCURACY_PIXABAY_RIMSH
 DETECTION_ACCURACY_FSD50K_RIM_METADATA_ARG += $(DETECTION_ACCURACY_PIXABAY_RIMSHOT_F_MEASUREMENT_ARG)
 DETECTION_ACCURACY_FSD50K_RIM_METADATA_ARG += $(DETECTION_ACCURACY_PIXABAY_RIM_SHOT_MEASUREMENT_ARG)
 HIGH_VOCAL_OCTAVE_AUDIT ?= $(BUILD_DIR)/high_vocal_octave_evidence.txt
+HIGH_SOPRANO_VOCAL_MIRROR_AUDIT ?= $(BUILD_DIR)/high_soprano_vocal_mirror_audit.txt
 DETECTION_ACCURACY_HIGH_VOCAL_OCTAVE_AUDIT_ARG = $(if $(wildcard $(HIGH_VOCAL_OCTAVE_AUDIT)),--high-vocal-octave-audit "$(HIGH_VOCAL_OCTAVE_AUDIT)")
+DETECTION_ACCURACY_HIGH_SOPRANO_VOCAL_MIRROR_AUDIT_ARG = $(if $(wildcard $(HIGH_SOPRANO_VOCAL_MIRROR_AUDIT)),--high-soprano-vocal-mirror-audit "$(HIGH_SOPRANO_VOCAL_MIRROR_AUDIT)")
 GUITAR_CHORD_PRIMARY_DISPLAY_AUDIT ?= $(BUILD_DIR)/guitar_chord_primary_display_audit.txt
 DETECTION_ACCURACY_GUITAR_CHORD_PRIMARY_DISPLAY_AUDIT_ARG = $(if $(wildcard $(GUITAR_CHORD_PRIMARY_DISPLAY_AUDIT)),--guitar-chord-primary-display-audit "$(GUITAR_CHORD_PRIMARY_DISPLAY_AUDIT)")
 GUITAR_CHORD_TONE_RECOVERY_AUDIT ?= $(BUILD_DIR)/guitar_chord_tone_recovery_audit.txt
@@ -271,7 +416,10 @@ DETECTION_ACCURACY_DAGSTUHL_CHOIRSET_VALIDATION_ARG = $(if $(wildcard $(DAGSTUHL
 DETECTION_ACCURACY_DAGSTUHL_CHOIRSET_INSPECTION_ARG = $(if $(wildcard $(DAGSTUHL_CHOIRSET_INSPECTION_OUTPUT)),--dagstuhl-choirset-inspection "$(DAGSTUHL_CHOIRSET_INSPECTION_OUTPUT)")
 DETECTION_ACCURACY_DAGSTUHL_CHOIRSET_EXTRACT_ARG = $(if $(wildcard $(DAGSTUHL_CHOIRSET_EXTRACT_DIR)/DagstuhlChoirSet/README.md),--dagstuhl-choirset-extraction "$(DAGSTUHL_CHOIRSET_EXTRACT_DIR)/DagstuhlChoirSet/README.md")
 DETECTION_ACCURACY_DAGSTUHL_CHOIRSET_MANIFEST_ARG = $(if $(wildcard $(DAGSTUHL_CHOIRSET_PREPARED_DIR)/manifest.json),--dagstuhl-choirset-manifest "$(DAGSTUHL_CHOIRSET_PREPARED_DIR)/manifest.json")
-DETECTION_ACCURACY_MAESTRO_REAL_MEASUREMENT_ARG = $(if $(wildcard $(MAESTRO_REAL_MEASUREMENT_OUTPUT)),--maestro-real-measurement "$(MAESTRO_REAL_MEASUREMENT_OUTPUT)")
+# The full MAESTRO replay is a verbose diagnostic stream, whereas the dashboard
+# requires a completed shard-summary contract.  Its attribute TSV and manifest
+# remain eligible evidence; do not misparse a partial/verbose log as a summary.
+DETECTION_ACCURACY_MAESTRO_REAL_MEASUREMENT_ARG =
 DETECTION_ACCURACY_MAESTRO_REAL_ATTRIBUTE_ARG = $(if $(wildcard $(MAESTRO_REAL_ATTRIBUTE_TSV)),--maestro-real-attribute-input "$(MAESTRO_REAL_ATTRIBUTE_TSV)")
 DETECTION_ACCURACY_INDEPENDENT_PIANO_STATE_ARG = $(if $(wildcard $(MAESTRO_REAL_CHORD_STATE_OUTPUT)),--independent-piano-chord-state-evidence "$(MAESTRO_REAL_CHORD_STATE_OUTPUT)")
 DETECTION_ACCURACY_INDEPENDENT_PIANO_STABILITY_ARG = $(if $(wildcard $(INDEPENDENT_PIANO_CHORD_STABILITY_OUTPUT)),--independent-piano-chord-stability-evidence "$(INDEPENDENT_PIANO_CHORD_STABILITY_OUTPUT)")
@@ -291,6 +439,7 @@ DETECTION_ACCURACY_KRAISLER_EXTRACT_ARG = $(if $(wildcard $(KRAISLER_EXTRACT_DIR
 DETECTION_ACCURACY_KRAISLER_MANIFEST_ARG = $(if $(wildcard $(KRAISLER_PREPARED_DIR)/manifest.json),--kraisler-manifest "$(KRAISLER_PREPARED_DIR)/manifest.json")
 DETECTION_ACCURACY_KRAISLER_MEASUREMENT_ARG = $(if $(wildcard $(KRAISLER_MEASUREMENT_OUTPUT)),--kraisler-measurement "$(KRAISLER_MEASUREMENT_OUTPUT)") $(DETECTION_ACCURACY_KRAISLER_BPM_ARG) $(DETECTION_ACCURACY_BALLROOM_BPM_ARG) $(DETECTION_ACCURACY_BALLROOM_ANNOTATIONS_ARG) $(DETECTION_ACCURACY_GTZAN_RHYTHM_BPM_ARG) $(DETECTION_ACCURACY_BEAT_THIS_GTZAN_ARG) $(DETECTION_ACCURACY_BEAT_THIS_BALLROOM_ARG) $(DETECTION_ACCURACY_BEAT_THIS_FILOBASS_ARG) $(DETECTION_ACCURACY_FILOBASS_BPM_ARG) $(DETECTION_ACCURACY_FILOBASS_ONSET_DIAGNOSTIC_ARG) $(DETECTION_ACCURACY_EGMD_BPM_ARG) $(DETECTION_ACCURACY_IDMT_BASS_TEMPO_METADATA_ARG)
 DETECTION_ACCURACY_KRAISLER_MEASUREMENT_ARG += $(DETECTION_ACCURACY_CANDOMBE_BPM_ARG)
+DETECTION_ACCURACY_KRAISLER_MEASUREMENT_ARG += $(DETECTION_ACCURACY_IMMEDIATE_SOURCE_BPM_3S_ARG)
 DETECTION_ACCURACY_KRAISLER_MEASUREMENT_ARG += $(DETECTION_ACCURACY_CANDOMBE_INSPECTION_ARG)
 DETECTION_ACCURACY_KRAISLER_MEASUREMENT_ARG += $(DETECTION_ACCURACY_THREE_TEMPO_TRACKER_CONSENSUS_ARG)
 DETECTION_ACCURACY_KRAISLER_MEASUREMENT_ARG += $(DETECTION_ACCURACY_HIGH_TEMPO_THREE_TEMPO_TRACKER_CONSENSUS_ARG)
@@ -318,6 +467,7 @@ DETECTION_ACCURACY_CANDOMBE_BPM_ARG = $(if $(wildcard $(CANDOMBE_BPM_LOG)),--can
 DETECTION_ACCURACY_CANDOMBE_INSPECTION_ARG = $(if $(wildcard $(CANDOMBE_INSPECTION_OUTPUT)),--candombe-inspection "$(CANDOMBE_INSPECTION_OUTPUT)")
 DETECTION_ACCURACY_FILOBASS_BPM_ARG = $(if $(wildcard $(FILOBASS_BPM_LOG)),--filobass-bpm-input "$(FILOBASS_BPM_LOG)")
 DETECTION_ACCURACY_FILOBASS_ONSET_DIAGNOSTIC_ARG = $(if $(wildcard $(FILOBASS_ONSET_DIAGNOSTICS)),--filobass-onset-diagnostic-input "$(FILOBASS_ONSET_DIAGNOSTICS)")
+DETECTION_ACCURACY_IMMEDIATE_SOURCE_BPM_3S_ARG = $(if $(wildcard $(IMMEDIATE_SOURCE_BPM_3S_AUDIT)),--immediate-source-bpm-3s-audit "$(IMMEDIATE_SOURCE_BPM_3S_AUDIT)")
 DETECTION_ACCURACY_BTT_BALLROOM_ARG = $(if $(wildcard $(BTT_BALLROOM_LOG)),--btt-ballroom-bpm-input "$(BTT_BALLROOM_LOG)")
 DETECTION_ACCURACY_BTT_FILOBASS_ARG = $(if $(wildcard $(BTT_FILOBASS_LOG)),--btt-filobass-bpm-input "$(BTT_FILOBASS_LOG)")
 DETECTION_ACCURACY_BTT_EGMD_ARG = $(if $(wildcard $(BTT_EGMD_LOG)),--btt-egmd-bpm-input "$(BTT_EGMD_LOG)")
@@ -339,6 +489,7 @@ DETECTION_ACCURACY_ESMUC_CHOIR_DATASET_PATTERN_REPORT_ARG = $(if $(wildcard $(ES
 DETECTION_ACCURACY_MIR1K_DATASET_ARCHIVE_ARG = $(if $(wildcard $(MIR1K_DATASET_ARCHIVE)),--mir1k-dataset-archive "$(MIR1K_DATASET_ARCHIVE)")
 DETECTION_ACCURACY_MIR1K_DATASET_EXTRACT_ARG = $(if $(wildcard $(MIR1K_DATASET_EXTRACT_DIR)/.mir1k-extraction-complete),--mir1k-dataset-extraction "$(MIR1K_DATASET_EXTRACT_DIR)/.mir1k-extraction-complete")
 DETECTION_ACCURACY_OTHER_DETECTION_ARG := --other-detection-disabled
+DETECTION_ACCURACY_BASIC_PITCH_ONNX_ARGS = --basic-pitch-onnx-true-miss-replay "$(BASIC_PITCH_ONNX_CHOIR_REPLAY)" --basic-pitch-onnx-full-replay "$(BASIC_PITCH_ONNX_CHOIR_FULL_REPLAY)" --basic-pitch-onnx-safe-replay "$(BASIC_PITCH_ONNX_CHOIR_SAFE_REPLAY)" --basic-pitch-onnx-choir-strict-replay "$(BASIC_PITCH_ONNX_CHOIR_STRICT_REPLAY)" --basic-pitch-onnx-musicnet-strict-replay "$(BASIC_PITCH_ONNX_MUSICNET_STRICT_REPLAY)" --basic-pitch-onnx-cross-domain-safe-replay "$(BASIC_PITCH_ONNX_CROSS_DOMAIN_SAFE_REPLAY)" --basic-pitch-onnx-cross-domain-worker-safe-replay "$(BASIC_PITCH_ONNX_CROSS_DOMAIN_WORKER_SAFE_REPLAY)"
 DETECTION_ACCURACY_MIR1K_FULL_MIX_ARG = $(if $(wildcard $(MIR1K_DATASET_ATTRIBUTE_OUTPUT)),--mir1k-full-mix-input "$(MIR1K_DATASET_ATTRIBUTE_OUTPUT)")
 DETECTION_ACCURACY_SCMS_ARCHIVE_ARG = $(if $(wildcard $(SCMS_DATASET_VALIDATION_OUTPUT)),--scms-dataset-archive "$(SCMS_DATASET_ARCHIVE)")
 DETECTION_ACCURACY_SCMS_INSPECTION_ARG = $(if $(wildcard $(SCMS_DATASET_INSPECTION_OUTPUT)),--scms-dataset-inspection "$(SCMS_DATASET_INSPECTION_OUTPUT)")
@@ -359,9 +510,11 @@ DETECTION_ACCURACY_CHORD_TSVS ?= $(BUILD_DIR)/guitar_chord_mix_attributes.tsv $(
 DETECTION_ACCURACY_CHORD_ARGS = $(foreach path,$(wildcard $(DETECTION_ACCURACY_CHORD_TSVS)),--chord-input "$(path)")
 # Chord-route candidates must be safe against every cached labelled guitar
 # corpus, not merely against the source corpus that happened to expose them.
+# IDMT-SMT-Guitar contributes independent, real electric-guitar ownership
+# evidence even though its monophonic clips do not supply a chord target.
 # The explicit source path added by each route target below also covers the
 # smaller GAPS subset, which is intentionally not part of the accuracy rollup.
-GUITAR_CHORD_ROUTE_PROTECTED_TSVS ?= $(DETECTION_ACCURACY_CHORD_TSVS) $(EGFXSET_GUITAR_ATTRIBUTE_TSV)
+GUITAR_CHORD_ROUTE_PROTECTED_TSVS ?= $(DETECTION_ACCURACY_CHORD_TSVS) $(EGFXSET_GUITAR_ATTRIBUTE_TSV) $(IDMT_GUITAR_ATTRIBUTE_TSV)
 GUITAR_CHORD_ROUTE_PROTECTED_ARGS = $(foreach path,$(wildcard $(GUITAR_CHORD_ROUTE_PROTECTED_TSVS)),--protected-path "$(path)")
 DETECTION_ACCURACY_VOCAL_FULL_MIX_TSV ?= $(BUILD_DIR)/vocadito_full_mix_attributes.tsv
 DETECTION_ACCURACY_VOCAL_FULL_MIX_ARG = $(if $(wildcard $(DETECTION_ACCURACY_VOCAL_FULL_MIX_TSV)),--vocal-full-mix-input "$(DETECTION_ACCURACY_VOCAL_FULL_MIX_TSV)")
@@ -477,6 +630,10 @@ DETECTOR_IMPROVEMENT_ROUTE_SUMMARY_ARGS ?= --min-actionable-corpora 2
 DETECTOR_IMPROVEMENT_AUDIT_REPORT ?= $(BUILD_DIR)/detector_improvement_audit.txt
 DETECTOR_IMPROVEMENT_AUDIT_TAIL_LINES ?= 60
 DETECTOR_IMPROVEMENT_AUDIT_TARGETS ?= detector-improvement-route-summary-refresh find-protected-drum-primary-attribute-patterns find-protected-drum-full-exact-attribute-patterns find-drum-active-false-patterns-full
+# Each route miner can use REAL_NOTE_PATTERN_JOBS workers itself.  Keep the
+# outer fan-out bounded so several large Python process pools cannot exhaust
+# memory before any protected candidate is reported.
+DETECTOR_IMPROVEMENT_ROUTE_MAKE_JOBS ?= -j2
 MEASURE_ANALYZER_PATTERN_SECTION_OUTPUTS := \
 	$(MEASURE_ANALYZER_PATTERN_DETECTED_REPORT) \
 	$(MEASURE_ANALYZER_PATTERN_SUMMARY_REPORT) \
@@ -649,6 +806,8 @@ REAL_NOTE_PATTERN_JOBS ?= $(PARALLEL_TEST_JOBS)
 INSTRUMENT_PATTERN_JOBS ?= $(PARALLEL_TEST_JOBS)
 DISPLAY_SHADOW_JOBS ?= $(REAL_NOTE_PATTERN_JOBS)
 OBS_USER_PLUGIN_DIR ?= $(HOME)/.config/obs-studio/plugins/music-analyzer-obs/bin/64bit
+OBS_USER_PLUGIN_ROOT ?= $(abspath $(OBS_USER_PLUGIN_DIR)/../..)
+OBS_USER_PLUGIN_DATA_DIR ?= $(OBS_USER_PLUGIN_ROOT)/data/basic_pitch
 URMP_FIXTURE_ARCHIVE := tests/fixtures/urmp-mini.tar.gz
 DIRECT_FIT_SMALL_FIXTURE_ARCHIVE := tests/fixtures/direct-fit-small.tar.gz
 URMP_FIXTURE_DIR := $(BUILD_DIR)/urmp-fixture
@@ -918,6 +1077,18 @@ ENST_DRUMS_ARCHIVE ?= $(ENST_DRUMS_SOURCE_DIR)/enstdrums_yourmt3_16k.tar.gz
 ENST_DRUMS_ARCHIVE_URL ?= https://zenodo.org/record/7831843/files/enstdrums_yourmt3_16k.tar.gz?download=1
 ENST_DRUMS_ARCHIVE_MD5 ?= 7e28c2a923e4f4162b3d83877cedb5eb
 ENST_DRUMS_LICENSE_ACCEPTED ?= 0
+ENST_DRUMS_INSPECTION ?= $(BUILD_DIR)/enst_drums_inspection.txt
+ENST_DRUMS_SAMPLE_DIR ?= $(INSTRUMENT_SAMPLE_STORE_LINK)/enst_drums_samples
+ENST_DRUMS_LIMIT_PER_CATEGORY ?= 32
+ENST_DRUMS_MIN_PER_CATEGORY ?= 1
+ENST_DRUMS_MEASUREMENT ?= $(BUILD_DIR)/enst_drums_measurement.log
+EGMD_ARCHIVE_URL ?= https://storage.googleapis.com/magentadata/datasets/e-gmd/v1.0.0/e-gmd-v1.0.0.zip
+EGMD_SOURCE_DIR ?= $(INSTRUMENT_SAMPLE_STORE_LINK)/egmd
+EGMD_ARCHIVE_BYTES ?= 96422999145
+EGMD_ARCHIVE ?= $(EGMD_SOURCE_DIR)/e-gmd-v1.0.0.zip
+EGMD_ARCHIVE_MD5 ?= 514af23329b0472a8349d1aaf8fb98dd
+EGMD_DOWNLOAD_LOG ?= $(BUILD_DIR)/egmd_download.log
+EGMD_DOWNLOAD_PID ?= $(BUILD_DIR)/egmd_download.pid
 VIRTUOSITY_DRUMS_REPOSITORY ?= https://github.com/sfzinstruments/virtuosity_drums.git
 VIRTUOSITY_DRUMS_BRANCH ?= master
 VIRTUOSITY_DRUMS_SOURCE_PROBE ?= $(BUILD_DIR)/virtuosity_drums_source.txt
@@ -973,6 +1144,9 @@ PIXABAY_RIM_SHOT_WAV ?= $(PIXABAY_RIM_SHOT_SOURCE_DIR)/rim/rim_shot.wav
 PIXABAY_RIM_SHOT_MEASUREMENT ?= $(BUILD_DIR)/pixabay_rim_shot_measurement.log
 PIXABAY_RIM_SHOT_MEASUREMENT_AUDIT ?= $(BUILD_DIR)/pixabay_rim_shot_measurement.txt
 BPM_DIAG_TOLERANCE ?= 8
+IMMEDIATE_SOURCE_BPM_3S_AUDIT ?= $(BUILD_DIR)/immediate_source_bpm_3s_audit.txt
+FILOBASS_IMMEDIATE_SOURCE_BPM_3S_LOG ?= $(BUILD_DIR)/filobass_bpm_3s_source_diagnostics.log
+GTZAN_IMMEDIATE_SOURCE_BPM_3S_LOG ?= $(BUILD_DIR)/gtzan_rhythm_bpm_3s_source_diagnostics.log
 EGMD_BPM_MAX_SECONDS ?= 20
 MDB_BPM_MAX_SECONDS ?= 20
 MAESTRO_BPM_MAX_SECONDS ?= 20
@@ -1244,6 +1418,7 @@ GUITAR_TECHS_SAMPLE_DIR ?= $(BUILD_DIR)/guitar_techs_samples
 GUITAR_TECHS_ATTRIBUTE_TSV ?= $(BUILD_DIR)/guitar_techs_attributes.tsv
 GUITAR_TECHS_DETECTED_ATTRIBUTE_ROWS ?= $(BUILD_DIR)/guitar_techs_detected_attribute_rows.tsv
 GUITAR_TECHS_MISS_ATTRIBUTE_ROWS ?= $(BUILD_DIR)/guitar_techs_miss_attribute_rows.tsv
+GUITAR_TECHS_ISOLATED_VISUAL_AUDIT ?= $(BUILD_DIR)/guitar_techs_isolated_visual_audit.txt
 GUITAR_TECHS_SAMPLE_LIMIT ?= 0
 GUITAR_TECHS_MIN_GUITAR ?= 200
 GUITAR_TECHS_MAX_FAILURES ?= 0
@@ -1571,6 +1746,7 @@ IDMT_GUITAR_SAMPLE_DIR ?= $(BUILD_DIR)/idmt_guitar_samples
 IDMT_GUITAR_ATTRIBUTE_TSV ?= $(BUILD_DIR)/idmt_guitar_attributes.tsv
 IDMT_GUITAR_DETECTED_ATTRIBUTE_ROWS ?= $(BUILD_DIR)/idmt_guitar_detected_attribute_rows.tsv
 IDMT_GUITAR_MISS_ATTRIBUTE_ROWS ?= $(BUILD_DIR)/idmt_guitar_miss_attribute_rows.tsv
+IDMT_GUITAR_ISOLATED_VISUAL_AUDIT ?= $(BUILD_DIR)/idmt_guitar_isolated_visual_audit.txt
 IDMT_GUITAR_SAMPLE_LIMIT ?= 0
 IDMT_GUITAR_MIN_GUITAR ?= 200
 IDMT_GUITAR_MAX_FAILURES ?= 8
@@ -1737,8 +1913,9 @@ RENDERER_OBJ := $(BUILD_DIR)/visualizer_renderer.o
 BTT_SOURCE_DIR := third_party/beat_and_tempo_tracking
 BTT_C_SOURCES := $(wildcard $(BTT_SOURCE_DIR)/src/*.c)
 BTT_OBJS := $(patsubst $(BTT_SOURCE_DIR)/src/%.c,$(BUILD_DIR)/btt_%.o,$(BTT_C_SOURCES))
-PLUGIN_OBJS := $(BUILD_DIR)/analyzer.o $(RENDERER_OBJ) $(BUILD_DIR)/beat_this_sidecar_client.o $(BUILD_DIR)/plugin.o $(BTT_OBJS)
-ANALYZER_TEST_OBJ := $(BUILD_DIR)/analyzer_test.o $(BTT_OBJS)
+BASIC_PITCH_RUNTIME_OBJS := $(BUILD_DIR)/basic_pitch_onnx_runtime.o $(BUILD_DIR)/basic_pitch_onnx_decoder.o $(BUILD_DIR)/basic_pitch_onnx_worker.o $(BUILD_DIR)/basic_pitch_pcm_history.o
+PLUGIN_OBJS := $(BUILD_DIR)/analyzer.o $(RENDERER_OBJ) $(BUILD_DIR)/beat_this_sidecar_client.o $(BUILD_DIR)/plugin.o $(BTT_OBJS) $(BASIC_PITCH_RUNTIME_OBJS)
+ANALYZER_TEST_OBJ := $(BUILD_DIR)/analyzer_test.o $(BTT_OBJS) $(BASIC_PITCH_RUNTIME_OBJS)
 TEST_BINS := $(BUILD_DIR)/fret_control_tests $(BUILD_DIR)/visualizer_renderer_tests $(BUILD_DIR)/analyzer_internal $(BUILD_DIR)/analyzer_smoke $(BUILD_DIR)/analyzer_cases $(BUILD_DIR)/analyzer_midi_ranges $(BUILD_DIR)/analyzer_urmp $(BUILD_DIR)/analyzer_musicnet $(BUILD_DIR)/analyzer_multtipop $(BUILD_DIR)/analyzer_guitarset $(BUILD_DIR)/analyzer_maestro $(BUILD_DIR)/analyzer_egmd $(BUILD_DIR)/analyzer_drum_samples $(BUILD_DIR)/analyzer_instrument_samples $(BUILD_DIR)/analyzer_real_note_samples $(BUILD_DIR)/analyzer_instrument_family_samples
 BTT_PROBE := $(BUILD_DIR)/btt_tempo_probe
 STANDALONE_BIN := $(BUILD_DIR)/music-analyzer-standalone
@@ -1782,7 +1959,8 @@ VOCADITO_FULL_MIX_TEST_MAKE_JOBS = $(if $(filter -j%,$(MAKEFLAGS)),,-j$(VOCADITO
 VOCADITO_FULL_MIX_ATTRIBUTE_MAKE_JOBS = $(if $(filter -j%,$(MAKEFLAGS)),,-j$(VOCADITO_FULL_MIX_SHARDS))
 REAL_NOTE_FULL_MIX_MAX_VISUAL_PIANO_ELECTRONIC_GUITAR ?= 160
 REAL_NOTE_FULL_MIX_MIN_VISIBLE_LIT_EXACT_SAMPLE_PERCENT ?= 73
-REAL_NOTE_FULL_MIX_MIN_VISIBLE_LIT_EXACT_FAMILY_SAMPLE_PERCENT ?= bass=90 guitar=74 piano=67 vocals=90 other=77
+REAL_NOTE_FULL_MIX_MIN_VISIBLE_LIT_EXACT_FAMILY_SAMPLE_PERCENT ?= bass=90 guitar=74 piano=67 vocals=90
+REAL_NOTE_FULL_MIX_VISUAL_STRENGTH_EXCLUDED_FAMILIES ?= other
 REAL_NOTE_FULL_MIX_MAX_ROW_SOURCE_ROUTES ?= \
 	piano/electronic->guitar=320 \
 	other/acoustic->guitar=195 \
@@ -1804,6 +1982,7 @@ REAL_NOTE_FULL_MIX_SOURCE_ROUTE_LIMIT_ARGS = \
 REAL_NOTE_FULL_MIX_VISUAL_STRENGTH_ARGS = \
 	--check-only \
 	--min-visible-lit-exact-sample-percent "$(REAL_NOTE_FULL_MIX_MIN_VISIBLE_LIT_EXACT_SAMPLE_PERCENT)" \
+	$(foreach family,$(REAL_NOTE_FULL_MIX_VISUAL_STRENGTH_EXCLUDED_FAMILIES),--exclude-family "$(family)") \
 	$(foreach threshold,$(REAL_NOTE_FULL_MIX_MIN_VISIBLE_LIT_EXACT_FAMILY_SAMPLE_PERCENT),--min-visible-lit-exact-family-sample-percent "$(threshold)")
 REAL_NOTE_SAMPLE_SHARDS ?= $(PARALLEL_TEST_JOBS)
 REAL_NOTE_SAMPLE_SHARD_INDEXES := $(shell i=0; while [ $$i -lt $(REAL_NOTE_SAMPLE_SHARDS) ]; do printf '%s ' $$i; i=$$((i + 1)); done)
@@ -2150,6 +2329,261 @@ $(BUILD_DIR):
 $(DEPS_DIR): | $(BUILD_DIR)
 	mkdir -p $(DEPS_DIR)
 
+# Optional research-only ONNX probe.  It is deliberately not a prerequisite of
+# `all` or `install-user`: the live fusion path must first pass protected-corpus
+# gates and run off the OBS audio thread.
+$(ONNXRUNTIME_HEADER) $(BASIC_PITCH_ONNX_MODEL): scripts/download_basic_pitch_onnx_probe.sh | $(BUILD_DIR)
+	$(SHELL) scripts/download_basic_pitch_onnx_probe.sh "$(ONNXRUNTIME_VERSION)" "$(ONNXRUNTIME_ROOT)" "$(BASIC_PITCH_ONNX_MODEL)"
+
+$(BUILD_DIR)/basic_pitch_onnx_probe.o: tests/basic_pitch_onnx_probe.cpp $(ONNXRUNTIME_HEADER) | $(BUILD_DIR)
+	$(CXX) $(CXXFLAGS) -I"$(ONNXRUNTIME_ROOT)/include" -c $< -o $@
+
+$(BUILD_DIR)/basic_pitch_onnx_probe: $(BUILD_DIR)/basic_pitch_onnx_probe.o
+	$(CXX) -o $@ $^ -ldl
+
+.PHONY: test-basic-pitch-onnx-probe
+test-basic-pitch-onnx-probe: $(BUILD_DIR)/basic_pitch_onnx_probe $(ONNXRUNTIME_LIBRARY) $(BASIC_PITCH_ONNX_MODEL)
+	$(BUILD_DIR)/basic_pitch_onnx_probe "$(ONNXRUNTIME_LIBRARY)" "$(BASIC_PITCH_ONNX_MODEL)"
+
+$(BUILD_DIR)/basic_pitch_onnx_runtime.o: src/basic_pitch_onnx_runtime.cpp src/basic_pitch_onnx_runtime.hpp $(ONNXRUNTIME_HEADER) | $(BUILD_DIR)
+	$(CXX) $(CXXFLAGS) -I"$(ONNXRUNTIME_ROOT)/include" -Isrc -c $< -o $@
+
+$(BUILD_DIR)/basic_pitch_onnx_runtime_tests.o: tests/basic_pitch_onnx_runtime.cpp src/basic_pitch_onnx_runtime.hpp | $(BUILD_DIR)
+	$(CXX) $(CXXFLAGS) -Isrc -c $< -o $@
+
+$(BUILD_DIR)/basic_pitch_onnx_runtime_tests: $(BUILD_DIR)/basic_pitch_onnx_runtime.o $(BUILD_DIR)/basic_pitch_onnx_runtime_tests.o
+	$(CXX) -o $@ $^ -ldl
+
+.PHONY: test-basic-pitch-onnx-runtime
+test-basic-pitch-onnx-runtime: $(BUILD_DIR)/basic_pitch_onnx_runtime_tests $(ONNXRUNTIME_LIBRARY) $(BASIC_PITCH_ONNX_MODEL)
+	$(BUILD_DIR)/basic_pitch_onnx_runtime_tests "$(ONNXRUNTIME_LIBRARY)" "$(BASIC_PITCH_ONNX_MODEL)"
+
+$(BUILD_DIR)/basic_pitch_onnx_signal_tests.o: tests/basic_pitch_onnx_signal.cpp src/basic_pitch_onnx_runtime.hpp src/basic_pitch_onnx_decoder.hpp | $(BUILD_DIR)
+	$(CXX) $(CXXFLAGS) -Isrc -c $< -o $@
+
+$(BUILD_DIR)/basic_pitch_onnx_signal_tests: $(BUILD_DIR)/basic_pitch_onnx_runtime.o $(BUILD_DIR)/basic_pitch_onnx_decoder.o $(BUILD_DIR)/basic_pitch_onnx_signal_tests.o
+	$(CXX) -o $@ $^ -ldl
+
+.PHONY: test-basic-pitch-onnx-signal
+test-basic-pitch-onnx-signal: $(BUILD_DIR)/basic_pitch_onnx_signal_tests $(ONNXRUNTIME_LIBRARY) $(BASIC_PITCH_ONNX_MODEL)
+	$(BUILD_DIR)/basic_pitch_onnx_signal_tests "$(ONNXRUNTIME_LIBRARY)" "$(BASIC_PITCH_ONNX_MODEL)"
+
+$(BUILD_DIR)/basic_pitch_onnx_decoder.o: src/basic_pitch_onnx_decoder.cpp src/basic_pitch_onnx_decoder.hpp src/basic_pitch_onnx_runtime.hpp | $(BUILD_DIR)
+	$(CXX) $(CXXFLAGS) -Isrc -c $< -o $@
+
+$(BUILD_DIR)/basic_pitch_onnx_decoder_tests.o: tests/basic_pitch_onnx_decoder.cpp src/basic_pitch_onnx_decoder.hpp src/basic_pitch_onnx_runtime.hpp | $(BUILD_DIR)
+	$(CXX) $(CXXFLAGS) -Isrc -c $< -o $@
+
+$(BUILD_DIR)/basic_pitch_onnx_decoder_tests: $(BUILD_DIR)/basic_pitch_onnx_decoder.o $(BUILD_DIR)/basic_pitch_onnx_decoder_tests.o
+	$(CXX) -o $@ $^
+
+.PHONY: test-basic-pitch-onnx-decoder
+test-basic-pitch-onnx-decoder: $(BUILD_DIR)/basic_pitch_onnx_decoder_tests
+	$(BUILD_DIR)/basic_pitch_onnx_decoder_tests
+
+$(BUILD_DIR)/basic_pitch_onnx_worker.o: src/basic_pitch_onnx_worker.cpp src/basic_pitch_onnx_worker.hpp src/basic_pitch_onnx_runtime.hpp src/basic_pitch_onnx_decoder.hpp | $(BUILD_DIR)
+	$(CXX) $(CXXFLAGS) -Isrc -c $< -o $@
+
+$(BUILD_DIR)/basic_pitch_onnx_worker_tests.o: tests/basic_pitch_onnx_worker.cpp src/basic_pitch_onnx_worker.hpp | $(BUILD_DIR)
+	$(CXX) $(CXXFLAGS) -Isrc -c $< -o $@
+
+$(BUILD_DIR)/basic_pitch_onnx_worker_tests: $(BUILD_DIR)/basic_pitch_onnx_runtime.o $(BUILD_DIR)/basic_pitch_onnx_decoder.o $(BUILD_DIR)/basic_pitch_onnx_worker.o $(BUILD_DIR)/basic_pitch_onnx_worker_tests.o
+	$(CXX) -o $@ $^ -ldl -pthread
+
+.PHONY: test-basic-pitch-onnx-worker
+test-basic-pitch-onnx-worker: $(BUILD_DIR)/basic_pitch_onnx_worker_tests $(ONNXRUNTIME_LIBRARY) $(BASIC_PITCH_ONNX_MODEL)
+	$(BUILD_DIR)/basic_pitch_onnx_worker_tests "$(ONNXRUNTIME_LIBRARY)" "$(BASIC_PITCH_ONNX_MODEL)"
+
+$(BUILD_DIR)/basic_pitch_pcm_history.o: src/basic_pitch_pcm_history.cpp src/basic_pitch_pcm_history.hpp src/basic_pitch_onnx_runtime.hpp | $(BUILD_DIR)
+	$(CXX) $(CXXFLAGS) -Isrc -c $< -o $@
+
+$(BUILD_DIR)/basic_pitch_pcm_history_tests.o: tests/basic_pitch_pcm_history.cpp src/basic_pitch_pcm_history.hpp | $(BUILD_DIR)
+	$(CXX) $(CXXFLAGS) -Isrc -c $< -o $@
+
+$(BUILD_DIR)/basic_pitch_pcm_history_tests: $(BUILD_DIR)/basic_pitch_pcm_history.o $(BUILD_DIR)/basic_pitch_pcm_history_tests.o
+	$(CXX) -o $@ $^
+
+.PHONY: test-basic-pitch-pcm-history
+test-basic-pitch-pcm-history: $(BUILD_DIR)/basic_pitch_pcm_history_tests
+	$(BUILD_DIR)/basic_pitch_pcm_history_tests
+
+$(BUILD_DIR)/basic_pitch_vocal_fusion_tests.o: tests/basic_pitch_vocal_fusion.cpp src/basic_pitch_vocal_fusion.hpp src/analyzer.hpp | $(BUILD_DIR)
+	$(CXX) $(CXXFLAGS) -Isrc -c $< -o $@
+
+$(BUILD_DIR)/basic_pitch_vocal_fusion_tests: $(BUILD_DIR)/basic_pitch_vocal_fusion_tests.o
+	$(CXX) -o $@ $^
+
+.PHONY: test-basic-pitch-vocal-fusion
+test-basic-pitch-vocal-fusion: $(BUILD_DIR)/basic_pitch_vocal_fusion_tests
+	$(BUILD_DIR)/basic_pitch_vocal_fusion_tests
+
+.PHONY: test-basic-pitch-onnx inspect-basic-pitch-owner-evidence-core diagnose-basic-pitch-owner-evidence-asan
+test-basic-pitch-onnx: test-basic-pitch-onnx-probe test-basic-pitch-onnx-runtime test-basic-pitch-onnx-signal test-basic-pitch-onnx-decoder test-basic-pitch-onnx-worker test-basic-pitch-pcm-history test-basic-pitch-vocal-fusion
+
+
+inspect-basic-pitch-owner-evidence-core: $(BUILD_DIR)/basic_pitch_onnx_musicnet scripts/inspect_basic_pitch_core.sh
+	$(SHELL) scripts/inspect_basic_pitch_core.sh "$(BUILD_DIR)/basic_pitch_onnx_musicnet" core
+
+BASIC_PITCH_OWNER_EVIDENCE_ASAN_LOG ?= $(BUILD_DIR)/basic_pitch_owner_evidence_asan.log
+
+diagnose-basic-pitch-owner-evidence-asan: $(BUILD_DIR)/basic_pitch_onnx_musicnet scripts/run_basic_pitch_owner_evidence_asan.sh
+	$(SHELL) scripts/run_basic_pitch_owner_evidence_asan.sh "$(MAKE)" "$(BUILD_DIR)/basic_pitch_onnx_musicnet" "$(CXXFLAGS)" "$(LDFLAGS)" "$(DAGSTUHL_CHOIRSET_MUSICNET_DIR)" "$(ONNXRUNTIME_LIBRARY)" "$(BASIC_PITCH_ONNX_MODEL)" "$(BASIC_PITCH_OWNER_EVIDENCE_ASAN_LOG)"
+
+BASIC_PITCH_ONNX_CHOIR_REPLAY ?= $(BUILD_DIR)/basic_pitch_onnx_choir_replay.tsv
+BASIC_PITCH_ONNX_FUSION_THRESHOLD ?= 0.30
+
+$(BUILD_DIR)/basic_pitch_onnx_musicnet.o: tests/basic_pitch_onnx_musicnet.cpp src/basic_pitch_onnx_runtime.hpp src/basic_pitch_onnx_decoder.hpp src/basic_pitch_pcm_history.hpp src/basic_pitch_vocal_fusion.hpp tests/analyzer_musicnet.cpp | $(BUILD_DIR)
+	$(CXX) $(CXXFLAGS) -Isrc -Itests -I$(BTT_SOURCE_DIR) -c $< -o $@
+
+$(BUILD_DIR)/basic_pitch_onnx_musicnet: $(ANALYZER_TEST_OBJ) $(BUILD_DIR)/basic_pitch_onnx_musicnet.o
+	$(CXX) $(LDFLAGS) -o $@ $^ -ldl -lm -pthread
+
+$(BASIC_PITCH_ONNX_CHOIR_REPLAY): $(BUILD_DIR)/basic_pitch_onnx_musicnet $(ONNXRUNTIME_LIBRARY) $(BASIC_PITCH_ONNX_MODEL)
+	@tmp="$@.$$$$.tmp"; { \
+		printf 'corpus\tthreshold\twindows\texpected\tnative_hits\tonnx_hits\tfused_hits\tnovel_correct\tnovel_false\n'; \
+		$(BUILD_DIR)/basic_pitch_onnx_musicnet DCS "$(DAGSTUHL_CHOIRSET_MUSICNET_DIR)" "$(ONNXRUNTIME_LIBRARY)" "$(BASIC_PITCH_ONNX_MODEL)" true-miss "$(BASIC_PITCH_ONNX_FUSION_THRESHOLD)"; \
+		$(BUILD_DIR)/basic_pitch_onnx_musicnet CSD "$(CHORAL_SINGING_DATASET_MUSICNET_DIR)" "$(ONNXRUNTIME_LIBRARY)" "$(BASIC_PITCH_ONNX_MODEL)" true-miss "$(BASIC_PITCH_ONNX_FUSION_THRESHOLD)"; \
+		$(BUILD_DIR)/basic_pitch_onnx_musicnet ESMUC "$(ESMUC_CHOIR_DATASET_MUSICNET_DIR)" "$(ONNXRUNTIME_LIBRARY)" "$(BASIC_PITCH_ONNX_MODEL)" true-miss "$(BASIC_PITCH_ONNX_FUSION_THRESHOLD)"; \
+	} > "$$tmp" && mv "$$tmp" "$@"
+
+.PHONY: measure-basic-pitch-onnx-choir
+measure-basic-pitch-onnx-choir: $(BASIC_PITCH_ONNX_CHOIR_REPLAY)
+	cat "$(BASIC_PITCH_ONNX_CHOIR_REPLAY)"
+
+BASIC_PITCH_ONNX_CHOIR_FULL_REPLAY ?= $(BUILD_DIR)/basic_pitch_onnx_choir_full_replay.tsv
+BASIC_PITCH_ONNX_CHOIR_SAFE_REPLAY ?= $(BUILD_DIR)/basic_pitch_onnx_choir_safe_replay.tsv
+BASIC_PITCH_ONNX_CHOIR_STRICT_REPLAY ?= $(BUILD_DIR)/basic_pitch_onnx_choir_strict_replay.tsv
+BASIC_PITCH_ONNX_MUSICNET_SAFE_REPLAY ?= $(BUILD_DIR)/basic_pitch_onnx_musicnet_safe_replay.tsv
+BASIC_PITCH_ONNX_MUSICNET_STRICT_REPLAY ?= $(BUILD_DIR)/basic_pitch_onnx_musicnet_strict_replay.tsv
+BASIC_PITCH_ONNX_CROSS_DOMAIN_SAFE_REPLAY ?= $(BUILD_DIR)/basic_pitch_onnx_cross_domain_safe_replay.tsv
+BASIC_PITCH_ONNX_CROSS_DOMAIN_WORKER_SAFE_REPLAY ?= $(BUILD_DIR)/basic_pitch_onnx_cross_domain_worker_safe_replay.tsv
+BASIC_PITCH_ONNX_OWNER_EVIDENCE ?= $(BUILD_DIR)/basic_pitch_onnx_owner_evidence.tsv
+BASIC_PITCH_ONNX_OWNER_EVIDENCE_AUDIT ?= $(BUILD_DIR)/basic_pitch_onnx_owner_evidence_audit.txt
+
+$(BASIC_PITCH_ONNX_CHOIR_FULL_REPLAY): $(BUILD_DIR)/basic_pitch_onnx_musicnet $(ONNXRUNTIME_LIBRARY) $(BASIC_PITCH_ONNX_MODEL)
+	@tmp="$@.$$$$.tmp"; { \
+		printf 'corpus\tthreshold\twindows\texpected\tnative_hits\tonnx_hits\tfused_hits\tnovel_correct\tnovel_false\n'; \
+		$(BUILD_DIR)/basic_pitch_onnx_musicnet DCS "$(DAGSTUHL_CHOIRSET_MUSICNET_DIR)" "$(ONNXRUNTIME_LIBRARY)" "$(BASIC_PITCH_ONNX_MODEL)" all "$(BASIC_PITCH_ONNX_FUSION_THRESHOLD)"; \
+		$(BUILD_DIR)/basic_pitch_onnx_musicnet CSD "$(CHORAL_SINGING_DATASET_MUSICNET_DIR)" "$(ONNXRUNTIME_LIBRARY)" "$(BASIC_PITCH_ONNX_MODEL)" all "$(BASIC_PITCH_ONNX_FUSION_THRESHOLD)"; \
+		$(BUILD_DIR)/basic_pitch_onnx_musicnet ESMUC "$(ESMUC_CHOIR_DATASET_MUSICNET_DIR)" "$(ONNXRUNTIME_LIBRARY)" "$(BASIC_PITCH_ONNX_MODEL)" all "$(BASIC_PITCH_ONNX_FUSION_THRESHOLD)"; \
+	} > "$$tmp" && mv "$$tmp" "$@"
+
+.PHONY: measure-basic-pitch-onnx-choir-full
+measure-basic-pitch-onnx-choir-full: $(BASIC_PITCH_ONNX_CHOIR_FULL_REPLAY)
+	cat "$(BASIC_PITCH_ONNX_CHOIR_FULL_REPLAY)"
+
+$(BASIC_PITCH_ONNX_CHOIR_SAFE_REPLAY): $(BUILD_DIR)/basic_pitch_onnx_musicnet $(ONNXRUNTIME_LIBRARY) $(BASIC_PITCH_ONNX_MODEL)
+	@tmp="$@.$$$$.tmp"; { \
+		printf 'corpus\tthreshold\twindows\texpected\tnative_hits\tonnx_hits\tfused_hits\tnovel_correct\tnovel_false\n'; \
+		$(BUILD_DIR)/basic_pitch_onnx_musicnet DCS "$(DAGSTUHL_CHOIRSET_MUSICNET_DIR)" "$(ONNXRUNTIME_LIBRARY)" "$(BASIC_PITCH_ONNX_MODEL)" all 0.70; \
+		$(BUILD_DIR)/basic_pitch_onnx_musicnet CSD "$(CHORAL_SINGING_DATASET_MUSICNET_DIR)" "$(ONNXRUNTIME_LIBRARY)" "$(BASIC_PITCH_ONNX_MODEL)" all 0.70; \
+		$(BUILD_DIR)/basic_pitch_onnx_musicnet ESMUC "$(ESMUC_CHOIR_DATASET_MUSICNET_DIR)" "$(ONNXRUNTIME_LIBRARY)" "$(BASIC_PITCH_ONNX_MODEL)" all 0.70; \
+	} > "$$tmp" && mv "$$tmp" "$@"
+
+.PHONY: measure-basic-pitch-onnx-choir-safe
+measure-basic-pitch-onnx-choir-safe: $(BASIC_PITCH_ONNX_CHOIR_SAFE_REPLAY)
+	cat "$(BASIC_PITCH_ONNX_CHOIR_SAFE_REPLAY)"
+
+$(BASIC_PITCH_ONNX_CHOIR_STRICT_REPLAY): $(BUILD_DIR)/basic_pitch_onnx_musicnet $(ONNXRUNTIME_LIBRARY) $(BASIC_PITCH_ONNX_MODEL)
+	@tmp="$@.$$$$.tmp"; { \
+		printf 'corpus\tthreshold\twindows\texpected\tnative_hits\tonnx_hits\tfused_hits\tnovel_correct\tnovel_false\n'; \
+		$(BUILD_DIR)/basic_pitch_onnx_musicnet DCS "$(DAGSTUHL_CHOIRSET_MUSICNET_DIR)" "$(ONNXRUNTIME_LIBRARY)" "$(BASIC_PITCH_ONNX_MODEL)" all 0.80; \
+		$(BUILD_DIR)/basic_pitch_onnx_musicnet CSD "$(CHORAL_SINGING_DATASET_MUSICNET_DIR)" "$(ONNXRUNTIME_LIBRARY)" "$(BASIC_PITCH_ONNX_MODEL)" all 0.80; \
+		$(BUILD_DIR)/basic_pitch_onnx_musicnet ESMUC "$(ESMUC_CHOIR_DATASET_MUSICNET_DIR)" "$(ONNXRUNTIME_LIBRARY)" "$(BASIC_PITCH_ONNX_MODEL)" all 0.80; \
+	} > "$$tmp" && mv "$$tmp" "$@"
+
+.PHONY: measure-basic-pitch-onnx-choir-strict
+measure-basic-pitch-onnx-choir-strict: $(BASIC_PITCH_ONNX_CHOIR_STRICT_REPLAY)
+	cat "$(BASIC_PITCH_ONNX_CHOIR_STRICT_REPLAY)"
+
+$(BASIC_PITCH_ONNX_MUSICNET_SAFE_REPLAY): $(BUILD_DIR)/basic_pitch_onnx_musicnet $(ONNXRUNTIME_LIBRARY) $(BASIC_PITCH_ONNX_MODEL)
+	@tmp="$@.$$$$.tmp"; { \
+		printf 'corpus\tthreshold\twindows\texpected\tnative_hits\tonnx_hits\tfused_hits\tnovel_correct\tnovel_false\n'; \
+		$(BUILD_DIR)/basic_pitch_onnx_musicnet MusicNet "$(MUSICNET_EXTRACT_DIR)" "$(ONNXRUNTIME_LIBRARY)" "$(BASIC_PITCH_ONNX_MODEL)" all 0.70; \
+	} > "$$tmp" && mv "$$tmp" "$@"
+
+.PHONY: measure-basic-pitch-onnx-musicnet-safe
+measure-basic-pitch-onnx-musicnet-safe: $(BASIC_PITCH_ONNX_MUSICNET_SAFE_REPLAY)
+	cat "$(BASIC_PITCH_ONNX_MUSICNET_SAFE_REPLAY)"
+
+$(BASIC_PITCH_ONNX_MUSICNET_STRICT_REPLAY): $(BUILD_DIR)/basic_pitch_onnx_musicnet $(ONNXRUNTIME_LIBRARY) $(BASIC_PITCH_ONNX_MODEL)
+	@tmp="$@.$$$$.tmp"; { \
+		printf 'corpus\tthreshold\twindows\texpected\tnative_hits\tonnx_hits\tfused_hits\tnovel_correct\tnovel_false\n'; \
+		$(BUILD_DIR)/basic_pitch_onnx_musicnet MusicNet "$(MUSICNET_EXTRACT_DIR)" "$(ONNXRUNTIME_LIBRARY)" "$(BASIC_PITCH_ONNX_MODEL)" all 0.80; \
+	} > "$$tmp" && mv "$$tmp" "$@"
+
+.PHONY: measure-basic-pitch-onnx-musicnet-strict
+measure-basic-pitch-onnx-musicnet-strict: $(BASIC_PITCH_ONNX_MUSICNET_STRICT_REPLAY)
+	cat "$(BASIC_PITCH_ONNX_MUSICNET_STRICT_REPLAY)"
+
+$(BASIC_PITCH_ONNX_CROSS_DOMAIN_SAFE_REPLAY): $(BUILD_DIR)/basic_pitch_onnx_musicnet $(ONNXRUNTIME_LIBRARY) $(BASIC_PITCH_ONNX_MODEL) | $(BUILD_DIR)
+	@tmp="$@.$$$$.tmp"; { \
+		printf 'corpus\tthreshold\twindows\texpected\tnative_hits\tonnx_hits\tfused_hits\tnovel_correct\tnovel_false\n'; \
+		$(BUILD_DIR)/basic_pitch_onnx_musicnet DCS "$(DAGSTUHL_CHOIRSET_MUSICNET_DIR)" "$(ONNXRUNTIME_LIBRARY)" "$(BASIC_PITCH_ONNX_MODEL)" all 0.85; \
+		$(BUILD_DIR)/basic_pitch_onnx_musicnet CSD "$(CHORAL_SINGING_DATASET_MUSICNET_DIR)" "$(ONNXRUNTIME_LIBRARY)" "$(BASIC_PITCH_ONNX_MODEL)" all 0.85; \
+		$(BUILD_DIR)/basic_pitch_onnx_musicnet ESMUC "$(ESMUC_CHOIR_DATASET_MUSICNET_DIR)" "$(ONNXRUNTIME_LIBRARY)" "$(BASIC_PITCH_ONNX_MODEL)" all 0.85; \
+		$(BUILD_DIR)/basic_pitch_onnx_musicnet MusicNet "$(MUSICNET_EXTRACT_DIR)" "$(ONNXRUNTIME_LIBRARY)" "$(BASIC_PITCH_ONNX_MODEL)" all 0.85; \
+	} > "$$tmp" && mv "$$tmp" "$@"
+
+.PHONY: measure-basic-pitch-onnx-cross-domain-safe
+measure-basic-pitch-onnx-cross-domain-safe: $(BASIC_PITCH_ONNX_CROSS_DOMAIN_SAFE_REPLAY)
+	cat "$(BASIC_PITCH_ONNX_CROSS_DOMAIN_SAFE_REPLAY)"
+
+$(BASIC_PITCH_ONNX_CROSS_DOMAIN_WORKER_SAFE_REPLAY): $(BUILD_DIR)/basic_pitch_onnx_musicnet $(ONNXRUNTIME_LIBRARY) $(BASIC_PITCH_ONNX_MODEL) | $(BUILD_DIR)
+	@tmp="$@.$$$$.tmp"; { \
+		printf 'corpus\tthreshold\twindows\texpected\tnative_hits\tonnx_hits\tfused_hits\tnovel_correct\tnovel_false\n'; \
+		$(BUILD_DIR)/basic_pitch_onnx_musicnet DCS "$(DAGSTUHL_CHOIRSET_MUSICNET_DIR)" "$(ONNXRUNTIME_LIBRARY)" "$(BASIC_PITCH_ONNX_MODEL)" worker 0.85; \
+		$(BUILD_DIR)/basic_pitch_onnx_musicnet CSD "$(CHORAL_SINGING_DATASET_MUSICNET_DIR)" "$(ONNXRUNTIME_LIBRARY)" "$(BASIC_PITCH_ONNX_MODEL)" worker 0.85; \
+		$(BUILD_DIR)/basic_pitch_onnx_musicnet ESMUC "$(ESMUC_CHOIR_DATASET_MUSICNET_DIR)" "$(ONNXRUNTIME_LIBRARY)" "$(BASIC_PITCH_ONNX_MODEL)" worker 0.85; \
+		$(BUILD_DIR)/basic_pitch_onnx_musicnet MusicNet "$(MUSICNET_EXTRACT_DIR)" "$(ONNXRUNTIME_LIBRARY)" "$(BASIC_PITCH_ONNX_MODEL)" worker 0.85; \
+	} > "$$tmp" && mv "$$tmp" "$@"
+
+.PHONY: measure-basic-pitch-onnx-cross-domain-worker-safe
+measure-basic-pitch-onnx-cross-domain-worker-safe: $(BASIC_PITCH_ONNX_CROSS_DOMAIN_WORKER_SAFE_REPLAY)
+	cat "$(BASIC_PITCH_ONNX_CROSS_DOMAIN_WORKER_SAFE_REPLAY)"
+
+$(BASIC_PITCH_ONNX_OWNER_EVIDENCE): $(BUILD_DIR)/basic_pitch_onnx_musicnet $(ONNXRUNTIME_LIBRARY) $(BASIC_PITCH_ONNX_MODEL) scripts/measure_basic_pitch_onnx_owner_evidence.sh | $(BUILD_DIR)
+	@tmp="$@.$$$$.tmp"; $(SHELL) scripts/measure_basic_pitch_onnx_owner_evidence.sh "$(BUILD_DIR)/basic_pitch_onnx_musicnet" "$(ONNXRUNTIME_LIBRARY)" "$(BASIC_PITCH_ONNX_MODEL)" "$(DAGSTUHL_CHOIRSET_MUSICNET_DIR)" "$(CHORAL_SINGING_DATASET_MUSICNET_DIR)" "$(ESMUC_CHOIR_DATASET_MUSICNET_DIR)" "$(MUSICNET_EXTRACT_DIR)" > "$$tmp" && mv "$$tmp" "$@"
+
+.PHONY: measure-basic-pitch-onnx-owner-evidence
+measure-basic-pitch-onnx-owner-evidence: $(BASIC_PITCH_ONNX_OWNER_EVIDENCE)
+	cat "$(BASIC_PITCH_ONNX_OWNER_EVIDENCE)"
+
+$(BASIC_PITCH_ONNX_OWNER_EVIDENCE_AUDIT): $(BASIC_PITCH_ONNX_OWNER_EVIDENCE) scripts/summarize_basic_pitch_owner_evidence.py | $(BUILD_DIR)
+	$(PYTHON) scripts/summarize_basic_pitch_owner_evidence.py "$(BASIC_PITCH_ONNX_OWNER_EVIDENCE)" --output "$@"
+
+.PHONY: summarize-basic-pitch-onnx-owner-evidence
+summarize-basic-pitch-onnx-owner-evidence: $(BASIC_PITCH_ONNX_OWNER_EVIDENCE_AUDIT)
+	cat "$(BASIC_PITCH_ONNX_OWNER_EVIDENCE_AUDIT)"
+
+.PHONY: measure-basic-pitch-onnx-musicnet-at-threshold
+measure-basic-pitch-onnx-musicnet-at-threshold: $(BUILD_DIR)/basic_pitch_onnx_musicnet $(ONNXRUNTIME_LIBRARY) $(BASIC_PITCH_ONNX_MODEL)
+	@printf 'corpus\tthreshold\twindows\texpected\tnative_hits\tonnx_hits\tfused_hits\tnovel_correct\tnovel_false\n'; \
+	$(BUILD_DIR)/basic_pitch_onnx_musicnet MusicNet "$(MUSICNET_EXTRACT_DIR)" "$(ONNXRUNTIME_LIBRARY)" "$(BASIC_PITCH_ONNX_MODEL)" all "$(BASIC_PITCH_ONNX_FUSION_THRESHOLD)"
+
+.PHONY: measure-basic-pitch-onnx-choir-full-at-threshold
+measure-basic-pitch-onnx-choir-full-at-threshold: $(BUILD_DIR)/basic_pitch_onnx_musicnet $(ONNXRUNTIME_LIBRARY) $(BASIC_PITCH_ONNX_MODEL)
+	@printf 'corpus\tthreshold\twindows\texpected\tnative_hits\tonnx_hits\tfused_hits\tnovel_correct\tnovel_false\n'; \
+	$(BUILD_DIR)/basic_pitch_onnx_musicnet DCS "$(DAGSTUHL_CHOIRSET_MUSICNET_DIR)" "$(ONNXRUNTIME_LIBRARY)" "$(BASIC_PITCH_ONNX_MODEL)" all "$(BASIC_PITCH_ONNX_FUSION_THRESHOLD)"; \
+	$(BUILD_DIR)/basic_pitch_onnx_musicnet CSD "$(CHORAL_SINGING_DATASET_MUSICNET_DIR)" "$(ONNXRUNTIME_LIBRARY)" "$(BASIC_PITCH_ONNX_MODEL)" all "$(BASIC_PITCH_ONNX_FUSION_THRESHOLD)"; \
+	$(BUILD_DIR)/basic_pitch_onnx_musicnet ESMUC "$(ESMUC_CHOIR_DATASET_MUSICNET_DIR)" "$(ONNXRUNTIME_LIBRARY)" "$(BASIC_PITCH_ONNX_MODEL)" all "$(BASIC_PITCH_ONNX_FUSION_THRESHOLD)"
+
+.PHONY: measure-basic-pitch-sequential-choir
+measure-basic-pitch-sequential-choir: $(BUILD_DIR)/basic_pitch_onnx_musicnet $(ONNXRUNTIME_LIBRARY) $(BASIC_PITCH_ONNX_MODEL)
+	@printf 'corpus\tthreshold\twindows\texpected\tnative_hits\tonnx_hits\tfused_hits\tnovel_correct\tnovel_false\n'; \
+	$(BUILD_DIR)/basic_pitch_onnx_musicnet DCS "$(DAGSTUHL_CHOIRSET_MUSICNET_DIR)" "$(ONNXRUNTIME_LIBRARY)" "$(BASIC_PITCH_ONNX_MODEL)" sequential 0.80; \
+	$(BUILD_DIR)/basic_pitch_onnx_musicnet CSD "$(CHORAL_SINGING_DATASET_MUSICNET_DIR)" "$(ONNXRUNTIME_LIBRARY)" "$(BASIC_PITCH_ONNX_MODEL)" sequential 0.80; \
+	$(BUILD_DIR)/basic_pitch_onnx_musicnet ESMUC "$(ESMUC_CHOIR_DATASET_MUSICNET_DIR)" "$(ONNXRUNTIME_LIBRARY)" "$(BASIC_PITCH_ONNX_MODEL)" sequential 0.80
+
+BASIC_PITCH_ONNX_STRICT_SWEEP ?= $(BUILD_DIR)/basic_pitch_onnx_strict_sweep.tsv
+
+$(BASIC_PITCH_ONNX_STRICT_SWEEP): $(BUILD_DIR)/basic_pitch_onnx_musicnet $(ONNXRUNTIME_LIBRARY) $(BASIC_PITCH_ONNX_MODEL) scripts/measure_basic_pitch_onnx_strict_sweep.sh | $(BUILD_DIR)
+	@tmp="$@.$$$$.tmp"; $(SHELL) scripts/measure_basic_pitch_onnx_strict_sweep.sh "$(BUILD_DIR)/basic_pitch_onnx_musicnet" "$(ONNXRUNTIME_LIBRARY)" "$(BASIC_PITCH_ONNX_MODEL)" "$(DAGSTUHL_CHOIRSET_MUSICNET_DIR)" "$(CHORAL_SINGING_DATASET_MUSICNET_DIR)" "$(ESMUC_CHOIR_DATASET_MUSICNET_DIR)" "$(MUSICNET_EXTRACT_DIR)" > "$$tmp" && mv "$$tmp" "$@"
+
+.PHONY: measure-basic-pitch-onnx-strict-sweep
+measure-basic-pitch-onnx-strict-sweep: $(BASIC_PITCH_ONNX_STRICT_SWEEP)
+	cat "$(BASIC_PITCH_ONNX_STRICT_SWEEP)"
+
 $(BUILD_DIR)/music-analyzer-obs.so: $(PLUGIN_OBJS)
 	$(CXX) -shared -o $@ $^ $(OBS_LIBS) -pthread
 
@@ -2165,7 +2599,7 @@ $(BUILD_DIR)/beat_this_sidecar_client_tests.o: tests/beat_this_sidecar_client.cp
 $(BUILD_DIR)/beat_this_sidecar_client_tests: $(BUILD_DIR)/beat_this_sidecar_client.o $(BUILD_DIR)/beat_this_sidecar_client_tests.o
 	tmp="$@.$$$$.tmp"; $(CXX) -o "$$tmp" $^ && mv "$$tmp" "$@"
 
-$(BUILD_DIR)/analyzer.o: src/analyzer.cpp src/analyzer.hpp $(BTT_SOURCE_DIR)/BTT.h | $(BUILD_DIR)
+$(BUILD_DIR)/analyzer.o: src/analyzer.cpp src/analyzer.hpp src/basic_pitch_vocal_fusion.hpp src/basic_pitch_onnx_worker.hpp src/basic_pitch_pcm_history.hpp $(BTT_SOURCE_DIR)/BTT.h | $(BUILD_DIR)
 	$(CXX) $(CXXFLAGS) $(OBS_CFLAGS) -Isrc -I$(BTT_SOURCE_DIR) -c $< -o $@
 
 $(BUILD_DIR)/visualizer_renderer.o: src/visualizer_renderer.cpp src/visualizer_renderer.hpp src/analyzer.hpp src/fret_control.hpp | $(BUILD_DIR)
@@ -2200,7 +2634,7 @@ $(STANDALONE_BIN): $(ANALYZER_TEST_OBJ) $(RENDERER_OBJ) $(BUILD_DIR)/standalone.
 $(BASS_GUITAR_STANDALONE_BIN): $(ANALYZER_TEST_OBJ) $(RENDERER_OBJ) $(BUILD_DIR)/standalone_bass_guitar.o
 	tmp="$@.$$$$.tmp"; $(CXX) -o "$$tmp" $^ $(SDL2_LIBS) -lm -pthread && mv "$$tmp" "$@"
 
-$(BUILD_DIR)/analyzer_test.o: src/analyzer.cpp src/analyzer.hpp $(BTT_SOURCE_DIR)/BTT.h | $(BUILD_DIR)
+$(BUILD_DIR)/analyzer_test.o: src/analyzer.cpp src/analyzer.hpp src/basic_pitch_vocal_fusion.hpp src/basic_pitch_onnx_worker.hpp src/basic_pitch_pcm_history.hpp $(BTT_SOURCE_DIR)/BTT.h | $(BUILD_DIR)
 	tmp="$@.$$$$.tmp"; $(CXX) $(CXXFLAGS) -Isrc -I$(BTT_SOURCE_DIR) -c $< -o "$$tmp" && mv "$$tmp" "$@"
 
 $(BUILD_DIR)/btt_%.o: $(BTT_SOURCE_DIR)/src/%.c $(BTT_SOURCE_DIR)/BTT.h | $(BUILD_DIR)
@@ -2251,7 +2685,8 @@ $(BUILD_DIR)/analyzer_instrument_family_samples.o: tests/analyzer_instrument_fam
 $(BUILD_DIR)/analyzer_smoke: $(ANALYZER_TEST_OBJ) $(BUILD_DIR)/analyzer_smoke.o
 	tmp="$@.$$$$.tmp"; $(CXX) -o "$$tmp" $^ -lm -pthread && mv "$$tmp" "$@"
 
-$(BUILD_DIR)/analyzer_internal: $(BUILD_DIR)/analyzer_internal.o $(BTT_OBJS)
+
+$(BUILD_DIR)/analyzer_internal: $(BUILD_DIR)/analyzer_internal.o $(BTT_OBJS) $(BASIC_PITCH_RUNTIME_OBJS)
 	tmp="$@.$$$$.tmp"; $(CXX) -o "$$tmp" $^ -lm -pthread && mv "$$tmp" "$@"
 
 $(BUILD_DIR)/analyzer_cases: $(ANALYZER_TEST_OBJ) $(BUILD_DIR)/analyzer_cases.o
@@ -2319,6 +2754,71 @@ profile-standalone: standalone scripts/profile_standalone.sh
 
 prepare-drum-samples: scripts/prepare_drum_samples.py | $(BUILD_DIR)
 	DRUM_SAMPLE_SOURCE_DIR="$(DRUM_SAMPLE_SOURCE_DIR)" DRUM_SAMPLE_BUILD_DIR="$(DRUM_SAMPLE_BUILD_DIR)" DRUM_SAMPLE_LIMIT="$(DRUM_SAMPLE_LIMIT)" DRUM_SAMPLE_SELECTION="$(DRUM_SAMPLE_SELECTION)" DRUM_SAMPLE_SOURCE_FILTER="$(DRUM_SAMPLE_SOURCE_FILTER)" $(PYTHON) scripts/prepare_drum_samples.py --source "$(DRUM_SAMPLE_SOURCE_DIR)" --output "$(DRUM_SAMPLE_BUILD_DIR)" --limit-per-category "$(DRUM_SAMPLE_LIMIT)" --selection "$(DRUM_SAMPLE_SELECTION)" --source-filter "$(DRUM_SAMPLE_SOURCE_FILTER)" --unrar "$(UNRAR)"
+
+# Independent CC0 TR-505 one-shots.  Keep both the source and the generated
+# manifest in InstrumentSamples; build/ must not accumulate copied samples.
+.PHONY: download-0x808-cc0-drum-samples prepare-0x808-rim-samples measure-0x808-rim-samples
+download-0x808-cc0-drum-samples: scripts/download_0x808_cc0_drum_samples.sh
+	$(SHELL) scripts/download_0x808_cc0_drum_samples.sh "$(ZEROX808_CC0_SOURCE_DIR)" "$(ZEROX808_CC0_REPOSITORY)"
+
+prepare-0x808-rim-samples: download-0x808-cc0-drum-samples scripts/prepare_drum_samples.py
+	+$(MAKE) prepare-drum-samples DRUM_SAMPLE_SOURCE_DIR="$(ZEROX808_CC0_SOURCE_DIR)/samples" DRUM_SAMPLE_BUILD_DIR="$(ZEROX808_RIM_SAMPLE_DIR)" DRUM_SAMPLE_LIMIT=32 DRUM_SAMPLE_SELECTION=spread
+
+measure-0x808-rim-samples: $(BUILD_DIR)/analyzer_drum_samples prepare-0x808-rim-samples scripts/run_with_duration.sh
+	$(RUN_WITH_DURATION) analyzer_0x808_rim_samples env MUSIC_ANALYZER_DRUM_SAMPLES_REQUIRED=1 MUSIC_ANALYZER_DRUM_SAMPLE_REQUIRED_CATEGORIES=rim MUSIC_ANALYZER_DRUM_SAMPLE_FILTER_CATEGORY=rim MUSIC_ANALYZER_DRUM_SAMPLE_MIN_RECALL_PERCENT=0 MUSIC_ANALYZER_DRUM_SAMPLE_MIN_PRECISION_PERCENT=0 MUSIC_ANALYZER_DRUM_SAMPLE_MIN_PRIMARY_RECALL_PERCENT=0 MUSIC_ANALYZER_DRUM_SAMPLE_MAX_KICK_FALSE_PERCENT=100 MUSIC_ANALYZER_DRUM_SAMPLE_MAX_TOM_FALSE_PERCENT=100 MUSIC_ANALYZER_DRUM_SAMPLE_MAX_RIM_FALSE_PERCENT=100 MUSIC_ANALYZER_DRUM_SAMPLES_DIR="$(ZEROX808_RIM_SAMPLE_DIR)" $(BUILD_DIR)/analyzer_drum_samples > "$(ZEROX808_RIM_MEASUREMENT)" 2>&1
+
+$(ZEROX808_RIM_PRIMARY_DEBUG_ERR): $(BUILD_DIR)/analyzer_drum_samples prepare-0x808-rim-samples scripts/run_with_duration.sh
+	$(RUN_WITH_DURATION) analyzer_0x808_rim_primary_debug env MUSIC_ANALYZER_DRUM_SAMPLES_REQUIRED=1 MUSIC_ANALYZER_DRUM_SAMPLE_REQUIRED_CATEGORIES=rim MUSIC_ANALYZER_DRUM_SAMPLE_FILTER_CATEGORY=rim MUSIC_ANALYZER_DRUM_SAMPLE_VERBOSE_ALL=1 MUSIC_ANALYZER_DRUM_SAMPLE_VERBOSE_PRIMARY=1 MUSIC_ANALYZER_DRUM_SAMPLE_VERBOSE_PRIMARY_LIMIT=32 MUSIC_ANALYZER_DRUM_SAMPLE_MIN_RECALL_PERCENT=0 MUSIC_ANALYZER_DRUM_SAMPLE_MIN_PRECISION_PERCENT=0 MUSIC_ANALYZER_DRUM_SAMPLE_MIN_PRIMARY_RECALL_PERCENT=0 MUSIC_ANALYZER_DRUM_SAMPLE_MAX_KICK_FALSE_PERCENT=100 MUSIC_ANALYZER_DRUM_SAMPLE_MAX_TOM_FALSE_PERCENT=100 MUSIC_ANALYZER_DRUM_SAMPLE_MAX_RIM_FALSE_PERCENT=100 MUSIC_ANALYZER_DRUM_SAMPLES_DIR="$(ZEROX808_RIM_SAMPLE_DIR)" $(BUILD_DIR)/analyzer_drum_samples > "$(ZEROX808_RIM_PRIMARY_DEBUG_OUT)" 2> "$@"
+
+$(ZEROX808_RIM_PRIMARY_ATTRIBUTE_ROWS): $(ZEROX808_RIM_PRIMARY_DEBUG_ERR) scripts/analyze_drum_primary_debug.py
+	$(PYTHON) scripts/analyze_drum_primary_debug.py --dump-rows --include-debug-rows "$(ZEROX808_RIM_PRIMARY_DEBUG_ERR)" > "$@"
+
+.PHONY: analyze-0x808-rim-primary-attributes
+analyze-0x808-rim-primary-attributes: $(ZEROX808_RIM_PRIMARY_ATTRIBUTE_ROWS)
+	@printf '%s\n' "0x808 Rim primary attribute TSV: $(ZEROX808_RIM_PRIMARY_ATTRIBUTE_ROWS)"
+
+.PHONY: find-0x808-virtuosity-rim-primary-patterns
+find-0x808-virtuosity-rim-primary-patterns: $(ZEROX808_RIM_PRIMARY_ATTRIBUTE_ROWS) $(VIRTUOSITY_DRUMS_PRIMARY_ATTRIBUTE_ROWS) scripts/find_drum_attribute_patterns.py
+	$(PYTHON) scripts/find_drum_attribute_patterns.py "$(ZEROX808_RIM_PRIMARY_ATTRIBUTE_ROWS)" "$(VIRTUOSITY_DRUMS_PRIMARY_ATTRIBUTE_ROWS)" --route "rim->snare" --route "rim->crash" --min-positive-samples 2 --max-negative-samples 0 --max-new-active-samples 0 --max-primary-break-samples 0 --max-conditions 2 --beam-width 96 --require-positive-source 0x808_rim_primary_attribute_rows --require-positive-source virtuosity_drums_primary_attribute_rows --profile-fields 10 --show-near-misses 6 --jobs 1 > "$(ZEROX808_VIRTUOSITY_RIM_CANDIDATE_AUDIT)"
+	@printf '%s\n' "0x808/Virtuosity Rim candidate audit: $(ZEROX808_VIRTUOSITY_RIM_CANDIDATE_AUDIT)"
+
+.PHONY: evaluate-rim-primary-candidate
+evaluate-rim-primary-candidate: $(ZEROX808_RIM_PRIMARY_ATTRIBUTE_ROWS) $(DRUM_PROTECTED_PRIMARY_ATTRIBUTE_INPUTS) scripts/evaluate_rim_primary_candidate.py
+	$(PYTHON) scripts/evaluate_rim_primary_candidate.py "$(ZEROX808_RIM_PRIMARY_ATTRIBUTE_ROWS)" $(DRUM_PROTECTED_PRIMARY_ATTRIBUTE_INPUTS) > "$(RIM_PRIMARY_CANDIDATE_AUDIT)"
+	@cat "$(RIM_PRIMARY_CANDIDATE_AUDIT)"
+
+# Independently recorded CC0 acoustic rimshot/rim-click material. The archive
+# and generated manifest remain in InstrumentSamples, so build/ only holds
+# transient analysis logs.
+.PHONY: download-unruly-drums-samples inspect-unruly-drums-rim-paths prepare-unruly-drums-rim-samples measure-unruly-drums-rim-samples analyze-unruly-drums-rim-primary find-unruly-cross-source-rim-primary-patterns evaluate-unruly-rim-primary-candidate
+download-unruly-drums-samples: scripts/download_unruly_drums_samples.sh
+	$(SHELL) scripts/download_unruly_drums_samples.sh "$(UNRULY_DRUMS_ARCHIVE)" "$(UNRULY_DRUMS_ARCHIVE_URL)" "$(UNRULY_DRUMS_DOWNLOAD_CHUNKS)"
+
+inspect-unruly-drums-rim-paths: download-unruly-drums-samples scripts/inspect_unruly_drums_rim_paths.sh
+	$(SHELL) scripts/inspect_unruly_drums_rim_paths.sh "$(UNRULY_DRUMS_ARCHIVE)"
+
+prepare-unruly-drums-rim-samples: download-unruly-drums-samples scripts/prepare_unruly_drums_rim_samples.py
+	$(PYTHON) scripts/prepare_unruly_drums_rim_samples.py --archive "$(UNRULY_DRUMS_ARCHIVE)" --output "$(UNRULY_DRUMS_RIM_SAMPLE_DIR)" --limit 96
+
+measure-unruly-drums-rim-samples: $(BUILD_DIR)/analyzer_drum_samples prepare-unruly-drums-rim-samples scripts/run_with_duration.sh
+	$(RUN_WITH_DURATION) analyzer_unruly_drums_rim_samples env MUSIC_ANALYZER_DRUM_SAMPLES_REQUIRED=1 MUSIC_ANALYZER_DRUM_SAMPLE_REQUIRED_CATEGORIES=rim MUSIC_ANALYZER_DRUM_SAMPLE_FILTER_CATEGORY=rim MUSIC_ANALYZER_DRUM_SAMPLE_MIN_RECALL_PERCENT=0 MUSIC_ANALYZER_DRUM_SAMPLE_MIN_PRECISION_PERCENT=0 MUSIC_ANALYZER_DRUM_SAMPLE_MIN_PRIMARY_RECALL_PERCENT=0 MUSIC_ANALYZER_DRUM_SAMPLE_MAX_KICK_FALSE_PERCENT=100 MUSIC_ANALYZER_DRUM_SAMPLE_MAX_TOM_FALSE_PERCENT=100 MUSIC_ANALYZER_DRUM_SAMPLE_MAX_RIM_FALSE_PERCENT=100 MUSIC_ANALYZER_DRUM_SAMPLES_DIR="$(UNRULY_DRUMS_RIM_SAMPLE_DIR)" $(BUILD_DIR)/analyzer_drum_samples > "$(UNRULY_DRUMS_RIM_MEASUREMENT)" 2>&1
+
+$(UNRULY_DRUMS_RIM_PRIMARY_DEBUG_ERR): $(BUILD_DIR)/analyzer_drum_samples prepare-unruly-drums-rim-samples scripts/run_with_duration.sh
+	$(RUN_WITH_DURATION) analyzer_unruly_drums_rim_primary_debug env MUSIC_ANALYZER_DRUM_SAMPLES_REQUIRED=1 MUSIC_ANALYZER_DRUM_SAMPLE_REQUIRED_CATEGORIES=rim MUSIC_ANALYZER_DRUM_SAMPLE_FILTER_CATEGORY=rim MUSIC_ANALYZER_DRUM_SAMPLE_VERBOSE_ALL=1 MUSIC_ANALYZER_DRUM_SAMPLE_VERBOSE_PRIMARY=1 MUSIC_ANALYZER_DRUM_SAMPLE_VERBOSE_PRIMARY_LIMIT=128 MUSIC_ANALYZER_DRUM_SAMPLE_MIN_RECALL_PERCENT=0 MUSIC_ANALYZER_DRUM_SAMPLE_MIN_PRECISION_PERCENT=0 MUSIC_ANALYZER_DRUM_SAMPLE_MIN_PRIMARY_RECALL_PERCENT=0 MUSIC_ANALYZER_DRUM_SAMPLE_MAX_KICK_FALSE_PERCENT=100 MUSIC_ANALYZER_DRUM_SAMPLE_MAX_TOM_FALSE_PERCENT=100 MUSIC_ANALYZER_DRUM_SAMPLE_MAX_RIM_FALSE_PERCENT=100 MUSIC_ANALYZER_DRUM_SAMPLES_DIR="$(UNRULY_DRUMS_RIM_SAMPLE_DIR)" $(BUILD_DIR)/analyzer_drum_samples > "$(UNRULY_DRUMS_RIM_PRIMARY_DEBUG_OUT)" 2> "$@"
+
+$(UNRULY_DRUMS_RIM_PRIMARY_ATTRIBUTE_ROWS): $(UNRULY_DRUMS_RIM_PRIMARY_DEBUG_ERR) scripts/analyze_drum_primary_debug.py
+	$(PYTHON) scripts/analyze_drum_primary_debug.py --dump-rows --include-debug-rows "$(UNRULY_DRUMS_RIM_PRIMARY_DEBUG_ERR)" > "$@"
+
+analyze-unruly-drums-rim-primary: $(UNRULY_DRUMS_RIM_PRIMARY_ATTRIBUTE_ROWS)
+	@printf '%s\n' "unruly drums rim primary TSV: $(UNRULY_DRUMS_RIM_PRIMARY_ATTRIBUTE_ROWS)"
+
+find-unruly-cross-source-rim-primary-patterns: $(UNRULY_DRUMS_RIM_PRIMARY_ATTRIBUTE_ROWS) $(ZEROX808_RIM_PRIMARY_ATTRIBUTE_ROWS) $(VIRTUOSITY_DRUMS_PRIMARY_ATTRIBUTE_ROWS) scripts/find_drum_attribute_patterns.py
+	$(PYTHON) scripts/find_drum_attribute_patterns.py "$(UNRULY_DRUMS_RIM_PRIMARY_ATTRIBUTE_ROWS)" "$(ZEROX808_RIM_PRIMARY_ATTRIBUTE_ROWS)" "$(VIRTUOSITY_DRUMS_PRIMARY_ATTRIBUTE_ROWS)" --route "rim->snare" --route "rim->crash" --min-positive-samples 2 --max-negative-samples 0 --max-new-active-samples 0 --max-primary-break-samples 0 --max-conditions 2 --beam-width 96 --require-positive-source unruly_drums_rim_primary_attribute_rows --require-positive-source 0x808_rim_primary_attribute_rows --require-positive-source virtuosity_drums_primary_attribute_rows --profile-fields 10 --show-near-misses 8 --jobs 1 > "$(UNRULY_CROSS_SOURCE_RIM_CANDIDATE_AUDIT)"
+	@printf '%s\n' "Unruly cross-source Rim candidate audit: $(UNRULY_CROSS_SOURCE_RIM_CANDIDATE_AUDIT)"
+
+evaluate-unruly-rim-primary-candidate: $(UNRULY_DRUMS_RIM_PRIMARY_ATTRIBUTE_ROWS) $(ZEROX808_RIM_PRIMARY_ATTRIBUTE_ROWS) $(DRUM_PROTECTED_PRIMARY_ATTRIBUTE_INPUTS) scripts/evaluate_rim_primary_candidate.py
+	$(PYTHON) scripts/evaluate_rim_primary_candidate.py --candidate-name unruly_cross_source_rim_v1 --condition 'crash_band>=1.033' --condition 'snare_kick_body_ratio<=1.674' "$(UNRULY_DRUMS_RIM_PRIMARY_ATTRIBUTE_ROWS)" "$(ZEROX808_RIM_PRIMARY_ATTRIBUTE_ROWS)" $(DRUM_PROTECTED_PRIMARY_ATTRIBUTE_INPUTS) > "$(UNRULY_RIM_PRIMARY_CANDIDATE_AUDIT)"
+	@cat "$(UNRULY_RIM_PRIMARY_CANDIDATE_AUDIT)"
 
 $(DRUM_SAMPLE_BUILD_DIR)/manifest.tsv: FORCE scripts/prepare_drum_samples.py | $(BUILD_DIR)
 	+$(MAKE) prepare-drum-samples
@@ -2685,9 +3185,51 @@ prepare-mdb-drums-samples: scripts/prepare_mdb_drums_samples.py scripts/run_with
 	$(SHELL) scripts/run_with_lock.sh "$(MDB_DRUMS_PREP_LOCK_DIR)" -- env MDB_DRUMS_SAMPLE_DIR="$(MDB_DRUMS_SAMPLE_DIR)" MDB_DRUMS_SOURCE_ROOT="$(MDB_DRUMS_SOURCE_ROOT)" MDB_DRUMS_AUDIO_FLAVOR="$(MDB_DRUMS_AUDIO_FLAVOR)" MDB_DRUMS_RECORDING_LIMIT="$(MDB_DRUMS_RECORDING_LIMIT)" MDB_DRUMS_MIN_RECORDINGS="$(MDB_DRUMS_MIN_RECORDINGS)" $(PYTHON) scripts/prepare_mdb_drums_samples.py --output "$(MDB_DRUMS_SAMPLE_DIR)" --source-root "$(MDB_DRUMS_SOURCE_ROOT)" --audio-flavor "$(MDB_DRUMS_AUDIO_FLAVOR)" --limit "$(MDB_DRUMS_RECORDING_LIMIT)" --min-recordings "$(MDB_DRUMS_MIN_RECORDINGS)"
 
 .PHONY: download-babyslakh probe-babyslakh-download test-download-babyslakh-script download-babyslakh-background stop-babyslakh-background reset-babyslakh-download-control finalize-babyslakh-download discard-babyslakh-corrupt-partial inspect-babyslakh-download inspect-babyslakh-downloader test-download-babyslakh-background-scripts test-babyslakh-background-extraction-scripts inspect-babyslakh-extraction extract-babyslakh-background test-inspect-babyslakh-archive test-extract-babyslakh-archive test-prepare-babyslakh-drums inspect-babyslakh-archive inspect-babyslakh-archive-existing extract-babyslakh inspect-babyslakh prepare-babyslakh-drums measure-babyslakh-drums
-.PHONY: download-enst-drums test-download-enst-drums-script probe-virtuosity-drums-source test-probe-virtuosity-drums-source download-virtuosity-drums test-download-virtuosity-drums-script prepare-virtuosity-drums-samples measure-virtuosity-drums analyze-virtuosity-drums-primary-attribute-rows find-virtuosity-drum-primary-attribute-patterns test-prepare-virtuosity-drums-samples download-29k-drums inspect-29k-drums-download inspect-29k-drums-archive prepare-29k-drums-samples measure-29k-drums analyze-29k-drums-primary-attribute-rows find-29k-drum-primary-attribute-patterns find-cached-protected-drum-primary-attribute-patterns test-download-29k-drums-script test-inspect-29k-drums-download test-inspect-29k-drums-archive test-prepare-29k-drums-samples test-measure-29k-drums-makefile download-fsd50k-rim-metadata inspect-fsd50k-rim-metadata test-download-fsd50k-rim-metadata-script test-inspect-fsd50k-rim-metadata
+.PHONY: probe-egmd-download check-egmd-storage download-egmd-background inspect-egmd-download test-probe-egmd-download-script test-check-egmd-storage-script test-download-egmd-script test-start-egmd-download-script test-inspect-egmd-download-script download-enst-drums inspect-enst-drums prepare-enst-drums-samples measure-enst-drums test-download-enst-drums-script test-prepare-enst-drums-samples probe-virtuosity-drums-source test-probe-virtuosity-drums-source download-virtuosity-drums test-download-virtuosity-drums-script prepare-virtuosity-drums-samples measure-virtuosity-drums analyze-virtuosity-drums-primary-attribute-rows find-virtuosity-drum-primary-attribute-patterns test-prepare-virtuosity-drums-samples download-29k-drums inspect-29k-drums-download inspect-29k-drums-archive prepare-29k-drums-samples measure-29k-drums analyze-29k-drums-primary-attribute-rows find-29k-drum-primary-attribute-patterns find-cached-protected-drum-primary-attribute-patterns test-download-29k-drums-script test-inspect-29k-drums-download test-inspect-29k-drums-archive test-prepare-29k-drums-samples test-measure-29k-drums-makefile download-fsd50k-rim-metadata inspect-fsd50k-rim-metadata test-download-fsd50k-rim-metadata-script test-inspect-fsd50k-rim-metadata
+probe-egmd-download: scripts/probe_egmd_download.sh
+	$(SHELL) scripts/probe_egmd_download.sh "$(EGMD_ARCHIVE_URL)"
+
+test-probe-egmd-download-script: scripts/probe_egmd_download.sh
+	sh -n scripts/probe_egmd_download.sh
+
+check-egmd-storage: scripts/check_egmd_storage.sh
+	$(SHELL) scripts/check_egmd_storage.sh "$(EGMD_SOURCE_DIR)" "$(EGMD_ARCHIVE_BYTES)"
+
+test-check-egmd-storage-script: scripts/check_egmd_storage.sh
+	sh -n scripts/check_egmd_storage.sh
+
+download-egmd-background: check-egmd-storage scripts/download_egmd.sh scripts/start_egmd_download.sh | $(BUILD_DIR)
+	$(SHELL) scripts/start_egmd_download.sh "$(CURDIR)/scripts/download_egmd.sh" "$(EGMD_ARCHIVE)" "$(EGMD_ARCHIVE_URL)" "$(EGMD_ARCHIVE_MD5)" "$(EGMD_DOWNLOAD_LOG)" "$(EGMD_DOWNLOAD_PID)"
+
+inspect-egmd-download: scripts/inspect_egmd_download.sh
+	$(SHELL) scripts/inspect_egmd_download.sh "$(EGMD_ARCHIVE)" "$(EGMD_DOWNLOAD_LOG)" "$(EGMD_DOWNLOAD_PID)"
+
+test-download-egmd-script: scripts/download_egmd.sh
+	sh -n scripts/download_egmd.sh
+
+test-start-egmd-download-script: scripts/start_egmd_download.sh
+	sh -n scripts/start_egmd_download.sh
+
+test-inspect-egmd-download-script: scripts/inspect_egmd_download.sh
+	sh -n scripts/inspect_egmd_download.sh
+
 download-enst-drums: scripts/download_enst_drums.sh
 	$(SHELL) scripts/download_enst_drums.sh "$(ENST_DRUMS_ARCHIVE)" "$(ENST_DRUMS_ARCHIVE_URL)" "$(ENST_DRUMS_ARCHIVE_MD5)" "$(ENST_DRUMS_LICENSE_ACCEPTED)"
+
+inspect-enst-drums: download-enst-drums scripts/inspect_enst_drums_archive.py | $(BUILD_DIR)
+	$(PYTHON) scripts/inspect_enst_drums_archive.py "$(ENST_DRUMS_ARCHIVE)" > "$(ENST_DRUMS_INSPECTION)"
+	cat "$(ENST_DRUMS_INSPECTION)"
+
+prepare-enst-drums-samples: inspect-enst-drums scripts/prepare_enst_drums_samples.py
+	+@if [ -L "$(ENST_DRUMS_SAMPLE_DIR)" ]; then :; else $(MAKE) ensure-build-sample-storage-link BUILD_SAMPLE_STORAGE_DIR="$(notdir $(ENST_DRUMS_SAMPLE_DIR))"; fi
+	$(PYTHON) scripts/prepare_enst_drums_samples.py --archive "$(ENST_DRUMS_ARCHIVE)" --output "$(ENST_DRUMS_SAMPLE_DIR)" --limit-per-category "$(ENST_DRUMS_LIMIT_PER_CATEGORY)" --min-per-category "$(ENST_DRUMS_MIN_PER_CATEGORY)" --reset-generated
+
+measure-enst-drums: $(BUILD_DIR)/analyzer_drum_samples prepare-enst-drums-samples | $(BUILD_DIR)
+	env MUSIC_ANALYZER_DRUM_SAMPLES_REQUIRED=1 MUSIC_ANALYZER_DRUM_SAMPLE_REQUIRED_CATEGORIES="tom,ride,rim" MUSIC_ANALYZER_DRUM_SAMPLE_MIN_SAMPLES_PER_CATEGORY=1 MUSIC_ANALYZER_DRUM_SAMPLE_VERBOSE_ALL=1 MUSIC_ANALYZER_DRUM_SAMPLE_VERBOSE_PRIMARY=1 MUSIC_ANALYZER_DRUM_SAMPLE_VERBOSE_PRIMARY_LIMIT=4000 MUSIC_ANALYZER_DRUM_SAMPLES_DIR="$(ENST_DRUMS_SAMPLE_DIR)" MUSIC_ANALYZER_DRUM_SAMPLE_MIN_RECALL_PERCENT=0 MUSIC_ANALYZER_DRUM_SAMPLE_MIN_PRECISION_PERCENT=0 MUSIC_ANALYZER_DRUM_SAMPLE_MIN_PRIMARY_RECALL_PERCENT=0 MUSIC_ANALYZER_DRUM_SAMPLE_MAX_TOM_FALSE_PERCENT=100 $(BUILD_DIR)/analyzer_drum_samples > "$(ENST_DRUMS_MEASUREMENT)" 2>&1
+	cat "$(ENST_DRUMS_MEASUREMENT)"
+
+test-prepare-enst-drums-samples: tests/test_prepare_enst_drums_samples.py scripts/prepare_enst_drums_samples.py
+	$(PYTHON) tests/test_prepare_enst_drums_samples.py
 
 probe-virtuosity-drums-source: scripts/probe_virtuosity_drums_source.sh | $(BUILD_DIR)
 	$(SHELL) scripts/probe_virtuosity_drums_source.sh "$(VIRTUOSITY_DRUMS_REPOSITORY)" "$(VIRTUOSITY_DRUMS_BRANCH)" > "$(VIRTUOSITY_DRUMS_SOURCE_PROBE)"
@@ -3079,6 +3621,90 @@ extract-real-a2s-sax-metadata: download-real-a2s-sax-samples
 
 list-detection-make-targets: scripts/list_detection_make_targets.py
 	$(PYTHON) scripts/list_detection_make_targets.py
+
+inspect-basic-pitch-display-fusion: scripts/inspect_basic_pitch_display_fusion.py
+	$(PYTHON) scripts/inspect_basic_pitch_display_fusion.py
+
+inspect-basic-pitch-replay-contract: scripts/inspect_basic_pitch_replay_contract.py
+	$(PYTHON) scripts/inspect_basic_pitch_replay_contract.py
+
+report-basic-pitch-owner-evidence: scripts/report_basic_pitch_owner_evidence.py
+	$(PYTHON) scripts/report_basic_pitch_owner_evidence.py
+
+inspect-full-mix-candidate-builder: scripts/inspect_full_mix_candidate_builder.py
+	$(PYTHON) scripts/inspect_full_mix_candidate_builder.py
+
+inspect-gaps-guitar-miss-evaluator: scripts/inspect_gaps_guitar_miss_evaluator.py
+	$(PYTHON) scripts/inspect_gaps_guitar_miss_evaluator.py
+
+inspect-gaps-guitar-attributes-schema: scripts/inspect_gaps_guitar_attributes_schema.py
+	$(PYTHON) scripts/inspect_gaps_guitar_attributes_schema.py
+
+sweep-gaps-guitar-pitch-sources: scripts/sweep_gaps_guitar_pitch_sources.py
+	$(PYTHON) scripts/sweep_gaps_guitar_pitch_sources.py
+
+measure-gaps-guitar-pipeline-loss: scripts/measure_gaps_guitar_pipeline_loss.py
+	$(PYTHON) scripts/measure_gaps_guitar_pipeline_loss.py
+
+measure-gaps-guitar-triad-restore: scripts/measure_gaps_guitar_triad_restore.py
+	$(PYTHON) scripts/measure_gaps_guitar_triad_restore.py
+
+locate-gaps-guitar-replay: scripts/locate_gaps_guitar_replay.py
+	$(PYTHON) scripts/locate_gaps_guitar_replay.py
+
+report-drum-primary-analysis: scripts/report_drum_primary_analysis.py
+	$(PYTHON) scripts/report_drum_primary_analysis.py
+
+wait-drum-primary-analysis: scripts/wait_drum_primary_analysis.py
+	$(PYTHON) scripts/wait_drum_primary_analysis.py
+
+report-drum-tom-snare-primary: scripts/analyze_tom_snare_primary.py
+	$(PYTHON) scripts/analyze_tom_snare_primary.py
+
+inspect-tom-snare-arbitration: scripts/inspect_tom_snare_arbitration.py
+	$(PYTHON) scripts/inspect_tom_snare_arbitration.py
+
+mine-drum-tom-snare-selectors: scripts/mine_drum_tom_snare_selectors.py
+	$(PYTHON) scripts/mine_drum_tom_snare_selectors.py
+
+inspect-urmp-pre-envelope-path: scripts/inspect_urmp_pre_envelope_path.py
+	$(PYTHON) scripts/inspect_urmp_pre_envelope_path.py
+
+inspect-chord-result-contract: scripts/inspect_chord_result_contract.py
+	$(PYTHON) scripts/inspect_chord_result_contract.py
+
+
+report-real-urmp-process: scripts/report_real_urmp_process.py
+	$(PYTHON) scripts/report_real_urmp_process.py
+
+test-real-urmp-logged: scripts/run_real_urmp_logged.py
+	$(PYTHON) scripts/run_real_urmp_logged.py
+
+summarize-real-urmp-log: scripts/summarize_real_urmp_log.py
+	$(PYTHON) scripts/summarize_real_urmp_log.py
+
+summarize-detection-accuracy-report: scripts/summarize_detection_accuracy_report.py
+	$(PYTHON) scripts/summarize_detection_accuracy_report.py
+
+inspect-shared-ownership-ranking: scripts/inspect_shared_ownership_ranking.py
+	$(PYTHON) scripts/inspect_shared_ownership_ranking.py
+
+inspect-detector-samples-parallel-target: scripts/inspect_detector_samples_parallel_target.py
+	$(PYTHON) scripts/inspect_detector_samples_parallel_target.py
+
+plan-commit-fret-zealot-auto-stabilization: scripts/commit_verified_fret_zealot_auto_stabilization.py
+	$(PYTHON) scripts/commit_verified_fret_zealot_auto_stabilization.py
+
+commit-fret-zealot-auto-stabilization: scripts/commit_verified_fret_zealot_auto_stabilization.py
+	$(PYTHON) scripts/commit_verified_fret_zealot_auto_stabilization.py apply
+
+.PHONY: inspect-fret-zealot-scale-update
+inspect-fret-zealot-scale-update: scripts/inspect_fret_zealot_scale_update.py
+	$(PYTHON) scripts/inspect_fret_zealot_scale_update.py
+
+.PHONY: test-fret-zealot-auto-root-stability
+test-fret-zealot-auto-root-stability: tests/check_fret_zealot_auto_root_stability.py
+	$(PYTHON) tests/check_fret_zealot_auto_root_stability.py
 
 inspect-detection-make-target: scripts/list_detection_make_targets.py
 	$(PYTHON) scripts/list_detection_make_targets.py "$(MAKE_TARGET_NAME)"
@@ -3478,6 +4104,10 @@ test-instrument-samples: test-instrument-samples-parallel
 test-instrument-samples-serial: $(BUILD_DIR)/analyzer_instrument_samples $(INSTRUMENT_SAMPLE_MANIFEST_STAMP) scripts/run_with_duration.sh
 	$(RUN_WITH_DURATION) analyzer_instrument_samples env MUSIC_ANALYZER_INSTRUMENT_SAMPLES_REQUIRED=1 MUSIC_ANALYZER_INSTRUMENT_SAMPLE_ROOT="$(INSTRUMENT_SAMPLE_BUILD_ROOT)" $(BUILD_DIR)/analyzer_instrument_samples
 
+.PHONY: test-instrument-samples-hihat
+test-instrument-samples-hihat: $(BUILD_DIR)/analyzer_instrument_samples $(INSTRUMENT_SAMPLE_MANIFEST_STAMP) scripts/run_with_duration.sh
+	$(RUN_WITH_DURATION) analyzer_instrument_samples_hihat env MUSIC_ANALYZER_INSTRUMENT_SAMPLES_REQUIRED=1 MUSIC_ANALYZER_INSTRUMENT_SAMPLE_ROOT="$(INSTRUMENT_SAMPLE_BUILD_ROOT)" MUSIC_ANALYZER_INSTRUMENT_SAMPLE_FILTER_PATH="hihat" $(BUILD_DIR)/analyzer_instrument_samples
+
 test-instrument-samples-parallel: $(BUILD_DIR)/analyzer_instrument_samples $(INSTRUMENT_SAMPLE_MANIFEST_STAMP) scripts/run_with_duration.sh
 	+$(RUN_WITH_DURATION) analyzer_instrument_samples_parallel $(MAKE) $(INSTRUMENT_SAMPLE_TEST_MAKE_JOBS) $(INSTRUMENT_SAMPLE_SHARD_TARGETS)
 
@@ -3837,8 +4467,8 @@ analyze-real-note-attributes: $(BUILD_DIR)/real_note_full_mix_attributes.tsv scr
 	$(PYTHON) scripts/summarize_real_note_attributes.py "$(BUILD_DIR)/real_note_full_mix_attributes.tsv" $(REAL_NOTE_ATTRIBUTE_SUMMARY_ARGS)
 	@printf '%s\n' "attribute TSV: $(BUILD_DIR)/real_note_full_mix_attributes.tsv"
 
-update-detection-accuracy-report: $(BUILD_DIR)/real_note_full_mix_attributes.tsv $(GUITAR_CHORD_PRIMARY_DISPLAY_AUDIT) $(GUITAR_CHORD_TONE_RECOVERY_AUDIT) $(URMP_GOOD_SOUNDS_SAX_SHARED_PATTERN_REPORT) $(OCTAVE_CORRECTION_CROSS_CORPUS_AUDIT) $(POLYPHONIC_CANDIDATE_CAPACITY_AUDIT) inspect-urmp-bass-timing inspect-harmonic-product-octave-evidence-cached audit-dominant-seventh-extension audit-global-chord-confidence audit-same-root-guitar-quality evaluate-owner-classifier-loco evaluate-owner-classifier-quality-loco evaluate-drum-primary-loco audit-drum-false-positive-caps audit-mdb-full-mix-false-positive-caps audit-mdb-full-mix-competing-active-contexts audit-drum-false-positive-contexts audit-chord-primary-components audit-independent-piano-exact-chord-fallback audit-piano-chord-confirmation audit-piano-chord-confirm3 audit-piano-chord-tone018 audit-piano-chord-margin060 audit-piano-chord-bassbonus000 inspect-mdb-rim-coverage inspect-fsd50k-rim-metadata inspect-commons-rimshot-candidate measure-pixabay-rimshot-candidate measure-pixabay-rimshot-f-candidate measure-pixabay-rim-shot-candidate audit-beat-this-continuous-interval-gate inspect-high-vocal-octave-evidence-cached scripts/write_detection_accuracy_report.py
-	$(PYTHON) scripts/write_detection_accuracy_report.py --input "$(BUILD_DIR)/real_note_full_mix_attributes.tsv" $(DETECTION_ACCURACY_CHORD_ARGS) $(DETECTION_ACCURACY_VOCAL_FULL_MIX_ARG) $(DETECTION_ACCURACY_VOCALSET_FULL_MIX_ARG) $(DETECTION_ACCURACY_VOCALSET_CLEAN_VOWEL_ARG) $(DETECTION_ACCURACY_URMP_GATE_ARG) $(DETECTION_ACCURACY_BACH10_GATE_ARGS) $(DETECTION_ACCURACY_MUSICNET_GATE_ARG) $(DETECTION_ACCURACY_MAPS_GATE_ARGS) $(DETECTION_ACCURACY_MAPS_NOTE_GATE_ARGS) $(DETECTION_ACCURACY_MAPS_ATTRIBUTE_ARG) $(DETECTION_ACCURACY_CROSS_CORPUS_CHORD_ARGS) $(DETECTION_ACCURACY_DRUM_GATE_ARG) $(DETECTION_ACCURACY_HF_DRUM_GATE_ARGS) $(DETECTION_ACCURACY_STAR_DRUMS_GATE_ARG) $(DETECTION_ACCURACY_MDB_DRUMS_GATE_ARG) $(DETECTION_ACCURACY_ROUTE_SUMMARY_ARG) $(DETECTION_ACCURACY_GOOD_SOUNDS_FULL_MIX_ARG) $(DETECTION_ACCURACY_IRMAS_LABELLED_ARG) $(DETECTION_ACCURACY_PITCH_SHIFTED_VIOLIN_ARG) $(DETECTION_ACCURACY_MEDLEY_SOLOS_ATTRIBUTE_ARG) $(DETECTION_ACCURACY_PHILHARMONIA_FULL_ARG) $(DETECTION_ACCURACY_IOWA_ORCHESTRA_FULL_ARG) $(DETECTION_ACCURACY_TINYSOL_WIND_EXACT_ARG) $(DETECTION_ACCURACY_IOWA_SAX_FULL_MIX_ARG) $(DETECTION_ACCURACY_IOWA_PIANO_FULL_MIX_ARG) $(DETECTION_ACCURACY_TINYSOL_SAX_FULL_ARG) $(DETECTION_ACCURACY_TINYSOL_FLUTE_FULL_ARG) $(DETECTION_ACCURACY_REAL_A2S_TENOR_SCALE_ARG) $(DETECTION_ACCURACY_URMP_SAX_EXACT_ARG) $(DETECTION_ACCURACY_URMP_SAX_FULL_MIX_ARG) $(DETECTION_ACCURACY_DAGSTUHL_CHOIRSET_ARG) $(DETECTION_ACCURACY_DAGSTUHL_CHOIRSET_VALIDATION_ARG) $(DETECTION_ACCURACY_DAGSTUHL_CHOIRSET_INSPECTION_ARG) $(DETECTION_ACCURACY_DAGSTUHL_CHOIRSET_EXTRACT_ARG) $(DETECTION_ACCURACY_DAGSTUHL_CHOIRSET_MANIFEST_ARG) $(DETECTION_ACCURACY_MAESTRO_REAL_MEASUREMENT_ARG) $(DETECTION_ACCURACY_MAESTRO_REAL_MANIFEST_ARG) $(DETECTION_ACCURACY_KRAISLER_ARCHIVE_ARG) $(DETECTION_ACCURACY_KRAISLER_EXTRACT_ARG) $(DETECTION_ACCURACY_KRAISLER_MANIFEST_ARG) $(DETECTION_ACCURACY_KRAISLER_MEASUREMENT_ARG) $(DETECTION_ACCURACY_KRAISLER_BPM_ARG) $(DETECTION_ACCURACY_BALLROOM_BPM_ARG) $(DETECTION_ACCURACY_BALLROOM_ANNOTATIONS_ARG) $(DETECTION_ACCURACY_EGMD_BPM_ARG) $(DETECTION_ACCURACY_BTT_ARGS) $(DETECTION_ACCURACY_CHORAL_SINGING_DATASET_ARG) $(DETECTION_ACCURACY_CHORAL_SINGING_DATASET_EXTRACT_ARG) $(DETECTION_ACCURACY_CHORAL_SINGING_DATASET_INSPECTION_ARG) $(DETECTION_ACCURACY_CHORAL_SINGING_DATASET_MANIFEST_ARG) $(DETECTION_ACCURACY_CHORAL_SINGING_DATASET_MEASUREMENT_ARG) $(DETECTION_ACCURACY_ESMUC_CHOIR_DATASET_ARG) $(DETECTION_ACCURACY_ESMUC_CHOIR_DATASET_EXTRACT_ARG) $(DETECTION_ACCURACY_ESMUC_CHOIR_DATASET_MANIFEST_ARG) $(DETECTION_ACCURACY_ESMUC_CHOIR_DATASET_MEASUREMENT_ARG) $(DETECTION_ACCURACY_ESMUC_CHOIR_DATASET_PATTERN_REPORT_ARG) $(DETECTION_ACCURACY_MIR1K_DATASET_ARCHIVE_ARG) $(DETECTION_ACCURACY_MIR1K_DATASET_EXTRACT_ARG) $(DETECTION_ACCURACY_MIR1K_FULL_MIX_ARG) $(DETECTION_ACCURACY_SCMS_ARCHIVE_ARG) $(DETECTION_ACCURACY_SCMS_INSPECTION_ARG) $(DETECTION_ACCURACY_SCMS_FULL_MIX_ARG) $(DETECTION_ACCURACY_VOCAL_EXACT_NOTE_CROSS_CORPUS_ARG) $(DETECTION_ACCURACY_HIGH_VOCAL_OCTAVE_AUDIT_ARG) $(DETECTION_ACCURACY_GUITAR_CHORD_PRIMARY_DISPLAY_AUDIT_ARG) $(DETECTION_ACCURACY_GUITAR_CHORD_TONE_RECOVERY_AUDIT_ARG) $(DETECTION_ACCURACY_URMP_GOOD_SOUNDS_SAX_SHARED_PATTERN_ARG) $(DETECTION_ACCURACY_OCTAVE_CORRECTION_CROSS_CORPUS_AUDIT_ARG) $(DETECTION_ACCURACY_GLOBAL_CHORD_CONFIDENCE_AUDIT_ARG) $(DETECTION_ACCURACY_SAME_ROOT_GUITAR_QUALITY_AUDIT_ARG) $(DETECTION_ACCURACY_GUITARSET_ATTRIBUTE_ARG) $(DETECTION_ACCURACY_OTHER_DETECTION_ARG) --output "$(DETECTION_ACCURACY_REPORT)"
+update-detection-accuracy-report: $(BUILD_DIR)/real_note_full_mix_attributes.tsv $(GUITAR_CHORD_PRIMARY_DISPLAY_AUDIT) $(GUITAR_CHORD_TONE_RECOVERY_AUDIT) $(URMP_GOOD_SOUNDS_SAX_SHARED_PATTERN_REPORT) $(OCTAVE_CORRECTION_CROSS_CORPUS_AUDIT) $(POLYPHONIC_CANDIDATE_CAPACITY_AUDIT) $(SATB_RELATIVE_CHROMA_SELECTOR_AUDIT) inspect-urmp-bass-timing inspect-harmonic-product-octave-evidence-cached audit-dominant-seventh-extension audit-global-chord-confidence audit-same-root-guitar-quality evaluate-owner-classifier-loco evaluate-owner-classifier-quality-loco evaluate-drum-primary-loco audit-drum-false-positive-caps audit-mdb-full-mix-false-positive-caps audit-mdb-full-mix-competing-active-contexts audit-drum-false-positive-contexts audit-chord-primary-components audit-independent-piano-exact-chord-fallback audit-piano-chord-confirmation audit-piano-chord-confirm3 audit-piano-chord-tone018 audit-piano-chord-margin060 audit-piano-chord-bassbonus000 inspect-mdb-rim-coverage inspect-fsd50k-rim-metadata inspect-commons-rimshot-candidate measure-pixabay-rimshot-candidate measure-pixabay-rimshot-f-candidate measure-pixabay-rim-shot-candidate audit-beat-this-continuous-interval-gate inspect-high-vocal-octave-evidence-cached scripts/write_detection_accuracy_report.py
+	$(PYTHON) scripts/write_detection_accuracy_report.py --input "$(BUILD_DIR)/real_note_full_mix_attributes.tsv" $(DETECTION_ACCURACY_CHORD_ARGS) $(DETECTION_ACCURACY_VOCAL_FULL_MIX_ARG) $(DETECTION_ACCURACY_VOCALSET_FULL_MIX_ARG) $(DETECTION_ACCURACY_VOCALSET_CLEAN_VOWEL_ARG) $(DETECTION_ACCURACY_URMP_GATE_ARG) $(DETECTION_ACCURACY_BACH10_GATE_ARGS) $(DETECTION_ACCURACY_MUSICNET_GATE_ARG) $(DETECTION_ACCURACY_MAPS_GATE_ARGS) $(DETECTION_ACCURACY_MAPS_NOTE_GATE_ARGS) $(DETECTION_ACCURACY_MAPS_ATTRIBUTE_ARG) $(DETECTION_ACCURACY_CROSS_CORPUS_CHORD_ARGS) $(DETECTION_ACCURACY_DRUM_GATE_ARG) $(DETECTION_ACCURACY_HF_DRUM_GATE_ARGS) $(DETECTION_ACCURACY_STAR_DRUMS_GATE_ARG) $(DETECTION_ACCURACY_MDB_DRUMS_GATE_ARG) $(DETECTION_ACCURACY_ROUTE_SUMMARY_ARG) $(DETECTION_ACCURACY_GOOD_SOUNDS_FULL_MIX_ARG) $(DETECTION_ACCURACY_IRMAS_LABELLED_ARG) $(DETECTION_ACCURACY_PITCH_SHIFTED_VIOLIN_ARG) $(DETECTION_ACCURACY_MEDLEY_SOLOS_ATTRIBUTE_ARG) $(DETECTION_ACCURACY_PHILHARMONIA_FULL_ARG) $(DETECTION_ACCURACY_IOWA_ORCHESTRA_FULL_ARG) $(DETECTION_ACCURACY_TINYSOL_WIND_EXACT_ARG) $(DETECTION_ACCURACY_IOWA_SAX_FULL_MIX_ARG) $(DETECTION_ACCURACY_IOWA_PIANO_FULL_MIX_ARG) $(DETECTION_ACCURACY_TINYSOL_SAX_FULL_ARG) $(DETECTION_ACCURACY_TINYSOL_FLUTE_FULL_ARG) $(DETECTION_ACCURACY_REAL_A2S_TENOR_SCALE_ARG) $(DETECTION_ACCURACY_URMP_SAX_EXACT_ARG) $(DETECTION_ACCURACY_URMP_SAX_FULL_MIX_ARG) $(DETECTION_ACCURACY_DAGSTUHL_CHOIRSET_ARG) $(DETECTION_ACCURACY_DAGSTUHL_CHOIRSET_VALIDATION_ARG) $(DETECTION_ACCURACY_DAGSTUHL_CHOIRSET_INSPECTION_ARG) $(DETECTION_ACCURACY_DAGSTUHL_CHOIRSET_EXTRACT_ARG) $(DETECTION_ACCURACY_DAGSTUHL_CHOIRSET_MANIFEST_ARG) $(DETECTION_ACCURACY_MAESTRO_REAL_MEASUREMENT_ARG) $(DETECTION_ACCURACY_MAESTRO_REAL_MANIFEST_ARG) $(DETECTION_ACCURACY_KRAISLER_ARCHIVE_ARG) $(DETECTION_ACCURACY_KRAISLER_EXTRACT_ARG) $(DETECTION_ACCURACY_KRAISLER_MANIFEST_ARG) $(DETECTION_ACCURACY_KRAISLER_MEASUREMENT_ARG) $(DETECTION_ACCURACY_KRAISLER_BPM_ARG) $(DETECTION_ACCURACY_BALLROOM_BPM_ARG) $(DETECTION_ACCURACY_BALLROOM_ANNOTATIONS_ARG) $(DETECTION_ACCURACY_EGMD_BPM_ARG) $(DETECTION_ACCURACY_BTT_ARGS) $(DETECTION_ACCURACY_CHORAL_SINGING_DATASET_ARG) $(DETECTION_ACCURACY_CHORAL_SINGING_DATASET_EXTRACT_ARG) $(DETECTION_ACCURACY_CHORAL_SINGING_DATASET_INSPECTION_ARG) $(DETECTION_ACCURACY_CHORAL_SINGING_DATASET_MANIFEST_ARG) $(DETECTION_ACCURACY_CHORAL_SINGING_DATASET_MEASUREMENT_ARG) $(DETECTION_ACCURACY_ESMUC_CHOIR_DATASET_ARG) $(DETECTION_ACCURACY_ESMUC_CHOIR_DATASET_EXTRACT_ARG) $(DETECTION_ACCURACY_ESMUC_CHOIR_DATASET_MANIFEST_ARG) $(DETECTION_ACCURACY_ESMUC_CHOIR_DATASET_MEASUREMENT_ARG) $(DETECTION_ACCURACY_ESMUC_CHOIR_DATASET_PATTERN_REPORT_ARG) $(DETECTION_ACCURACY_MIR1K_DATASET_ARCHIVE_ARG) $(DETECTION_ACCURACY_MIR1K_DATASET_EXTRACT_ARG) $(DETECTION_ACCURACY_MIR1K_FULL_MIX_ARG) $(DETECTION_ACCURACY_SCMS_ARCHIVE_ARG) $(DETECTION_ACCURACY_SCMS_INSPECTION_ARG) $(DETECTION_ACCURACY_SCMS_FULL_MIX_ARG) $(DETECTION_ACCURACY_VOCAL_EXACT_NOTE_CROSS_CORPUS_ARG) $(DETECTION_ACCURACY_HIGH_VOCAL_OCTAVE_AUDIT_ARG) $(DETECTION_ACCURACY_HIGH_SOPRANO_VOCAL_MIRROR_AUDIT_ARG) $(DETECTION_ACCURACY_GUITAR_CHORD_PRIMARY_DISPLAY_AUDIT_ARG) $(DETECTION_ACCURACY_GUITAR_CHORD_TONE_RECOVERY_AUDIT_ARG) $(DETECTION_ACCURACY_URMP_GOOD_SOUNDS_SAX_SHARED_PATTERN_ARG) $(DETECTION_ACCURACY_OCTAVE_CORRECTION_CROSS_CORPUS_AUDIT_ARG) $(DETECTION_ACCURACY_GLOBAL_CHORD_CONFIDENCE_AUDIT_ARG) $(DETECTION_ACCURACY_SAME_ROOT_GUITAR_QUALITY_AUDIT_ARG) $(DETECTION_ACCURACY_GUITARSET_ATTRIBUTE_ARG) $(DETECTION_ACCURACY_OTHER_DETECTION_ARG) $(DETECTION_ACCURACY_BASIC_PITCH_ONNX_ARGS) --output "$(DETECTION_ACCURACY_REPORT)"
 
 # Choir corpus preparation rewrites shared manifests, so keep this refresh
 # serialized even when a caller runs make with -j.
@@ -3854,17 +4484,32 @@ refresh-choir-chord-accuracy:
 inspect-satb-missing-pitch-evidence: scripts/inspect_satb_missing_pitch_evidence.py
 	$(PYTHON) scripts/inspect_satb_missing_pitch_evidence.py --input "DCS=$(DAGSTUHL_CHOIRSET_ATTRIBUTE_OUTPUT)" --input "CSD=$(CHORAL_SINGING_DATASET_ATTRIBUTE_OUTPUT)" --input "ESMUC=$(ESMUC_CHOIR_DATASET_ATTRIBUTE_OUTPUT)"
 
+.PHONY: audit-satb-relative-chroma-selector test-audit-satb-relative-chroma-selector
+audit-satb-relative-chroma-selector: $(SATB_RELATIVE_CHROMA_SELECTOR_AUDIT)
+	@cat "$(SATB_RELATIVE_CHROMA_SELECTOR_AUDIT)"
+
+$(SATB_RELATIVE_CHROMA_SELECTOR_AUDIT): scripts/audit_satb_relative_chroma_selector.py | $(BUILD_DIR)
+	@for path in "$(DAGSTUHL_CHOIRSET_ATTRIBUTE_OUTPUT)" "$(CHORAL_SINGING_DATASET_ATTRIBUTE_OUTPUT)" "$(ESMUC_CHOIR_DATASET_ATTRIBUTE_OUTPUT)"; do test -s "$$path" || { printf '%s\n' "missing cached SATB selector input: $$path"; exit 2; }; done
+	@tmp="$@.$$$$.tmp"; $(PYTHON) scripts/audit_satb_relative_chroma_selector.py --input "DCS=$(DAGSTUHL_CHOIRSET_ATTRIBUTE_OUTPUT)" --input "CSD=$(CHORAL_SINGING_DATASET_ATTRIBUTE_OUTPUT)" --input "ESMUC=$(ESMUC_CHOIR_DATASET_ATTRIBUTE_OUTPUT)" > "$$tmp" && mv "$$tmp" "$@"
+
+test-audit-satb-relative-chroma-selector: tests/test_audit_satb_relative_chroma_selector.py scripts/audit_satb_relative_chroma_selector.py
+	$(PYTHON) tests/test_audit_satb_relative_chroma_selector.py
+
 test-inspect-satb-missing-pitch-evidence: tests/test_inspect_satb_missing_pitch_evidence.py scripts/inspect_satb_missing_pitch_evidence.py
 	$(PYTHON) tests/test_inspect_satb_missing_pitch_evidence.py
 
 .PHONY: update-detection-accuracy-report-cached
+update-detection-accuracy-report-cached: DETECTION_ACCURACY_OTHER_DETECTION_ARG += $(DETECTION_ACCURACY_BASIC_PITCH_ONNX_ARGS)
 update-detection-accuracy-report-cached: scripts/write_detection_accuracy_report.py
 	@test -f "$(BUILD_DIR)/real_note_full_mix_attributes.tsv" || { printf '%s\n' "missing build/real_note_full_mix_attributes.tsv; run make update-detection-accuracy-report first"; exit 2; }
-	@for path in "$(GUITAR_CHORD_PRIMARY_DISPLAY_AUDIT)" "$(GUITAR_CHORD_TONE_RECOVERY_AUDIT)" "$(URMP_GOOD_SOUNDS_SAX_SHARED_PATTERN_REPORT)" "$(URMP_BASS_TIMING_AUDIT)" "$(OCTAVE_CORRECTION_CROSS_CORPUS_AUDIT)" "$(DOMINANT_SEVENTH_EXTENSION_AUDIT)" "$(GLOBAL_CHORD_CONFIDENCE_AUDIT)" "$(SAME_ROOT_GUITAR_QUALITY_AUDIT)" "$(OWNER_CLASSIFIER_LOCO_AUDIT)" "$(OWNER_CLASSIFIER_QUALITY_LOCO_AUDIT)" "$(DRUM_PRIMARY_LOCO_AUDIT)" "$(DRUM_FALSE_POSITIVE_CAP_AUDIT)" "$(MDB_FULL_MIX_FALSE_POSITIVE_CAP_AUDIT)" "$(MDB_FULL_MIX_COMPETING_ACTIVE_CONTEXT_AUDIT)" "$(DRUM_FALSE_POSITIVE_CONTEXT_AUDIT)" "$(CHORD_PRIMARY_COMPONENT_AUDIT)" "$(INDEPENDENT_PIANO_EXACT_CHORD_FALLBACK_AUDIT)" "$(PIANO_CHORD_CONFIRMATION_AUDIT)" "$(PIANO_CHORD_CONFIRM3_AUDIT)" "$(PIANO_CHORD_TONE018_AUDIT)" "$(PIANO_CHORD_MARGIN060_AUDIT)" "$(PIANO_CHORD_BASSBONUS000_AUDIT)" "$(MDB_RIM_COVERAGE_AUDIT)" "$(FSD50K_RIM_METADATA_AUDIT)" "$(PIXABAY_RIMSHOT_MEASUREMENT_AUDIT)" "$(PIXABAY_RIMSHOT_F_MEASUREMENT_AUDIT)" "$(PIXABAY_RIM_SHOT_MEASUREMENT_AUDIT)" "$(POLYPHONIC_CANDIDATE_CAPACITY_AUDIT)" "$(HARMONIC_PRODUCT_OCTAVE_AUDIT)"; do test -s "$$path" || { printf '%s\n' "missing cached accuracy audit: $$path"; exit 2; }; done
+	@for path in "$(GUITAR_CHORD_PRIMARY_DISPLAY_AUDIT)" "$(GUITAR_CHORD_TONE_RECOVERY_AUDIT)" "$(URMP_GOOD_SOUNDS_SAX_SHARED_PATTERN_REPORT)" "$(URMP_BASS_TIMING_AUDIT)" "$(OCTAVE_CORRECTION_CROSS_CORPUS_AUDIT)" "$(DOMINANT_SEVENTH_EXTENSION_AUDIT)" "$(GLOBAL_CHORD_CONFIDENCE_AUDIT)" "$(SAME_ROOT_GUITAR_QUALITY_AUDIT)" "$(OWNER_CLASSIFIER_LOCO_AUDIT)" "$(OWNER_CLASSIFIER_QUALITY_LOCO_AUDIT)" "$(DRUM_PRIMARY_LOCO_AUDIT)" "$(DRUM_FALSE_POSITIVE_CAP_AUDIT)" "$(MDB_FULL_MIX_FALSE_POSITIVE_CAP_AUDIT)" "$(MDB_FULL_MIX_COMPETING_ACTIVE_CONTEXT_AUDIT)" "$(DRUM_FALSE_POSITIVE_CONTEXT_AUDIT)" "$(CHORD_PRIMARY_COMPONENT_AUDIT)" "$(INDEPENDENT_PIANO_EXACT_CHORD_FALLBACK_AUDIT)" "$(PIANO_CHORD_CONFIRMATION_AUDIT)" "$(PIANO_CHORD_CONFIRM3_AUDIT)" "$(PIANO_CHORD_TONE018_AUDIT)" "$(PIANO_CHORD_MARGIN060_AUDIT)" "$(PIANO_CHORD_BASSBONUS000_AUDIT)" "$(MDB_RIM_COVERAGE_AUDIT)" "$(FSD50K_RIM_METADATA_AUDIT)" "$(PIXABAY_RIMSHOT_MEASUREMENT_AUDIT)" "$(PIXABAY_RIMSHOT_F_MEASUREMENT_AUDIT)" "$(PIXABAY_RIM_SHOT_MEASUREMENT_AUDIT)" "$(POLYPHONIC_CANDIDATE_CAPACITY_AUDIT)" "$(HARMONIC_PRODUCT_OCTAVE_AUDIT)" "$(SATB_RELATIVE_CHROMA_SELECTOR_AUDIT)"; do test -s "$$path" || { printf '%s\n' "missing cached accuracy audit: $$path"; exit 2; }; done
 	$(PYTHON) scripts/write_detection_accuracy_report.py --input "$(BUILD_DIR)/real_note_full_mix_attributes.tsv" $(DETECTION_ACCURACY_CHORD_ARGS) $(DETECTION_ACCURACY_VOCAL_FULL_MIX_ARG) $(DETECTION_ACCURACY_VOCALSET_FULL_MIX_ARG) $(DETECTION_ACCURACY_VOCALSET_CLEAN_VOWEL_ARG) $(DETECTION_ACCURACY_URMP_GATE_ARG) $(DETECTION_ACCURACY_BACH10_GATE_ARGS) $(DETECTION_ACCURACY_MUSICNET_GATE_ARG) $(DETECTION_ACCURACY_MAPS_GATE_ARGS) $(DETECTION_ACCURACY_MAPS_NOTE_GATE_ARGS) $(DETECTION_ACCURACY_MAPS_ATTRIBUTE_ARG) $(DETECTION_ACCURACY_DRUM_GATE_ARG) $(DETECTION_ACCURACY_HF_DRUM_GATE_ARGS) $(DETECTION_ACCURACY_STAR_DRUMS_GATE_ARG) $(DETECTION_ACCURACY_MDB_DRUMS_GATE_ARG) $(DETECTION_ACCURACY_ROUTE_SUMMARY_ARG) $(DETECTION_ACCURACY_GOOD_SOUNDS_FULL_MIX_ARG) $(DETECTION_ACCURACY_IRMAS_LABELLED_ARG) $(DETECTION_ACCURACY_PITCH_SHIFTED_VIOLIN_ARG) $(DETECTION_ACCURACY_MEDLEY_SOLOS_ATTRIBUTE_ARG) $(DETECTION_ACCURACY_PHILHARMONIA_FULL_ARG) $(DETECTION_ACCURACY_IOWA_ORCHESTRA_FULL_ARG) $(DETECTION_ACCURACY_TINYSOL_WIND_EXACT_ARG) $(DETECTION_ACCURACY_IOWA_SAX_FULL_MIX_ARG) $(DETECTION_ACCURACY_IOWA_PIANO_FULL_MIX_ARG) $(DETECTION_ACCURACY_TINYSOL_SAX_FULL_MIX_ARG) $(DETECTION_ACCURACY_TINYSOL_FLUTE_FULL_MIX_ARG) $(DETECTION_ACCURACY_REAL_A2S_TENOR_SCALE_ARG) $(DETECTION_ACCURACY_URMP_SAX_EXACT_ARG) $(DETECTION_ACCURACY_URMP_SAX_FULL_MIX_ARG) $(DETECTION_ACCURACY_DAGSTUHL_CHOIRSET_ARG) $(DETECTION_ACCURACY_DAGSTUHL_CHOIRSET_VALIDATION_ARG) $(DETECTION_ACCURACY_DAGSTUHL_CHOIRSET_INSPECTION_ARG) $(DETECTION_ACCURACY_DAGSTUHL_CHOIRSET_EXTRACT_ARG) $(DETECTION_ACCURACY_DAGSTUHL_CHOIRSET_MANIFEST_ARG) $(DETECTION_ACCURACY_MAESTRO_REAL_MEASUREMENT_ARG) $(DETECTION_ACCURACY_MAESTRO_REAL_MANIFEST_ARG) $(DETECTION_ACCURACY_KRAISLER_ARCHIVE_ARG) $(DETECTION_ACCURACY_KRAISLER_EXTRACT_ARG) $(DETECTION_ACCURACY_KRAISLER_MANIFEST_ARG) $(DETECTION_ACCURACY_KRAISLER_MEASUREMENT_ARG) $(DETECTION_ACCURACY_BTT_ARGS) $(DETECTION_ACCURACY_CHORAL_SINGING_DATASET_ARG) $(DETECTION_ACCURACY_CHORAL_SINGING_DATASET_EXTRACT_ARG) $(DETECTION_ACCURACY_CHORAL_SINGING_DATASET_INSPECTION_ARG) $(DETECTION_ACCURACY_CHORAL_SINGING_DATASET_MANIFEST_ARG) $(DETECTION_ACCURACY_CHORAL_SINGING_DATASET_MEASUREMENT_ARG) $(DETECTION_ACCURACY_ESMUC_CHOIR_DATASET_ARG) $(DETECTION_ACCURACY_ESMUC_CHOIR_DATASET_EXTRACT_ARG) $(DETECTION_ACCURACY_ESMUC_CHOIR_DATASET_ARG) $(DETECTION_ACCURACY_ESMUC_CHOIR_DATASET_EXTRACT_ARG) $(DETECTION_ACCURACY_ESMUC_CHOIR_DATASET_MANIFEST_ARG) $(DETECTION_ACCURACY_ESMUC_CHOIR_DATASET_MEASUREMENT_ARG) $(DETECTION_ACCURACY_ESMUC_CHOIR_DATASET_PATTERN_REPORT_ARG) $(DETECTION_ACCURACY_MIR1K_DATASET_ARCHIVE_ARG) $(DETECTION_ACCURACY_MIR1K_DATASET_EXTRACT_ARG) $(DETECTION_ACCURACY_MIR1K_FULL_MIX_ARG) $(DETECTION_ACCURACY_SCMS_ARCHIVE_ARG) $(DETECTION_ACCURACY_SCMS_INSPECTION_ARG) $(DETECTION_ACCURACY_SCMS_FULL_MIX_ARG) $(DETECTION_ACCURACY_VOCAL_EXACT_NOTE_CROSS_CORPUS_ARG) $(DETECTION_ACCURACY_HIGH_VOCAL_OCTAVE_AUDIT_ARG) $(DETECTION_ACCURACY_GUITAR_CHORD_PRIMARY_DISPLAY_AUDIT_ARG) $(DETECTION_ACCURACY_GUITAR_CHORD_TONE_RECOVERY_AUDIT_ARG) $(DETECTION_ACCURACY_URMP_GOOD_SOUNDS_SAX_SHARED_PATTERN_ARG) $(DETECTION_ACCURACY_OCTAVE_CORRECTION_CROSS_CORPUS_AUDIT_ARG) $(DETECTION_ACCURACY_DOMINANT_SEVENTH_EXTENSION_AUDIT_ARG) $(DETECTION_ACCURACY_GLOBAL_CHORD_CONFIDENCE_AUDIT_ARG) $(DETECTION_ACCURACY_SAME_ROOT_GUITAR_QUALITY_AUDIT_ARG) $(DETECTION_ACCURACY_GUITARSET_ATTRIBUTE_ARG) $(DETECTION_ACCURACY_OTHER_DETECTION_ARG) --output "$(DETECTION_ACCURACY_REPORT)"
 
 test-detection-accuracy-report: tests/test_write_detection_accuracy_report.py scripts/write_detection_accuracy_report.py
 	$(PYTHON) tests/test_write_detection_accuracy_report.py
+
+test-summarize-isolated-guitar-visual: tests/test_summarize_isolated_guitar_visual.py scripts/summarize_isolated_guitar_visual.py
+	$(PYTHON) tests/test_summarize_isolated_guitar_visual.py
 
 .PHONY: test-analyzer-real-note-label-only
 test-analyzer-real-note-label-only: $(BUILD_DIR)/analyzer_real_note_samples tests/test_analyzer_real_note_label_only.py
@@ -4121,6 +4766,9 @@ $(GUITAR_TECHS_DETECTED_ATTRIBUTE_ROWS): $(GUITAR_TECHS_ATTRIBUTE_TSV) scripts/i
 $(GUITAR_TECHS_MISS_ATTRIBUTE_ROWS): $(GUITAR_TECHS_ATTRIBUTE_TSV) scripts/inspect_real_note_attribute_buckets.py | $(BUILD_DIR)
 	$(PYTHON) scripts/inspect_real_note_attribute_buckets.py "$(GUITAR_TECHS_ATTRIBUTE_TSV)" --dump-rows --include-empty-debug --status miss > "$@"
 
+$(GUITAR_TECHS_ISOLATED_VISUAL_AUDIT): $(GUITAR_TECHS_ATTRIBUTE_TSV) scripts/summarize_isolated_guitar_visual.py | $(BUILD_DIR)
+	$(PYTHON) scripts/summarize_isolated_guitar_visual.py "$(GUITAR_TECHS_ATTRIBUTE_TSV)" --label "Guitar-TECHS" --output "$@"
+
 analyze-guitar-techs-attributes: $(GUITAR_TECHS_DETECTED_ATTRIBUTE_ROWS) $(GUITAR_TECHS_MISS_ATTRIBUTE_ROWS)
 	@printf '%s\n' "GuitarTechs attribute rows:"
 	@printf '%s\n' "  $(GUITAR_TECHS_DETECTED_ATTRIBUTE_ROWS)"
@@ -4204,7 +4852,7 @@ find-guitar-techs-music-attribute-patterns: $(GUITAR_TECHS_MUSIC_ATTRIBUTE_TSV) 
 	$(PYTHON) scripts/find_guitarset_attribute_patterns.py "$(GUITAR_TECHS_MUSIC_ATTRIBUTE_TSV)" $(PATTERN_ARGS)
 
 find-guitar-techs-music-route-patterns:
-	+$(MAKE) find-guitar-techs-music-attribute-patterns PATTERN_ARGS="$(MEASURE_GUITAR_ROUTE_PATTERN_ARGS)"
+	+$(MAKE) find-guitar-techs-music-attribute-patterns PATTERN_ARGS="$(MEASURE_GUITAR_ROUTE_PATTERN_ARGS) $(GUITAR_CHORD_ROUTE_PROTECTED_ARGS) --protected-path \"$(GUITAR_TECHS_MUSIC_ATTRIBUTE_TSV)\""
 
 $(GUITAR_TECHS_CHORD_MANIFEST): scripts/prepare_guitar_techs_chord_samples.py | $(BUILD_DIR)
 	+$(MAKE) download-guitar-techs-chord-samples
@@ -4343,6 +4991,23 @@ analyze-guitar-chord-primary-order: $(GUITAR_CHORD_DETECTED_ATTRIBUTE_ROWS) scri
 
 analyze-gaps-guitar-full-primary-order: $(GAPS_GUITAR_FULL_DETECTED_ATTRIBUTE_ROWS) scripts/analyze_guitar_primary_order.py
 	$(PYTHON) scripts/analyze_guitar_primary_order.py "$(GAPS_GUITAR_FULL_DETECTED_ATTRIBUTE_ROWS)" $(PRIMARY_ORDER_ARGS)
+
+CROSS_CORPUS_GUITAR_PRIMARY_ORDER_AUDIT ?= $(BUILD_DIR)/cross_corpus_guitar_primary_order_audit.txt
+
+$(CROSS_CORPUS_GUITAR_PRIMARY_ORDER_AUDIT): FORCE $(GUITAR_CHORD_DETECTED_ATTRIBUTE_ROWS) $(GAPS_GUITAR_FULL_DETECTED_ATTRIBUTE_ROWS) $(GUITAR_TECHS_CHORD_DETECTED_ATTRIBUTE_ROWS) scripts/audit_cross_corpus_guitar_primary_order.sh | $(BUILD_DIR)
+	@tmp="$@.$$$$.tmp"; $(SHELL) scripts/audit_cross_corpus_guitar_primary_order.sh "$(GUITAR_CHORD_DETECTED_ATTRIBUTE_ROWS)" "$(GAPS_GUITAR_FULL_DETECTED_ATTRIBUTE_ROWS)" "$(GUITAR_TECHS_CHORD_DETECTED_ATTRIBUTE_ROWS)" > "$$tmp" && mv "$$tmp" "$@"
+	@printf '%s\n' "cross-corpus guitar primary-order audit: $@"
+
+.PHONY: audit-cross-corpus-guitar-primary-order audit-cross-corpus-guitar-primary-order-cached test-audit-cross-corpus-guitar-primary-order
+audit-cross-corpus-guitar-primary-order: $(CROSS_CORPUS_GUITAR_PRIMARY_ORDER_AUDIT)
+
+audit-cross-corpus-guitar-primary-order-cached: scripts/audit_cross_corpus_guitar_primary_order.sh | $(BUILD_DIR)
+	@test -s "$(GUITAR_CHORD_DETECTED_ATTRIBUTE_ROWS)" && test -s "$(GAPS_GUITAR_FULL_DETECTED_ATTRIBUTE_ROWS)" && test -s "$(GUITAR_TECHS_CHORD_DETECTED_ATTRIBUTE_ROWS)" || { printf '%s\n' 'missing cached Guitar Chord Mix, GAPS, or Guitar-TECHS attribute rows'; exit 2; }
+	@tmp="$(CROSS_CORPUS_GUITAR_PRIMARY_ORDER_AUDIT).$$$$.tmp"; $(SHELL) scripts/audit_cross_corpus_guitar_primary_order.sh "$(GUITAR_CHORD_DETECTED_ATTRIBUTE_ROWS)" "$(GAPS_GUITAR_FULL_DETECTED_ATTRIBUTE_ROWS)" "$(GUITAR_TECHS_CHORD_DETECTED_ATTRIBUTE_ROWS)" > "$$tmp" && mv "$$tmp" "$(CROSS_CORPUS_GUITAR_PRIMARY_ORDER_AUDIT)"
+	@printf '%s\n' "cached cross-corpus guitar primary-order audit: $(CROSS_CORPUS_GUITAR_PRIMARY_ORDER_AUDIT)"
+
+test-audit-cross-corpus-guitar-primary-order: scripts/audit_cross_corpus_guitar_primary_order.sh
+	$(SHELL) -n scripts/audit_cross_corpus_guitar_primary_order.sh
 
 $(GUITAR_CHORD_PRIMARY_DISPLAY_AUDIT): FORCE $(GUITAR_CHORD_DETECTED_ATTRIBUTE_ROWS) $(GAPS_GUITAR_FULL_DETECTED_ATTRIBUTE_ROWS) scripts/analyze_guitar_primary_order.py | $(BUILD_DIR)
 	@tmp="$(GUITAR_CHORD_PRIMARY_DISPLAY_AUDIT).$$$$.tmp"; { printf '%s\n' "source=Guitar_Chord_Mix"; $(MAKE) -s analyze-guitar-chord-primary-order; printf '%s\n' "comparison=GAPS_full"; $(MAKE) -s analyze-gaps-guitar-full-primary-order; } > "$$tmp" && mv "$$tmp" "$(GUITAR_CHORD_PRIMARY_DISPLAY_AUDIT)"
@@ -5123,6 +5788,9 @@ $(IDMT_GUITAR_DETECTED_ATTRIBUTE_ROWS): $(IDMT_GUITAR_ATTRIBUTE_TSV) scripts/ins
 $(IDMT_GUITAR_MISS_ATTRIBUTE_ROWS): $(IDMT_GUITAR_ATTRIBUTE_TSV) scripts/inspect_real_note_attribute_buckets.py | $(BUILD_DIR)
 	$(PYTHON) scripts/inspect_real_note_attribute_buckets.py "$(IDMT_GUITAR_ATTRIBUTE_TSV)" --dump-rows --include-empty-debug --status miss > "$@"
 
+$(IDMT_GUITAR_ISOLATED_VISUAL_AUDIT): $(IDMT_GUITAR_ATTRIBUTE_TSV) scripts/summarize_isolated_guitar_visual.py | $(BUILD_DIR)
+	$(PYTHON) scripts/summarize_isolated_guitar_visual.py "$(IDMT_GUITAR_ATTRIBUTE_TSV)" --label "IDMT Guitar" --output "$@"
+
 analyze-idmt-guitar-attributes: $(IDMT_GUITAR_DETECTED_ATTRIBUTE_ROWS) $(IDMT_GUITAR_MISS_ATTRIBUTE_ROWS) scripts/summarize_real_note_attributes.py
 	@printf '%s\n' "IDMT guitar attribute rows:"
 	@printf '%s\n' "  $(IDMT_GUITAR_DETECTED_ATTRIBUTE_ROWS)"
@@ -5345,6 +6013,20 @@ find-high-vocal-ownership-patterns-cached: scripts/find_real_note_attribute_patt
 	@for path in "$(DAGSTUHL_CHOIRSET_PATTERN_OUTPUT)" "$(CHORAL_SINGING_DATASET_PATTERN_OUTPUT)" "$(ESMUC_CHOIR_DATASET_PATTERN_OUTPUT)" "$(BUILD_DIR)/real_note_full_mix_attributes.tsv"; do test -s "$$path" || { printf '%s\n' "missing cached high-vocal pattern input: $$path"; exit 2; }; done
 	$(PYTHON) scripts/find_real_note_attribute_patterns.py "$(DAGSTUHL_CHOIRSET_PATTERN_OUTPUT)" --extra-candidate-path "$(CHORAL_SINGING_DATASET_PATTERN_OUTPUT)" --extra-candidate-path "$(ESMUC_CHOIR_DATASET_PATTERN_OUTPUT)" --extra-protected-path "$(BUILD_DIR)/real_note_full_mix_attributes.tsv" --bucket "ownership_miss:vocals/*->*" --filter-condition "debug_midi>=77" --filter-condition "debug_midi<=78" --filter-condition "debug_owner=piano" --exclude-field expected_row_score --exclude-field first_row_score --exclude-field visual_first_row_score --exclude-field strongest_row_score --exclude-field visual_strongest_row_score --exclude-field expected_first_score_ratio --exclude-field expected_strongest_score_ratio --exclude-field expected_visual_first_score_ratio --exclude-field expected_visual_strongest_score_ratio --exclude-field first_expected_score_margin --exclude-field strongest_expected_score_margin --exclude-field visual_first_expected_score_margin --exclude-field visual_strongest_expected_score_margin --exclude-field debug_delta --exclude-field debug_abs_delta --jobs "$(REAL_NOTE_PATTERN_JOBS)" --limit 16 --min-positive-samples 5 --max-negative-samples 0 --max-conditions 3 --beam-width 240 --show-examples 1 --show-near-misses 8 --protected-scope all --profile-fields 8
 
+.PHONY: audit-high-soprano-vocal-mirror-cached
+
+# Compare the current broad F5/F#5 Keyboard-to-Vocal display mirror against the
+# narrower cross-choir candidate before changing the live classification rule.
+audit-high-soprano-vocal-mirror-cached: scripts/measure_real_note_attribute_rule.py
+	@for path in "$(DAGSTUHL_CHOIRSET_PATTERN_OUTPUT)" "$(CHORAL_SINGING_DATASET_PATTERN_OUTPUT)" "$(ESMUC_CHOIR_DATASET_PATTERN_OUTPUT)" "$(BUILD_DIR)/real_note_full_mix_attributes.tsv" "$(VOCADITO_FULL_MIX_ATTRIBUTE_TSV)" "$(VOCALSET_FULL_MIX_ATTRIBUTE_TSV)" "$(MIR1K_DATASET_ATTRIBUTE_OUTPUT)"; do test -s "$$path" || { printf '%s\n' "missing cached high-soprano mirror input: $$path"; exit 2; }; done
+	@tmp="$(HIGH_SOPRANO_VOCAL_MIRROR_AUDIT).tmp"; { \
+		printf '%s\n' 'current broad mirror'; \
+		$(PYTHON) scripts/measure_real_note_attribute_rule.py "$(DAGSTUHL_CHOIRSET_PATTERN_OUTPUT)" --condition "debug_owner=piano" --condition "debug_midi>=77" --condition "debug_midi<=78" --condition "noise>=0.024" --condition "partial2>=0.114" --compare-path "$(CHORAL_SINGING_DATASET_PATTERN_OUTPUT)" --compare-path "$(ESMUC_CHOIR_DATASET_PATTERN_OUTPUT)" --compare-path "$(BUILD_DIR)/real_note_full_mix_attributes.tsv" --compare-path "$(VOCADITO_FULL_MIX_ATTRIBUTE_TSV)" --compare-path "$(VOCALSET_FULL_MIX_ATTRIBUTE_TSV)" --compare-path "$(MIR1K_DATASET_ATTRIBUTE_OUTPUT)" --group-by family --group-by status --group-by first_row --examples 4; \
+		printf '%s\n' 'narrow cross-choir candidate'; \
+		$(PYTHON) scripts/measure_real_note_attribute_rule.py "$(DAGSTUHL_CHOIRSET_PATTERN_OUTPUT)" --condition "debug_owner=piano" --condition "debug_midi>=77" --condition "debug_midi<=78" --condition "adjacent_upper_ratio>=0.032" --condition "noise>=0.122" --condition "pitch_confidence<=0.814" --compare-path "$(CHORAL_SINGING_DATASET_PATTERN_OUTPUT)" --compare-path "$(ESMUC_CHOIR_DATASET_PATTERN_OUTPUT)" --compare-path "$(BUILD_DIR)/real_note_full_mix_attributes.tsv" --compare-path "$(VOCADITO_FULL_MIX_ATTRIBUTE_TSV)" --compare-path "$(VOCALSET_FULL_MIX_ATTRIBUTE_TSV)" --compare-path "$(MIR1K_DATASET_ATTRIBUTE_OUTPUT)" --group-by family --group-by status --group-by first_row --examples 4; \
+	} > "$$tmp" && mv "$$tmp" "$(HIGH_SOPRANO_VOCAL_MIRROR_AUDIT)"
+	@cat "$(HIGH_SOPRANO_VOCAL_MIRROR_AUDIT)"
+
 inspect-esmuc-choir-dataset-cross-corpus-ownership: export-esmuc-choir-dataset-pattern-rows scripts/inspect_vocal_ownership_cross_corpus.py | $(BUILD_DIR)
 	@for path in "$(DAGSTUHL_CHOIRSET_PATTERN_OUTPUT)" "$(CHORAL_SINGING_DATASET_PATTERN_OUTPUT)" "$(VOCADITO_FULL_MIX_ATTRIBUTE_TSV)" "$(VOCALSET_FULL_MIX_ATTRIBUTE_TSV)" "$(MIR1K_DATASET_ATTRIBUTE_OUTPUT)"; do test -s "$$path" || { printf '%s\n' "missing cached cross-corpus vocal input: $$path"; exit 2; }; done
 	$(PYTHON) scripts/inspect_vocal_ownership_cross_corpus.py --input "DCS=$(DAGSTUHL_CHOIRSET_PATTERN_OUTPUT)" --input "CSD=$(CHORAL_SINGING_DATASET_PATTERN_OUTPUT)" --input "ESMUC=$(ESMUC_CHOIR_DATASET_PATTERN_OUTPUT)" --input "Vocadito=$(VOCADITO_FULL_MIX_ATTRIBUTE_TSV)" --input "VocalSet=$(VOCALSET_FULL_MIX_ATTRIBUTE_TSV)" --input "MIR1K=$(MIR1K_DATASET_ATTRIBUTE_OUTPUT)" $(SCMS_VOCAL_CROSS_CORPUS_ARG) --output "$(ESMUC_CHOIR_DATASET_CROSS_CORPUS_OWNERSHIP_OUTPUT)"
@@ -5358,9 +6040,15 @@ inspect-vocal-exact-note-cross-corpus: export-esmuc-choir-dataset-pattern-rows s
 find-esmuc-choir-dataset-shared-vocal-ownership-patterns: $(ESMUC_CHOIR_DATASET_SHARED_OWNERSHIP_PATTERN_REPORT)
 	@cat "$(ESMUC_CHOIR_DATASET_SHARED_OWNERSHIP_PATTERN_REPORT)"
 
+.PHONY: find-esmuc-choir-dataset-shared-vocal-ownership-patterns-cached
+
+find-esmuc-choir-dataset-shared-vocal-ownership-patterns-cached: scripts/find_real_note_attribute_patterns.py
+	@for path in "$(DAGSTUHL_CHOIRSET_PATTERN_OUTPUT)" "$(CHORAL_SINGING_DATASET_PATTERN_OUTPUT)" "$(ESMUC_CHOIR_DATASET_PATTERN_OUTPUT)" "$(BUILD_DIR)/real_note_full_mix_attributes.tsv" "$(VOCADITO_FULL_MIX_ATTRIBUTE_TSV)" "$(VOCALSET_FULL_MIX_ATTRIBUTE_TSV)" "$(MIR1K_DATASET_ATTRIBUTE_OUTPUT)"; do test -s "$$path" || { printf '%s\n' "missing cached shared-vocal pattern input: $$path"; exit 2; }; done
+	$(PYTHON) scripts/find_real_note_attribute_patterns.py "$(DAGSTUHL_CHOIRSET_PATTERN_OUTPUT)" --extra-candidate-path "$(CHORAL_SINGING_DATASET_PATTERN_OUTPUT)" --extra-candidate-path "$(ESMUC_CHOIR_DATASET_PATTERN_OUTPUT)" --extra-candidate-path "$(VOCADITO_FULL_MIX_ATTRIBUTE_TSV)" --extra-candidate-path "$(VOCALSET_FULL_MIX_ATTRIBUTE_TSV)" --extra-candidate-path "$(MIR1K_DATASET_ATTRIBUTE_OUTPUT)" --extra-protected-path "$(BUILD_DIR)/real_note_full_mix_attributes.tsv" --bucket "ownership_miss:vocals/*->*" $(REAL_NOTE_RUNTIME_ROW_CONFUSION_EXCLUDES) $(ESMUC_SHARED_VOCAL_FILTER_ARGS) --jobs "$(REAL_NOTE_PATTERN_JOBS)" --limit 16 --min-positive-samples 3 --max-negative-samples 0 --max-conditions "$(ESMUC_SHARED_VOCAL_MAX_CONDITIONS)" --show-examples 1 --show-near-misses 8 --protected-scope all --profile-fields 6
+
 $(ESMUC_CHOIR_DATASET_SHARED_OWNERSHIP_PATTERN_REPORT): Makefile export-esmuc-choir-dataset-pattern-rows $(DAGSTUHL_CHOIRSET_PATTERN_OUTPUT) $(CHORAL_SINGING_DATASET_PATTERN_OUTPUT) $(BUILD_DIR)/real_note_full_mix_attributes.tsv $(VOCADITO_FULL_MIX_ATTRIBUTE_TSV) $(VOCALSET_FULL_MIX_ATTRIBUTE_TSV) $(MIR1K_DATASET_ATTRIBUTE_OUTPUT) scripts/find_real_note_attribute_patterns.py | $(BUILD_DIR)
 	@for path in "$(DAGSTUHL_CHOIRSET_PATTERN_OUTPUT)" "$(CHORAL_SINGING_DATASET_PATTERN_OUTPUT)" "$(BUILD_DIR)/real_note_full_mix_attributes.tsv" "$(VOCADITO_FULL_MIX_ATTRIBUTE_TSV)" "$(VOCALSET_FULL_MIX_ATTRIBUTE_TSV)" "$(MIR1K_DATASET_ATTRIBUTE_OUTPUT)"; do test -s "$$path" || { printf '%s\n' "missing cached shared-vocal pattern input: $$path"; exit 2; }; done
-	@tmp="$@.$$$$.tmp"; $(PYTHON) scripts/find_real_note_attribute_patterns.py "$(DAGSTUHL_CHOIRSET_PATTERN_OUTPUT)" --extra-candidate-path "$(CHORAL_SINGING_DATASET_PATTERN_OUTPUT)" --extra-candidate-path "$(ESMUC_CHOIR_DATASET_PATTERN_OUTPUT)" --extra-candidate-path "$(VOCADITO_FULL_MIX_ATTRIBUTE_TSV)" --extra-candidate-path "$(VOCALSET_FULL_MIX_ATTRIBUTE_TSV)" --extra-candidate-path "$(MIR1K_DATASET_ATTRIBUTE_OUTPUT)" --extra-protected-path "$(BUILD_DIR)/real_note_full_mix_attributes.tsv" --bucket "ownership_miss:vocals/*->*" $(REAL_NOTE_RUNTIME_ROW_CONFUSION_EXCLUDES) --jobs "$(REAL_NOTE_PATTERN_JOBS)" --limit 16 --min-positive-samples 3 --max-negative-samples 0 --max-conditions 2 --show-examples 1 --show-near-misses 8 --protected-scope all --profile-fields 6 > "$$tmp" 2>&1; status="$$?"; mv "$$tmp" "$@"; exit "$$status"
+	@tmp="$@.$$$$.tmp"; $(PYTHON) scripts/find_real_note_attribute_patterns.py "$(DAGSTUHL_CHOIRSET_PATTERN_OUTPUT)" --extra-candidate-path "$(CHORAL_SINGING_DATASET_PATTERN_OUTPUT)" --extra-candidate-path "$(ESMUC_CHOIR_DATASET_PATTERN_OUTPUT)" --extra-candidate-path "$(VOCADITO_FULL_MIX_ATTRIBUTE_TSV)" --extra-candidate-path "$(VOCALSET_FULL_MIX_ATTRIBUTE_TSV)" --extra-candidate-path "$(MIR1K_DATASET_ATTRIBUTE_OUTPUT)" --extra-protected-path "$(BUILD_DIR)/real_note_full_mix_attributes.tsv" --bucket "ownership_miss:vocals/*->*" $(REAL_NOTE_RUNTIME_ROW_CONFUSION_EXCLUDES) $(ESMUC_SHARED_VOCAL_FILTER_ARGS) --jobs "$(REAL_NOTE_PATTERN_JOBS)" --limit 16 --min-positive-samples 3 --max-negative-samples 0 --max-conditions "$(ESMUC_SHARED_VOCAL_MAX_CONDITIONS)" --show-examples 1 --show-near-misses 8 --protected-scope all --profile-fields 6 > "$$tmp" 2>&1; status="$$?"; mv "$$tmp" "$@"; exit "$$status"
 
 inspect-esmuc-choir-dataset-archive: validate-esmuc-choir-dataset-archive scripts/inspect_esmuc_choir_dataset_archive.py
 	$(PYTHON) scripts/inspect_esmuc_choir_dataset_archive.py --archive "$(ESMUC_CHOIR_DATASET_ARCHIVE)" $(ESMUC_CHOIR_DATASET_INSPECT_ARGS)
@@ -6171,6 +6859,10 @@ test-cross-corpus-chord-evidence: tests/test_summarize_cross_corpus_chord_eviden
 
 detector-improvement-routes: analyze-detector-improvement-routes
 
+.PHONY: detector-improvement-routes-bounded
+detector-improvement-routes-bounded: scripts/run_with_duration.sh
+	+$(RUN_WITH_DURATION) detector_improvement_routes_bounded $(MAKE) -j4 PARALLEL_TEST_JOBS=4 REAL_NOTE_PATTERN_EXTRA_CANDIDATE_PATHS="$(DETECTOR_REAL_NOTE_PATTERN_EXTRA_CANDIDATE_PATHS)" REAL_NOTE_PATTERN_EXTRA_PROTECTED_PATHS="$(DETECTOR_REAL_NOTE_PATTERN_EXTRA_PROTECTED_PATHS)" $(DETECTOR_IMPROVEMENT_ROUTE_SCAN_TARGETS)
+
 detector-improvement-samples-full: test-detector-samples-full-parallel
 
 detector-improvement-patterns-full: measure-analyzer-patterns-full
@@ -6276,8 +6968,84 @@ test-analyzer-maestro: $(BUILD_DIR)/analyzer_maestro scripts/run_with_duration.s
 test-analyzer-egmd: $(BUILD_DIR)/analyzer_egmd scripts/run_with_duration.sh
 	$(RUN_WITH_DURATION) analyzer_egmd $(BUILD_DIR)/analyzer_egmd
 
-.PHONY: test-bpm-regression
-test-bpm-regression: test-analyzer-cases test-egmd-fixture
+.PHONY: test-bpm-moving-window-contract test-bpm-regression
+test-bpm-moving-window-contract:
+	$(PYTHON) tests/test_bpm_moving_window_contract.py
+
+test-bpm-regression: test-analyzer-cases test-egmd-fixture test-bpm-moving-window-contract
+
+.PHONY: start-agpt-guitar-preparation
+start-agpt-guitar-preparation: scripts/start_agpt_guitar_prepare.sh scripts/prepare_agpt_guitar_samples.py
+	$(SHELL) scripts/start_agpt_guitar_prepare.sh "$(CURDIR)/scripts/prepare_agpt_guitar_samples.py" "$(AGPT_GUITAR_EXTRACTED_DIR)" "$(AGPT_GUITAR_SAMPLE_DIR)" "$(AGPT_GUITAR_SAMPLE_LIMIT)" "$(AGPT_GUITAR_MIN_GUITAR)" "ffmpeg"
+
+.PHONY: inspect-agpt-guitar-preparation
+inspect-agpt-guitar-preparation: scripts/inspect_agpt_guitar_preparation.sh
+	$(SHELL) scripts/inspect_agpt_guitar_preparation.sh "$(AGPT_GUITAR_SAMPLE_DIR)" "$(AGPT_GUITAR_MIN_GUITAR)"
+
+.PHONY: start-agpt-guitar-evaluation
+start-agpt-guitar-evaluation: scripts/start_agpt_guitar_evaluation.sh
+	$(SHELL) scripts/start_agpt_guitar_evaluation.sh "$(MAKE)" "$(AGPT_GUITAR_SAMPLE_DIR)" "$(AGPT_GUITAR_MIN_GUITAR)"
+
+.PHONY: stop-agpt-guitar-evaluation
+stop-agpt-guitar-evaluation: scripts/stop_agpt_guitar_evaluation.sh
+	$(SHELL) scripts/stop_agpt_guitar_evaluation.sh "$(AGPT_GUITAR_SAMPLE_DIR)"
+
+.PHONY: summarize-agpt-guitar-evaluation
+summarize-agpt-guitar-evaluation: scripts/summarize_agpt_guitar_evaluation.py
+	@set -- $(wildcard $(BUILD_DIR)/real_note_agpt_guitar_shard_*.out); test "$$1" != "" || { printf '%s\n' "missing AG-PT shard outputs; run test-agpt-guitar-samples first"; exit 2; }; $(PYTHON) scripts/summarize_agpt_guitar_evaluation.py --output "$(AGPT_GUITAR_MEASUREMENT)" --minimum-samples "$(AGPT_GUITAR_MIN_GUITAR)" "$$@"
+	@cat "$(AGPT_GUITAR_MEASUREMENT)"
+
+.PHONY: measure-agpt-guitar-full-mix
+measure-agpt-guitar-full-mix: $(BUILD_DIR)/analyzer_real_note_samples scripts/run_with_duration.sh
+	$(RUN_WITH_DURATION) analyzer_agpt_guitar_full_mix env MUSIC_ANALYZER_REAL_NOTE_SAMPLES_REQUIRED=1 MUSIC_ANALYZER_REAL_NOTE_FULL_MIX=1 MUSIC_ANALYZER_REAL_NOTE_SAMPLE_ROOT="$(AGPT_GUITAR_SAMPLE_DIR)" MUSIC_ANALYZER_REAL_NOTE_REQUIRED_SAMPLES="$(AGPT_GUITAR_MIN_GUITAR)" MUSIC_ANALYZER_REAL_NOTE_MIN_BASS=0 MUSIC_ANALYZER_REAL_NOTE_MIN_GUITAR=0 MUSIC_ANALYZER_REAL_NOTE_MIN_PIANO=0 MUSIC_ANALYZER_REAL_NOTE_MIN_VOCALS=0 MUSIC_ANALYZER_REAL_NOTE_MIN_OTHER=0 MUSIC_ANALYZER_REAL_NOTE_MIN_ANY_HIT_PERCENT=0 MUSIC_ANALYZER_REAL_NOTE_MIN_EXPECTED_ROW_PERCENT=0 MUSIC_ANALYZER_REAL_NOTE_MIN_FIRST_ROW_PERCENT=0 MUSIC_ANALYZER_REAL_NOTE_MIN_BASS_EXPECTED_ROW_PERCENT=0 MUSIC_ANALYZER_REAL_NOTE_MIN_GUITAR_EXPECTED_ROW_PERCENT=0 MUSIC_ANALYZER_REAL_NOTE_MIN_PIANO_EXPECTED_ROW_PERCENT=0 MUSIC_ANALYZER_REAL_NOTE_MIN_VOCALS_EXPECTED_ROW_PERCENT=0 MUSIC_ANALYZER_REAL_NOTE_MIN_OTHER_EXPECTED_ROW_PERCENT=0 MUSIC_ANALYZER_REAL_NOTE_MIN_BASS_FIRST_ROW_PERCENT=0 MUSIC_ANALYZER_REAL_NOTE_MIN_GUITAR_FIRST_ROW_PERCENT=0 MUSIC_ANALYZER_REAL_NOTE_MIN_PIANO_FIRST_ROW_PERCENT=0 MUSIC_ANALYZER_REAL_NOTE_MIN_VOCALS_FIRST_ROW_PERCENT=0 MUSIC_ANALYZER_REAL_NOTE_MIN_OTHER_FIRST_ROW_PERCENT=0 MUSIC_ANALYZER_REAL_NOTE_MAX_DRUM_ACTIVE_PERCENT=100 MUSIC_ANALYZER_REAL_NOTE_MAX_FAILURES="$(AGPT_GUITAR_MAX_FAILURES)" MUSIC_ANALYZER_REAL_NOTE_ATTRIBUTE_TSV="$(AGPT_GUITAR_FULL_MIX_ATTRIBUTE_TSV)" $(BUILD_DIR)/analyzer_real_note_samples > "$(AGPT_GUITAR_FULL_MIX_MEASUREMENT)"
+
+.PHONY: start-agpt-guitar-full-mix-measurement
+start-agpt-guitar-full-mix-measurement: $(BUILD_DIR)/analyzer_real_note_samples scripts/start_agpt_guitar_full_mix_measurement.sh
+	$(SHELL) scripts/start_agpt_guitar_full_mix_measurement.sh "$(CURDIR)/$(BUILD_DIR)/analyzer_real_note_samples" "$(AGPT_GUITAR_SAMPLE_DIR)" "$(AGPT_GUITAR_MIN_GUITAR)" "$(AGPT_GUITAR_FULL_MIX_ATTRIBUTE_TSV)" "$(AGPT_GUITAR_FULL_MIX_MEASUREMENT)"
+
+.PHONY: inspect-agpt-guitar-full-mix
+inspect-agpt-guitar-full-mix: scripts/summarize_real_note_attributes.py
+	@test -s "$(AGPT_GUITAR_FULL_MIX_ATTRIBUTE_TSV)" || { printf '%s\n' "missing AG-PT full-mix attributes; run make measure-agpt-guitar-full-mix first"; exit 2; }
+	$(PYTHON) scripts/summarize_real_note_attributes.py "$(AGPT_GUITAR_FULL_MIX_ATTRIBUTE_TSV)"
+
+.PHONY: summarize-agpt-guitar-visual-primary
+summarize-agpt-guitar-visual-primary: scripts/summarize_agpt_guitar_visual_primary.py
+	@test -s "$(AGPT_GUITAR_FULL_MIX_ATTRIBUTE_TSV)" || { printf '%s\n' "missing completed AG-PT full-mix attributes"; exit 2; }
+	$(PYTHON) scripts/summarize_agpt_guitar_visual_primary.py --input "$(AGPT_GUITAR_FULL_MIX_ATTRIBUTE_TSV)" --output "$(AGPT_GUITAR_VISUAL_PRIMARY_MEASUREMENT)"
+	@cat "$(AGPT_GUITAR_VISUAL_PRIMARY_MEASUREMENT)"
+
+.PHONY: inspect-agpt-guitar-visual-examples
+inspect-agpt-guitar-visual-examples: scripts/inspect_agpt_guitar_visual_examples.py
+	$(PYTHON) scripts/inspect_agpt_guitar_visual_examples.py
+
+.PHONY: analyze-agpt-guitar-visual-candidates
+analyze-agpt-guitar-visual-candidates: scripts/find_real_note_attribute_patterns.py
+	@test -s "$(AGPT_GUITAR_FULL_MIX_ATTRIBUTE_TSV)" || { printf '%s\n' "missing completed AG-PT full-mix attributes"; exit 2; }
+	@test -s "$(BUILD_DIR)/real_note_full_mix_attributes.tsv" || { printf '%s\n' "missing protected real-note attributes"; exit 2; }
+	$(PYTHON) scripts/find_real_note_attribute_patterns.py "$(AGPT_GUITAR_FULL_MIX_ATTRIBUTE_TSV)" --top-buckets 8 --bucket-status visual_row_confusion --limit 8 --min-positive-samples 20 --max-negative-samples 0 --max-conditions "$(AGPT_GUITAR_VISUAL_PATTERN_MAX_CONDITIONS)" --beam-width "$(AGPT_GUITAR_VISUAL_PATTERN_BEAM_WIDTH)" --include-row-context --protected-scope all --extra-protected-path "$(BUILD_DIR)/real_note_full_mix_attributes.tsv" --show-examples 3 --show-near-misses 8 --profile-fields 8 > "$(AGPT_GUITAR_VISUAL_PATTERN_REPORT)"
+	@cat "$(AGPT_GUITAR_VISUAL_PATTERN_REPORT)"
+
+.PHONY: start-agpt-guitar-visual-mining
+start-agpt-guitar-visual-mining: scripts/start_agpt_guitar_visual_mining.sh
+	@test -s "$(AGPT_GUITAR_FULL_MIX_ATTRIBUTE_TSV)" || { printf '%s\n' "missing completed AG-PT full-mix attributes"; exit 2; }
+	@test -s "$(BUILD_DIR)/real_note_full_mix_attributes.tsv" || { printf '%s\n' "missing protected real-note attributes"; exit 2; }
+	$(SHELL) scripts/start_agpt_guitar_visual_mining.sh "$(AGPT_GUITAR_FULL_MIX_ATTRIBUTE_TSV)" "$(BUILD_DIR)/real_note_full_mix_attributes.tsv" "$(AGPT_GUITAR_VISUAL_PATTERN_REPORT)"
+
+.PHONY: inspect-agpt-guitar-visual-mining
+inspect-agpt-guitar-visual-mining: scripts/inspect_agpt_guitar_visual_miner.sh
+	$(SHELL) scripts/inspect_agpt_guitar_visual_miner.sh
+
+.PHONY: test-agpt-guitar-preparation-scripts
+test-agpt-guitar-preparation-scripts:
+	$(SHELL) -n scripts/start_agpt_guitar_prepare.sh scripts/start_agpt_guitar_evaluation.sh scripts/stop_agpt_guitar_evaluation.sh scripts/start_agpt_guitar_full_mix_measurement.sh scripts/start_agpt_guitar_visual_mining.sh scripts/inspect_agpt_guitar_preparation.sh scripts/inspect_agpt_guitar_visual_miner.sh
+
+.PHONY: test-summarize-agpt-guitar-evaluation
+test-summarize-agpt-guitar-evaluation: tests/test_summarize_agpt_guitar_evaluation.py scripts/summarize_agpt_guitar_evaluation.py
+	$(PYTHON) tests/test_summarize_agpt_guitar_evaluation.py
+
+.PHONY: test-summarize-agpt-guitar-visual-primary
+test-summarize-agpt-guitar-visual-primary: tests/test_summarize_agpt_guitar_visual_primary.py scripts/summarize_agpt_guitar_visual_primary.py
+	$(PYTHON) tests/test_summarize_agpt_guitar_visual_primary.py
 
 .PHONY: analyze-egmd-bpm measure-egmd-bpm-cached summarize-egmd-bpm analyze-real-egmd-bpm analyze-mdb-bpm analyze-maestro-bpm analyze-kraisler-bpm measure-kraisler-bpm-cached summarize-kraisler-bpm download-ballroom-tempo download-ballroom-annotations download-permissive-beat-tracker test-download-ballroom-tempo-script test-prepare-ballroom-tempo-fixture prepare-ballroom-tempo-fixture measure-ballroom-bpm summarize-ballroom-bpm download-filobass inspect-filobass prepare-filobass-tempo-fixture measure-filobass-bpm summarize-filobass-bpm inspect-filobass-tempo-onsets inspect-tempo-candidate-feasibility inspect-tempo-confidence-calibration inspect-beat-tracker-backends analyze-bpm-diagnostics test-analyze-egmd-tempo test-inspect-tempo-candidate-feasibility measure-permissive-beat-tracker-high-tempo measure-permissive-beat-tracker-high-tempo-ballroom measure-permissive-beat-tracker-high-tempo-filobass measure-permissive-beat-tracker-high-tempo-gtzan-rhythm summarize-permissive-beat-tracker-high-tempo
 
@@ -6286,6 +7054,30 @@ test-analyze-egmd-tempo: tests/test_analyze_egmd_tempo.py scripts/analyze_egmd_t
 
 test-inspect-tempo-candidate-feasibility: tests/test_inspect_tempo_candidate_feasibility.py scripts/inspect_tempo_candidate_feasibility.py
 	$(PYTHON) tests/test_inspect_tempo_candidate_feasibility.py
+
+.PHONY: summarize-immediate-source-bpm-3s test-summarize-immediate-source-bpm
+summarize-immediate-source-bpm-3s: scripts/summarize_immediate_source_bpm.py | $(BUILD_DIR)
+	@test -s "$(BUILD_DIR)/ballroom_bpm_3s_source_diagnostics.log" || { printf '%s\n' "missing Ballroom 3 s source diagnostics; run the 3 s replay first"; exit 2; }
+	@inputs="--input Ballroom=$(BUILD_DIR)/ballroom_bpm_3s_source_diagnostics.log"; if test -s "$(FILOBASS_IMMEDIATE_SOURCE_BPM_3S_LOG)"; then inputs="$$inputs --input FiloBass=$(FILOBASS_IMMEDIATE_SOURCE_BPM_3S_LOG)"; fi; if test -s "$(GTZAN_IMMEDIATE_SOURCE_BPM_3S_LOG)"; then inputs="$$inputs --input GTZAN-Rhythm=$(GTZAN_IMMEDIATE_SOURCE_BPM_3S_LOG)"; fi; $(PYTHON) scripts/summarize_immediate_source_bpm.py --tolerance "$(BPM_DIAG_TOLERANCE)" $$inputs --output "$(IMMEDIATE_SOURCE_BPM_3S_AUDIT)"
+	cat "$(IMMEDIATE_SOURCE_BPM_3S_AUDIT)"
+
+test-summarize-immediate-source-bpm: tests/test_summarize_immediate_source_bpm.py scripts/summarize_immediate_source_bpm.py
+	$(PYTHON) tests/test_summarize_immediate_source_bpm.py
+
+.PHONY: measure-ballroom-immediate-source-bpm-3s measure-filobass-immediate-source-bpm-3s
+
+measure-ballroom-immediate-source-bpm-3s: $(BUILD_DIR)/analyzer_maestro prepare-ballroom-tempo-fixture scripts/run_with_duration.sh | $(BUILD_DIR)
+	$(RUN_WITH_DURATION) analyzer_ballroom_bpm_3s_source env MUSIC_ANALYZER_MAESTRO_ROOT="$(BALLROOM_TEMPO_FIXTURE_DIR)" MUSIC_ANALYZER_MAESTRO_REQUIRED=1 MUSIC_ANALYZER_MAESTRO_REQUIRED_RECORDINGS=1 MUSIC_ANALYZER_MAESTRO_REQUIRED_WINDOWS=1 MUSIC_ANALYZER_MAESTRO_MIN_ACTIVE_NOTES_PER_WINDOW=1 MUSIC_ANALYZER_MAESTRO_MIN_PITCH_CLASSES_PER_WINDOW=1 MUSIC_ANALYZER_MAESTRO_INSPECT_ONLY=1 MUSIC_ANALYZER_MAESTRO_VALIDATE_BPM=1 MUSIC_ANALYZER_MAESTRO_MEASURE_ALL_TEMPO=1 MUSIC_ANALYZER_MAESTRO_REQUIRED_TEMPO_RECORDINGS=1 MUSIC_ANALYZER_MAESTRO_MIN_BPM_PASS_PERCENT=0 MUSIC_ANALYZER_MAESTRO_BPM_TOLERANCE="$(BPM_DIAG_TOLERANCE)" MUSIC_ANALYZER_MAESTRO_BPM_MAX_SECONDS=3 $(BUILD_DIR)/analyzer_maestro > "$(BUILD_DIR)/ballroom_bpm_3s_source_diagnostics.log.summary" 2> "$(BUILD_DIR)/ballroom_bpm_3s_source_diagnostics.log"
+	$(PYTHON) scripts/summarize_immediate_source_bpm.py --tolerance "$(BPM_DIAG_TOLERANCE)" --input "Ballroom=$(BUILD_DIR)/ballroom_bpm_3s_source_diagnostics.log"
+
+measure-filobass-immediate-source-bpm-3s: $(BUILD_DIR)/analyzer_maestro prepare-filobass-tempo-fixture scripts/run_with_duration.sh | $(BUILD_DIR)
+	$(RUN_WITH_DURATION) analyzer_filobass_bpm_3s_source env MUSIC_ANALYZER_MAESTRO_ROOT="$(FILOBASS_TEMPO_FIXTURE_DIR)" MUSIC_ANALYZER_MAESTRO_REQUIRED=1 MUSIC_ANALYZER_MAESTRO_REQUIRED_RECORDINGS=1 MUSIC_ANALYZER_MAESTRO_REQUIRED_WINDOWS=1 MUSIC_ANALYZER_MAESTRO_MIN_ACTIVE_NOTES_PER_WINDOW=1 MUSIC_ANALYZER_MAESTRO_MIN_PITCH_CLASSES_PER_WINDOW=1 MUSIC_ANALYZER_MAESTRO_INSPECT_ONLY=1 MUSIC_ANALYZER_MAESTRO_VALIDATE_BPM=1 MUSIC_ANALYZER_MAESTRO_MEASURE_ALL_TEMPO=1 MUSIC_ANALYZER_MAESTRO_REQUIRED_TEMPO_RECORDINGS=1 MUSIC_ANALYZER_MAESTRO_MIN_BPM_PASS_PERCENT=0 MUSIC_ANALYZER_MAESTRO_BPM_TOLERANCE="$(BPM_DIAG_TOLERANCE)" MUSIC_ANALYZER_MAESTRO_BPM_MAX_SECONDS=3 $(BUILD_DIR)/analyzer_maestro > "$(FILOBASS_IMMEDIATE_SOURCE_BPM_3S_LOG).summary" 2> "$(FILOBASS_IMMEDIATE_SOURCE_BPM_3S_LOG)"
+	$(PYTHON) scripts/summarize_immediate_source_bpm.py --tolerance "$(BPM_DIAG_TOLERANCE)" --input "FiloBass=$(FILOBASS_IMMEDIATE_SOURCE_BPM_3S_LOG)"
+
+.PHONY: measure-gtzan-immediate-source-bpm-3s
+measure-gtzan-immediate-source-bpm-3s: $(BUILD_DIR)/analyzer_maestro prepare-gtzan-rhythm-tempo-fixture scripts/run_with_duration.sh | $(BUILD_DIR)
+	$(RUN_WITH_DURATION) analyzer_gtzan_rhythm_bpm_3s_source env MUSIC_ANALYZER_MAESTRO_ROOT="$(GTZAN_RHYTHM_TEMPO_FIXTURE_DIR)" MUSIC_ANALYZER_MAESTRO_REQUIRED=1 MUSIC_ANALYZER_MAESTRO_REQUIRED_RECORDINGS=1 MUSIC_ANALYZER_MAESTRO_REQUIRED_WINDOWS=1 MUSIC_ANALYZER_MAESTRO_MIN_ACTIVE_NOTES_PER_WINDOW=1 MUSIC_ANALYZER_MAESTRO_MIN_PITCH_CLASSES_PER_WINDOW=1 MUSIC_ANALYZER_MAESTRO_INSPECT_ONLY=1 MUSIC_ANALYZER_MAESTRO_VALIDATE_BPM=1 MUSIC_ANALYZER_MAESTRO_MEASURE_ALL_TEMPO=1 MUSIC_ANALYZER_MAESTRO_REQUIRED_TEMPO_RECORDINGS=1 MUSIC_ANALYZER_MAESTRO_MIN_BPM_PASS_PERCENT=0 MUSIC_ANALYZER_MAESTRO_BPM_TOLERANCE="$(BPM_DIAG_TOLERANCE)" MUSIC_ANALYZER_MAESTRO_BPM_MAX_SECONDS=3 $(BUILD_DIR)/analyzer_maestro > "$(GTZAN_IMMEDIATE_SOURCE_BPM_3S_LOG).summary" 2> "$(GTZAN_IMMEDIATE_SOURCE_BPM_3S_LOG)"
+	$(PYTHON) scripts/summarize_immediate_source_bpm.py --tolerance "$(BPM_DIAG_TOLERANCE)" --input "GTZAN-Rhythm=$(GTZAN_IMMEDIATE_SOURCE_BPM_3S_LOG)"
 analyze-egmd-bpm: $(BUILD_DIR)/analyzer_egmd tests/generate_egmd_fixture.py scripts/analyze_egmd_tempo.py scripts/run_with_duration.sh | $(BUILD_DIR)
 	rm -rf "$(REAL_GOAL_EGMD_FIXTURE_DIR)"
 	$(PYTHON) tests/generate_egmd_fixture.py "$(REAL_GOAL_EGMD_FIXTURE_DIR)"
@@ -6666,7 +7458,7 @@ ANALYSIS_SCRIPT_TEST_TARGETS += test-inspect-drum-candidate-rows
 ANALYSIS_SCRIPT_TEST_TARGETS += test-inspect-real-note-candidate-rows
 ANALYSIS_SCRIPT_TEST_TARGETS += test-inspect-detector-coverage-candidates test-compare-drum-primary-scores
 ANALYSIS_SCRIPT_TEST_TARGETS += test-inspect-good-sounds-archive-coverage
-ANALYSIS_SCRIPT_TEST_TARGETS += test-inspect-polyphonic-candidate-capacity test-inspect-harmonic-product-octave-evidence test-detection-accuracy-report
+ANALYSIS_SCRIPT_TEST_TARGETS += test-inspect-polyphonic-candidate-capacity test-inspect-harmonic-product-octave-evidence test-detection-accuracy-report test-summarize-isolated-guitar-visual
 ANALYSIS_SCRIPT_TEST_TARGETS += test-inspect-tempo-candidate-feasibility
 ANALYSIS_SCRIPT_TEST_TARGETS += test-inspect-urmp-bass-timing
 ANALYSIS_SCRIPT_TEST_TARGETS += test-search-egmd-false-positive-caps
@@ -6715,6 +7507,162 @@ test-real-note-sample-shard-check: tests/test_check_real_note_sample_shards.py s
 
 test-guitarset-shard-check: tests/test_check_guitarset_shards.py scripts/check_guitarset_shards.py
 	$(PYTHON) tests/test_check_guitarset_shards.py
+
+DRUM_PRIMARY_ROUTE_EXPECTED ?= hihat
+DRUM_PRIMARY_ROUTE_PRIMARY ?= none
+DRUM_PRIMARY_ROUTE_LIMIT ?= 5
+
+.PHONY: inspect-drum-primary-route
+inspect-drum-primary-route: $(BUILD_DIR)/drum_primary_miss_attribute_rows.tsv scripts/inspect_drum_primary_route.py
+	$(PYTHON) scripts/inspect_drum_primary_route.py "$(BUILD_DIR)/drum_primary_miss_attribute_rows.tsv" --expected "$(DRUM_PRIMARY_ROUTE_EXPECTED)" --primary "$(DRUM_PRIMARY_ROUTE_PRIMARY)" --limit "$(DRUM_PRIMARY_ROUTE_LIMIT)"
+
+.PHONY: summarize-drum-primary-routes
+summarize-drum-primary-routes: $(BUILD_DIR)/drum_primary_miss_attribute_rows.tsv scripts/summarize_drum_primary_routes.py
+	$(PYTHON) scripts/summarize_drum_primary_routes.py "$(BUILD_DIR)/drum_primary_miss_attribute_rows.tsv"
+
+.PHONY: inspect-analyzer-ride-hihat
+inspect-analyzer-ride-hihat: scripts/inspect_analyzer_section.py src/analyzer.cpp
+	$(PYTHON) scripts/inspect_analyzer_section.py --topic "ride_hihat"
+
+.PHONY: inspect-fret-zealot
+inspect-fret-zealot: scripts/inspect_fret_zealot.py
+	$(PYTHON) scripts/inspect_fret_zealot.py
+
+.PHONY: inspect-fret-zealot-packet
+inspect-fret-zealot-packet: scripts/inspect_source_range.py src/fret_control.cpp
+	$(PYTHON) scripts/inspect_source_range.py src/fret_control.cpp 390 500
+
+.PHONY: inspect-fret-zealot-integration
+inspect-fret-zealot-integration: scripts/inspect_fret_zealot_integration.py
+	$(PYTHON) scripts/inspect_fret_zealot_integration.py
+
+.PHONY: inspect-fret-zealot-frames
+inspect-fret-zealot-frames: scripts/inspect_fret_zealot_frames.py android/app/src/main/java/dev/benalu/musicanalyzer/FretZealotSdkController.java
+	$(PYTHON) scripts/inspect_fret_zealot_frames.py
+
+.PHONY: inspect-fret-zealot-update-path
+inspect-fret-zealot-update-path: scripts/inspect_source_range.py android/app/src/main/java/dev/benalu/musicanalyzer/FretZealotSdkController.java
+	$(PYTHON) scripts/inspect_source_range.py android/app/src/main/java/dev/benalu/musicanalyzer/FretZealotSdkController.java 90 250
+
+.PHONY: inspect-fret-zealot-android-tests
+inspect-fret-zealot-android-tests: scripts/inspect_source_range.py tests/check_android_project.py
+	$(PYTHON) scripts/inspect_source_range.py tests/check_android_project.py 1 90
+
+.PHONY: test-fret-zealot-android-dispatch
+test-fret-zealot-android-dispatch: tests/check_android_project.py
+	$(PYTHON) tests/check_android_project.py
+
+.PHONY: list-android-make-targets
+list-android-make-targets: scripts/list_android_make_targets.py Makefile
+	$(PYTHON) scripts/list_android_make_targets.py
+
+.PHONY: inspect-android-native-cmake
+inspect-android-native-cmake: scripts/inspect_source_range.py android/app/src/main/cpp/CMakeLists.txt
+	$(PYTHON) scripts/inspect_source_range.py android/app/src/main/cpp/CMakeLists.txt 1 220
+
+.PHONY: inspect-basic-pitch-android-guards
+inspect-basic-pitch-android-guards: scripts/inspect_basic_pitch_android_guards.py
+	$(PYTHON) scripts/inspect_basic_pitch_android_guards.py
+
+.PHONY: inspect-basic-pitch-runtime
+inspect-basic-pitch-runtime: scripts/inspect_source_range.py src/basic_pitch_onnx_runtime.cpp
+	$(PYTHON) scripts/inspect_source_range.py src/basic_pitch_onnx_runtime.cpp 1 230
+
+.PHONY: inspect-basic-pitch-runtime-header
+inspect-basic-pitch-runtime-header: scripts/inspect_source_range.py src/basic_pitch_onnx_runtime.hpp
+	$(PYTHON) scripts/inspect_source_range.py src/basic_pitch_onnx_runtime.hpp 1 180
+
+.PHONY: repository-state
+repository-state: scripts/report_repository_state.sh
+	$(SHELL) scripts/report_repository_state.sh
+
+.PHONY: report-analyzer-case-processes
+report-analyzer-case-processes: scripts/report_analyzer_case_processes.sh
+	$(SHELL) scripts/report_analyzer_case_processes.sh
+
+.PHONY: report-drum-pattern-processes
+report-drum-pattern-processes: scripts/report_drum_pattern_processes.sh
+	$(SHELL) scripts/report_drum_pattern_processes.sh
+
+.PHONY: report-egmd-processes
+report-egmd-processes: scripts/report_egmd_processes.sh
+	$(SHELL) scripts/report_egmd_processes.sh
+
+.PHONY: wait-for-drum-pattern-processes
+wait-for-drum-pattern-processes: scripts/wait_for_drum_pattern_processes.py
+	$(PYTHON) scripts/wait_for_drum_pattern_processes.py
+
+.PHONY: analyze-tom-snare-primary
+analyze-tom-snare-primary: $(BUILD_DIR)/drum_primary_miss_attribute_rows.tsv scripts/analyze_tom_snare_primary.py
+	$(PYTHON) scripts/analyze_tom_snare_primary.py
+
+.PHONY: inspect-analyzer-tom-snare
+inspect-analyzer-tom-snare: scripts/inspect_analyzer_section.py src/analyzer.cpp
+	$(PYTHON) scripts/inspect_analyzer_section.py --topic "tom_from_snare_primary_recovery"
+
+.PHONY: analyze-hihat-none
+analyze-hihat-none: $(BUILD_DIR)/drum_primary_miss_attribute_rows.tsv scripts/analyze_hihat_none.py
+	$(PYTHON) scripts/analyze_hihat_none.py
+
+.PHONY: inspect-drum-debug-flags
+inspect-drum-debug-flags: scripts/inspect_analyzer_section.py src/analyzer.hpp
+	$(PYTHON) scripts/inspect_analyzer_section.py --source src/analyzer.hpp --topic "DrumDebug"
+
+.PHONY: inspect-analyzer-hihat-activation
+inspect-analyzer-hihat-activation: scripts/inspect_analyzer_section.py src/analyzer.cpp
+	$(PYTHON) scripts/inspect_analyzer_section.py --topic "drum_level_[HiHat] ="
+
+.PHONY: inspect-analyzer-hihat-caps
+inspect-analyzer-hihat-caps: scripts/inspect_analyzer_section.py src/analyzer.cpp
+	$(PYTHON) scripts/inspect_analyzer_section.py --topic "cap_drum_level(HiHat"
+
+.PHONY: inspect-analyzer-drum-activation-block
+inspect-analyzer-drum-activation-block: scripts/inspect_source_range.py src/analyzer.cpp
+	$(PYTHON) scripts/inspect_source_range.py src/analyzer.cpp 31700 32200
+
+.PHONY: inspect-analyzer-drum-transient
+inspect-analyzer-drum-transient: scripts/inspect_analyzer_section.py src/analyzer.cpp
+	$(PYTHON) scripts/inspect_analyzer_section.py --topic "drum_transient ="
+
+.PHONY: inspect-analyzer-drum-transient-threshold
+inspect-analyzer-drum-transient-threshold: scripts/inspect_analyzer_section.py src/analyzer.cpp
+	$(PYTHON) scripts/inspect_analyzer_section.py --topic "kDrumTransientRatio"
+
+.PHONY: evaluate-hihat-activation-candidate
+evaluate-hihat-activation-candidate: $(BUILD_DIR)/drum_primary_miss_attribute_rows.tsv scripts/evaluate_hihat_activation_candidate.py
+	$(PYTHON) scripts/evaluate_hihat_activation_candidate.py
+
+.PHONY: inspect-mdb-drum-shards
+inspect-mdb-drum-shards: scripts/inspect_mdb_drum_shards.py
+	$(PYTHON) scripts/inspect_mdb_drum_shards.py
+
+.PHONY: inspect-egmd-test-options
+inspect-egmd-test-options: scripts/inspect_egmd_test_options.py tests/analyzer_egmd.cpp
+	$(PYTHON) scripts/inspect_egmd_test_options.py
+
+.PHONY: inspect-mdb-hihat-misses
+inspect-mdb-hihat-misses: scripts/inspect_mdb_hihat_misses.py
+	$(PYTHON) scripts/inspect_mdb_hihat_misses.py
+
+.PHONY: mine-mdb-hihat-selectors
+mine-mdb-hihat-selectors: analyze-mdb-drum-windows scripts/mine_mdb_hihat_selectors.py
+	$(PYTHON) scripts/mine_mdb_hihat_selectors.py
+
+.PHONY: inspect-mdb-drum-target
+inspect-mdb-drum-target: scripts/inspect_source_range.py Makefile
+	$(PYTHON) scripts/inspect_source_range.py Makefile 3440 3520
+
+.PHONY: inspect-egmd-recovery-evaluator
+inspect-egmd-recovery-evaluator: scripts/inspect_source_range.py scripts/evaluate_egmd_drum_recovery.py
+	$(PYTHON) scripts/inspect_source_range.py scripts/evaluate_egmd_drum_recovery.py 1 360
+
+.PHONY: stop-analyzer-case-processes
+stop-analyzer-case-processes: scripts/stop_analyzer_case_processes.py
+	$(PYTHON) scripts/stop_analyzer_case_processes.py
+
+.PHONY: inspect-fret-zealot-dispatch
+inspect-fret-zealot-dispatch: scripts/inspect_fret_zealot_dispatch.py
+	$(PYTHON) scripts/inspect_fret_zealot_dispatch.py
 
 test-analysis-scripts-parallel: scripts/run_with_duration.sh
 	+$(RUN_WITH_DURATION) test_analysis_scripts_parallel $(MAKE) $(PARALLEL_TEST_MAKE_JOBS) $(ANALYSIS_SCRIPT_TEST_TARGETS)
@@ -6858,6 +7806,13 @@ test-urmp-inspector: tests/test_inspect_urmp_dataset.py tests/inspect_urmp_datas
 
 test-drum-sample-prepare: tests/test_prepare_drum_samples.py scripts/prepare_drum_samples.py
 	$(PYTHON) tests/test_prepare_drum_samples.py
+
+
+
+
+
+
+
 
 test-drum-sample-skip-patterns: tests/test_inspect_drum_sample_skip_patterns.py scripts/inspect_drum_sample_skip_patterns.py scripts/prepare_drum_samples.py
 	$(PYTHON) tests/test_inspect_drum_sample_skip_patterns.py
@@ -7561,6 +8516,15 @@ install-user: all
 	fi
 	mkdir -p $(OBS_USER_PLUGIN_DIR)
 	cp $(BUILD_DIR)/music-analyzer-obs.so $(OBS_USER_PLUGIN_DIR)/
+	mkdir -p $(OBS_USER_PLUGIN_DATA_DIR)
+	cp $(ONNXRUNTIME_LIBRARY) $(OBS_USER_PLUGIN_DATA_DIR)/libonnxruntime.so
+	cp $(BASIC_PITCH_ONNX_MODEL) $(OBS_USER_PLUGIN_DATA_DIR)/nmp.onnx
+
+.PHONY: clean-legacy-basic-pitch-user-data
+# One-time cleanup for the path used before OBS_USER_PLUGIN_ROOT was resolved
+# correctly.  It targets only files installed by this plugin revision.
+clean-legacy-basic-pitch-user-data:
+	rm -rf "$(OBS_USER_PLUGIN_ROOT)/bin/data/basic_pitch"
 
 clean:
 	rm -rf $(BUILD_DIR)
@@ -7643,41 +8607,642 @@ search-repo:
 .PHONY: show-repo-lines
 show-repo-lines:
 	@sh scripts/show_repo_lines.sh "$(FILE)" "$(START)" "$(END)"
+inspect-analyzer-hihat-cap-sites:
+	$(PYTHON) scripts/inspect_hihat_cap_sites.py
+summarize-mdb-hihat-cap:
+	$(PYTHON) scripts/summarize_mdb_hihat_cap.py
+inspect-egmd-verbose-output:
+	$(PYTHON) scripts/inspect_egmd_verbose_output.py
+list-mdb-early-hihat-candidates:
+	$(PYTHON) scripts/list_mdb_early_hihat_candidates.py
+mine-mdb-drum-selectors:
+	$(MAKE) analyze-mdb-drum-windows
+	$(PYTHON) scripts/mine_mdb_drum_selectors.py
+inspect-analyzer-kick-cap-sites:
+	$(PYTHON) scripts/inspect_kick_cap_sites.py
+mine-mdb-drum-pair-selectors:
+	$(MAKE) analyze-mdb-drum-windows
+	$(PYTHON) scripts/mine_mdb_drum_pair_selectors.py
+list-mdb-snare-candidates:
+	$(MAKE) analyze-mdb-drum-windows
+	$(PYTHON) scripts/list_mdb_snare_candidates.py
+summarize-mdb-crash-recovery:
+	$(MAKE) analyze-mdb-drum-windows
+	$(PYTHON) scripts/summarize_mdb_crash_recovery.py
+analyze-star-drums-verbose-windows:
+	$(PYTHON) scripts/analyze_star_drum_verbose_windows.py
 
+list-star-hihat-misses:
+	$(MAKE) analyze-star-drums-verbose-windows
+	$(PYTHON) scripts/list_star_hihat_misses.py
+inspect-fret-zealot-auto-root:
+	python3 scripts/inspect_fret_zealot_auto_root.py
+report-idmt-drums-processes:
+	python3 scripts/report_idmt_drums_processes.py
+wait-idmt-drums-processes:
+	python3 scripts/wait_idmt_drums_processes.py
+summarize-idmt-drums-results:
+	python3 scripts/summarize_idmt_drums_results.py
+inspect-analyzer-case-hihat-regression:
+	python3 scripts/inspect_analyzer_case_hihat_regression.py
+wait-analyzer-cases-process:
+	python3 scripts/wait_analyzer_cases_process.py
+report-analyzer-cases-process:
+	python3 scripts/report_analyzer_cases_process.py
+plan-stop-duplicate-analyzer-cases:
+	python3 scripts/manage_duplicate_analyzer_cases.py plan
+
+apply-stop-duplicate-analyzer-cases:
+	python3 scripts/manage_duplicate_analyzer_cases.py apply
+test-analyzer-hihat-regression:
+	/bin/sh scripts/run_analyzer_hihat_regression.sh
+inspect-drum-transient-gate:
+	python3 scripts/inspect_drum_transient_gate.py
+inspect-mdb-hihat-trigger-evidence:
+	python3 scripts/inspect_mdb_hihat_trigger_evidence.py
+inspect-analyzer-test-object-rule:
+	python3 scripts/inspect_analyzer_test_object_rule.py
+test-analyzer-cases-logged:
+	python3 scripts/run_analyzer_cases_logged.py
+
+summarize-analyzer-cases-log:
+	python3 scripts/summarize_analyzer_cases_log.py
+list-real-note-test-targets:
+	python3 scripts/list_real_note_test_targets.py
+inspect-analyzer-cases-main:
+	python3 scripts/inspect_analyzer_cases_main.py
+summarize-hf-ride-primary-misses:
+	python3 scripts/summarize_hf_ride_primary_misses.py
+inspect-drum-sample-verbose-controls:
+	python3 scripts/inspect_drum_sample_verbose_controls.py
+
+print-drum-sample-verbose-controls:
+	python3 scripts/print_drum_sample_verbose_controls.py
+
+inspect-drum-sample-verbose-output:
+	python3 scripts/inspect_drum_sample_verbose_output.py
+
+inspect-hf-drum-kit-target:
+	python3 scripts/inspect_make_target.py
+
+report-hf-ride-primary-attributes: build/hf_drum_kit_primary_attribute_rows_ride.tsv
+	python3 scripts/report_hf_ride_primary_attributes.py
+
+inspect-primary-drum-arbitration:
+	python3 scripts/inspect_primary_drum_arbitration.py
+
+inspect-hihat-ride-arbitration:
+	python3 scripts/inspect_hihat_ride_arbitration.py
+
+evaluate-hihat-ride-primary-recovery: build/hf_drum_kit_primary_attribute_rows_ride.tsv build/hf_drum_kit_primary_attribute_rows_hihat.tsv
+	python3 scripts/evaluate_hihat_ride_primary_recovery.py
+
+report-hf-drum-test-status:
+	python3 scripts/report_hf_drum_test_status.py
+
+report-hf-snare-ride-hihat-collisions: build/hf_drum_kit_primary_attribute_rows_snare.tsv
+	python3 scripts/report_hf_snare_ride_hihat_collisions.py
+
+verify-drum-regression-targets:
+	python3 scripts/verify_drum_regression_targets.py
+
+test-drum-regressions-parallel: verify-drum-regression-targets
+	python3 scripts/run_drum_regressions_parallel.py
+
+report-drum-regression-logs:
+	python3 scripts/report_drum_regression_logs.py
+
+report-spread-rim-ride-hihat-collisions: build/drum_spread_exact_attribute_rows_rim.tsv
+	python3 scripts/report_spread_rim_ride_hihat_collisions.py
+
+report-spread-drum-shards:
+	python3 scripts/report_spread_drum_shards.py
+
+inspect-complex-real-timbres:
+	python3 scripts/inspect_complex_real_timbres.py
+
+list-ready-real-audio-evidence:
+	python3 scripts/list_ready_real_audio_evidence.py
+
+summarize-gaps-guitar-attributes:
+	python3 scripts/summarize_gaps_guitar_attributes.py
+
+inspect-caged-root-regression:
+	python3 scripts/inspect_caged_root_regression.py
+
+inspect-analyzer-hihat-regression-test:
+	python3 scripts/inspect_analyzer_hihat_regression_test.py
+
+inspect-analyzer-caged-root-runtime: build/analyzer_test.o tests/analyzer_caged_root_regression.cpp scripts/run_analyzer_caged_root_regression.sh
+	sh scripts/run_analyzer_caged_root_regression.sh
+
+inspect-analysis-snapshot:
+	python3 scripts/inspect_analysis_snapshot.py
+
+inspect-chord-template-ranking:
+	python3 scripts/inspect_chord_template_ranking.py
+
+inspect-global-chord-path:
+	python3 scripts/inspect_global_chord_path.py
+
+inspect-global-chord-tracking:
+	python3 scripts/inspect_global_chord_tracking.py
+
+inspect-mixed-global-display-chord:
+	python3 scripts/inspect_mixed_global_display_chord.py
+
+inspect-stronger-chord:
+	python3 scripts/inspect_stronger_chord.py
+
+inspect-global-chroma-construction:
+	python3 scripts/inspect_global_chroma_construction.py
+
+plan-stage-verified-drum-changes:
+	python3 scripts/plan_stage_verified_drum_changes.py
+
+list-idmt-drum-evidence:
+	python3 scripts/list_idmt_drum_evidence.py
+
+summarize-idmt-hihat-attributes:
+	python3 scripts/summarize_idmt_hihat_attributes.py
+
+evaluate-idmt-hihat-recovery:
+	python3 scripts/evaluate_idmt_hihat_recovery.py
+.PHONY: inspect-idmt-hihat-suppression
+inspect-idmt-hihat-suppression:
+	python3 scripts/inspect_idmt_hihat_suppression.py
+.PHONY: evaluate-gaps-guitar-misses
+evaluate-gaps-guitar-misses:
+	python3 scripts/evaluate_gaps_guitar_misses.py
+.PHONY: inspect-make-targets
+inspect-make-targets:
+	python3 scripts/inspect_make_targets.py
+.PHONY: inspect-vocal-make-targets
+inspect-vocal-make-targets:
+	python3 scripts/inspect_make_targets.py vocal
+.PHONY: report-vocalset-test-state
+report-vocalset-test-state:
+	python3 scripts/report_vocalset_test_state.py
+.PHONY: wait-vocalset-test-state
+wait-vocalset-test-state:
+	python3 scripts/wait_vocalset_test_state.py
+.PHONY: inspect-guitar-chord-primary-promotion
+inspect-guitar-chord-primary-promotion:
+	python3 scripts/inspect_guitar_chord_primary_promotion.py
+.PHONY: inspect-guitar-extension-promotion-core
+inspect-guitar-extension-promotion-core:
+	$(PYTHON) scripts/inspect_source_range.py src/analyzer.cpp 18670 18870
+.PHONY: report-analyzer-build-state
+report-analyzer-build-state:
+	python3 scripts/report_analyzer_build_state.py
+.PHONY: test-gaps-guitar-full-primary-display
+test-gaps-guitar-full-primary-display: analyze-gaps-guitar-full-attributes
+	python3 tests/check_gaps_guitar_primary_display.py build/gaps_guitar_full_attributes.tsv 177
+.PHONY: summarize-real-audio-fixture-coverage
+summarize-real-audio-fixture-coverage:
+	python3 scripts/summarize_real_audio_fixture_coverage.py
+.PHONY: inspect-fret-zealot-current
+inspect-fret-zealot-current:
+	python3 scripts/inspect_fret_zealot_current.py
+
+.PHONY: inspect-real-audio-targets
+inspect-real-audio-targets:
+	python3 scripts/inspect_make_target_name.py summarize-real-audio-fixture-coverage list-ready-real-audio-evidence
+
+.PHONY: list-real-note-corpus-targets
+list-real-note-corpus-targets:
+	python3 scripts/list_make_targets_matching.py bass piano vocal real-note musicnet maestro maps iowa urmp
+
+.PHONY: audit-high-bass-ownership
+audit-high-bass-ownership:
+	python3 scripts/audit_high_bass_ownership.py
+
+.PHONY: inspect-bass-recovery-source
+inspect-bass-recovery-source:
+	python3 scripts/inspect_bass_recovery_source.py
+
+.PHONY: inspect-other-display-source
+inspect-other-display-source:
+	python3 scripts/inspect_other_display_source.py
+.PHONY: inspect-fret-zealot-scale
+inspect-fret-zealot-scale:
+	python3 scripts/diagnose_fret_zealot_scale.py
+
+.PHONY: test-fret-zealot-scale-reconciliation
+test-fret-zealot-scale-reconciliation:
+	python3 tests/check_fret_zealot_scale_reconciliation.py
+
+.PHONY: summarize-melodic-drum-false-positives
+summarize-melodic-drum-false-positives:
+	python3 scripts/summarize_melodic_drum_false_positives.py build/real_note_full_mix_attributes.tsv
+
+summarize-real-note-row-confusion:
+	python3 scripts/summarize_real_note_row_confusion.py build/real_note_full_mix_attributes.tsv
+
+inspect-note-owner-classifier:
+	python3 scripts/inspect_note_owner_classifier.py
+
+inspect-guitar-octave-shadow:
+	python3 scripts/inspect_guitar_octave_shadow.py
+
+inspect-analyzer-case-hihat-decay:
+	python3 scripts/inspect_analyzer_case_context.py 'OBS hihat decay guard'
+
+inspect-analyzer-case-distorted-guitar-chord:
+	python3 scripts/inspect_analyzer_case_context.py 'complex real timbre distorted guitar chord'
+
+inspect-chord-dim-alias:
+	python3 scripts/inspect_chord_dim_alias.py
+
+list-analyzer-test-targets:
+	python3 scripts/list_analyzer_test_targets.py
+
+.PHONY: inspect-fret-zealot-sync
+inspect-fret-zealot-sync:
+	python3 scripts/inspect_fret_zealot_sync.py
+
+.PHONY: inspect-fret-zealot-diff
+inspect-fret-zealot-diff:
+	python3 scripts/inspect_fret_zealot_diff.py
+
+.PHONY: test-fret-zealot-auto-root-guard
+test-fret-zealot-auto-root-guard:
+	python3 tests/check_fret_zealot_auto_root_guard.py
+
+.PHONY: list-android-targets
+list-android-targets:
+	python3 scripts/list_android_targets.py
+
+.PHONY: inspect-android-project-guard
+inspect-android-project-guard:
+	python3 scripts/inspect_android_project_guard.py
+
+.PHONY: inspect-guitar-chord-mix-shards
+inspect-guitar-chord-mix-shards:
+	python3 scripts/inspect_guitar_chord_mix_shards.py
+
+.PHONY: inspect-guitarset-primary-measurement
+inspect-guitarset-primary-measurement:
+	python3 scripts/inspect_guitarset_primary_measurement.py
+
+.PHONY: debug-guitar-chord-primary-misses
+debug-guitar-chord-primary-misses:
+	python3 scripts/debug_guitar_chord_primary_misses.py
+
+.PHONY: collect-guitar-chord-primary-attributes
+collect-guitar-chord-primary-attributes:
+	python3 scripts/collect_guitar_chord_primary_attributes.py
+
+.PHONY: summarize-guitar-chord-primary-attributes
+summarize-guitar-chord-primary-attributes:
+	python3 scripts/summarize_guitar_chord_primary_attributes.py
+
+.PHONY: inspect-chord-ranking
+inspect-chord-ranking:
+	python3 scripts/inspect_chord_ranking.py
+
+.PHONY: inspect-chord-alias-order
+inspect-chord-alias-order:
+	python3 scripts/inspect_chord_alias_order.py
+
+.PHONY: inspect-guitar-primary-promotion
+inspect-guitar-primary-promotion:
+	python3 scripts/inspect_guitar_primary_promotion.py
+
+inspect-real-note-piano-guitar-attributes:
+	python3 scripts/inspect_real_note_sample_attributes.py keyboard_electronic_078-042-025
+
+.PHONY: inspect-hihat-detector
+inspect-hihat-detector:
+	python3 scripts/diagnose_hihat_detector.py
+
+.PHONY: inspect-real-note-full-mix-replay
+inspect-real-note-full-mix-replay:
+	python3 scripts/diagnose_real_note_full_mix.py
+
+.PHONY: inspect-drum-fixture-debug
+inspect-drum-fixture-debug:
+	python3 scripts/diagnose_drum_fixture_debug.py
+
+.PHONY: debug-hf-hihat-fixtures
+debug-hf-hihat-fixtures:
+	sh scripts/run_hihat_fixture_debug.sh
+
+.PHONY: debug-real-note-hihat-false-positives
+debug-real-note-hihat-false-positives:
+	sh scripts/run_real_note_hihat_false_debug.sh
+
+.PHONY: test-hihat-early-recovery-guard
+test-hihat-early-recovery-guard:
+	python3 tests/check_hihat_early_recovery_guard.py
+
+test-tonal-hihat-regressions: build/analyzer_real_note_samples
+	python3 tests/check_tonal_hihat_regressions.py
+
+inspect-hihat-early-recovery-guard:
+	python3 scripts/inspect_hihat_early_recovery_guard.py
+
+inspect-hihat-recovery-change:
+	python3 scripts/inspect_hihat_recovery_change.py
+
+.PHONY: summarize-real-note-full-mix-shards
+summarize-real-note-full-mix-shards:
+	python3 scripts/summarize_real_note_full_mix_shards.py
+
+.PHONY: debug-real-note-top-hihat-brass
+debug-real-note-top-hihat-brass:
+	sh scripts/run_real_note_sample_debug.sh brass_acoustic_059-043-075
+
+debug-real-note-top-hihat-brass-016:
+	sh scripts/run_real_note_sample_debug.sh brass_acoustic_016-082-100
+
+debug-real-note-top-hihat-brass-016-mid:
+	sh scripts/run_real_note_sample_debug.sh brass_acoustic_016-069-100
+
+debug-real-note-piano-guitar-confusion:
+	sh scripts/run_real_note_sample_debug.sh keyboard_electronic_078-042-025
+inspect-guitar-chord-callsite:
+	python3 scripts/inspect_guitar_chord_callsite.py
+
+inspect-guitar-chord-finalization:
+	python3 scripts/inspect_guitar_chord_finalization.py
+
+inspect-drum-score-arbitration:
+	python3 scripts/inspect_drum_score_arbitration.py
+
+inspect-synthetic-drum-case-context:
+	python3 scripts/inspect_synthetic_drum_case_context.py
+
+inspect-analyzer-cases-runner:
+	python3 scripts/inspect_analyzer_cases_runner.py
+
+test-analyzer-synthetic-drums: build/analyzer_cases
+	env MUSIC_ANALYZER_CASE_GROUP=synthetic-drums build/analyzer_cases
+
+inspect-snare-caps:
+	python3 scripts/inspect_snare_caps.py
+
+inspect-snare-debug-fields:
+	python3 scripts/inspect_snare_debug_fields.py
+
+inspect-git-scope:
+	python3 scripts/inspect_git_scope.py
+
+plan-verified-guitar-anchor-commit:
+	python3 scripts/commit_verified_guitar_anchor.py plan
+
+inspect-verified-guitar-anchor-stage:
+	python3 scripts/commit_verified_guitar_anchor.py inspect
+
+stage-verified-guitar-anchor-commit:
+	python3 scripts/commit_verified_guitar_anchor.py stage
+
+commit-verified-guitar-anchor:
+	python3 scripts/commit_verified_guitar_anchor.py commit
+.PHONY: diagnose-fret-zealot-partial-scale
+diagnose-fret-zealot-partial-scale:
+	python3 scripts/diagnose_fret_zealot_partial_scale.py
+.PHONY: plan-stage-fret-zealot-batching
+plan-stage-fret-zealot-batching:
+	python3 scripts/plan_stage_fret_zealot_batching.py
+.PHONY: commit-verified-fret-zealot-batching
+commit-verified-fret-zealot-batching:
+	python3 scripts/commit_verified_fret_zealot_batching.py
+.PHONY: diagnose-upbeat-kick-suppression
+diagnose-upbeat-kick-suppression:
+	python3 scripts/diagnose_upbeat_kick_suppression.py
+.PHONY: commit-verified-drum-recovery
+commit-verified-drum-recovery:
+	python3 scripts/commit_verified_drum_recovery.py
+.PHONY: diagnose-guitar-extension-chords
+diagnose-guitar-extension-chords:
+	python3 scripts/diagnose_guitar_extension_chords.py
+diagnose-fret-zealot-led-queue:
+	python3 scripts/diagnose_fret_zealot_led_queue.py
+commit-verified-fret-zealot-fallback:
+	python3 scripts/commit_verified_fret_zealot_fallback.py
+diagnose-guitar-extension-template-selection:
+	python3 scripts/diagnose_guitar_extension_template_selection.py
+test-guitar-caged-voicings:
+	python3 scripts/run_analyzer_cases_guitar_caged.py
+diagnose-analyzer-cases-runner:
+	python3 scripts/diagnose_analyzer_cases_runner.py
+test-extended-chords:
+	python3 scripts/run_analyzer_cases_extended_chords.py
+.PHONY: diagnose-fret-zealot-partial-updates
+diagnose-fret-zealot-partial-updates: scripts/diagnose_fret_zealot_partial_updates.py
+	python3 scripts/diagnose_fret_zealot_partial_updates.py
+.PHONY: test-fret-zealot-batch-settle
+test-fret-zealot-batch-settle: scripts/check_fret_zealot_batch_settle.py
+	python3 scripts/check_fret_zealot_batch_settle.py
+.PHONY: diagnose-android-fret-zealot-checks
+diagnose-android-fret-zealot-checks: scripts/diagnose_android_fret_zealot_checks.py
+	python3 scripts/diagnose_android_fret_zealot_checks.py
+.PHONY: diagnose-fret-zealot-auto-sender
+diagnose-fret-zealot-auto-sender: scripts/diagnose_fret_zealot_auto_sender.py
+	python3 scripts/diagnose_fret_zealot_auto_sender.py
+.PHONY: commit-fret-zealot-batch-pacing
+commit-fret-zealot-batch-pacing: scripts/commit_verified_fret_zealot_batch_pacing.py
+	python3 scripts/commit_verified_fret_zealot_batch_pacing.py
+.PHONY: diagnose-guitar-residue-clear
+diagnose-guitar-residue-clear: scripts/diagnose_guitar_residue_clear.py
+	python3 scripts/diagnose_guitar_residue_clear.py
+.PHONY: diagnose-extended-chord-test-diff
+diagnose-extended-chord-test-diff: scripts/diagnose_extended_chord_test_diff.py
+	python3 scripts/diagnose_extended_chord_test_diff.py
+.PHONY: commit-guitar-extension-recovery
+commit-guitar-extension-recovery: scripts/commit_verified_guitar_extension_recovery.py
+	python3 scripts/commit_verified_guitar_extension_recovery.py
+.PHONY: diagnose-piano-minor-chord-case
+diagnose-piano-minor-chord-case: scripts/diagnose_piano_minor_chord_case.py
+	python3 scripts/diagnose_piano_minor_chord_case.py
+.PHONY: test-public-multitrack-style
+test-public-multitrack-style: build/analyzer_cases scripts/run_analyzer_cases_public_multitrack_style.py
+	python3 scripts/run_analyzer_cases_public_multitrack_style.py
+.PHONY: report-real-world-samples-process
+report-real-world-samples-process: scripts/report_real_world_samples_process.py
+	python3 scripts/report_real_world_samples_process.py
+.PHONY: wait-real-world-samples-process
+wait-real-world-samples-process: scripts/wait_real_world_samples_process.py
+	python3 scripts/wait_real_world_samples_process.py
+.PHONY: inspect-other-new-note-filter
+inspect-other-new-note-filter:
+	python3 scripts/inspect_other_new_note_filter.py
+
+.PHONY: inspect-monophonic-other-tests
+inspect-monophonic-other-tests:
+	python3 scripts/inspect_monophonic_other_tests.py
+
+.PHONY: locate-urmp-fixture
+locate-urmp-fixture:
+	python3 scripts/locate_urmp_fixture.py
+
+.PHONY: inspect-quiet-monophonic-visual-test
+inspect-quiet-monophonic-visual-test:
+	python3 scripts/inspect_quiet_monophonic_visual_test.py
+
+.PHONY: inspect-detector-improvement-routes-target
+inspect-detector-improvement-routes-target:
+	python3 scripts/inspect_detector_improvement_routes_target.py
+.PHONY: inspect-makefile-text
+inspect-makefile-text: scripts/inspect_makefile_text.py
+	@$(PYTHON) scripts/inspect_makefile_text.py
+
+.PHONY: inspect-hihat-suppression-path
+inspect-hihat-suppression-path: scripts/inspect_hihat_suppression_path.py
+	@$(PYTHON) scripts/inspect_hihat_suppression_path.py
+
+.PHONY: inspect-hihat-caps
+inspect-hihat-caps: scripts/inspect_hihat_caps.py
+	@$(PYTHON) scripts/inspect_hihat_caps.py
+
+.PHONY: inspect-hihat-initial-classification
+inspect-hihat-initial-classification: scripts/inspect_hihat_initial_classification.py
+	@$(PYTHON) scripts/inspect_hihat_initial_classification.py
+
+.PHONY: inspect-makefile-drum-targets
+inspect-makefile-drum-targets: scripts/inspect_analyzer_section.py
+	@$(PYTHON) scripts/inspect_analyzer_section.py --source Makefile --topic "analyzer_drum_samples"
+
+.PHONY: inspect-makefile-test-drum-targets
+inspect-makefile-test-drum-targets: scripts/inspect_analyzer_section.py
+	@$(PYTHON) scripts/inspect_analyzer_section.py --source Makefile --topic "test-drum-samples"
+
+.PHONY: report-real-drum-test-status
+report-real-drum-test-status: scripts/report_real_drum_test_status.py
+	@$(PYTHON) scripts/report_real_drum_test_status.py
+
+.PHONY: inspect-egmd-drum-debug-output
+inspect-egmd-drum-debug-output: scripts/inspect_analyzer_section.py
+	@$(PYTHON) scripts/inspect_analyzer_section.py --source tests/analyzer_egmd.cpp --topic "drum_debug_rule_flags"
+
+.PHONY: report-dense-hihat-recovery
+report-dense-hihat-recovery: scripts/report_dense_hihat_recovery.py
+	@$(PYTHON) scripts/report_dense_hihat_recovery.py
+
+.PHONY: measure-mdb-dense-hihat-recovery
+measure-mdb-dense-hihat-recovery: $(BUILD_DIR)/analyzer_egmd prepare-mdb-drums-samples scripts/run_with_duration.sh scripts/report_dense_hihat_recovery.py
+	$(RUN_WITH_DURATION) analyzer_mdb_dense_hihat_recovery env MUSIC_ANALYZER_EGMD_ROOT="$(MDB_DRUMS_SAMPLE_DIR)" MUSIC_ANALYZER_EGMD_REQUIRED=1 MUSIC_ANALYZER_EGMD_REQUIRED_RECORDINGS="$(MDB_DRUMS_MIN_RECORDINGS)" MUSIC_ANALYZER_EGMD_REQUIRED_WINDOWS="80" MUSIC_ANALYZER_EGMD_MIN_RECALL_PERCENT=0 MUSIC_ANALYZER_EGMD_MIN_WINDOW_RECALL_PERCENT=0 MUSIC_ANALYZER_EGMD_MIN_PRECISION_PERCENT=0 MUSIC_ANALYZER_EGMD_MAX_FALSE_POSITIVE_WINDOWS_PERCENT=100 MUSIC_ANALYZER_EGMD_VERBOSE_ALL=1 $(BUILD_DIR)/analyzer_egmd > "$(BUILD_DIR)/mdb_dense_hihat_recovery.out" 2> "$(BUILD_DIR)/mdb_dense_hihat_recovery.log"
+	@$(PYTHON) scripts/report_dense_hihat_recovery.py
+
+.PHONY: inspect-hihat-test-diagnostics
+inspect-hihat-test-diagnostics: scripts/inspect_hihat_test_diagnostics.py
+	@$(PYTHON) scripts/inspect_hihat_test_diagnostics.py
+.PHONY: inspect-real-note-harness
+inspect-real-note-harness:
+	python3 scripts/inspect_real_note_harness.py
+.PHONY: analyze-real-note-ownership
+analyze-real-note-ownership: build/analyzer_real_note_samples
+	python3 scripts/analyze_real_note_ownership.py
+
+.PHONY: report-real-note-ownership
+report-real-note-ownership:
+	python3 scripts/analyze_real_note_ownership.py --report
+
+.PHONY: report-real-note-shard-errors
+report-real-note-shard-errors:
+	python3 scripts/analyze_real_note_ownership.py --shard-errors
+.PHONY: debug-real-note-sample
+debug-real-note-sample: build/analyzer_real_note_samples
+	python3 scripts/debug_real_note_sample.py
+
+.PHONY: debug-real-note-guitar-reference
+debug-real-note-guitar-reference: build/analyzer_real_note_samples
+	python3 scripts/debug_real_note_sample.py guitar_acoustic_010-046-025
+.PHONY: inspect-full-mix-arbitration
+inspect-full-mix-arbitration:
+	python3 scripts/inspect_full_mix_arbitration.py
+.PHONY: analyze-real-note-guitar-ownership
+analyze-real-note-guitar-ownership: build/analyzer_real_note_samples
+	python3 scripts/analyze_real_note_guitar_ownership.py
 .PHONY: analyze-real-note-guitar-misses
 analyze-real-note-guitar-misses: build/analyzer_real_note_samples
 	python3 scripts/analyze_real_note_guitar_misses.py
-
 .PHONY: test-real-note-guitar-full-mix-recall
 test-real-note-guitar-full-mix-recall: analyze-real-note-guitar-misses
 	python3 scripts/check_real_note_guitar_full_mix_recall.py
-
 .PHONY: report-real-note-guitar-misses
 report-real-note-guitar-misses:
 	python3 scripts/analyze_real_note_guitar_misses.py --report
+.PHONY: analyze-real-note-piano-guitar-routes
+analyze-real-note-piano-guitar-routes: build/analyzer_real_note_samples
+	python3 scripts/analyze_real_note_piano_guitar_routes.py
+.PHONY: inspect-full-mix-guitar-row
+inspect-full-mix-guitar-row:
+	python3 scripts/inspect_full_mix_guitar_row.py
+analyze-real-note-low-guitar-shapes:
+	python3 scripts/analyze_real_note_low_guitar_shapes.py
+report-low-guitar-shape-separation:
+	python3 scripts/report_low_guitar_shape_separation.py
+test-real-note-low-electronic-piano-guitar-shadow: build/analyzer_real_note_samples
+	python3 scripts/check_real_note_low_electronic_piano_guitar_shadow.py
+inspect-full-mix-ownership-classifier:
+	python3 scripts/inspect_full_mix_ownership_classifier.py
+report-piano-guitar-owner-aliases:
+	python3 scripts/report_piano_guitar_owner_aliases.py
+report-same-pitch-guitar-owner-separation:
+	python3 scripts/report_same_pitch_guitar_owner_separation.py
+list-fixture-import-tools:
+	python3 scripts/list_fixture_import_tools.py
+report-real-audio-fixture-coverage:
+	python3 scripts/summarize_real_audio_fixture_coverage.py
+report-guitarset-miss-process:
+	python3 scripts/report_guitarset_miss_process.py
+inspect-guitarset-chord-selection:
+	python3 scripts/inspect_guitarset_chord_selection.py
 guitarset-debug-windows: build/analyzer_guitarset
 	python3 scripts/run_guitarset_debug_windows.py
-
 report-guitarset-major-minor-debug:
 	python3 scripts/report_guitarset_major_minor_debug.py
 
 .PHONY: check-fret-zealot-auto-recovery
 check-fret-zealot-auto-recovery:
 	python3 scripts/check_fret_zealot_auto_recovery.py
-
-# Self-contained MIR-1K clean-vocal regression fixtures.
+.PHONY: stop-low-electronic-piano-guitar-shadow
+stop-low-electronic-piano-guitar-shadow:
+	python3 scripts/stop_low_electronic_piano_guitar_shadow.py
+.PHONY: inspect-real-note-vocal-routes
+inspect-real-note-vocal-routes:
+	python3 scripts/inspect_real_note_vocal_routes.py
+.PHONY: inspect-full-mix-vocal-scoring
+inspect-full-mix-vocal-scoring:
+	python3 scripts/inspect_full_mix_vocal_scoring.py
+.PHONY: inspect-vocal-display-weight
+inspect-vocal-display-weight:
+	python3 scripts/inspect_vocal_display_weight.py
+.PHONY: inspect-full-mix-debug-candidate
+inspect-full-mix-debug-candidate:
+	python3 scripts/inspect_full_mix_debug_candidate.py
+.PHONY: inspect-real-note-debug-output
+inspect-real-note-debug-output:
+	python3 scripts/inspect_real_note_debug_output.py
+.PHONY: collect-real-note-vocal-attributes
+collect-real-note-vocal-attributes: build/analyzer_real_note_samples
+	python3 scripts/collect_real_note_vocal_attributes.py
+.PHONY: inspect-full-mix-vocal-profile
+inspect-full-mix-vocal-profile:
+	python3 scripts/inspect_full_mix_vocal_profile.py
+.PHONY: inspect-vocal-row-population
+inspect-vocal-row-population:
+	python3 scripts/inspect_vocal_row_population.py
+.PHONY: status-guitar-chord-primary-collection
+status-guitar-chord-primary-collection:
+	python3 scripts/status_guitar_chord_primary_collection.py
+.PHONY: find-high-soprano-vocal-mirror-flag
+find-high-soprano-vocal-mirror-flag:
+	python3 scripts/find_high_soprano_vocal_mirror_flag.py
+.PHONY: status-real-note-full-mix
+status-real-note-full-mix:
+	python3 scripts/status_real_note_full_mix.py
 .PHONY: plan-mir1k-vocal-fixtures
 plan-mir1k-vocal-fixtures:
 	python3 scripts/plan_mir1k_vocal_fixtures.py
-
 .PHONY: import-mir1k-vocal-archive
 import-mir1k-vocal-archive:
 	python3 scripts/import_mir1k_vocal_archive.py
-
 .PHONY: status-mir1k-vocal-import
 status-mir1k-vocal-import:
 	python3 scripts/status_mir1k_vocal_import.py
-
 .PHONY: inspect-mir1k-vocal-layout
 inspect-mir1k-vocal-layout:
 	python3 scripts/inspect_mir1k_vocal_layout.py
@@ -7686,11 +9251,139 @@ inspect-mir1k-vocal-layout:
 inspect-mir1k-vocal-pitch-labels:
 	python3 scripts/inspect_mir1k_vocal_pitch_labels.py
 
+.PHONY: inspect-real-note-sample-test-contract
+inspect-real-note-sample-test-contract:
+	python3 scripts/inspect_real_note_sample_test_contract.py
+
 .PHONY: prepare-mir1k-vocal-fixtures
 prepare-mir1k-vocal-fixtures:
 	python3 scripts/prepare_mir1k_vocal_fixtures.py
 
+.PHONY: test-mir1k-clean-vocal-fixtures
+test-mir1k-clean-vocal-fixtures:
+	python3 scripts/run_mir1k_vocal_fixture_test.py
+
+.PHONY: test-mir1k-clean-vocal-fixtures-full-mix
+test-mir1k-clean-vocal-fixtures-full-mix:
+	python3 scripts/run_mir1k_vocal_fixture_test.py --full-mix
+
+.PHONY: test-mir1k-vocal-mix-fixtures-full-mix
+test-mir1k-vocal-mix-fixtures-full-mix:
+	python3 scripts/run_mir1k_vocal_fixture_test.py --full-mix --mixed-fixtures
+
+.PHONY: measure-mir1k-vocal-mix-fixtures-full-mix
+measure-mir1k-vocal-mix-fixtures-full-mix:
+	python3 scripts/run_mir1k_vocal_fixture_test.py --full-mix --mixed-fixtures --measure-only
+
+.PHONY: probe-mir1k-vocal-linear-separation
+probe-mir1k-vocal-linear-separation:
+	python3 scripts/probe_mir1k_vocal_linear_separation.py
+
+.PHONY: inspect-full-mix-ownership-application
+inspect-full-mix-ownership-application:
+	python3 scripts/inspect_full_mix_ownership_application.py
+
+.PHONY: probe-mir1k-vocal-tree-separation
+probe-mir1k-vocal-tree-separation:
+	python3 scripts/probe_mir1k_vocal_tree_separation.py
+
+.PHONY: stage-mir1k-vocal-fixture-commit
+stage-mir1k-vocal-fixture-commit:
+	python3 scripts/stage_mir1k_vocal_fixture_commit.py
+
+.PHONY: commit-push-mir1k-vocal-fixture
+commit-push-mir1k-vocal-fixture:
+	python3 scripts/commit_push_mir1k_vocal_fixture.py
+
+.PHONY: inspect-runtime-model-assets
+inspect-runtime-model-assets:
+	python3 scripts/inspect_runtime_model_assets.py
+
+.PHONY: inspect-basic-pitch-vocal-fusion-contract
+inspect-basic-pitch-vocal-fusion-contract:
+	python3 scripts/inspect_basic_pitch_vocal_fusion_contract.py
+
+.PHONY: status-guitarset-miss-analysis
+status-guitarset-miss-analysis:
+	python3 scripts/status_guitarset_miss_analysis.py
+
+.PHONY: summarize-latest-guitarset-miss-run
+summarize-latest-guitarset-miss-run:
+	python3 scripts/summarize_latest_guitarset_miss_run.py
+
+.PHONY: inspect-guitarset-basic-pitch-usage
+inspect-guitarset-basic-pitch-usage:
+	python3 scripts/inspect_guitarset_basic_pitch_usage.py
+
+.PHONY: summarize-current-real-audio-fixture-coverage
+summarize-current-real-audio-fixture-coverage:
+	python3 scripts/summarize_current_real_audio_fixture_coverage.py
+
+.PHONY: plan-idmt-bass-import
+plan-idmt-bass-import:
+	python3 scripts/plan_idmt_bass_import.py
+
+.PHONY: import-idmt-bass-archive
+import-idmt-bass-archive:
+	python3 scripts/import_idmt_bass_archive.py
+
+.PHONY: inspect-idmt-bass-layout
+inspect-idmt-bass-layout:
+	python3 scripts/inspect_idmt_bass_layout.py
+
+.PHONY: status-idmt-bass-import
+status-idmt-bass-import:
+	python3 scripts/status_idmt_bass_import.py
+
+.PHONY: stop-idmt-bass-import
+stop-idmt-bass-import:
+	python3 scripts/stop_idmt_bass_import.py
+
+.PHONY: import-idmt-bass-single-track-archive
+import-idmt-bass-single-track-archive:
+	python3 scripts/import_idmt_bass_single_track_archive.py
+
+.PHONY: inspect-idmt-bass-single-track-layout
+inspect-idmt-bass-single-track-layout:
+	python3 scripts/inspect_idmt_bass_single_track_layout.py
+
+.PHONY: collect-mir1k-clean-vocal-attributes
+collect-mir1k-clean-vocal-attributes:
+	python3 scripts/run_mir1k_vocal_fixture_test.py --full-mix --attributes
+
+.PHONY: summarize-mir1k-clean-vocal-attributes
+summarize-mir1k-clean-vocal-attributes:
+	python3 scripts/summarize_mir1k_vocal_attributes.py
+
+.PHONY: inspect-full-mix-owner-scoring
+inspect-full-mix-owner-scoring:
+	python3 scripts/inspect_full_mix_owner_scoring.py
+
+.PHONY: collect-real-note-full-mix-attributes
+collect-real-note-full-mix-attributes:
+	python3 scripts/collect_real_note_full_mix_attributes.py
+
+.PHONY: summarize-real-note-full-mix-attributes
+summarize-real-note-full-mix-attributes:
+	python3 scripts/summarize_real_note_full_mix_attributes.py
+
+.PHONY: status-real-note-full-mix-attribute-collection
+status-real-note-full-mix-attribute-collection:
+	python3 scripts/status_real_note_full_mix_attribute_collection.py
+
+.PHONY: compare-mir1k-vocal-feature-distributions
+compare-mir1k-vocal-feature-distributions:
+	python3 scripts/compare_mir1k_vocal_feature_distributions.py
+
+.PHONY: evaluate-mir1k-vocal-recovery-rules
+evaluate-mir1k-vocal-recovery-rules:
+	python3 scripts/evaluate_mir1k_vocal_recovery_rules.py
+
 .PHONY: plan-mir1k-vocal-test-fixtures
+inspect-mir1k-vocal-fixture-pipeline:
+	python3 scripts/inspect_mir1k_vocal_fixture_pipeline.py
+
+.PHONY: inspect-mir1k-vocal-fixture-pipeline
 plan-mir1k-vocal-test-fixtures:
 	python3 scripts/sync_mir1k_vocal_test_fixtures.py plan
 
@@ -7701,6 +9394,22 @@ apply-mir1k-vocal-test-fixtures:
 .PHONY: test-mir1k-vocal-full-mix
 test-mir1k-vocal-full-mix: $(BUILD_DIR)/analyzer_real_note_samples tests/fixtures/mir1k_clean_vocals/manifest.tsv scripts/run_with_duration.sh
 	$(RUN_WITH_DURATION) analyzer_mir1k_vocal_full_mix env MUSIC_ANALYZER_REAL_NOTE_SAMPLES_REQUIRED=1 MUSIC_ANALYZER_REAL_NOTE_REQUIRED_SAMPLES=221 MUSIC_ANALYZER_REAL_NOTE_FULL_MIX=1 MUSIC_ANALYZER_REAL_NOTE_SAMPLE_ROOT="tests/fixtures/mir1k_clean_vocals" MUSIC_ANALYZER_REAL_NOTE_MIN_VOCALS=221 MUSIC_ANALYZER_REAL_NOTE_MIN_VOCALS_EXPECTED_ROW_PERCENT=70 $(BUILD_DIR)/analyzer_real_note_samples
+.PHONY: stage-mir1k-vocal-fixture-gate
+stage-mir1k-vocal-fixture-gate: scripts/stage_mir1k_vocal_fixture_gate.py
+	python3 scripts/stage_mir1k_vocal_fixture_gate.py
+.PHONY: commit-mir1k-vocal-fixture-gate
+commit-mir1k-vocal-fixture-gate: scripts/commit_mir1k_vocal_fixture_gate.py
+	python3 scripts/commit_mir1k_vocal_fixture_gate.py
+
+MIR1K_VOCAL_ATTRIBUTE_TSV ?= $(BUILD_DIR)/mir1k_vocal_full_mix_attributes.tsv
+.PHONY: collect-mir1k-vocal-full-mix-attributes
+collect-mir1k-vocal-full-mix-attributes: $(BUILD_DIR)/analyzer_real_note_samples tests/fixtures/mir1k_clean_vocals/manifest.tsv scripts/run_with_duration.sh
+	$(RUN_WITH_DURATION) analyzer_mir1k_vocal_full_mix_attributes env MUSIC_ANALYZER_REAL_NOTE_SAMPLES_REQUIRED=1 MUSIC_ANALYZER_REAL_NOTE_REQUIRED_SAMPLES=221 MUSIC_ANALYZER_REAL_NOTE_FULL_MIX=1 MUSIC_ANALYZER_REAL_NOTE_SAMPLE_ROOT="tests/fixtures/mir1k_clean_vocals" MUSIC_ANALYZER_REAL_NOTE_MIN_VOCALS=221 MUSIC_ANALYZER_REAL_NOTE_MAX_FAILURES=999999 MUSIC_ANALYZER_REAL_NOTE_ATTRIBUTE_TSV="$(MIR1K_VOCAL_ATTRIBUTE_TSV)" $(BUILD_DIR)/analyzer_real_note_samples
+	@printf '%s\n' "attribute TSV: $(MIR1K_VOCAL_ATTRIBUTE_TSV)"
+
+.PHONY: summarize-mir1k-vocal-ownership
+summarize-mir1k-vocal-ownership: $(MIR1K_VOCAL_ATTRIBUTE_TSV) build/real_note_full_mix_attributes.tsv scripts/summarize_mir1k_vocal_ownership.py
+	python3 scripts/summarize_mir1k_vocal_ownership.py
 
 .PHONY: plan-clean-mir1k-vocal-test-fixture-stale
 plan-clean-mir1k-vocal-test-fixture-stale:
@@ -7710,29 +9419,56 @@ plan-clean-mir1k-vocal-test-fixture-stale:
 apply-clean-mir1k-vocal-test-fixture-stale:
 	python3 scripts/clean_mir1k_vocal_test_fixture_stale.py apply
 
-.PHONY: test-mir1k-clean-vocal-fixtures
-test-mir1k-clean-vocal-fixtures: build/analyzer_real_note_samples
-	python3 scripts/run_mir1k_vocal_fixture_test.py
+.PHONY: status-detection-data-worktree
+status-detection-data-worktree:
+	python3 scripts/status_detection_data_worktree.py
 
-.PHONY: test-mir1k-clean-vocal-fixtures-full-mix
-test-mir1k-clean-vocal-fixtures-full-mix: build/analyzer_real_note_samples
-	python3 scripts/run_mir1k_vocal_fixture_test.py --full-mix
+.PHONY: show-mir1k-makefile-blocks
+show-mir1k-makefile-blocks:
+	python3 scripts/show_mir1k_makefile_blocks.py
+.PHONY: inspect-fret-zealot-scale-path
+inspect-fret-zealot-scale-path:
+	@python3 scripts/inspect_fret_zealot_scale_path.py
 
-.PHONY: import-idmt-bass-single-track-archive
-import-idmt-bass-single-track-archive:
-	@python3 scripts/import_idmt_bass_single_track_archive.py
+.PHONY: inspect-fret-zealot-controller
+inspect-fret-zealot-controller:
+	@python3 scripts/inspect_fret_zealot_controller.py
 
-.PHONY: inspect-idmt-bass-single-track-layout
-inspect-idmt-bass-single-track-layout:
-	@python3 scripts/inspect_idmt_bass_single_track_layout.py
+.PHONY: inspect-fret-zealot-callers
+inspect-fret-zealot-callers:
+	@python3 scripts/inspect_fret_zealot_callers.py
+
+.PHONY: test-fret-zealot-frame-settle
+test-fret-zealot-frame-settle:
+	@python3 tests/check_fret_zealot_frame_settle.py
+
+.PHONY: show-fret-zealot-worktree-diff
+show-fret-zealot-worktree-diff:
+	@python3 scripts/show_fret_zealot_worktree_diff.py
+
+.PHONY: check-idmt-bass-single-track-setup
+check-idmt-bass-single-track-setup:
+	@python3 scripts/check_idmt_bass_single_track_setup.py
+
+.PHONY: inspect-idmt-bass-single-track-importer
+inspect-idmt-bass-single-track-importer:
+	@python3 scripts/inspect_idmt_bass_single_track_importer.py
 
 .PHONY: diagnose-idmt-bass-single-track-archive
 diagnose-idmt-bass-single-track-archive:
 	@python3 scripts/diagnose_idmt_bass_single_track_archive.py
 
+.PHONY: status-idmt-bass-single-track-import
+status-idmt-bass-single-track-import:
+	@python3 scripts/status_idmt_bass_single_track_import.py
+
 .PHONY: summarize-idmt-bass-single-track-annotations
 summarize-idmt-bass-single-track-annotations:
 	@python3 scripts/summarize_idmt_bass_single_track_annotations.py
+
+.PHONY: inspect-real-note-fixture-pipeline
+inspect-real-note-fixture-pipeline:
+	@python3 scripts/inspect_real_note_fixture_pipeline.py
 
 .PHONY: prepare-idmt-bass-single-track-fixture test-prepare-idmt-bass-single-track-fixture measure-idmt-bass-single-track test-idmt-bass-single-track
 prepare-idmt-bass-single-track-fixture: import-idmt-bass-single-track-archive
@@ -7747,10 +9483,208 @@ measure-idmt-bass-single-track: $(BUILD_DIR)/analyzer_real_note_samples test-pre
 test-idmt-bass-single-track: $(BUILD_DIR)/analyzer_real_note_samples test-prepare-idmt-bass-single-track-fixture
 	@python3 scripts/run_idmt_bass_single_track_measurement.py --min-recall 95
 
+.PHONY: status-idmt-bass-single-track-measurement
+status-idmt-bass-single-track-measurement:
+	@python3 scripts/status_idmt_bass_single_track_measurement.py
+
 .PHONY: summarize-idmt-bass-single-track-measurement
 summarize-idmt-bass-single-track-measurement:
 	@python3 scripts/summarize_idmt_bass_single_track_measurement.py
 
+.PHONY: inspect-bass-tuning-detector
+inspect-bass-tuning-detector:
+	@python3 scripts/inspect_bass_tuning_detector.py
+
+IDMT_BASS_SAMPLE_ID ?= idmt_bass_005_056
+.PHONY: inspect-idmt-bass-sample-attributes
+inspect-idmt-bass-sample-attributes:
+	@python3 scripts/inspect_idmt_bass_sample_attributes.py --sample-id "$(IDMT_BASS_SAMPLE_ID)"
+
+.PHONY: inspect-idmt-bass-high-register-attributes
+inspect-idmt-bass-high-register-attributes:
+	@python3 scripts/inspect_idmt_bass_sample_attributes.py --sample-id idmt_bass_017_004
+
+.PHONY: debug-idmt-bass-single-track-sample
+debug-idmt-bass-single-track-sample: $(BUILD_DIR)/analyzer_real_note_samples test-prepare-idmt-bass-single-track-fixture
+	@python3 scripts/run_idmt_bass_single_track_measurement.py --debug-sample "$(IDMT_BASS_SAMPLE_ID)"
+
+.PHONY: debug-idmt-bass-high-register-sample
+debug-idmt-bass-high-register-sample: $(BUILD_DIR)/analyzer_real_note_samples test-prepare-idmt-bass-single-track-fixture
+	@python3 scripts/run_idmt_bass_single_track_measurement.py --debug-sample idmt_bass_017_004
+
+.PHONY: inspect-idmt-bass-recording-017
+inspect-idmt-bass-recording-017:
+	@python3 scripts/inspect_idmt_bass_recording_017.py
+
+.PHONY: stage-idmt-bass-single-track-fixture show-staged-idmt-bass-single-track-fixture commit-and-push-idmt-bass-single-track-fixture
+stage-idmt-bass-single-track-fixture:
+	@python3 scripts/stage_idmt_bass_single_track_fixture.py
+
+show-staged-idmt-bass-single-track-fixture:
+	@python3 scripts/show_staged_idmt_bass_single_track_fixture.py
+
+commit-and-push-idmt-bass-single-track-fixture:
+	@python3 scripts/commit_and_push_idmt_bass_single_track_fixture.py
+
+.PHONY: inspect-bass-note-path
+inspect-bass-note-path:
+	@python3 scripts/inspect_bass_note_path.py
+.PHONY: status-real-note-sample-test
+status-real-note-sample-test:
+	@python3 scripts/status_real_note_sample_test.py
+
+.PHONY: inspect-real-note-sample-test
+inspect-real-note-sample-test:
+	@python3 scripts/inspect_real_note_sample_test.py
+
+.PHONY: summarize-real-note-sample-shards
+summarize-real-note-sample-shards:
+	@python3 scripts/summarize_real_note_sample_shards.py
+
+.PHONY: inspect-real-note-shard-output
+inspect-real-note-shard-output:
+	@python3 scripts/inspect_real_note_shard_output.py
+
+.PHONY: inspect-bass-natural-harmonic-path
+inspect-bass-natural-harmonic-path:
+	@python3 scripts/inspect_bass_natural_harmonic_path.py
+
+.PHONY: inspect-idmt-bass-debug-target
+inspect-idmt-bass-debug-target:
+	@python3 scripts/inspect_idmt_bass_debug_target.py
+
+.PHONY: status-idmt-bass-debug
+status-idmt-bass-debug:
+	@python3 scripts/status_idmt_bass_debug.py
+
+.PHONY: plan-clean-idmt-bass-single-track-fixture-tmp clean-idmt-bass-single-track-fixture-tmp
+plan-clean-idmt-bass-single-track-fixture-tmp:
+	@python3 scripts/clean_idmt_bass_single_track_fixture_tmp.py plan
+
+clean-idmt-bass-single-track-fixture-tmp:
+	@python3 scripts/clean_idmt_bass_single_track_fixture_tmp.py apply
+
+.PHONY: inspect-fret-zealot-settle-change
+inspect-fret-zealot-settle-change:
+	@python3 scripts/inspect_fret_zealot_settle_change.py
+
+.PHONY: inspect-fret-zealot-auto-scheduler
+inspect-fret-zealot-auto-scheduler:
+	@python3 scripts/inspect_fret_zealot_auto_scheduler.py
+
+.PHONY: test-fret-zealot-initial-auto-scale
+test-fret-zealot-initial-auto-scale: tests/test_fret_zealot_initial_auto_scale.py
+	@python3 tests/test_fret_zealot_initial_auto_scale.py
+
+.PHONY: evaluate-guitarset-extension-promotion
+evaluate-guitarset-extension-promotion: scripts/evaluate_guitarset_extension_promotion.py
+	@python3 scripts/evaluate_guitarset_extension_promotion.py
+
+.PHONY: inspect-chord-label-parsers
+inspect-chord-label-parsers: scripts/inspect_chord_label_parsers.py
+	@python3 scripts/inspect_chord_label_parsers.py
+
+.PHONY: inspect-guitar-same-root-alias-guard
+inspect-guitar-same-root-alias-guard: scripts/inspect_guitar_same_root_alias_guard.py
+	@python3 scripts/inspect_guitar_same_root_alias_guard.py
+
+NSYNTH_SPLIT ?= test
+.PHONY: plan-nsynth-acoustic-bass-fixture prepare-nsynth-acoustic-bass-fixture quarantine-nsynth-acoustic-bass-fixture plan-nsynth-acoustic-bass-valid-fixture prepare-nsynth-acoustic-bass-valid-fixture quarantine-nsynth-acoustic-bass-valid-fixture plan-nsynth-acoustic-bass-train-fixture prepare-nsynth-acoustic-bass-train-fixture
+plan-nsynth-acoustic-bass-fixture: scripts/prepare_nsynth_acoustic_bass_fixture.py
+	@NSYNTH_SPLIT="$(NSYNTH_SPLIT)" python3 scripts/prepare_nsynth_acoustic_bass_fixture.py plan
+
+prepare-nsynth-acoustic-bass-fixture: scripts/prepare_nsynth_acoustic_bass_fixture.py
+	@NSYNTH_SPLIT="$(NSYNTH_SPLIT)" python3 scripts/prepare_nsynth_acoustic_bass_fixture.py apply
+
+quarantine-nsynth-acoustic-bass-fixture: scripts/prepare_nsynth_acoustic_bass_fixture.py
+	@NSYNTH_SPLIT="$(NSYNTH_SPLIT)" python3 scripts/prepare_nsynth_acoustic_bass_fixture.py quarantine
+
+plan-nsynth-acoustic-bass-valid-fixture: scripts/prepare_nsynth_acoustic_bass_fixture.py
+	@NSYNTH_SPLIT="valid" python3 scripts/prepare_nsynth_acoustic_bass_fixture.py plan
+
+prepare-nsynth-acoustic-bass-valid-fixture: scripts/prepare_nsynth_acoustic_bass_fixture.py
+	@NSYNTH_SPLIT="valid" python3 scripts/prepare_nsynth_acoustic_bass_fixture.py apply
+
+quarantine-nsynth-acoustic-bass-valid-fixture: scripts/prepare_nsynth_acoustic_bass_fixture.py
+	@NSYNTH_SPLIT="valid" python3 scripts/prepare_nsynth_acoustic_bass_fixture.py quarantine
+
+plan-nsynth-acoustic-bass-train-fixture: scripts/prepare_nsynth_acoustic_bass_fixture.py
+	@NSYNTH_SPLIT="train" python3 scripts/prepare_nsynth_acoustic_bass_fixture.py plan
+
+prepare-nsynth-acoustic-bass-train-fixture: scripts/prepare_nsynth_acoustic_bass_fixture.py
+	@NSYNTH_SPLIT="train" python3 scripts/prepare_nsynth_acoustic_bass_fixture.py apply
+
+.PHONY: inspect-nsynth-acoustic-bass-importer
+inspect-nsynth-acoustic-bass-importer: scripts/inspect_nsynth_fixture_importer.py
+	@python3 scripts/inspect_nsynth_fixture_importer.py
+
+.PHONY: probe-nsynth-acoustic-bass-valid-range
+probe-nsynth-acoustic-bass-valid-range: scripts/prepare_nsynth_acoustic_bass_fixture.py
+	@NSYNTH_SPLIT="valid" python3 scripts/prepare_nsynth_acoustic_bass_fixture.py probe
+
+.PHONY: plan-stage-fret-zealot-frame-settle stage-fret-zealot-frame-settle
+plan-stage-fret-zealot-frame-settle:
+	@python3 scripts/stage_fret_zealot_frame_settle.py plan
+
+stage-fret-zealot-frame-settle:
+	@python3 scripts/stage_fret_zealot_frame_settle.py apply
+
+.PHONY: commit-fret-zealot-frame-settle
+commit-fret-zealot-frame-settle:
+	@python3 scripts/commit_fret_zealot_frame_settle.py
+
+.PHONY: evaluate-ambiguous-display-recovery
+evaluate-ambiguous-display-recovery:
+	@python3 scripts/evaluate_ambiguous_display_recovery.py
+
+.PHONY: inspect-full-mix-display-mirror-support
+inspect-full-mix-display-mirror-support:
+	@python3 scripts/inspect_full_mix_display_mirror_support.py
+
+.PHONY: inspect-shared-note-cases
+inspect-shared-note-cases:
+	@python3 scripts/inspect_shared_note_cases.py
+
+.PHONY: check-real-note-guitar-full-mix-recall
+check-real-note-guitar-full-mix-recall:
+	@python3 scripts/check_real_note_guitar_full_mix_recall.py
+
 .PHONY: test-ambiguous-display-recovery
 test-ambiguous-display-recovery: analyze-real-note-attributes tests/test_ambiguous_display_recovery.py
 	@python3 tests/test_ambiguous_display_recovery.py
+
+.PHONY: test-high-soprano-vocal-mirror
+test-high-soprano-vocal-mirror: tests/test_high_soprano_vocal_mirror.py
+	$(PYTHON) tests/test_high_soprano_vocal_mirror.py
+
+.PHONY: inspect-high-soprano-vocal-mirror-change
+inspect-high-soprano-vocal-mirror-change: scripts/inspect_high_soprano_vocal_mirror_change.py
+	$(PYTHON) scripts/inspect_high_soprano_vocal_mirror_change.py
+
+.PHONY: summarize-high-soprano-vocal-mirror-result
+summarize-high-soprano-vocal-mirror-result: scripts/summarize_high_soprano_mirror_result.py
+	$(PYTHON) scripts/summarize_high_soprano_mirror_result.py
+.PHONY: stage-high-soprano-vocal-mirror
+stage-high-soprano-vocal-mirror: scripts/stage_high_soprano_vocal_mirror.py
+	$(PYTHON) scripts/stage_high_soprano_vocal_mirror.py
+.PHONY: commit-high-soprano-vocal-mirror
+commit-high-soprano-vocal-mirror: scripts/commit_high_soprano_vocal_mirror.py
+	$(PYTHON) scripts/commit_high_soprano_vocal_mirror.py
+
+.PHONY: plan-stage-ambiguous-display-recovery stage-ambiguous-display-recovery commit-ambiguous-display-recovery
+plan-stage-ambiguous-display-recovery:
+	@python3 scripts/stage_ambiguous_display_recovery.py plan
+
+stage-ambiguous-display-recovery:
+	@python3 scripts/stage_ambiguous_display_recovery.py apply
+
+commit-ambiguous-display-recovery:
+	@python3 scripts/commit_ambiguous_display_recovery.py
+plan-code-baseline-commit:
+	python3 scripts/manage_code_baseline_commit.py plan
+
+stage-code-baseline-commit:
+	python3 scripts/manage_code_baseline_commit.py stage
+
+commit-code-baseline:
+	python3 scripts/manage_code_baseline_commit.py commit

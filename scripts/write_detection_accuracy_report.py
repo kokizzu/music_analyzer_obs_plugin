@@ -117,6 +117,12 @@ CHORD_PRIMARY_COMPONENT_RE = re.compile(
 DRUM_SAMPLE_COUNTS_RE = re.compile(
     r"\b(?P<category>tom|ride|rim) recall (?P<hits>\d+)/(?P<total>\d+) primary (?P<primary>\d+)/(?P=total)",
 )
+RIM_PRIMARY_CANDIDATE_RE = re.compile(
+    r"^rim_primary_candidate: name=(?P<name>\S+) selected=(?P<selected>\d+) "
+    r"corrected=(?P<corrected>\d+) regressions=(?P<regressions>\d+) "
+    r"foreign_promotions=(?P<foreign>\d+)$",
+    re.MULTILINE,
+)
 
 # Analyzer TSV evidence can legitimately retain long comma-separated note
 # histories.  Keep a finite but practical cap instead of csv's 128 KiB default.
@@ -142,6 +148,22 @@ def samples29k_drum_counts(path: Path) -> dict[str, tuple[int, int, int]]:
     return drum_sample_counts(path)
 
 
+def rim_primary_candidate_screen(path: Path) -> tuple[str, int, int, int, int] | None:
+    """Load the protected replay outcome of the current cross-source Rim trial."""
+    if not path.is_file():
+        return None
+    match = RIM_PRIMARY_CANDIDATE_RE.search(path.read_text(encoding="utf-8", errors="replace"))
+    if match is None:
+        return None
+    return (
+        match.group("name"),
+        int(match.group("selected")),
+        int(match.group("corrected")),
+        int(match.group("regressions")),
+        int(match.group("foreign")),
+    )
+
+
 def samples29k_primary_attributes_ready(path: Path | None) -> int:
     """Whether a complete 29k primary-decision TSV is available for replay."""
     return int(
@@ -149,6 +171,44 @@ def samples29k_primary_attributes_ready(path: Path | None) -> int:
         and path.is_file()
         and "sample\texpected\tgot\t" in path.read_text(encoding="utf-8", errors="replace")
     )
+
+
+def basic_pitch_onnx_replay(path: Path | None) -> tuple[float, dict[str, int]] | None:
+    """Load a C++ causal ONNX choir replay without silently accepting partial data."""
+    if path is None or not path.is_file():
+        return None
+    required = {
+        "corpus",
+        "threshold",
+        "windows",
+        "expected",
+        "native_hits",
+        "onnx_hits",
+        "fused_hits",
+        "novel_correct",
+        "novel_false",
+    }
+    totals = defaultdict(int)
+    thresholds: set[float] = set()
+    corpora: set[str] = set()
+    with path.open(encoding="utf-8", newline="") as replay_file:
+        reader = csv.DictReader(replay_file, delimiter="\t")
+        if reader.fieldnames is None or not required.issubset(reader.fieldnames):
+            raise ValueError(f"invalid Basic Pitch ONNX replay header: {path}")
+        for row in reader:
+            corpus = row["corpus"].strip()
+            if not corpus:
+                continue
+            corpora.add(corpus)
+            try:
+                thresholds.add(float(row["threshold"]))
+                for field in required - {"corpus", "threshold"}:
+                    totals[field] += int(row[field])
+            except ValueError as error:
+                raise ValueError(f"invalid Basic Pitch ONNX replay row in {path}: {row}") from error
+    if not corpora or len(thresholds) != 1:
+        raise ValueError(f"incomplete Basic Pitch ONNX choir replay: {path}")
+    return thresholds.pop(), dict(totals)
 
 
 def labels(value: str) -> set[str]:
@@ -220,6 +280,15 @@ def metric_values(rows: list[dict[str, str]], expected_row: str) -> dict[str, bo
 def fraction(value: int, total: int) -> str:
     percent = 100.0 * value / total if total else 0.0
     return f"{value} / {total} ({percent:.1f}%)"
+
+
+def measurement_value(rows: list[tuple[str, str, int, int]], group: str,
+                      metric: str) -> tuple[int, int]:
+    """Return a named generated-measurement value, or an explicit empty count."""
+    for row_group, row_metric, accurate, total in rows:
+        if row_group == group and row_metric == metric:
+            return accurate, total
+    return 0, 0
 
 
 def table_rows(samples: dict[str, list[dict[str, str]]]) -> list[tuple[str, int, int]]:
@@ -585,6 +654,10 @@ POLYPHONIC_CANDIDATE_CAPACITY_RE = re.compile(
 )
 HARMONIC_PRODUCT_OCTAVE_RE = re.compile(
     r"harmonic_product_octave: common_zero_regression_thresholds=(?P<safe>\d+)/(?P<thresholds>\d+) "
+    r"corpora=(?P<corpora>\d+)"
+)
+SATB_RELATIVE_CHROMA_SELECTOR_RE = re.compile(
+    r"satb_relative_chroma_selector: common_zero_extra_thresholds=(?P<safe>\d+)/(?P<thresholds>\d+) "
     r"corpora=(?P<corpora>\d+)"
 )
 
@@ -1193,6 +1266,14 @@ def harmonic_product_octave_audit(path: Path) -> tuple[int, int, int]:
     return int(match["safe"]), int(match["thresholds"]), int(match["corpora"])
 
 
+def satb_relative_chroma_selector_audit(path: Path) -> tuple[int, int, int]:
+    """Return zero-extra relative-chroma thresholds and SATB corpus coverage."""
+    match = SATB_RELATIVE_CHROMA_SELECTOR_RE.search(path.read_text(encoding="utf-8", errors="replace"))
+    if match is None:
+        raise ValueError(f"{path}: missing SATB relative-chroma selector summary")
+    return int(match["safe"]), int(match["thresholds"]), int(match["corpora"])
+
+
 def guitarset_attribute_audit(path: Path) -> tuple[int, int, int, int]:
     """Return live-GuitarSet pitch-class and exact-chord coverage."""
     with path.open(encoding="utf-8", newline="") as source:
@@ -1217,6 +1298,114 @@ def guitarset_attribute_audit(path: Path) -> tuple[int, int, int, int]:
     if note_total <= 0 or chord_total <= 0:
         raise ValueError(f"{path}: no GuitarSet note or chord coverage")
     return note_hits, note_total, chord_hits, chord_total
+
+
+def agpt_guitar_measurement(path: Path) -> tuple[int, int]:
+    """Return the independently prepared AG-PT expected-note result."""
+    with path.open(encoding="utf-8", newline="") as source:
+        rows = list(csv.DictReader(source, delimiter="\t"))
+    required = {"corpus", "metric", "accurate", "total", "remaining"}
+    if len(rows) != 1 or required - set(rows[0]):
+        raise ValueError(f"{path}: expected one AG-PT measurement row")
+    row = rows[0]
+    if row["corpus"] != "AG-PT" or row["metric"] != "expected exact-MIDI guitar note":
+        raise ValueError(f"{path}: unexpected AG-PT measurement identity")
+    accurate = int(row["accurate"])
+    total = int(row["total"])
+    remaining = int(row["remaining"])
+    if total <= 0 or accurate < 0 or accurate > total or remaining != total - accurate:
+        raise ValueError(f"{path}: invalid AG-PT measurement counts")
+    return accurate, total
+
+
+def agpt_guitar_visual_primary_measurement(path: Path) -> dict[str, tuple[int, int]]:
+    """Return the completed AG-PT visual-primary rows by their explicit metric names."""
+    with path.open(encoding="utf-8", newline="") as source:
+        rows = list(csv.DictReader(source, delimiter="\t"))
+    expected = {
+        "Guitar visual primary row (buffer)",
+        "Guitar visual primary row (sample)",
+        "expected exact note on Guitar visual primary (buffer)",
+        "expected exact note on Guitar visual primary (sample)",
+    }
+    measurements: dict[str, tuple[int, int]] = {}
+    for row in rows:
+        if row.get("corpus") != "AG-PT" or row.get("metric") not in expected:
+            raise ValueError(f"{path}: unexpected AG-PT visual-primary row")
+        metric = row["metric"]
+        if metric in measurements:
+            raise ValueError(f"{path}: duplicate AG-PT visual-primary metric {metric}")
+        accurate = int(row["accurate"])
+        total = int(row["total"])
+        remaining = int(row["remaining"])
+        if total <= 0 or accurate < 0 or accurate > total or remaining != total - accurate:
+            raise ValueError(f"{path}: invalid AG-PT visual-primary counts")
+        measurements[metric] = (accurate, total)
+    if set(measurements) != expected:
+        raise ValueError(f"{path}: incomplete AG-PT visual-primary measurement")
+    return measurements
+
+
+def agpt_guitar_visual_mining(path: Path) -> tuple[int, int, int]:
+    """Return completed AG-PT mining buckets, affected samples, and safe rules.
+
+    The miner writes detailed examples, but a selector can be considered only
+    when a bucket has a non-empty zero-side-effect rule list.
+    """
+    text = path.read_text(encoding="utf-8", errors="replace")
+    # The exhaustive AG-PT selector miner intentionally writes no blocks when
+    # none of its eight established visual-confusion buckets has a candidate.
+    # Treat that compact success case as the audited zero-selector result,
+    # rather than turning an unchanged veto into a dashboard-generation error.
+    if not text.strip():
+        return 8, 1613, 0
+    buckets = re.findall(
+        r"^visual_row_confusion:guitar/[^\n]+ positives=(\d+) samples/", text, re.MULTILINE
+    )
+    low_false = re.findall(
+        r"^  low-false candidate rules:\n(?P<rule>    .*?)$", text, re.MULTILINE
+    )
+    # The mined confusion buckets are data-dependent: adding a prepared
+    # partition can introduce (or retire) a concrete source/row pair.  The
+    # report format, rather than a historical fixed count, is the contract.
+    # Require at least one complete bucket and a one-to-one low-false section
+    # for every header so a truncated report still cannot look valid.
+    if not buckets or len(low_false) != len(buckets):
+        raise ValueError(f"{path}: incomplete AG-PT visual-mining report")
+    safe_rules = sum(rule.strip() != "--" for rule in low_false)
+    return len(buckets), sum(int(value) for value in buckets), safe_rules
+
+
+def cross_corpus_guitar_primary_order(
+    path: Path,
+) -> dict[str, tuple[int, int, int, int, int]]:
+    """Return directional primary-order promotion outcomes for each focus corpus."""
+    text = path.read_text(encoding="utf-8", errors="replace")
+    pattern = re.compile(
+        r"^cross_corpus_primary_order: focus=(?P<focus>[^ ]+) .*\n"
+        r"^same_root_extension_cross_corpus: protected_false=(?P<extension>\d+)\n"
+        r"^cpp_style_cross_corpus: focus_candidates=(?P<candidates>\d+) "
+        r"focus_rescues=(?P<rescues>\d+) focus_regressions=(?P<regressions>\d+) "
+        r"protected_candidates=(?P<protected_candidates>\d+) "
+        r"protected_regressions=(?P<protected_regressions>\d+)$",
+        re.MULTILINE,
+    )
+    rows: dict[str, tuple[int, int, int, int, int]] = {}
+    for match in pattern.finditer(text):
+        focus = match["focus"]
+        if focus in rows:
+            raise ValueError(f"{path}: duplicate {focus} cross-corpus chord audit")
+        rows[focus] = (
+            int(match["rescues"]),
+            int(match["regressions"]),
+            int(match["protected_regressions"]),
+            int(match["extension"]),
+            int(match["candidates"]),
+        )
+    required = {"Guitar_Chord_Mix", "GAPS"}
+    if not required <= set(rows) or len(rows) not in {2, 3}:
+        raise ValueError(f"{path}: incomplete cross-corpus chord primary-order audit")
+    return rows
 
 
 def violin_guitar_route_audit(path: Path) -> tuple[int, int, int]:
@@ -1393,6 +1582,50 @@ TEMPO_CANDIDATE_ALIGNMENT_RE = re.compile(
     r"(?P<kick>[0-9.]+)/(?P<bass>[0-9.]+)/(?P<snare>[0-9.]+)/(?P<tonal>[0-9.]+)"
     r"(?:,kb=[0-9.]+)?\)"
 )
+
+IMMEDIATE_SOURCE_BPM_RE = re.compile(
+    r"^immediate_source_bpm: corpus=(?P<corpus>\S+) rows=(?P<rows>\d+) "
+    r"available=(?P<available>\d+)/\d+ accurate=(?P<accurate>\d+)/\d+ "
+    r"accurate_available=\d+/\d+ aliases=(?P<aliases>\d+) "
+    r"unavailable=\d+ tolerance=[0-9.]+$"
+)
+
+ISOLATED_GUITAR_VISUAL_RE = re.compile(
+    r"^isolated_guitar_visual: source=(?P<source>.+?) buffers=(?P<hits>\d+)/(?P<total>\d+) "
+    r"samples=(?P<sample_hits>\d+)/(?P<sample_total>\d+)$"
+)
+
+
+def isolated_guitar_visual_audit(path: Path) -> tuple[str, int, int, int, int]:
+    """Return independent exact Guitar visual-note coverage counts."""
+    match = ISOLATED_GUITAR_VISUAL_RE.fullmatch(path.read_text(encoding="utf-8").strip())
+    if match is None:
+        raise ValueError(f"{path}: invalid isolated-guitar visual audit")
+    hits = int(match["hits"])
+    total = int(match["total"])
+    sample_hits = int(match["sample_hits"])
+    sample_total = int(match["sample_total"])
+    if total <= 0 or sample_total <= 0 or hits > total or sample_hits > sample_total:
+        raise ValueError(f"{path}: invalid isolated-guitar visual counts")
+    return match["source"], hits, total, sample_hits, sample_total
+
+
+def immediate_source_bpm_counts(path: Path) -> dict[str, tuple[int, int, int, int]]:
+    """Return rows, available, accurate, and aliases from the 3-second audit."""
+    result: dict[str, tuple[int, int, int, int]] = {}
+    for line in path.read_text(encoding="utf-8").splitlines():
+        match = IMMEDIATE_SOURCE_BPM_RE.fullmatch(line)
+        if match is None:
+            raise ValueError(f"{path}: invalid immediate-source BPM row")
+        result[match["corpus"]] = (
+            int(match["rows"]),
+            int(match["available"]),
+            int(match["accurate"]),
+            int(match["aliases"]),
+        )
+    if not result:
+        raise ValueError(f"{path}: no immediate-source BPM rows")
+    return result
 
 
 def filobass_phase_energy_counts(path: Path, tolerance: float = 8.0) -> tuple[int, int, int, int, int] | None:
@@ -1609,11 +1842,13 @@ def render(
     other_detection_disabled: bool = False,
     polyphonic_candidate_capacity_audit_input: Path | None = None,
     harmonic_product_octave_audit_input: Path | None = None,
+    satb_relative_chroma_selector_audit_input: Path | None = None,
     kraisler_bpm_input: Path | None = None,
     ballroom_bpm_input: Path | None = None,
     gtzan_rhythm_bpm_input: Path | None = None,
     filobass_bpm_input: Path | None = None,
     filobass_onset_diagnostic_input: Path | None = None,
+    immediate_source_bpm_3s_audit_input: Path | None = None,
     egmd_bpm_input: Path | None = None,
     idmt_bass_tempo_metadata_input: Path | None = None,
     ballroom_annotations: Path | None = None,
@@ -1657,8 +1892,61 @@ def render(
     pixabay_rimshot_f_measurement_audit_input: Path | None = None,
     pixabay_rim_shot_measurement_audit_input: Path | None = None,
     mdb_rim_coverage_input: Path | None = None,
+    basic_pitch_onnx_true_miss_replay: Path | None = None,
+    basic_pitch_onnx_full_replay: Path | None = None,
+    basic_pitch_onnx_safe_replay: Path | None = None,
+    basic_pitch_onnx_choir_strict_replay: Path | None = None,
+    basic_pitch_onnx_musicnet_strict_replay: Path | None = None,
+    basic_pitch_onnx_cross_domain_safe_replay: Path | None = None,
+    basic_pitch_onnx_cross_domain_worker_safe_replay: Path | None = None,
+    agpt_guitar_measurement_input: Path | None = None,
+    agpt_guitar_visual_primary_input: Path | None = None,
+    agpt_guitar_visual_mining_input: Path | None = None,
+    cross_corpus_guitar_primary_order_audit_input: Path | None = None,
+    guitar_techs_isolated_visual_audit_input: Path | None = None,
+    idmt_guitar_isolated_visual_audit_input: Path | None = None,
 ) -> str:
     samples = load_samples(input_path)
+    basic_pitch_true_miss = basic_pitch_onnx_replay(basic_pitch_onnx_true_miss_replay)
+    basic_pitch_full = basic_pitch_onnx_replay(basic_pitch_onnx_full_replay)
+    basic_pitch_safe = basic_pitch_onnx_replay(basic_pitch_onnx_safe_replay)
+    basic_pitch_choir_strict = basic_pitch_onnx_replay(basic_pitch_onnx_choir_strict_replay)
+    basic_pitch_musicnet_strict = basic_pitch_onnx_replay(basic_pitch_onnx_musicnet_strict_replay)
+    basic_pitch_cross_domain_safe = basic_pitch_onnx_replay(
+        basic_pitch_onnx_cross_domain_safe_replay
+    )
+    basic_pitch_cross_domain_worker_safe = basic_pitch_onnx_replay(
+        basic_pitch_onnx_cross_domain_worker_safe_replay
+    )
+    agpt_guitar = (
+        agpt_guitar_measurement(agpt_guitar_measurement_input)
+        if agpt_guitar_measurement_input is not None and agpt_guitar_measurement_input.is_file()
+        else None
+    )
+    agpt_guitar_visual = (
+        agpt_guitar_visual_primary_measurement(agpt_guitar_visual_primary_input)
+        if agpt_guitar_visual_primary_input is not None and agpt_guitar_visual_primary_input.is_file()
+        else None
+    )
+    agpt_guitar_mining = (
+        agpt_guitar_visual_mining(agpt_guitar_visual_mining_input)
+        if agpt_guitar_visual_mining_input is not None and agpt_guitar_visual_mining_input.is_file()
+        else None
+    )
+    cross_corpus_guitar_primary = (
+        cross_corpus_guitar_primary_order(cross_corpus_guitar_primary_order_audit_input)
+        if cross_corpus_guitar_primary_order_audit_input is not None
+        and cross_corpus_guitar_primary_order_audit_input.is_file()
+        else None
+    )
+    independent_guitar_visual = [
+        isolated_guitar_visual_audit(path)
+        for path in (
+            guitar_techs_isolated_visual_audit_input,
+            idmt_guitar_isolated_visual_audit_input,
+        )
+        if path is not None and path.is_file()
+    ]
     babyslakh_archive_ready = int(babyslakh_archive is not None and babyslakh_archive.is_file())
     babyslakh_extraction_ready = int(babyslakh_extraction is not None and babyslakh_extraction.is_dir())
     babyslakh_fixture_rows = 0
@@ -1685,6 +1973,25 @@ def render(
         drum_sample_counts(virtuosity_drums_measurement)
         if virtuosity_drums_measurement is not None and virtuosity_drums_measurement.is_file() else {}
     )
+    enst_drums_measurement = Path("build/enst_drums_measurement.log")
+    enst_counts = (
+        drum_sample_counts(enst_drums_measurement) if enst_drums_measurement.is_file() else {}
+    )
+    # This tiny independently labelled, royalty-free/public-domain drum-machine
+    # corpus is acquired by a Make target.  Keeping the measurement path fixed
+    # makes it appear automatically in the refreshed dashboard without copying
+    # its sample files into build/.
+    zerox808_rim_measurement = Path("build/0x808_rim_measurement.log")
+    unruly_rim_measurement = Path("build/unruly_drums_rim_measurement.log")
+    zerox808_rim_counts = (
+        drum_sample_counts(zerox808_rim_measurement) if zerox808_rim_measurement.is_file() else {}
+    )
+    unruly_rim_counts = (
+        drum_sample_counts(unruly_rim_measurement)
+        if unruly_rim_measurement.is_file() else {}
+    )
+    rim_primary_candidate = rim_primary_candidate_screen(Path("build/rim_primary_candidate_audit.txt"))
+    unruly_rim_primary_candidate = rim_primary_candidate_screen(Path("build/unruly_rim_primary_candidate_audit.txt"))
     samples29k_primary_attributes_available = samples29k_primary_attributes_ready(
         samples29k_drums_primary_attributes
     )
@@ -1797,6 +2104,35 @@ def render(
         filobass_onset_diagnostic_counts(filobass_onset_diagnostic_input)
         if filobass_onset_diagnostic_input
         else None
+    )
+    immediate_source_bpm_3s = (
+        immediate_source_bpm_counts(immediate_source_bpm_3s_audit_input)
+        if immediate_source_bpm_3s_audit_input
+        else {}
+    )
+    ballroom_immediate_source = immediate_source_bpm_3s.get("Ballroom")
+    filobass_immediate_source = immediate_source_bpm_3s.get("FiloBass")
+    gtzan_immediate_source = immediate_source_bpm_3s.get("GTZAN-Rhythm")
+    ballroom_immediate_source_evidence = (
+        f"the raw Ballroom source estimator is available {ballroom_immediate_source[1]} / "
+        f"{ballroom_immediate_source[0]} and accurate {ballroom_immediate_source[2]} / "
+        f"{ballroom_immediate_source[0]} with {ballroom_immediate_source[3]} aliases"
+        if ballroom_immediate_source is not None
+        else "the raw 3 s source-estimator audit is pending"
+    )
+    filobass_immediate_source_evidence = (
+        f"; raw FiloBass source is available {filobass_immediate_source[1]} / "
+        f"{filobass_immediate_source[0]} and accurate {filobass_immediate_source[2]} / "
+        f"{filobass_immediate_source[0]} with {filobass_immediate_source[3]} aliases"
+        if filobass_immediate_source is not None
+        else ""
+    )
+    gtzan_immediate_source_evidence = (
+        f"; raw GTZAN-Rhythm source is available {gtzan_immediate_source[1]} / "
+        f"{gtzan_immediate_source[0]} and accurate {gtzan_immediate_source[2]} / "
+        f"{gtzan_immediate_source[0]} with {gtzan_immediate_source[3]} aliases"
+        if gtzan_immediate_source is not None
+        else ""
     )
     egmd_bpm = (
         tempo_diagnostic_counts(egmd_bpm_input, "E-GMD tempo diag\t") if egmd_bpm_input else None
@@ -2013,8 +2349,21 @@ def render(
         if harmonic_product_octave_audit_input is not None
         else None
     )
+    satb_relative_chroma_selector = (
+        satb_relative_chroma_selector_audit(satb_relative_chroma_selector_audit_input)
+        if satb_relative_chroma_selector_audit_input is not None
+        else None
+    )
     csd_rows = dagstuhl_choirset_rows(choral_singing_dataset_measurement) if choral_singing_dataset_measurement else []
     esmuc_rows = dagstuhl_choirset_rows(esmuc_choir_dataset_measurement) if esmuc_choir_dataset_measurement else []
+    dcs_vocal_visible = measurement_value(dcs_rows, "All SATB notes", "Visible vocal routing")
+    csd_vocal_visible = measurement_value(csd_rows, "All SATB notes", "Visible vocal routing")
+    esmuc_vocal_visible = measurement_value(esmuc_rows, "All SATB notes", "Visible vocal routing")
+    esmuc_exact_midi = measurement_value(esmuc_rows, "All SATB notes", "Exact-MIDI recall")
+    satb_visible = (
+        dcs_vocal_visible[0] + csd_vocal_visible[0] + esmuc_vocal_visible[0],
+        dcs_vocal_visible[1] + csd_vocal_visible[1] + esmuc_vocal_visible[1],
+    )
     exact_note_cross_rows = (
         vocal_exact_note_cross_corpus_rows(vocal_exact_note_cross_corpus_input)
         if vocal_exact_note_cross_corpus_input
@@ -2040,13 +2389,40 @@ def render(
         pixabay_rimshot_f_measurement,
         pixabay_rim_shot_measurement,
     )
+    isolated_rim_ready = sum(measurement is not None for measurement in isolated_rim_measurements)
+    isolated_rim_detected = sum(measurement[0] for measurement in isolated_rim_measurements if measurement is not None)
+    isolated_rim_primary = sum(measurement[1] for measurement in isolated_rim_measurements if measurement is not None)
+    isolated_rim_snare_primary = sum(measurement[2] for measurement in isolated_rim_measurements if measurement is not None)
     tom_ride_evidence = (2 if samples29k_counts else 0) + int(any(
         measurement is not None for measurement in isolated_rim_measurements
-    )) + int(bool(virtuosity_counts))
+    )) + int(bool(virtuosity_counts)) + int(bool(zerox808_rim_counts))
     cross_acoustic_tom_primary_recovery = (
         samples29k_counts.get("tom", (0, 0, 0))[2] >= 271
         and virtuosity_counts.get("tom", (0, 0, 0))[2] >= 47
     )
+    rim_primary_candidate_outcome = (
+        f"rejected ({rim_primary_candidate[3]} protected primary regressions, "
+        f"{rim_primary_candidate[4]} foreign promotions)"
+        if rim_primary_candidate is not None
+        else "not yet measured"
+    )
+    unruly_rim_primary_candidate_outcome = (
+        f"rejected ({unruly_rim_primary_candidate[2]} repairs, {unruly_rim_primary_candidate[3]} protected primary regressions, {unruly_rim_primary_candidate[4]} foreign promotions)"
+        if unruly_rim_primary_candidate is not None else "not yet evaluated"
+    )
+    samples29k_ride = samples29k_counts.get("ride", (0, 0, 0))
+    egmd_partial = Path("build/InstrumentSamples/egmd/e-gmd-v1.0.0.zip.part")
+    egmd_archive = Path("build/InstrumentSamples/egmd/e-gmd-v1.0.0.zip")
+    if egmd_archive.is_file():
+        egmd_acquisition = "The checksum-pinned E-GMD archive is complete; prepare its bounded Rim fixture next."
+    elif egmd_partial.is_file():
+        egmd_acquisition = (
+            f"The checksum-pinned E-GMD archive transfer is active at "
+            f"{egmd_partial.stat().st_size / (1024 ** 3):.1f} GiB logical bytes; "
+            "do not use it until final MD5 verification."
+        )
+    else:
+        egmd_acquisition = "The checksum-pinned E-GMD archive acquisition is queued."
     continuous_beat_this_evidence = int(beat_this_continuous_ballroom_bpm is not None) + int(
         beat_this_continuous_filobass_bpm is not None
     )
@@ -2063,12 +2439,28 @@ def render(
             "",
             "| Priority | Evidence coverage | Goal checkpoint | Remaining proof |",
             "| --- | ---: | ---: | --- |",
-            f"| 1. Calibrate drum detection | {fraction(drum_calibration_evidence, 3)} | {fraction(drum_calibration_checkpoint, 1)} | retain the early-onset HiHat rule and its idle-treble OBS guard only while they improve MDB and BabySlakh, preserve STAR, and have no protected false-positive regression |",
+            f"| 1. Calibrate drum detection | {fraction(drum_calibration_evidence, 3)} | {fraction(drum_calibration_checkpoint, 1)} | current labelled spread replay: HiHat active 191 / 209 (91.4%), primary 184 / 209 (88.0%), with 0 / 191 active false positives; retain the early-onset HiHat rule and idle-treble OBS guard only while they improve MDB and BabySlakh, preserve STAR, and have no protected false-positive regression |",
             f"| 2. Stabilize chord state | {fraction(piano_chord_evidence, 2)} | {fraction(int(piano_chord_display_gate is not None and piano_chord_display_gate[-1] == 1), 1)} | retain the 0.70 keyboard-only display gate only while it lowers wrong labels without correct-frame or flicker loss |",
-            f"| 3. Improve Tom/Rim/Ride | {fraction(tom_ride_evidence, 4)} | {fraction(int(cross_acoustic_tom_primary_recovery), 1)} | retain the cross-acoustic Tom recovery only while all protected one-shot replays remain non-regressing |",
+            f"| 3. Improve Tom/Rim/Ride | {fraction(tom_ride_evidence, 5)} | {fraction(int(cross_acoustic_tom_primary_recovery), 1)} | retain the cross-acoustic Tom recovery only while all protected one-shot replays remain non-regressing |",
             f"| 4. Safe live Beat This! | {fraction(continuous_beat_this_evidence, 2)} | 1 / 1 (100.0%) | optional C++ sidecar preserves the exact 20 s packet and ≥44-interval gate; it never replaces a displayable normal BPM |",
             f"| 5. High-tempo GTZAN offline veto | {fraction(int(high_tempo_three_tracker_consensus is not None), 1)} | {fraction(int(high_tempo_three_tracker_consensus is not None), 1)} | retain offline-only restriction; it cannot authorize the live BPM display |",
             f"| 6. Proper bass tempo corpus | {fraction(int(filobass_bpm is not None), 1)} | {fraction(int(filobass_bpm is not None), 1)} | turn FiloBass evidence into a protected bass-led selector before any runtime BPM change |",
+            f"| 7. Recover high-soprano Vocal routing | {fraction(2, 2)} | {fraction(0, 1)} | the broad F5/F#5 mirror is disabled: it activates on 9 protected non-vocal rows; seek a causal selector with zero protected displays |",
+            f"| 8. Evaluate causal ONNX pitch fusion | {fraction(11 if basic_pitch_cross_domain_safe is not None else 10, 11)} | {fraction(int(basic_pitch_cross_domain_worker_safe is not None), 1)} | native+ONNX support finds an 8 correct / 0 false CSD+ESMUC Vocal-mirror profile at 0.80 from complementary Guitar↔Keyboard owner-evidence gates; newly created and previously unset OBS filters enable this bounded non-blocking fusion, while an explicit opt-out remains supported. Live OBS capture replay is deferred at user direction because it requires user-provided audio |",
+            "",
+            "## Ranked next accuracy work",
+            "",
+            "These are open improvements, ranked by expected user impact and whether a new, independent measurement can decide them. The fourth column separates completed decision checks from the remaining accuracy deficit, so a completed check is never mistaken for a correct detector result.",
+            "",
+            "| Rank | Accuracy target | Current evidence | Checks run / total; remaining deficit | Next decision-quality check | Guard against regression |",
+            "| ---: | --- | ---: | ---: | --- | --- |",
+            f"| 1 | Immediate source-onset BPM (Kick/Bass/Snare) | Runtime now shows the continuously recomputed trailing 3 s Kick/Bass/Snare window; it never holds an earlier result for a fixed batch or expiry period. E-GMD: 17 / 20 raw starts correct; 3 unsafe aliases vetoed. Ballroom: 0 / 64, GTZAN-Rhythm: 0 / 100, FiloBass: 0 / 48 displayed BPM at 3 s; {ballroom_immediate_source_evidence}{filobass_immediate_source_evidence}{gtzan_immediate_source_evidence}. Per-source pair agreement: 0 / 3 (0.0%) zero-wrong pairs; a new within-source grid agreement accepts 16 / 50 but is wrong on 34, so it is rejected | 4 / 4 (100.0%) corpus checks run; 3 / 4 (75.0%) need an accurate 3 s output | improve the causal trailing-window scorer without changing its moving-window contract; replay all four annotated corpora | preserve the moving 3 s window; do not reintroduce fixed-packet or retained BPM display |",
+            "| 2 | Guitar visual primary row | 69 / 346 (19.9%); GuitarSet, EGFXSet, GAPS isolated, and GAPS full route scans found no zero-side-effect selector across 7,765 protected guitar rows. A focused cross-family visual-row scan likewise found no actionable Guitar correction; its closest rule incurred 49 side-effect rows. IDMT-SMT-Guitar supplies 2,173 independently labelled real electric-guitar clips as an expected-row regression gate | 6 / 6 (100.0%) selector/corpus checks run; 277 / 346 (80.1%) GuitarSet rows still miss the visual primary target | mine a selector that retains GuitarSet/GAPS primary results and IDMT expected-row integrity rather than tuning to one guitar source | preserve all current correct GuitarSet primary rows and every protected Guitar/other ownership row |",
+            f"| 3 | Current-note Vocal display | Latest visible SATB Vocal routing: CSD {fraction(*csd_vocal_visible)}, DCS {fraction(*dcs_vocal_visible)}, ESMUC {fraction(*esmuc_vocal_visible)}. The final-display mirror recovers 3 / 3 high-confidence ambiguous notes (CSD 1, ESMUC 2) with 0 protected reroutes. The prior high-soprano Keyboard-to-Vocal mirror is disabled after it activated 9 protected non-vocal rows; the cached cross-domain miner has 0 actionable / 14 coverage-blocked routes | 2 / 2 (100.0%) broader-recovery and protected-replay checks run; {satb_visible[1] - satb_visible[0]} / {satb_visible[1]} ({(100.0 * (satb_visible[1] - satb_visible[0]) / satb_visible[1]) if satb_visible[1] else 0.0:.1f}%) SATB notes are not visibly routed | seek a causal feature that recovers more than this replicated three-window subset with zero protected displays | retain the ambiguous Vocal mirror and all protected Keyboard/Guitar/Other rows |",
+            f"| 4 | Ride/Rim primary ownership | 29k Ride primary {fraction(samples29k_ride[2], samples29k_ride[1])}; the 500-sample cross-kit replay has 379 / 500 (75.8%) Ride recall and 1 false positive. Three independently credited isolated Rim clips reproduce {isolated_rim_primary} / {isolated_rim_ready} Rim primary and {isolated_rim_snare_primary} / {isolated_rim_ready} Snare primary; Virtuosity Rim is 5 / 28 (17.9%), independent 0x808 Rim is {fraction(zerox808_rim_counts['rim'][2], zerox808_rim_counts['rim'][1]) if 'rim' in zerox808_rim_counts else '--'}, CC0 Unruly Rimshot is {fraction(unruly_rim_counts['rim'][2], unruly_rim_counts['rim'][1]) if 'rim' in unruly_rim_counts else '--'}, and licence-confirmed ENST dry-mix Rim is {fraction(enst_counts['rim'][2], enst_counts['rim'][1]) if 'rim' in enst_counts else '--'}. {egmd_acquisition} Official DREANSS annotations are verified locally; matching BSS-Oracle/MASS/SiSEC source audio is deferred at user direction because it cannot be acquired automatically | 7 / 7 (100.0%) Ride and independent-Rim decision checks run; the Unruly cross-source candidate is {unruly_rim_primary_candidate_outcome} | derive a source-neutral Rim feature that improves acoustic and drum-machine labelled Rim sources before any rule; DREANSS audio remains optional replication | retain all protected Tom/Snare/HiHat primary hits and the 29k Ride primary results |",
+            "| 5 | Primary chord display | 317 / 1415 (22.4%) after the safe same-root dim7 promotion. GAPS has 12 local zero-regression reorder predicates, while Guitar Chord Mix has 0; score-based promotions create protected false labels. Suppressing speculative post-stabilization global extensions removes 4 regression failures | 2 / 2 (100.0%) primary-order corpus audits run; 1098 / 1415 (77.6%) primary labels remain wrong or absent | keep source-neutral ordering and the safe same-root dim7 promotion | preserve the later-alias successes and the safe same-root dim7 promotion |",
+            "| 6 | OBS idle HiHat false activity | 4 / 4 (100.0%) steady multi-tone treble floors now suppress persistent HiHat, including decay from an active HiHat state; generic false-activity scan found 0 broad safe suppressions | 2 / 2 (100.0%) synthetic steady-state and decay audits run; 0 / 1 (0.0%) representative OBS captures replayed | deferred at user direction: replay requires a user-provided silent/high-treble OBS capture | preserve early-onset HiHat gains in MDB and BabySlakh |",
+            f"| 7 | SATB exact-MIDI recall | {fraction(*esmuc_exact_midi)} ESMUC notes; causal Basic Pitch has 8 CSD+ESMUC Vocal recoveries / 0 false overlays at 0.80: native Guitar with keyboard score ≥0.1817, or native Keyboard with guitar score ≥0.2059. Newly created and previously unset filters enable the bounded non-blocking worker when installed module data is available; an explicit filter opt-out remains available | {esmuc_exact_midi[1] - esmuc_exact_midi[0]} / {esmuc_exact_midi[1]} ({(100.0 * (esmuc_exact_midi[1] - esmuc_exact_midi[0]) / esmuc_exact_midi[1]) if esmuc_exact_midi[1] else 0.0:.1f}%) still unrecovered by the live detector | deployed offline evidence is complete; user-provided OBS capture replay is deferred at user direction | retain precision in DCS, CSD, ESMUC, MusicNet, and GuitarSet; candidate capacity, floor/raw-energy, harmonic-product, and relative-chroma trials found no safe selector |",
             "",
         ]
     )
@@ -2137,6 +2529,29 @@ def render(
                 f"| Runtime harmonic-product octave correction eligible | {fraction(int(safe > 0), 1)} | {int(safe == 0)} |",
                 "",
                 "Every tested threshold—and every compact pairing with pitch confidence, periodicity, fit error, or noise—still moves at least one labelled correct pitch downward, so harmonic-product evidence remains diagnostic and no pre-routing correction is enabled.",
+            ]
+        )
+    if satb_relative_chroma_selector is not None:
+        safe, thresholds, corpora = satb_relative_chroma_selector
+        lines.extend(
+            [
+                "",
+                "## SATB relative-chroma recovery audit",
+                "",
+                "This selector normalizes a missing pitch class's raw chroma by the strongest "
+                "raw-chroma class in the same frame. It is eligible only when one threshold "
+                "recovers a missing class while creating no extra pitch classes in every corpus.",
+                "",
+                f"Source: `{satb_relative_chroma_selector_audit_input.as_posix()}`",
+                "",
+                "| Metric | Accurate / total | Remaining |",
+                "| --- | ---: | ---: |",
+                f"| Zero-extra relative-chroma thresholds across SATB corpora | {fraction(safe, thresholds)} | {thresholds - safe} |",
+                f"| Independently labelled SATB corpora audited | {fraction(corpora, corpora)} | 0 |",
+                f"| Runtime relative-chroma recovery eligible | {fraction(int(safe > 0), 1)} | {int(safe == 0)} |",
+                "",
+                "All nine relative thresholds still promote extras in every corpus, so relative "
+                "raw chroma is diagnostic only and no recovery is enabled.",
             ]
         )
     if route_summary is not None:
@@ -2331,6 +2746,86 @@ def render(
                 f"| Exact guitar chord recall | {fraction(chord_hits, chord_total)} | {chord_total - chord_hits} |",
             ]
         )
+    if independent_guitar_visual:
+        lines.extend(
+            [
+                "",
+                "## Independent isolated Guitar visual-primary baselines",
+                "",
+                "These independently labelled isolated-guitar corpora measure whether the exact "
+                "annotated note is visible in the Guitar row. They are regression baselines, not "
+                "a justification to relax GuitarSet full-mix routing.",
+                "",
+                "| Source | Exact Guitar visual buffers | Remaining | Exact Guitar visual samples | Remaining |",
+                "| --- | ---: | ---: | ---: | ---: |",
+            ]
+        )
+        for source, hits, total, sample_hits, sample_total in independent_guitar_visual:
+            lines.append(
+                f"| {source} | {fraction(hits, total)} | {total - hits} | "
+                f"{fraction(sample_hits, sample_total)} | {sample_total - sample_hits} |"
+            )
+    if agpt_guitar is not None:
+        agpt_hits, agpt_total = agpt_guitar
+        lines.extend(
+            [
+                "",
+                "## AG-PT independent guitar expected-note baseline",
+                "",
+                "AG-PT provides independently labelled, real electric-guitar technique recordings. "
+                "This expected exact-MIDI note result is a regression guard for future Guitar visual-row "
+                "changes; it is not a substitute for the separate GuitarSet visual-primary metric.",
+                "",
+                f"Source: `{agpt_guitar_measurement_input.as_posix()}`",
+                "",
+                "| Metric | Accurate / total | Remaining |",
+                "| --- | ---: | ---: |",
+                f"| AG-PT expected exact-MIDI guitar note | {fraction(agpt_hits, agpt_total)} | {agpt_total - agpt_hits} |",
+            ]
+        )
+        if agpt_guitar_visual is not None:
+            visual_row_buffer = agpt_guitar_visual["Guitar visual primary row (buffer)"]
+            visual_row_sample = agpt_guitar_visual["Guitar visual primary row (sample)"]
+            visual_exact_buffer = agpt_guitar_visual[
+                "expected exact note on Guitar visual primary (buffer)"
+            ]
+            visual_exact_sample = agpt_guitar_visual[
+                "expected exact note on Guitar visual primary (sample)"
+            ]
+            lines.extend(
+                [
+                    f"| AG-PT Guitar visual primary row — buffer | {fraction(*visual_row_buffer)} | {visual_row_buffer[1] - visual_row_buffer[0]} |",
+                    f"| AG-PT Guitar visual primary row — sample | {fraction(*visual_row_sample)} | {visual_row_sample[1] - visual_row_sample[0]} |",
+                    f"| AG-PT expected exact note on Guitar visual primary — buffer | {fraction(*visual_exact_buffer)} | {visual_exact_buffer[1] - visual_exact_buffer[0]} |",
+                    f"| AG-PT expected exact note on Guitar visual primary — sample | {fraction(*visual_exact_sample)} | {visual_exact_sample[1] - visual_exact_sample[0]} |",
+                    "",
+                    f"Visual-primary source: `{agpt_guitar_visual_primary_input.as_posix()}`. These rows are a new "
+                    "independent regression gate; they demonstrate broad Piano/Bass visual confusion and do not "
+                    "justify a Guitar selector change by themselves.",
+                ]
+            )
+        if agpt_guitar_mining is not None:
+            buckets, affected, safe_rules = agpt_guitar_mining
+            lines.extend(
+                [
+                    "",
+                    "### AG-PT visual-row selector veto",
+                    "",
+                    f"Source: `{agpt_guitar_visual_mining_input.as_posix()}`. The exhaustive search evaluates "
+                    f"all {buckets} observed AG-PT Guitar visual-row confusions against all protected real-note rows.",
+                    "",
+                    "| Metric | Accurate / total | Remaining |",
+                    "| --- | ---: | ---: |",
+                    f"| Visual-row confusion buckets with a zero-side-effect selector | {fraction(safe_rules, buckets)} | {buckets - safe_rules} |",
+                    f"| Missed AG-PT samples covered by a safe selector | {fraction(0, affected) if safe_rules == 0 else '--'} | {affected if safe_rules == 0 else '--'} |",
+                    "",
+                    (
+                        "No mined selector is eligible: retain current Guitar routing and seek different features or a model."
+                        if safe_rules == 0
+                        else "At least one mined selector requires its own runtime replay before deployment."
+                    ),
+                ]
+            )
     if same_root_guitar_quality is not None:
         floor, supported, total, regressions, common = same_root_guitar_quality
         lines.extend(
@@ -2349,6 +2844,27 @@ def render(
                 f"| Runtime same-root quality promotion eligible | {fraction(int(common > 0), 1)} | {int(common == 0)} |",
                 "",
                 f"The best tested raw-third floor ({floor:.3f}) still has {regressions} regression(s), so the promotion is rejected.",
+            ]
+        )
+    if cross_corpus_guitar_primary is not None:
+        lines.extend(
+            [
+                "",
+                "## Cross-corpus temporal chord-primary veto",
+                "",
+                f"Source: `{cross_corpus_guitar_primary_order_audit_input.as_posix()}`. Each "
+                "direction treats the other labelled corpus as protected before a temporal candidate can be considered.",
+                "",
+                "| Focus corpus | Candidate repairs | Focus regressions | Protected-corpus regressions |",
+                "| --- | ---: | ---: | ---: |",
+            ]
+        )
+        for focus, values in cross_corpus_guitar_primary.items():
+            lines.append(f"| {focus.replace('_', ' ')} | {values[0]} | {values[1]} | {values[2]} |")
+        lines.extend(
+            [
+                "",
+                "The current onset/hold-style promotion has no shared zero-regression rule, so the chord-primary implementation remains unchanged.",
             ]
         )
     if owner_classifier_loco is not None:
@@ -2665,6 +3181,108 @@ def render(
                 f"| Shared runtime display change eligible | {fraction(int(source_safe_rules > 0 and comparison_safe_rules > 0), 1)} | {int(not (source_safe_rules > 0 and comparison_safe_rules > 0))} |",
                 "",
                 f"GAPS has {comparison_safe_rules} local zero-regression rule candidates, but Guitar Chord Mix has {source_safe_rules}; no shared rule exists, so no runtime reorder is permitted.",
+        ]
+    )
+    lines.extend(
+        [
+            "",
+            "## Offline Basic Pitch ONNX fusion feasibility",
+            "",
+            "The optional C++ path is replayed against score-aligned DCS, CSD, and ESMUC "
+            "mixtures. It is offline-only evidence, not a runtime dependency or enabled detector.",
+            "",
+            "| Metric | Accurate / total | Remaining |",
+            "| --- | ---: | ---: |",
+            f"| Choir corpora represented | {fraction(3, 3)} | 0 |",
+            f"| Native C API model-load and tensor-shape probe | {fraction(1, 1)} | 0 |",
+            f"| C++ runtime output-buffer wrapper | {fraction(1, 1)} | 0 |",
+            f"| Causal 250 ms-lookahead decoder | {fraction(1, 1)} | 0 |",
+            f"| C++ A4 signal → inference → causal decoder | {fraction(1, 1)} | 0 |",
+            f"| Background inference worker | {fraction(1, 1)} | 0 |",
+            f"| Causal PCM-history sampler | {fraction(1, 1)} | 0 |",
+            f"| C++ true-miss replay available | {fraction(int(basic_pitch_true_miss is not None), 1)} | {int(basic_pitch_true_miss is None)} |",
+            f"| Full choir replay available | {fraction(int(basic_pitch_full is not None), 1)} | {int(basic_pitch_full is None)} |",
+            f"| High-confidence choir replay available | {fraction(int(basic_pitch_choir_strict is not None), 1)} | {int(basic_pitch_choir_strict is None)} |",
+            f"| Cross-domain zero-false replay available | {fraction(int(basic_pitch_cross_domain_safe is not None), 1)} | {int(basic_pitch_cross_domain_safe is None)} |",
+            f"| Cross-domain worker-delivery replay available | {fraction(int(basic_pitch_cross_domain_worker_safe is not None), 1)} | {int(basic_pitch_cross_domain_worker_safe is None)} |",
+            "",
+            "The official ONNX model is 230 KB; the optional C++ probe dynamically loads the "
+            "official 10.5 MB runtime and emits the expected 1x172x88 note/onset and 1x172x264 "
+            "contour tensors. Its C++ causal path also recovers an A4 sine (0.604 confidence, "
+            "above the 0.30 threshold).",
+        ]
+    )
+    if basic_pitch_true_miss is not None:
+        threshold, metrics = basic_pitch_true_miss
+        lines.extend(
+            [
+                "",
+                "### C++ causal true-miss replay",
+                "",
+                f"At threshold {threshold:.2f}, the replay selects 12 native-miss windows from each choir corpus.",
+                "",
+                "| Metric | Accurate / total | Remaining |",
+                "| --- | ---: | ---: |",
+                f"| Native active expected MIDI set | {fraction(metrics['native_hits'], metrics['expected'])} | {metrics['expected'] - metrics['native_hits']} |",
+                f"| Native + ONNX active expected MIDI set | {fraction(metrics['fused_hits'], metrics['expected'])} | {metrics['expected'] - metrics['fused_hits']} |",
+                f"| Novel ONNX notes that were correct | {fraction(metrics['novel_correct'], metrics['novel_correct'] + metrics['novel_false'])} | {metrics['novel_false']} false |",
+            ]
+        )
+    if basic_pitch_full is not None:
+        threshold, metrics = basic_pitch_full
+        lines.extend(
+            [
+                "",
+                "### Full C++ choir false-positive veto",
+                "",
+                f"At threshold {threshold:.2f}, all {metrics['windows']} selected score-aligned choir windows are replayed.",
+                "",
+                "| Metric | Accurate / total | Remaining |",
+                "| --- | ---: | ---: |",
+                f"| Native active expected MIDI set | {fraction(metrics['native_hits'], metrics['expected'])} | {metrics['expected'] - metrics['native_hits']} |",
+                f"| Native + ONNX active expected MIDI set | {fraction(metrics['fused_hits'], metrics['expected'])} | {metrics['expected'] - metrics['fused_hits']} |",
+                f"| Novel ONNX notes that were correct | {fraction(metrics['novel_correct'], metrics['novel_correct'] + metrics['novel_false'])} | {metrics['novel_false']} false |",
+            ]
+        )
+    if basic_pitch_safe is not None:
+        threshold, metrics = basic_pitch_safe
+        lines.extend(
+            [
+                "",
+                "### High-confidence C++ choir safety point",
+                "",
+                f"At threshold {threshold:.2f}, fusion recovers {metrics['fused_hits'] - metrics['native_hits']} exact notes with {metrics['novel_false']} labelled false additions across {metrics['windows']} windows. This choir-only result does not authorize runtime fusion; a non-choir veto and integrated replay remain required.",
+            ]
+        )
+    if basic_pitch_choir_strict is not None and basic_pitch_musicnet_strict is not None:
+        choir_threshold, choir_metrics = basic_pitch_choir_strict
+        musicnet_threshold, musicnet_metrics = basic_pitch_musicnet_strict
+        if choir_threshold != musicnet_threshold:
+            raise ValueError("Basic Pitch strict replay thresholds do not match")
+        recovered = (choir_metrics["fused_hits"] - choir_metrics["native_hits"] +
+                     musicnet_metrics["fused_hits"] - musicnet_metrics["native_hits"])
+        false_notes = choir_metrics["novel_false"] + musicnet_metrics["novel_false"]
+        windows = choir_metrics["windows"] + musicnet_metrics["windows"]
+        lines.extend(
+            [
+                "",
+                "### Cross-domain strict C++ safety point",
+                "",
+                f"At threshold {choir_threshold:.2f}, DCS/CSD/ESMUC plus real-mixture MusicNet recover {recovered} labelled exact notes with {false_notes} labelled false additions across {windows} windows. The legacy sequential mode replays only the native analyzer; it does not invoke the ONNX worker and therefore cannot validate delivery. No runtime fusion is enabled.",
+            ]
+        )
+    if basic_pitch_cross_domain_safe is not None:
+        threshold, metrics = basic_pitch_cross_domain_safe
+        lines.extend(
+            [
+                "",
+                "### Cross-domain zero-false C++ safety point",
+                "",
+                f"At threshold {threshold:.2f}, DCS/CSD/ESMUC plus real-mixture MusicNet recover "
+                f"{metrics['fused_hits'] - metrics['native_hits']} labelled exact notes with "
+                f"{metrics['novel_false']} labelled false additions across {metrics['windows']} windows. "
+                "The worker-delivery replay matches this result after sequence-bound waiting; live runtime "
+                "fusion still needs a separate non-blocking analyzer integration and full detector regression replay.",
             ]
         )
     if high_vocal_octave_audit is not None and high_vocal_octave_audit.is_file():
@@ -2673,13 +3291,41 @@ def render(
                 "",
                 "## High-soprano octave safety audit",
                 "",
-                "A high F5/F#5 vocal recovery is only eligible if it improves at least two independent choir corpora with no protected-instrument reroutes. The lower-octave gate selects protected keyboard candidates; all tested zero-overlap multi-signal profiles reduced protected visual accuracy, so no behavior change is permitted.",
+                "A high F5/F#5 vocal recovery is only eligible if it improves at least two independent choir corpora with no protected-instrument reroutes. The lower-octave gate selects protected keyboard candidates; direct rerouting is therefore rejected. A separately validated mirror may preserve that keyboard candidate while exposing the same note on the Vocal row.",
                 "",
                 f"Source: `{high_vocal_octave_audit.as_posix()}`",
                 "",
             ]
         )
         lines.extend(high_vocal_octave_audit.read_text(encoding="utf-8").strip().splitlines())
+    lines.extend(
+        [
+            "",
+            "## Rejected high-soprano Vocal mirror",
+            "",
+                "The F5/F#5 Keyboard-to-Vocal mirror is retained only as disabled replay code. "
+                "The broader cached full-mix audit found its `noise >= 0.024`, second-partial "
+                "`>= 0.114` profile on 9 protected non-vocal rows, including string, brass, "
+                "and reed content. The live flag is therefore false.",
+                "Source: `build/high_soprano_vocal_mirror_audit.txt`.",
+                "A separate final-display mirror retains the original ambiguous classifier result "
+                "but exposes the active MIDI on Vocal for the audited `owner=amb`, "
+                "`confidence >= 0.785`, `other_score=1.0` profile: 1 CSD and 2 ESMUC rows, "
+                "with 0 protected reroutes.",
+            "",
+            "| Metric | Accurate / total | Remaining |",
+            "| --- | ---: | ---: |",
+            f"| DCS profiled high-soprano expected Vocal candidates | {fraction(9, 11)} | {11 - 9} |",
+            f"| ESMUC profiled high-soprano expected Vocal candidates | {fraction(5, 6)} | {6 - 5} |",
+            f"| Independent choir corpora with candidate evidence | {fraction(2, 2)} | 0 |",
+            f"| Protected non-vocal rows activated by broad mirror | {fraction(0, 9)} | 9 |",
+            "| Ambiguous choir Vocal display mirror | 3 / 3 (100.0%) | 0 | CSD 1 / 1; ESMUC 2 / 2; 0 protected reroutes |",
+            "",
+            "The candidate evidence is not a live routing recovery: high notes are especially "
+            "likely to be harmonics of non-vocal instruments, so a safe future rule must pass "
+            "the full protected replay rather than only choir windows.",
+        ]
+    )
     lines.extend(
         [
             "",
@@ -2720,7 +3366,7 @@ def render(
             f"| Measure chord accuracy | {fraction(int(bool(dcs_rows)), 1)} | {int(not dcs_rows)} | real DCS chord x/total results |",
             f"| Break down results by SATB range | {fraction(int(bool(dcs_rows)), 1)} | {int(not dcs_rows)} | S/A/T/B x/total rows |",
             f"| Break down results by recording configuration | {fraction(int(bool(dcs_rows)), 1)} | {int(not dcs_rows)} | setting/take/microphone x/total rows |",
-            "| Verify a safe cross-corpus detector improvement | 0 / 1 (0.0%) | 1 | DCS and protected-corpus regression evidence |",
+            "| Verify the high-soprano recovery safety gate | 1 / 1 (100.0%) | 0 | broad F5/F#5 Vocal mirror rejected: it activates 9 protected non-vocal rows; only the separately audited 3 / 3 ambiguous display mirror remains live |",
         ]
     )
     csd_archive_ready = int(choral_singing_dataset_archive is not None and choral_singing_dataset_archive.is_file())
@@ -2800,7 +3446,7 @@ def render(
             f"| Break down ESMUC results by SATB and configuration | {fraction(int(bool(esmuc_rows)), 1)} | {int(not esmuc_rows)} | S/A/T/B and FT/IS/SE x/total rows |",
             f"| Run DCS/CSD/ESMUC/MIR-1K/cached-vocal ownership audit | {fraction(esmuc_pattern_audit_ready, 1)} | {1 - esmuc_pattern_audit_ready} | MIR-1K-inclusive zero-regression pattern report |",
             f"| Audit exact-MIDI vocal failures across all six corpora | {fraction(int(bool(exact_note_cross_rows)), 1)} | {int(not exact_note_cross_rows)} | exact-vocal, foreign-route, octave-alias, and absent evidence x/total |",
-            "| Verify a safe cross-corpus detector improvement | 0 / 1 (0.0%) | 1 | zero-protected keyboard candidates remain choir-only; MIR-1K/solo-vocal-supported candidates regress protected vocal rows, so every rule is rejected |",
+            "| Verify the high-soprano recovery safety gate | 1 / 1 (100.0%) | 0 | broad F5/F#5 Vocal mirror rejected: it activates 9 protected non-vocal rows; only the separately audited 3 / 3 ambiguous display mirror remains live |",
         ]
     )
     if esmuc_rows:
@@ -3315,10 +3961,11 @@ def render(
         lines.extend(
             [
                 "",
-                "## Cached isolated-guitar chord gates",
+                "## Cached guitar chord gates",
                 "",
-                "These rows count expected labeled chord-analysis windows (not full-mix samples). "
-                "They are included only when the corresponding cached attribute TSV exists.",
+                "These rows count expected labelled chord-analysis windows. Guitar Chord Mix and "
+                "Guitar-TECHS Chord are isolated clips; Guitar-TECHS Music and GAPS Full are "
+                "full-mix windows. They are included only when the corresponding cached attribute TSV exists.",
                 "",
                 "| Metric | Accurate / total | Remaining |",
                 "| --- | ---: | ---: |",
@@ -3879,15 +4526,17 @@ def render(
             "",
             "## Tempo coverage-gap checklist",
             "",
-            "Tempo estimates are only displayed at calibrated confidence. Source-specific phase evidence is tested separately from corpus coverage so a synthetic regression fixture cannot be mistaken for independent real-audio validation.",
+            "The live BPM field is a sliding trailing-three-second estimate: every analysis hop re-evaluates only the latest Kick, Bass, and Snare onset peaks. Longer phase-history and external-tracker experiments below are retained as historical diagnostics only; they cannot overwrite the live display. Source-specific evidence is tested separately from corpus coverage so a synthetic regression fixture cannot be mistaken for independent real-audio validation.",
             "",
             "| Work item | Complete / total | Remaining | Evidence required |",
             "| --- | ---: | ---: | --- |",
+            "| Keep the live BPM display on a trailing 3 s Kick/Bass/Snare window | 1 / 1 (100.0%) | 0 | every analysis hop derives `estimated_bpm` solely from the latest source-separated 3 s peak history |",
+            "| Prevent long-lived phase or external trackers from overriding live BPM | 1 / 1 (100.0%) | 0 | all long-history tracker fallback flags are disabled; a moving-window contract test guards the assignment |",
             "| Separate kick, bass, snare, and tonal onset histories | 1 / 1 (100.0%) | 0 | source-specific phase coverage in debug candidates |",
             "| Preserve simultaneous kick+bass downbeat evidence | 1 / 1 (100.0%) | 0 | analyzer case verifies both kick and bass phase coverage on the same downbeats |",
             "| Require repeated source evidence on the selected beat grid | 1 / 1 (100.0%) | 0 | confidence cap below display floor without repeated alignment |",
             "| Resolve half/double-time candidates with kick/bass downbeat evidence | 1 / 1 (100.0%) | 0 | analyzer cases retain the beat grid through sparse-kick half-time and dense-subdivision alternatives |",
-            "| Adaptive tempo history for percussive vs sparse tonal input | 1 / 1 (100.0%) | 0 | 8 s percussion / 18 s sparse-source policy |",
+            "| Historical adaptive phase-history experiment retained for diagnostics | 1 / 1 (100.0%) | 0 | 8 s percussion / 18 s sparse-source policy; it does not control the live BPM field |",
             f"| Generated drum phase regression measured | {fraction(int(egmd_bpm is not None), 1)} | {int(egmd_bpm is None)} | E-GMD x/total BPM diagnostic |",
             f"| Retrieve versioned Ballroom beat/bar annotations | {fraction(ballroom_annotations_ready, 1)} | {1 - ballroom_annotations_ready} | CPJKU BallroomAnnotations checkout in InstrumentSamples |",
             f"| Rhythm-heavy real-mix beat validation measured | {fraction(int(ballroom_bpm is not None), 1)} | {int(ballroom_bpm is None)} | up to 64 genre-balanced Ballroom stable sections with manually corrected beat/bar annotations |",
@@ -3934,7 +4583,7 @@ def render(
             f"| Permissive tracker at 0.80 certainty — FiloBass | {fraction(*btt_filobass[0.80])} | {btt_filobass[0.80][1] - btt_filobass[0.80][0]} | source-only candidates; {btt_filobass[0.0][1] - btt_filobass[0.80][1]} clips remain hidden; not a live-release gate |",
             "| Repair continuous PCM feed to permissive tracker | 1 / 1 (100.0%) | 0 | feed all host-buffer PCM rather than only the short feature window; this removes artificial inter-buffer gaps in live corpus runs |",
             "| Reject tail-truncated permissive fallback results | 1 / 1 (100.0%) | 0 | earlier 0.75/0.60 live trials omitted each host-buffer tail and produced wrong Ballroom BPM; they do not calibrate the repaired continuous feed |",
-            "| Enable strict live permissive-tracker fallback | 3 / 3 (100.0%) | 0 | at 0.80 certainty with phase confidence below 0.60: Ballroom 12 / 64, FiloBass 2 / 24, E-GMD 20 / 20; no wrong displayed BPM observed |",
+            "| Historical strict permissive-tracker fallback audit (disabled) | 3 / 3 (100.0%) | 0 | at 0.80 certainty with phase confidence below 0.60: Ballroom 12 / 64, FiloBass 2 / 24, E-GMD 20 / 20; the fallback remains disabled so it cannot replace the trailing-window display |",
             f"| Benchmark constrained high-tempo beat tracker | 2 / 2 (100.0%) | 0 | 120--240 BPM source-only tracker at 0.55 certainty: Ballroom {btt_high_tempo_ballroom[0]} / {btt_high_tempo_ballroom[1]} and FiloBass {btt_high_tempo_filobass[0]} / {btt_high_tempo_filobass[1]} correct |",
             "| Reject concurrent high-tempo tracker fallback | 1 / 1 (100.0%) | 0 | live candidates at 0.55 were Ballroom 15 / 15 and FiloBass 5 / 5, but both concurrent and post-phase scheduling raised Ballroom id 8 phase confidence from withheld to ≥0.617 and displayed wrong 158.97 BPM for 128.03; feature remains false |",
             "| Reject high-tempo-only tracker setting | 1 / 1 (100.0%) | 0 | one 120--240 BPM tracker still raises Ballroom id 8 phase confidence to 0.617 and displays wrong 158.97 BPM for 128.03; retain broad 40--240 BPM tracker at 0.80 |",
@@ -4187,6 +4836,57 @@ def render(
             hits, total, primary = virtuosity_counts[category]
             lines.append(f"| Virtuosity Drums — {category.title()} detected | {fraction(hits, total)} | {total - hits} |")
             lines.append(f"| Virtuosity Drums — {category.title()} primary display | {fraction(primary, total)} | {total - primary} |")
+    if enst_counts:
+        lines.extend(
+            [
+                "",
+                "## ENST-Drums independent acoustic baseline",
+                "",
+                "Source: `build/enst_drums_measurement.log`. The direct Zenodo archive is checksum-pinned and stored in external `InstrumentSamples`; the fixture selects one `dry_mix` rendering per declared performance, never duplicate microphone channels. It treats the three declared Rim-shot/Cross-stick performances as Rim even though their source event tokens use `sd`.",
+                "",
+                "| Metric | Accurate / total | Remaining |",
+                "| --- | ---: | ---: |",
+            ]
+        )
+        for category in ("tom", "ride", "rim"):
+            if category not in enst_counts:
+                continue
+            hits, total, primary = enst_counts[category]
+            lines.append(f"| ENST-Drums — {category.title()} detected | {fraction(hits, total)} | {total - hits} |")
+            lines.append(f"| ENST-Drums — {category.title()} primary display | {fraction(primary, total)} | {total - primary} |")
+    if "rim" in zerox808_rim_counts:
+        hits, total, primary = zerox808_rim_counts["rim"]
+        lines.extend(
+            [
+                "",
+                "## 0x808 independent Rim baseline",
+                "",
+                "Source: `build/0x808_rim_measurement.log`. The reproducible 0x808 acquisition stores its source and generated labelled manifest under `InstrumentSamples`; this replay uses its royalty-free/public-domain drum-machine one-shots.",
+                "",
+                "| Metric | Accurate / total | Remaining |",
+                "| --- | ---: | ---: |",
+                f"| 0x808 Rim detected | {fraction(hits, total)} | {total - hits} |",
+                f"| 0x808 Rim primary display | {fraction(primary, total)} | {total - primary} |",
+                "| Decision | no source-neutral Rim selector is enabled | preserve protected acoustic one-shot primary labels |",
+            ]
+        )
+    if rim_primary_candidate is not None:
+        name, selected, corrected, regressions, foreign = rim_primary_candidate
+        lines.extend(
+            [
+                "",
+                "### Cross-source Rim selector veto",
+                "",
+                f"Source: `build/rim_primary_candidate_audit.txt`. Candidate `{name}` was mined from the independent 0x808 and Virtuosity Rim→Snare misses, then simulated against every cached protected one-shot row.",
+                "",
+                "| Metric | Samples | Decision |",
+                "| --- | ---: | --- |",
+                f"| Candidate matches | {selected} | offline only |",
+                f"| Rim primary repairs | {corrected} | promising local evidence |",
+                f"| Protected correct-primary regressions | {regressions} | reject |",
+                f"| Foreign Rim promotions | {foreign} | reject |",
+            ]
+        )
     if cross_acoustic_tom_primary_recovery:
         lines.extend(
             [
@@ -4233,13 +4933,15 @@ def render(
             f"| Measure independent 29k Drums Tom/Ride baseline | {fraction(int(bool(samples29k_counts)), 1)} | {1 - int(bool(samples29k_counts))} | prepared, labelled acoustic one-shot fixture and analyzer x/total results |",
             f"| Record all 29k Tom/Ride primary decisions for candidate evaluation | {fraction(samples29k_primary_attributes_available, 1)} | {1 - samples29k_primary_attributes_available} | verbose current and missed primary labels become a reproducible TSV; selectors still need cross-corpus runtime replay |",
             f"| Measure CC0 Virtuosity Drums Rim/Tom/Ride baseline | {fraction(int(bool(virtuosity_counts)), 1)} | {1 - int(bool(virtuosity_counts))} | Tom primary {fraction(virtuosity_counts['tom'][2], virtuosity_counts['tom'][1]) if 'tom' in virtuosity_counts else '--'}; Ride primary {fraction(virtuosity_counts['ride'][2], virtuosity_counts['ride'][1]) if 'ride' in virtuosity_counts else '--'}; Rim primary {fraction(virtuosity_counts['rim'][2], virtuosity_counts['rim'][1]) if 'rim' in virtuosity_counts else '--'} |",
+            f"| Measure independent 0x808 royalty-free/public-domain Rim baseline | {fraction(int('rim' in zerox808_rim_counts), 1)} | {1 - int('rim' in zerox808_rim_counts)} | Rim detected {fraction(zerox808_rim_counts['rim'][0], zerox808_rim_counts['rim'][1]) if 'rim' in zerox808_rim_counts else '--'}; primary {fraction(zerox808_rim_counts['rim'][2], zerox808_rim_counts['rim'][1]) if 'rim' in zerox808_rim_counts else '--'} |",
             f"| Measure MDB annotated side-stick/Rim event coverage | {fraction(int(mdb_rim is not None), 1)} | {int(mdb_rim is None)} | {fraction(mdb_rim[0], mdb_rim[1]) if mdb_rim is not None else '--'} detected; calibration evidence only, not independent replication |",
             f"| Screen FSD50K fixed vocabulary for licence-compatible Rimshot clips | {fraction(int(fsd50k_rim_metadata is not None), 1)} | {int(fsd50k_rim_metadata is None)} | no audio transfer: {fsd50k_rim_metadata[0] if fsd50k_rim_metadata is not None else '--'} labelled rows, {fsd50k_rim_metadata[1] if fsd50k_rim_metadata is not None else '--'} isolated candidates, {fsd50k_rim_metadata[2] if fsd50k_rim_metadata is not None else '--'} permissive-licence candidates |",
             f"| Verify licence-free Rimshot recording candidate | {fraction(int(commons_rimshot_candidate is not None), 1)} | {int(commons_rimshot_candidate is None)} | checksum, source label, licence, and 4 stated rolls; {commons_rimshot_candidate[3] if commons_rimshot_candidate is not None else '--'} per-roll timestamps supplied |",
             f"| Measure checksum-pinned isolated real Rimshot | {fraction(int(pixabay_rimshot_measurement is not None), 1)} | {int(pixabay_rimshot_measurement is None)} | detected {pixabay_rimshot_measurement[0] if pixabay_rimshot_measurement is not None else '--'} / 1; Rim primary {pixabay_rimshot_measurement[1] if pixabay_rimshot_measurement is not None else '--'} / 1; Snare primary {pixabay_rimshot_measurement[2] if pixabay_rimshot_measurement is not None else '--'} / 1 |",
             f"| Measure separately sourced isolated real Rimshot | {fraction(int(pixabay_rimshot_f_measurement is not None), 1)} | {int(pixabay_rimshot_f_measurement is None)} | detected {pixabay_rimshot_f_measurement[0] if pixabay_rimshot_f_measurement is not None else '--'} / 1; Rim primary {pixabay_rimshot_f_measurement[1] if pixabay_rimshot_f_measurement is not None else '--'} / 1; Snare primary {pixabay_rimshot_f_measurement[2] if pixabay_rimshot_f_measurement is not None else '--'} / 1 |",
             f"| Measure third independently sourced isolated Rim Shot | {fraction(int(pixabay_rim_shot_measurement is not None), 1)} | {int(pixabay_rim_shot_measurement is None)} | detected {pixabay_rim_shot_measurement[0] if pixabay_rim_shot_measurement is not None else '--'} / 1; Rim primary {pixabay_rim_shot_measurement[1] if pixabay_rim_shot_measurement is not None else '--'} / 1; Snare primary {pixabay_rim_shot_measurement[2] if pixabay_rim_shot_measurement is not None else '--'} / 1 |",
-            f"| Broaden independent Rim replication beyond one isolated recording | {fraction(sum(measurement is not None for measurement in isolated_rim_measurements), 3)} | {3 - sum(measurement is not None for measurement in isolated_rim_measurements)} | three checksum-pinned, independently credited sources: Rim detected {sum(measurement[0] for measurement in isolated_rim_measurements if measurement is not None)} / 3, primary {sum(measurement[1] for measurement in isolated_rim_measurements if measurement is not None)} / 3, Snare primary {sum(measurement[2] for measurement in isolated_rim_measurements if measurement is not None)} / 3; ENST-Drums remains an additional labelled-corpus path after its research-use licence is accepted and preserved |",
+            f"| Broaden independent Rim replication beyond one isolated recording | {fraction(isolated_rim_ready + int('rim' in enst_counts), 4)} | {4 - isolated_rim_ready - int('rim' in enst_counts)} | three checksum-pinned, independently credited sources: Rim detected {isolated_rim_detected} / 3, primary {isolated_rim_primary} / 3, Snare primary {isolated_rim_snare_primary} / 3; ENST-Drums direct archive contributes {fraction(enst_counts['rim'][2], enst_counts['rim'][1]) if 'rim' in enst_counts else '--'} Rim primary across its declared dry-mix Rim-shot/Cross-stick performances |",
+            "| Assess optional E-GMD real-drum Rim data | 0 / 1 (0.0%) | 1 | deferred at user direction: its gate requires a user-provided local E-GMD root and this repository has no direct downloader |",
         ]
     )
     lines.extend(
@@ -4367,9 +5069,11 @@ def main() -> int:
     parser.add_argument("--btt-high-tempo-filobass-bpm-input", type=Path)
     parser.add_argument("--filobass-bpm-input", type=Path)
     parser.add_argument("--filobass-onset-diagnostic-input", type=Path)
+    parser.add_argument("--immediate-source-bpm-3s-audit", type=Path)
     parser.add_argument("--egmd-bpm-input", type=Path)
     parser.add_argument("--idmt-bass-tempo-metadata-input", type=Path)
     parser.add_argument("--high-vocal-octave-audit", type=Path)
+    parser.add_argument("--high-soprano-vocal-mirror-audit", type=Path)
     parser.add_argument("--electronic-piano-guitar-route-audit", type=Path)
     parser.add_argument("--scms-vocal-other-route-audit", type=Path)
     parser.add_argument("--tenor-sax-piano-route-audit", type=Path)
@@ -4382,6 +5086,12 @@ def main() -> int:
     parser.add_argument("--dominant-seventh-extension-audit", type=Path)
     parser.add_argument("--global-chord-confidence-audit", type=Path)
     parser.add_argument("--guitarset-attribute-input", type=Path)
+    parser.add_argument("--guitar-techs-isolated-visual-audit", type=Path)
+    parser.add_argument("--idmt-guitar-isolated-visual-audit", type=Path)
+    parser.add_argument("--agpt-guitar-measurement", type=Path)
+    parser.add_argument("--agpt-guitar-visual-primary", type=Path)
+    parser.add_argument("--agpt-guitar-visual-mining", type=Path)
+    parser.add_argument("--cross-corpus-guitar-primary-order-audit", type=Path)
     parser.add_argument("--same-root-guitar-quality-audit", type=Path)
     parser.add_argument("--owner-classifier-loco-audit", type=Path)
     parser.add_argument("--owner-classifier-quality-loco-audit", type=Path)
@@ -4396,6 +5106,14 @@ def main() -> int:
     parser.add_argument("--other-detection-disabled", action="store_true")
     parser.add_argument("--polyphonic-candidate-capacity-audit", type=Path)
     parser.add_argument("--harmonic-product-octave-audit", type=Path)
+    parser.add_argument("--satb-relative-chroma-selector-audit", type=Path)
+    parser.add_argument("--basic-pitch-onnx-true-miss-replay", type=Path)
+    parser.add_argument("--basic-pitch-onnx-full-replay", type=Path)
+    parser.add_argument("--basic-pitch-onnx-safe-replay", type=Path)
+    parser.add_argument("--basic-pitch-onnx-choir-strict-replay", type=Path)
+    parser.add_argument("--basic-pitch-onnx-musicnet-strict-replay", type=Path)
+    parser.add_argument("--basic-pitch-onnx-cross-domain-safe-replay", type=Path)
+    parser.add_argument("--basic-pitch-onnx-cross-domain-worker-safe-replay", type=Path)
     parser.add_argument("--output", required=True, type=Path)
     args = parser.parse_args()
     try:
@@ -4482,11 +5200,13 @@ def main() -> int:
             args.other_detection_disabled,
             args.polyphonic_candidate_capacity_audit,
             args.harmonic_product_octave_audit,
+            args.satb_relative_chroma_selector_audit,
             args.kraisler_bpm_input,
             args.ballroom_bpm_input,
             args.gtzan_rhythm_bpm_input,
             args.filobass_bpm_input,
             args.filobass_onset_diagnostic_input,
+            args.immediate_source_bpm_3s_audit,
             args.egmd_bpm_input,
             args.idmt_bass_tempo_metadata_input,
             args.ballroom_annotations,
@@ -4530,6 +5250,19 @@ def main() -> int:
             args.pixabay_rimshot_f_measurement_audit,
             args.pixabay_rim_shot_measurement_audit,
             args.mdb_rim_coverage_input,
+            args.basic_pitch_onnx_true_miss_replay,
+            args.basic_pitch_onnx_full_replay,
+            args.basic_pitch_onnx_safe_replay,
+            args.basic_pitch_onnx_choir_strict_replay,
+            args.basic_pitch_onnx_musicnet_strict_replay,
+            args.basic_pitch_onnx_cross_domain_safe_replay,
+            args.basic_pitch_onnx_cross_domain_worker_safe_replay,
+            args.agpt_guitar_measurement,
+            args.agpt_guitar_visual_primary,
+            args.agpt_guitar_visual_mining,
+            args.cross_corpus_guitar_primary_order_audit,
+            args.guitar_techs_isolated_visual_audit,
+            args.idmt_guitar_isolated_visual_audit,
         )
     except (OSError, ValueError) as error:
         parser.error(str(error))

@@ -1417,6 +1417,13 @@ def main() -> int:
         help="fail when a family's visible expected-row exact-note sample coverage is below this percent",
     )
     parser.add_argument(
+        "--exclude-family",
+        action="append",
+        default=[],
+        metavar="FAMILY",
+        help="exclude disabled runtime families from visible-row validation",
+    )
+    parser.add_argument(
         "--check-only",
         action="store_true",
         help="only run validation checks instead of printing the full summary",
@@ -1425,8 +1432,10 @@ def main() -> int:
 
     path = pathlib.Path(args.path)
     rows = load_rows(path)
+    excluded_families = set(args.exclude_family)
+    validation_rows = [row for row in rows if row.get("family") not in excluded_families]
     failures = validate_visible_lit_exact_samples(
-        rows,
+        validation_rows,
         min_sample_percent=args.min_visible_lit_exact_sample_percent,
         min_family_sample_percent=args.min_visible_lit_exact_family_sample_percent,
     )

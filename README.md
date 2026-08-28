@@ -46,6 +46,7 @@ make android
 - [Real-audio detection accuracy](docs/detection_accuracy_report.md) — current, reproducible `accurate / total` coverage for the full-mix note corpus.
 - [Development and testing](docs/development_and_testing.md) — fixture setup, corpus storage, detector measurement, and regression workflows.
 - [Audacious overlay integration](docs/audacious_overlay_integration.md) — title display, fallback behavior, and renderer integration details.
+- [Basic Pitch Vocal fusion](docs/basic_pitch_vocal_fusion.md) — optional local ONNX configuration and its conservative same-note gate.
 - [Real-audio dataset candidates](docs/real_audio_dataset_candidates.md) — supported evaluation corpora and their limits.
 
 ## Performance

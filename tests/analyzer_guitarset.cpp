@@ -1176,6 +1176,13 @@ void check_recall(Runner &runner, const mao::AnalysisSnapshot &snapshot, const C
 		}
 		if (primary_chord_hit)
 			++stats.primary_chord_hits;
+		else if (env_truthy("MUSIC_ANALYZER_GUITARSET_VERBOSE_PRIMARY_CHORD_MISSES"))
+			std::fprintf(stderr,
+				     "%s: primary chord opportunity `%s`, detected guitar `%s`, global `%s`, key `%s`, "
+				     "other `%s`\n",
+				     context.c_str(), join_labels(candidate.chord_labels).c_str(),
+				     snapshot.guitar_chord.label, snapshot.global_chord.label,
+				     snapshot.keyboard_chord.label, snapshot.other_chord.label);
 		if (simple_chord_hit)
 			++stats.simple_chord_hits;
 		if (major_minor_opportunity) {
@@ -1402,7 +1409,7 @@ void print_guitarset_attribute_header(std::ostream &out)
 	    << "\texpected_quality_raw_profile"
 	    << "\tbass_pitch_classes\tkeyboard_pitch_classes\tvocal_pitch_classes"
 	    << "\tother_pitch_classes\tambiguous_pitch_classes"
-	    << "\trms\tlow\tmid\thigh\n";
+	    << "\trms\tlow\tmid\thigh\tprimary_chord_hit\n";
 }
 
 void append_guitarset_attribute_row(std::ostream &out, const Recording &recording,
@@ -1479,6 +1486,9 @@ void append_guitarset_attribute_row(std::ostream &out, const Recording &recordin
 	append_tsv(line, snapshot.low_energy);
 	append_tsv(line, snapshot.mid_energy);
 	append_tsv(line, snapshot.high_energy);
+	append_tsv(line, bool_cell(!candidate.chord_labels.empty() &&
+				       first_chord_label_matches(snapshot.guitar_chord.label,
+							 candidate.chord_labels)));
 	out << line.str() << '\n';
 }
 

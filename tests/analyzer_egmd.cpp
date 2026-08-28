@@ -1034,12 +1034,13 @@ std::string drum_debug_details(const mao::AnalysisSnapshot &snapshot)
 	}
 	char tail[256] = {};
 	std::snprintf(tail, sizeof(tail),
-		      " | rms=%.4f energy=%.2f/%.2f/%.2f transient=%.2f onset=%.2f body=%.2f/%.2f/%.2f crack=%.2f upperTom=%.2f bodyShape=%d",
+		      " | rms=%.4f energy=%.2f/%.2f/%.2f transient=%.2f onset=%.2f body=%.2f/%.2f/%.2f crack=%.2f upperTom=%.2f bodyShape=%d flags=0x%llx",
 		      snapshot.rms, snapshot.low_energy, snapshot.mid_energy, snapshot.high_energy,
 		      snapshot.drum_debug_transient_ratio, snapshot.drum_debug_onset,
 		      snapshot.drum_debug_kick_body, snapshot.drum_debug_snare_body,
 		      snapshot.drum_debug_tom_body, snapshot.drum_debug_snare_crack,
-		      snapshot.drum_debug_upper_tom_body, snapshot.drum_debug_body_shape);
+		      snapshot.drum_debug_upper_tom_body, snapshot.drum_debug_body_shape,
+		      static_cast<unsigned long long>(snapshot.drum_debug_rule_flags));
 	details += tail;
 	return details;
 }
@@ -1302,8 +1303,9 @@ void print_tempo_diagnostic(const Recording &recording, const mao::AnalysisSnaps
 			     error <= bpm_tolerance ? "hit" :
 						      "miss";
 	std::fprintf(stderr,
-		     "E-GMD tempo diag\tid=%s\texpected=%.2f\tgot=%.2f\tconfidence=%.3f\terror=%.2f\tstatus=%s\tcandidates=%s\tdrums=%s\n",
-		     recording.id.c_str(), recording.tempo_bpm, estimated, snapshot.bpm_confidence,
+		     "E-GMD tempo diag\tid=%s\texpected=%.2f\tgot=%.2f\tconfidence=%.3f\timmediate_source=%.2f\tphase_raw=%.2f\tphase_confidence=%.3f\terror=%.2f\tstatus=%s\tcandidates=%s\tdrums=%s\n",
+		     recording.id.c_str(), recording.tempo_bpm, estimated, snapshot.bpm_confidence, snapshot.immediate_source_bpm,
+		     snapshot.phase_estimated_bpm, snapshot.phase_bpm_confidence,
 		     error, status, tempo_candidate_summary(snapshot).c_str(),
 		     drum_debug_details(snapshot).c_str());
 }

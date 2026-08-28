@@ -6,6 +6,7 @@
 #include <obs-source.h>
 #include <obs.h>
 #include <media-io/audio-io.h>
+#include <util/bmem.h>
 
 #include <algorithm>
 #include <atomic>
@@ -187,6 +188,9 @@ struct FilterData {
 	bool pending = false;
 	mao::AnalysisSettings pending_settings;
 	mao::AnalysisEngine engine;
+	bool basic_pitch_vocal_fusion_enabled = false;
+	std::string basic_pitch_runtime_library;
+	std::string basic_pitch_model;
 
 	// The audio callback writes one of these buffers only.  The optional
 	// sidecar worker reads the other buffer after it has been filled with one
@@ -346,6 +350,13 @@ void beat_this_sidecar_worker(FilterData *filter)
 
 void apply_beat_this_sidecar_fallback(FilterData *filter, mao::AnalysisSnapshot *snapshot)
 {
+	// The overlay BPM contract is a continuously recomputed three-second local
+	// window. Beat This receives fixed 20-second packets, so it must not replace
+	// that moving result (or retain one after the track changes). Keep the
+	// sidecar capture/worker intact for its diagnostics and future opt-in uses.
+	constexpr bool kEnableFixedWindowSidecarDisplayFallback = false;
+	if (!kEnableFixedWindowSidecarDisplayFallback)
+		return;
 	if (!filter || !snapshot || snapshot->bpm_confidence >= mao::kBpmDisplayConfidenceThreshold)
 		return;
 	std::lock_guard<std::mutex> lock(filter->beat_this_sidecar_mutex);
@@ -379,6 +390,9 @@ void copy_ring_to_pending(FilterData *filter, const char *source_label)
 			static_cast<uint32_t>(mao::kLegacyAnalysisWindow) :
 			0;
 	filter->pending_settings.input_mode = mao::AnalysisInputMode::Auto;
+	filter->pending_settings.basic_pitch_vocal_fusion_enabled = filter->basic_pitch_vocal_fusion_enabled;
+	filter->pending_settings.basic_pitch_runtime_library = filter->basic_pitch_runtime_library;
+	filter->pending_settings.basic_pitch_model = filter->basic_pitch_model;
 	const std::size_t window_samples = mao::resolve_analysis_window_samples(filter->pending_settings);
 	copy_text(filter->pending_source_name, sizeof(filter->pending_source_name),
 		  source_label && *source_label ? source_label : filter->source_name);
@@ -393,6 +407,35 @@ void copy_ring_to_pending(FilterData *filter, const char *source_label)
 	filter->pending = true;
 	lock.unlock();
 	filter->worker_cv.notify_one();
+}
+
+void update_basic_pitch_vocal_fusion_config(FilterData *filter, obs_data_t *settings)
+{
+	if (!filter || !settings)
+		return;
+	std::string runtime_library = obs_data_get_string(settings, "basic_pitch_runtime_library");
+	std::string model = obs_data_get_string(settings, "basic_pitch_model");
+	// A user-entered path always wins.  Otherwise use the files that the
+	// guarded installer places in this module's OBS data directory.
+	if (runtime_library.empty()) {
+		char *module_path = obs_module_file("basic_pitch/libonnxruntime.so");
+		if (module_path) {
+			runtime_library = module_path;
+			bfree(module_path);
+		}
+	}
+	if (model.empty()) {
+		char *module_path = obs_module_file("basic_pitch/nmp.onnx");
+		if (module_path) {
+			model = module_path;
+			bfree(module_path);
+		}
+	}
+	std::lock_guard<std::mutex> lock(filter->worker_mutex);
+	filter->basic_pitch_vocal_fusion_enabled =
+		obs_data_get_bool(settings, "enable_basic_pitch_vocal_fusion");
+	filter->basic_pitch_runtime_library = std::move(runtime_library);
+	filter->basic_pitch_model = std::move(model);
 }
 
 bool refresh_source_name(FilterData *filter)
@@ -603,6 +646,7 @@ void *filter_create(obs_data_t *settings, obs_source_t *source)
 	filter->legacy_window.store(obs_data_get_bool(settings, "legacy_window"), std::memory_order_relaxed);
 	filter->sensitivity_percent.store(static_cast<uint32_t>(std::clamp<long long>(obs_data_get_int(settings, "sensitivity"), 50, 200)),
 				  std::memory_order_relaxed);
+	update_basic_pitch_vocal_fusion_config(filter, settings);
 	update_beat_this_sidecar_config(filter, settings);
 
 	publish_filter_ready(filter);
@@ -644,6 +688,12 @@ void filter_defaults(obs_data_t *settings)
 	obs_data_set_default_int(settings, "window_ms", mao::kDefaultAnalysisWindowMs);
 	obs_data_set_default_bool(settings, "legacy_window", false);
 	obs_data_set_default_int(settings, "sensitivity", 100);
+	// This is a bounded causal worker gate, not a broad note overlay: the
+	// cross-corpus owner-evidence replay permits only the zero-false Vocal
+	// mirrors. Keep the explicit control so an existing filter can opt out.
+	obs_data_set_default_bool(settings, "enable_basic_pitch_vocal_fusion", true);
+	obs_data_set_default_string(settings, "basic_pitch_runtime_library", "");
+	obs_data_set_default_string(settings, "basic_pitch_model", "");
 	obs_data_set_default_bool(settings, "enable_beat_this_sidecar", false);
 	obs_data_set_default_string(settings, "beat_this_python", "python3");
 	obs_data_set_default_string(settings, "beat_this_runner", "");
@@ -653,6 +703,16 @@ void filter_defaults(obs_data_t *settings)
 	obs_data_set_default_int(settings, "beat_this_timeout_ms", 4000);
 }
 
+void migrate_unset_basic_pitch_vocal_fusion(obs_data_t *settings)
+{
+	if (!settings || obs_data_has_user_value(settings, "enable_basic_pitch_vocal_fusion"))
+		return;
+	// Filters created before the guarded Vocal fusion existed have no user
+	// choice for this key. Adopt the safe default, but never replace an
+	// explicit opt-out saved by the user.
+	obs_data_set_bool(settings, "enable_basic_pitch_vocal_fusion", true);
+}
+
 obs_properties_t *filter_properties(void *)
 {
 	obs_properties_t *props = obs_properties_create();
@@ -660,6 +720,12 @@ obs_properties_t *filter_properties(void *)
 	obs_properties_add_int_slider(props, "window_ms", "Analysis window (ms)", 20, 170, 5);
 	obs_properties_add_bool(props, "legacy_window", "Use legacy 4096-sample analysis window");
 	obs_properties_add_int_slider(props, "sensitivity", "Drum sensitivity (%)", 50, 200, 5);
+	obs_properties_add_bool(props, "enable_basic_pitch_vocal_fusion",
+			       "Enable zero-false-gated Basic Pitch Vocal fusion");
+	obs_properties_add_path(props, "basic_pitch_runtime_library", "Basic Pitch ONNX Runtime library",
+			       OBS_PATH_FILE, "Shared library (*.so)", nullptr);
+	obs_properties_add_path(props, "basic_pitch_model", "Basic Pitch ONNX model", OBS_PATH_FILE,
+			       "ONNX model (*.onnx)", nullptr);
 	obs_properties_add_bool(props, "enable_beat_this_sidecar", "Enable experimental Beat This BPM fallback");
 	obs_properties_add_text(props, "beat_this_python", "Beat This Python command", OBS_TEXT_DEFAULT);
 	obs_properties_add_path(props, "beat_this_runner", "Beat This runner (explicit local file)", OBS_PATH_FILE,
@@ -691,6 +757,8 @@ void filter_update(void *data, obs_data_t *settings)
 	filter->legacy_window.store(obs_data_get_bool(settings, "legacy_window"), std::memory_order_relaxed);
 	filter->sensitivity_percent.store(static_cast<uint32_t>(std::clamp<long long>(obs_data_get_int(settings, "sensitivity"), 50, 200)),
 				  std::memory_order_relaxed);
+	migrate_unset_basic_pitch_vocal_fusion(settings);
+	update_basic_pitch_vocal_fusion_config(filter, settings);
 	update_beat_this_sidecar_config(filter, settings);
 	filter->parent_name_resolved.store(refresh_source_name(filter), std::memory_order_relaxed);
 	publish_filter_ready(filter);

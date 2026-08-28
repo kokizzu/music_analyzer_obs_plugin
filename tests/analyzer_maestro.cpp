@@ -1068,6 +1068,11 @@ bool maestro_tempo_interval(const Recording &recording, double max_seconds, doub
 {
 	if (!recording.has_explicit_tempo || recording.tempo_points.empty())
 		return false;
+	// Normal corpus diagnostics retain their 14-second stable-span requirement.
+	// A caller explicitly requesting a shorter onset window (for example 3 s)
+	// must be able to exercise that window instead of finding zero eligible
+	// recordings before the analyzer receives any audio.
+	const double minimum_duration = std::min(14.0, max_seconds);
 	const double available_seconds = static_cast<double>(recording.frame_count) / recording.sample_rate;
 	for (std::size_t index = 0; index < recording.tempo_points.size(); ++index) {
 		const TempoPoint &point = recording.tempo_points[index];
@@ -1076,7 +1081,7 @@ bool maestro_tempo_interval(const Recording &recording, double max_seconds, doub
 		const double labelled_duration = recording.tempo_duration_seconds > 0.0 ?
 							 recording.tempo_duration_seconds : std::numeric_limits<double>::infinity();
 		const double duration = std::min({max_seconds, interval_end - point.seconds, labelled_duration});
-		if (point.microseconds_per_quarter <= 0 || duration < 14.0)
+		if (point.microseconds_per_quarter <= 0 || duration < minimum_duration)
 			continue;
 	start_seconds = point.seconds + recording.tempo_audio_offset_seconds;
 	end_seconds = start_seconds + duration;
@@ -1165,8 +1170,8 @@ bool measure_maestro_tempo(const Recording &recording, double max_seconds, float
 	if (snapshot.estimated_bpm <= 0.0f || snapshot.bpm_confidence < confidence_floor) {
 		++stats.no_estimate;
 		std::fprintf(stderr,
-		     "MAESTRO tempo diag\tid=%s\texpected=%.2f\tgot=0.00\traw=%.2f\tconfidence=%.3f\tbackend_raw=%.2f\tbackend_confidence=%.3f\thigh_backend_raw=%.2f\thigh_backend_confidence=%.3f\tphase_raw=%.2f\tphase_confidence=%.3f\terror=%.2f\tstatus=no-estimate\tcandidates=%s\n",
-		     recording.id.c_str(), expected, snapshot.estimated_bpm, snapshot.bpm_confidence,
+		     "MAESTRO tempo diag\tid=%s\texpected=%.2f\tgot=0.00\traw=%.2f\tconfidence=%.3f\timmediate_source=%.2f\tbackend_raw=%.2f\tbackend_confidence=%.3f\thigh_backend_raw=%.2f\thigh_backend_confidence=%.3f\tphase_raw=%.2f\tphase_confidence=%.3f\terror=%.2f\tstatus=no-estimate\tcandidates=%s\n",
+		     recording.id.c_str(), expected, snapshot.estimated_bpm, snapshot.bpm_confidence, snapshot.immediate_source_bpm,
 		     snapshot.permissive_tracker_bpm, snapshot.permissive_tracker_confidence,
 		     snapshot.high_tempo_tracker_bpm, snapshot.high_tempo_tracker_confidence,
 		     snapshot.phase_estimated_bpm, snapshot.phase_bpm_confidence,
@@ -1178,8 +1183,8 @@ bool measure_maestro_tempo(const Recording &recording, double max_seconds, float
 	stats.max_absolute_error = std::max(stats.max_absolute_error, absolute_error);
 	if (absolute_error <= tolerance)
 		++stats.hits;
-	std::fprintf(stderr, "MAESTRO tempo diag\tid=%s\texpected=%.2f\tgot=%.2f\traw=%.2f\tconfidence=%.3f\tbackend_raw=%.2f\tbackend_confidence=%.3f\thigh_backend_raw=%.2f\thigh_backend_confidence=%.3f\tphase_raw=%.2f\tphase_confidence=%.3f\terror=%.2f\tstatus=%s\tcandidates=%s\n",
-		     recording.id.c_str(), expected, snapshot.estimated_bpm, snapshot.estimated_bpm, snapshot.bpm_confidence,
+	std::fprintf(stderr, "MAESTRO tempo diag\tid=%s\texpected=%.2f\tgot=%.2f\traw=%.2f\tconfidence=%.3f\timmediate_source=%.2f\tbackend_raw=%.2f\tbackend_confidence=%.3f\thigh_backend_raw=%.2f\thigh_backend_confidence=%.3f\tphase_raw=%.2f\tphase_confidence=%.3f\terror=%.2f\tstatus=%s\tcandidates=%s\n",
+		     recording.id.c_str(), expected, snapshot.estimated_bpm, snapshot.estimated_bpm, snapshot.bpm_confidence, snapshot.immediate_source_bpm,
 		     snapshot.permissive_tracker_bpm, snapshot.permissive_tracker_confidence,
 		     snapshot.high_tempo_tracker_bpm, snapshot.high_tempo_tracker_confidence,
 		     snapshot.phase_estimated_bpm, snapshot.phase_bpm_confidence,

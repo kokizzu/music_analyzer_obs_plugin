@@ -191,6 +191,14 @@ void check_quiet_monophonic_other_recovery_bounds(Runner &runner)
 		      "quiet monophonic other recovery: expected sub-floor peak to stay rejected");
 	runner.expect(!is_quiet_monophonic_other_recovery_candidate(60, 0.0055f),
 		      "quiet monophonic other recovery: expected normal-level peak to use the regular route");
+	runner.expect(is_strong_quiet_monophonic_other_recovery_candidate(61, 0.0023f, 2.10f),
+		      "strong quiet monophonic recovery: expected a dominant C#4-class body below the usual RMS floor");
+	runner.expect(!is_strong_quiet_monophonic_other_recovery_candidate(61, 0.0023f, 1.79f),
+		      "strong quiet monophonic recovery: expected a weaker quiet peak to stay rejected");
+	runner.expect(!is_strong_quiet_monophonic_other_recovery_candidate(35, 0.0023f, 2.10f),
+		      "strong quiet monophonic recovery: expected sub-C2 leakage to stay rejected");
+	runner.expect(!is_strong_quiet_monophonic_other_recovery_candidate(61, 0.0019f, 2.10f),
+		      "strong quiet monophonic recovery: expected sub-floor audio to stay rejected");
 	runner.expect(is_quiet_named_brass_d4_recovery_candidate("brass track", 62, 0.0021f, 0.70f),
 		      "quiet named brass D4 recovery: expected measured direct D4 tail to remain eligible");
 	runner.expect(!is_quiet_named_brass_d4_recovery_candidate("wind track", 62, 0.0021f, 0.70f),
@@ -240,18 +248,39 @@ void check_quiet_monophonic_other_visual_floor(Runner &runner)
 						-1, 1.0f, rms, 1, nullptr, nullptr, false, nullptr, 0.30f,
 						false, true, kMonophonicOtherQuietRecoveryFloor,
 						note_visual_loudness(rms, kMonophonicOtherQuietRecoveryFloor));
-	const NoteCell &g3 = grid.cells[midi_pitch_class(55)];
+	const NoteCell g3 = grid.cells[midi_pitch_class(55)];
 	runner.expect(g3.active && g3.midi == 55,
 		      "quiet monophonic other visual floor: expected admitted G3 peak to retain a visible cell");
 	runner.expect(g3.level >= kNoteEnvelopeNewNoteFloor,
 		      "quiet monophonic other visual floor: expected admitted G3 peak to clear immediate confirmation");
 	std::array<NoteTrackingState, kNoteProbeCount> tracking = {};
 	smooth_note_grid_envelope(grid, state, tracking, -1, 0.10f, 1, nullptr,
-					 kNoteAttackConfirmFrames, kMonophonicOtherImmediateConfirmFloor,
-					 kNoteEnvelopeReleaseSeconds, kMonophonicOtherImmediateConfirmFloor);
+				 kNoteAttackConfirmFrames, kMonophonicOtherImmediateConfirmFloor,
+				 kNoteEnvelopeReleaseSeconds, kMonophonicOtherImmediateConfirmFloor);
 	const NoteCell &smoothed_g3 = grid.cells[midi_pitch_class(55)];
 	runner.expect(smoothed_g3.active && smoothed_g3.midi == 55,
 		      "quiet monophonic other visual floor: expected immediately confirmed G3 to remain visible");
+
+	powers.fill(0.0f);
+	set_probe_level(powers, 61, 2.10f); // C#4 strong direct monophonic body
+	grid = {};
+	state = {};
+	constexpr float strong_quiet_rms = 0.0023f;
+	const bool strong_quiet_recovery =
+		is_strong_quiet_monophonic_other_recovery_candidate(61, strong_quiet_rms, 2.10f);
+	const float strong_quiet_floor = strong_quiet_recovery ?
+		kMonophonicOtherStrongQuietRecoveryFloor : kMonophonicOtherQuietRecoveryFloor;
+	const float strong_quiet_visual_loudness =
+		std::max(note_visual_loudness(strong_quiet_rms, strong_quiet_floor),
+			 strong_quiet_recovery ? kNoteEnvelopeNewNoteFloor * 1.05f : 0.0f);
+	set_instrument_note_set(grid, state, powers, kMonophonicOtherMinMidi, kOtherMaxMidi,
+				-1, 1.0f, strong_quiet_rms, 1, nullptr, nullptr, false, nullptr, 0.30f,
+				false, true, strong_quiet_floor, strong_quiet_visual_loudness);
+	const NoteCell &cs4 = grid.cells[midi_pitch_class(61)];
+	runner.expect(cs4.active && cs4.midi == 61,
+		      "strong quiet monophonic visual floor: expected C#4 peak below the usual RMS floor to reach the grid");
+	runner.expect(cs4.level >= kNoteEnvelopeNewNoteFloor,
+		      "strong quiet monophonic visual floor: expected C#4 peak to clear immediate confirmation");
 }
 
 void check_recovered_monophonic_fundamental_blocks_lower_repromotion(Runner &runner)

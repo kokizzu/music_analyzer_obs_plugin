@@ -26,6 +26,7 @@ struct DrumBar {
 	float age = 0.0f;
 	float level = 0.0f;
 	bool is_peak = false;
+	uint64_t sequence = 0;
 };
 
 struct StableDisplayState {
@@ -53,12 +54,13 @@ struct VisualizerRenderer {
 	bool show_other_row = false;
 	uint64_t drum_history_sequence = 0;
 	std::array<std::vector<DrumBar>, kDrumCount> drum_history = {};
-	std::array<float, kDrumCount> previous_drum_levels = {};
-	std::array<bool, kDrumCount> drum_peak_armed = [] {
-		std::array<bool, kDrumCount> armed = {};
-		armed.fill(true);
-		return armed;
-	}();
+	// A white accent is applied only when a lower bar confirms that the
+	// preceding highest bar was a local crest.  Equal-height bars leave the
+	// current crest unchanged, so a plateau produces one accent at most.
+	std::array<float, kDrumCount> drum_peak_candidate_levels = {};
+	std::array<uint64_t, kDrumCount> drum_peak_candidate_sequences = {};
+	std::array<float, kDrumCount> drum_peak_trough_levels = {};
+	std::array<bool, kDrumCount> drum_peak_tracking_trough = {};
 	std::array<StableDisplayState, 5> stable_labels = {};
 	ExternalControlDisplay external_control = {};
 	std::vector<uint8_t> pixels;

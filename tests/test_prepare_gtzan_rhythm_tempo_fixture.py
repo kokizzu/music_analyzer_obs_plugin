@@ -32,7 +32,11 @@ class PrepareGtzanRhythmTempoFixtureTest(unittest.TestCase):
                     json.dumps({"annotations": [{"namespace": "beat", "data": beats}]}),
                     encoding="utf-8",
                 )
+            external_fixture = root / "external-fixture"
+            external_fixture.mkdir()
+            (external_fixture / "stale.txt").write_text("stale", encoding="utf-8")
             output = root / "fixture"
+            output.symlink_to(external_fixture, target_is_directory=True)
 
             subprocess.run(
                 [
@@ -53,6 +57,8 @@ class PrepareGtzanRhythmTempoFixtureTest(unittest.TestCase):
             with (output / "maestro-v3.0.0.csv").open(encoding="utf-8", newline="") as handle:
                 rows = list(csv.DictReader(handle))
             self.assertEqual(2, len(rows))
+            self.assertTrue(output.is_symlink())
+            self.assertFalse((external_fixture / "stale.txt").exists())
             self.assertTrue((output / rows[0]["audio_filename"]).is_symlink())
             self.assertEqual(b"MThd", (output / rows[0]["midi_filename"]).read_bytes()[:4])
 

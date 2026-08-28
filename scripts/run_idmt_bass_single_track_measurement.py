@@ -19,6 +19,7 @@ ATTRIBUTES = ROOT / "build/idmt_bass_single_track_attributes.tsv"
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--min-recall", type=float, default=0.0)
+    parser.add_argument("--debug-sample")
     arguments = parser.parse_args()
     if not (FIXTURE / "manifest.tsv").is_file():
         raise SystemExit("missing IDMT bass fixture; run make prepare-idmt-bass-single-track-fixture")
@@ -43,10 +44,15 @@ def main() -> int:
         "MUSIC_ANALYZER_REAL_NOTE_MAX_FAILURES": str(max_failures),
         "MUSIC_ANALYZER_REAL_NOTE_ATTRIBUTE_TSV": str(ATTRIBUTES),
     })
-    with OUTPUT.open("w", encoding="utf-8") as output:
+    if arguments.debug_sample:
+        environment["MUSIC_ANALYZER_REAL_NOTE_DEBUG_SAMPLE_ID"] = arguments.debug_sample
+    output_path = OUTPUT
+    if arguments.debug_sample:
+        output_path = ROOT / f"build/idmt_bass_debug_{arguments.debug_sample}.out"
+    with output_path.open("w", encoding="utf-8") as output:
         result = subprocess.run([str(BINARY)], cwd=ROOT, env=environment, text=True,
                                 stdout=output, stderr=subprocess.STDOUT, check=False)
-    print(OUTPUT.read_text(encoding="utf-8"), end="")
+    print(output_path.read_text(encoding="utf-8"), end="")
     if arguments.min_recall > 0.0:
         print(f"IDMT bass recall gate: >= {arguments.min_recall:.1f}% ({max_failures} failures allowed)")
     return result.returncode

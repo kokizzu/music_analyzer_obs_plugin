@@ -60,6 +60,15 @@ def read_beats(path: Path) -> list[float]:
     return []
 
 
+def reset_output_directory(output: Path) -> Path:
+    """Clear a fixture target without replacing its external-store symlink."""
+    destination = output.resolve() if output.is_symlink() else output
+    if destination.exists():
+        shutil.rmtree(destination)
+    destination.mkdir(parents=True, exist_ok=True)
+    return destination
+
+
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--audio-root", type=Path, required=True)
@@ -85,10 +94,9 @@ def main() -> int:
         offset, bpm, duration = segment
         eligible_by_genre.setdefault(wav.parent.name, []).append((wav, offset, bpm, duration))
 
-    if args.output.exists():
-        shutil.rmtree(args.output)
-    (args.output / "audio").mkdir(parents=True)
-    (args.output / "midi").mkdir()
+    output = reset_output_directory(args.output)
+    (output / "audio").mkdir(parents=True)
+    (output / "midi").mkdir()
     rows: list[dict[str, str]] = []
     while len(rows) < args.limit:
         selected = False
@@ -102,9 +110,9 @@ def main() -> int:
             identity = f"{genre}_{wav.stem}"
             audio_name = f"audio/{identity}.wav"
             midi_name = f"midi/{identity}.mid"
-            link = args.output / audio_name
+            link = output / audio_name
             os.symlink(os.path.relpath(wav, link.parent), link)
-            (args.output / midi_name).write_bytes(midi_with_tempo(bpm))
+            (output / midi_name).write_bytes(midi_with_tempo(bpm))
             rows.append(
                 {
                     "audio_filename": audio_name,
@@ -118,7 +126,7 @@ def main() -> int:
             break
     if not rows:
         raise SystemExit("no GTZAN-Rhythm WAV/JAMS pairs with a stable beat interval")
-    with (args.output / "maestro-v3.0.0.csv").open("w", newline="", encoding="utf-8") as handle:
+    with (output / "maestro-v3.0.0.csv").open("w", newline="", encoding="utf-8") as handle:
         writer = csv.DictWriter(handle, fieldnames=rows[0].keys())
         writer.writeheader()
         writer.writerows(rows)

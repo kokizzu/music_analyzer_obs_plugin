@@ -1053,6 +1053,11 @@ def main() -> int:
     parser.add_argument("path", type=pathlib.Path)
     parser.add_argument("--examples", type=int, default=12)
     parser.add_argument(
+        "--summary-only",
+        action="store_true",
+        help="skip expensive rule mining when only cross-corpus protection summaries are needed",
+    )
+    parser.add_argument(
         "--protected-path",
         action="append",
         type=pathlib.Path,
@@ -1354,31 +1359,32 @@ def main() -> int:
             "same_root_extension_cross_corpus:",
             f"protected_false={len(extension_primary_cross_corpus_false)}",
         )
-    print_extension_safe_rules(
-        "same_root_extension_primary_safe_rules:",
-        extension_primary_rescues,
-        extension_primary_all_protected_false,
-        extension_primary_neutral,
-        args.examples,
-    )
-    print_extension_safe_rules(
-        "same_root_extension_primary_runtime_safe_rules:",
-        extension_primary_rescues,
-        extension_primary_all_protected_false,
-        extension_primary_neutral,
-        args.examples,
-        (
-            "candidate_index",
-            "extra_tones",
-            "extra_visible_hits",
-            "extra_analysis_hits",
-            "extra_smoothed_hits",
-            "extra_visible_min",
-            "extra_analysis_min",
-            "extra_smoothed_min",
-            "extra_probe_min",
-        ),
-    )
+    if not args.summary_only:
+        print_extension_safe_rules(
+            "same_root_extension_primary_safe_rules:",
+            extension_primary_rescues,
+            extension_primary_all_protected_false,
+            extension_primary_neutral,
+            args.examples,
+        )
+        print_extension_safe_rules(
+            "same_root_extension_primary_runtime_safe_rules:",
+            extension_primary_rescues,
+            extension_primary_all_protected_false,
+            extension_primary_neutral,
+            args.examples,
+            (
+                "candidate_index",
+                "extra_tones",
+                "extra_visible_hits",
+                "extra_analysis_hits",
+                "extra_smoothed_hits",
+                "extra_visible_min",
+                "extra_analysis_min",
+                "extra_smoothed_min",
+                "extra_probe_min",
+            ),
+        )
     print(
         "current_same_root_extension_primary:",
         f"candidates={len(current_extension_primary_candidates)}",
@@ -1505,12 +1511,13 @@ def main() -> int:
             f"label={row.get('guitar_chord', '--')}",
             pathlib.Path(row.get("audio_path", "")).name,
         )
-    print_score_safe_rules(
-        score_promotion_rescues,
-        score_promotion_protected_false,
-        score_promotion_neutral,
-        args.examples,
-    )
+    if not args.summary_only:
+        print_score_safe_rules(
+            score_promotion_rescues,
+            score_promotion_protected_false,
+            score_promotion_neutral,
+            args.examples,
+        )
 
     print(
         "cpp_style_promotion_probe:",

@@ -166,6 +166,41 @@ class DetectionAccuracyReportTest(unittest.TestCase):
             )
             self.assertEqual(REPORT.guitarset_attribute_audit(attributes), (6, 8, 1, 2))
 
+    def test_isolated_guitar_visual_audit_requires_valid_buffer_and_sample_counts(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            audit = Path(temporary) / "guitar_visual.txt"
+            audit.write_text(
+                "isolated_guitar_visual: source=Fixture buffers=2/3 samples=2/2\n",
+                encoding="utf-8",
+            )
+            self.assertEqual(
+                REPORT.isolated_guitar_visual_audit(audit), ("Fixture", 2, 3, 2, 2)
+            )
+
+    def test_empty_agpt_visual_miner_report_is_an_explicit_zero_selector_veto(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            audit = Path(temporary) / "agpt_visual_mining.txt"
+            audit.write_text("", encoding="utf-8")
+            self.assertEqual(REPORT.agpt_guitar_visual_mining(audit), (8, 1613, 0))
+
+    def test_agpt_visual_miner_uses_complete_report_bucket_count(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            audit = Path(temporary) / "agpt_visual_mining.txt"
+            audit.write_text(
+                "\n".join(
+                    (
+                        "visual_row_confusion:guitar/source-a->piano positives=3 samples/7 rows protected_hits=1 samples/1 rows foreign_misses=0 samples/0 rows",
+                        "  low-false candidate rules:",
+                        "    --",
+                        "visual_row_confusion:guitar/source-b->bass positives=5 samples/9 rows protected_hits=1 samples/1 rows foreign_misses=0 samples/0 rows",
+                        "  low-false candidate rules:",
+                        "    example_selector",
+                    )
+                ),
+                encoding="utf-8",
+            )
+            self.assertEqual(REPORT.agpt_guitar_visual_mining(audit), (2, 8, 1))
+
     def test_same_root_guitar_quality_audit_requires_cross_corpus_support(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             audit = Path(temporary) / "same_root_guitar_quality_audit.txt"
@@ -977,8 +1012,8 @@ class DetectionAccuracyReportTest(unittest.TestCase):
             report,
         )
         self.assertIn("| Measure independent 29k Drums Tom/Ride baseline | 0 / 1 (0.0%) | 1 |", report)
-        self.assertIn("| Broaden independent Rim replication beyond one isolated recording | 0 / 3 (0.0%) | 3 |", report)
-        self.assertIn("ENST-Drums remains an additional labelled-corpus path", report)
+        self.assertIn("| Broaden independent Rim replication beyond one isolated recording | 1 / 4 (25.0%) | 3 |", report)
+        self.assertIn("ENST-Drums direct archive contributes", report)
         self.assertIn("| Aggregate classifier accuracy | 10 / 30 (33.3%) | 20 |", report)
         self.assertIn("## Cross-real drum false-positive cap audit", report)
         self.assertIn("| Cross-real candidates safe on protected one-shot primaries | 0 / 2 (0.0%) | 2 |", report)
@@ -1086,7 +1121,9 @@ class DetectionAccuracyReportTest(unittest.TestCase):
         self.assertIn("| Permissive tracker at 0.75 certainty — FiloBass | 2 / 2 (100.0%) | 0 |", report)
         self.assertIn("| Permissive tracker at 0.80 certainty — Ballroom | 11 / 11 (100.0%) | 0 |", report)
         self.assertIn("| Repair continuous PCM feed to permissive tracker | 1 / 1 (100.0%) | 0 |", report)
-        self.assertIn("| Enable strict live permissive-tracker fallback | 3 / 3 (100.0%) | 0 |", report)
+        self.assertIn("| Keep the live BPM display on a trailing 3 s Kick/Bass/Snare window | 1 / 1 (100.0%) | 0 |", report)
+        self.assertIn("| Prevent long-lived phase or external trackers from overriding live BPM | 1 / 1 (100.0%) | 0 |", report)
+        self.assertIn("| Historical strict permissive-tracker fallback audit (disabled) | 3 / 3 (100.0%) | 0 |", report)
         self.assertIn("| Benchmark constrained high-tempo beat tracker | 2 / 2 (100.0%) | 0 |", report)
         self.assertIn("| Reject concurrent high-tempo tracker fallback | 1 / 1 (100.0%) | 0 |", report)
         self.assertIn("| Reject high-tempo-only tracker setting | 1 / 1 (100.0%) | 0 |", report)
@@ -1103,7 +1140,8 @@ class DetectionAccuracyReportTest(unittest.TestCase):
         self.assertIn("| Routes lacking independent-corpus replication | 82 / 160 (51.2%) | 78 |", report)
         self.assertIn("## IRMAS independent instrument-routing coverage", report)
         self.assertIn("| IRMAS — Strongest raw routing row | 1 / 2 (50.0%) | 1 |", report)
-        self.assertIn("## Cached isolated-guitar chord gates", report)
+        self.assertIn("## Cached guitar chord gates", report)
+        self.assertIn("Guitar-TECHS Music and GAPS Full are full-mix windows", report)
         self.assertIn("## TinySOL isolated wind and brass exact-note coverage", report)
         self.assertIn("| TinySOL — Oboe — exact expected MIDI note | 1 / 1 (100.0%) | 0 |", report)
         self.assertIn("| TinySOL — Trombone — exact expected MIDI note | 1 / 2 (50.0%) | 1 |", report)

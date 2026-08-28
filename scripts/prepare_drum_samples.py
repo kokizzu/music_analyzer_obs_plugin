@@ -507,7 +507,8 @@ def write_manifest_metadata(output, metadata):
         raise
 
 
-def manifest_counts_if_complete(output, limit_per_category, source_filter=None, expected_metadata=None):
+def manifest_counts_if_complete(output, limit_per_category, source_filter=None, expected_metadata=None,
+                                required_categories=CATEGORIES):
     manifest_path = output / "manifest.tsv"
     if not manifest_path.is_file():
         return None
@@ -544,7 +545,7 @@ def manifest_counts_if_complete(output, limit_per_category, source_filter=None, 
         return None
 
     required = 1 if expected_metadata is not None or limit_per_category <= 0 else limit_per_category
-    if any(counts[category] < required for category in CATEGORIES):
+    if any(counts[category] < required for category in required_categories):
         return None
     return counts
 
@@ -796,6 +797,8 @@ def main():
                         help="copy only plain WAV files; ZIP/RAR archives are skipped")
     parser.add_argument("--source-filter", default=os.environ.get("DRUM_SAMPLE_SOURCE_FILTER", ""),
                         help="optional regex matched against the manifest source label")
+    parser.add_argument("--required-categories", default=os.environ.get("DRUM_SAMPLE_REQUIRED_CATEGORIES", ""),
+                        help="comma-separated categories that must be present (default: every drum category)")
     parser.add_argument("--audit", action="store_true",
                         help="print candidate and selected category counts without writing samples")
     parser.add_argument("--refresh", action="store_true",
@@ -809,6 +812,15 @@ def main():
         raise SystemExit(f"prepare_drum_samples: source directory not found: {source}")
 
     limit_per_category = max(0, args.limit_per_category)
+    if args.required_categories:
+        required_categories = tuple(category.strip().lower() for category in args.required_categories.split(",")
+                                    if category.strip())
+        unknown_categories = sorted(set(required_categories) - set(CATEGORIES))
+        if not required_categories or unknown_categories:
+            unknown = ", ".join(unknown_categories) or "none"
+            raise SystemExit(f"prepare_drum_samples: invalid --required-categories value: {unknown}")
+    else:
+        required_categories = CATEGORIES
     source_filter = None
     if args.source_filter:
         try:
@@ -827,7 +839,8 @@ def main():
         expected_metadata = cache_metadata(source, limit_per_category, args.selection, not args.no_archives,
                                            args.source_filter, unrar is not None)
         counts = manifest_counts_if_complete(output, limit_per_category, source_filter=source_filter,
-                                             expected_metadata=expected_metadata)
+                                             expected_metadata=expected_metadata,
+                                             required_categories=required_categories)
         if counts is not None:
             summary = " ".join(f"{category}={counts[category]}" for category in CATEGORIES)
             print(f"prepare_drum_samples: reused {output / 'manifest.tsv'} ({summary})")
@@ -841,7 +854,7 @@ def main():
                                          source_filter=source_filter)
     summary = " ".join(f"{category}={counts[category]}" for category in CATEGORIES)
 
-    missing = [category for category in CATEGORIES if counts[category] == 0]
+    missing = [category for category in required_categories if counts[category] == 0]
     if missing:
         raise SystemExit("prepare_drum_samples: missing categories: " + ", ".join(missing))
     write_manifest_metadata(output, expected_metadata)

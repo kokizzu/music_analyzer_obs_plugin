@@ -1231,6 +1231,8 @@ int main()
 {
 	const char *root_env = std::getenv("MUSIC_ANALYZER_REAL_NOTE_SAMPLE_ROOT");
 	const std::string root = root_env && *root_env ? root_env : "build/real_note_samples";
+	const char *family_filter_env = std::getenv("MUSIC_ANALYZER_REAL_NOTE_FAMILY_FILTER");
+	const std::string family_filter = family_filter_env && *family_filter_env ? family_filter_env : "";
 	const bool required = std::getenv("MUSIC_ANALYZER_REAL_NOTE_SAMPLES_REQUIRED") != nullptr;
 	const bool verbose_misses = std::getenv("MUSIC_ANALYZER_REAL_NOTE_VERBOSE_MISSES") != nullptr;
 	const bool verbose_drums = std::getenv("MUSIC_ANALYZER_REAL_NOTE_VERBOSE_DRUMS") != nullptr;
@@ -1351,6 +1353,8 @@ int main()
 		if (shard_count > 1 && row_shard != shard_index)
 			continue;
 		const SampleRow &row = rows[row_index];
+		if (!family_filter.empty() && row.family != family_filter)
+			continue;
 		if (!debug_sample_id.empty() && row.id != debug_sample_id)
 			continue;
 		found_debug_sample = true;

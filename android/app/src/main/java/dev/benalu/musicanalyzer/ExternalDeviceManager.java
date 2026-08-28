@@ -92,6 +92,7 @@ final class ExternalDeviceManager implements Closeable {
     private long lastOutputRevision;
     private byte[] lastFretZealotPacket;
     private byte[] pendingFretZealotPacket;
+    private long pendingFretZealotPacketChangedAtMillis;
     // The legacy board can acknowledge a multi-batch frame before every LED
     // has physically latched it. Replay one settled AUTO frame after its first
     // full pass so an occasional partial write does not require reconnecting.
@@ -100,10 +101,9 @@ final class ExternalDeviceManager implements Closeable {
     // While the estimator is still changing, keep its last complete scale
     // rather than risking a partly applied replacement.
     private boolean fretZealotAutoReconciliationScheduled;
-    // The first automatic board after a connection must eventually be sent even
-    // while the root estimator is still revising.  Otherwise every revision
-    // restarts the debounce and an empty/partial legacy board can persist until
-    // audio stops or the device reconnects.
+    // Tracks the first automatic board after a connection. It still obeys the
+    // same stability window as later roots, so an unstable startup estimate
+    // cannot begin a long partial legacy-board frame.
     private boolean fretZealotAutoInitialScalePending;
     private final Runnable sendStableFretZealotPacket;
     private final Runnable replayStableFretZealotPacket;
@@ -197,6 +197,12 @@ final class ExternalDeviceManager implements Closeable {
                 fretZealotAutoInitialScalePending = false;
                 return;
             }
+            long remainingMillis = FRET_ZEALOT_AUTO_ROOT_STABLE_MILLIS
+                    - (SystemClock.uptimeMillis() - pendingFretZealotPacketChangedAtMillis);
+            if (remainingMillis > 0) {
+                scheduleStableFretZealotPacketAfter(remainingMillis);
+                return;
+            }
             if (fretZealot.isScaleFrameInFlight()) {
                 // Do not turn a stable update into a queued frame. A legacy
                 // board can visibly retain only a prefix if a replacement
@@ -206,6 +212,7 @@ final class ExternalDeviceManager implements Closeable {
             }
             byte[] packet = pendingFretZealotPacket;
             pendingFretZealotPacket = null;
+            pendingFretZealotPacketChangedAtMillis = 0;
             fretZealotAutoReconciliationScheduled = false;
             fretZealotAutoInitialScalePending = false;
             // A genuinely stable AUTO root gets one complete scale replay.
@@ -930,18 +937,14 @@ final class ExternalDeviceManager implements Closeable {
                 // A legacy scale needs several small BLE batches. Do not render
                 // a transient startup root a prefix at a time; clear once and
                 // wait for the normal AUTO-root debounce below.
-                pendingFretZealotPacket = Arrays.copyOf(packet, packet.length);
-                handler.removeCallbacks(sendStableFretZealotPacket);
-                fretZealotAutoReconciliationScheduled = true;
-                fretZealotAutoInitialScalePending = true;
-                handler.postDelayed(sendStableFretZealotPacket,
-                        FRET_ZEALOT_AUTO_ROOT_STABLE_MILLIS);
+                scheduleStableFretZealotPacket(packet, true);
                 return;
             }
             // Manual root selection has no estimator churn, so render it as
             // soon as a newly connected board is ready.
             handler.removeCallbacks(sendStableFretZealotPacket);
             pendingFretZealotPacket = null;
+            pendingFretZealotPacketChangedAtMillis = 0;
             fretZealotAutoReconciliationScheduled = false;
             fretZealotAutoInitialScalePending = false;
             fretZealot.sendPacket(packet, true);
@@ -957,23 +960,38 @@ final class ExternalDeviceManager implements Closeable {
             fretZealot.sendPacket(packet, false);
             return;
         }
+        // Each distinct AUTO root restarts its stability timer. In particular,
+        // a root that changed while a legacy frame was draining must not be
+        // written the instant that frame becomes idle.
+        scheduleStableFretZealotPacket(packet, false);
+    }
+
+    private void scheduleStableFretZealotPacket(byte[] packet, boolean initialScale) {
+        boolean preserveInitialDeadline = fretZealotAutoInitialScalePending && !initialScale;
+        boolean changed = !Arrays.equals(packet, pendingFretZealotPacket);
         pendingFretZealotPacket = Arrays.copyOf(packet, packet.length);
-        if (fretZealotAutoInitialScalePending) {
-            // Preserve the first connection timer. It will replay the newest
-            // packet once the initial board clear has settled.
+        if (preserveInitialDeadline) {
+            // The board was cleared at connect time and needs a complete scale
+            // even if the AUTO estimator is still revising. Keep the original
+            // deadline but replace its payload with the newest root; otherwise
+            // a busy song can postpone the first visible scale indefinitely.
             return;
         }
-        // Once a complete frame is visible, wait for AUTO-root revisions to
-        // settle before replacing it. The controller submits each replacement
-        // phase as a complete logical board frame.
+        if (changed || !fretZealotAutoReconciliationScheduled) {
+            pendingFretZealotPacketChangedAtMillis = SystemClock.uptimeMillis();
+        }
         handler.removeCallbacks(sendStableFretZealotPacket);
         fretZealotAutoReconciliationScheduled = true;
+        fretZealotAutoInitialScalePending = initialScale;
         handler.postDelayed(sendStableFretZealotPacket, FRET_ZEALOT_AUTO_ROOT_STABLE_MILLIS);
     }
 
     private void retryFretZealotAutoReconciliation() {
-        handler.postDelayed(sendStableFretZealotPacket,
-                FRET_ZEALOT_FRAME_IDLE_RETRY_MILLIS);
+        scheduleStableFretZealotPacketAfter(FRET_ZEALOT_FRAME_IDLE_RETRY_MILLIS);
+    }
+
+    private void scheduleStableFretZealotPacketAfter(long delayMillis) {
+        handler.postDelayed(sendStableFretZealotPacket, delayMillis);
     }
 
     private void scheduleFretZealotAutoRecovery(byte[] packet) {

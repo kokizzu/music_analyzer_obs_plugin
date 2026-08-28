@@ -2331,10 +2331,12 @@ void remove_full_mix_row_midi(std::array<bool, kNoteProbeCount> &mask, NoteCandi
 bool measured_high_soprano_vocal_mirror_supported(const FullMixDebugCandidate &debug)
 {
 	// Independent Dagstuhl and ESMUC choir windows retain F5/F#5 as a real
-	// Keyboard candidate while the expected Vocal row is empty. The same
-	// noisy-second-partial profile is absent from the protected real-note set.
+	// Keyboard candidate while the expected Vocal row is empty. This narrower
+	// cross-choir profile avoids the broader noisy-partial match seen in other
+	// compact real-instrument fixtures.
 	return debug.owner == InstrumentKind::Keyboard && debug.midi >= 77 && debug.midi <= 78 &&
-	       debug.local_noise_level >= 0.024f && debug.harmonic_ratios[1] >= 0.114f;
+	       debug.adjacent_upper_ratio >= 0.032f && debug.local_noise_level >= 0.122f &&
+	       debug.pitch_confidence <= 0.814f;
 }
 
 void mirror_measured_high_soprano_vocal_candidates(FullMixOwnership &ownership)
@@ -35748,9 +35750,9 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 		const bool include_bass_harmonics = true;
 		const bool isolated_bass_harmonic_support = isolated_bass && !upright_bass_source;
 		const RangeResult spectral_bass_note = dominant_bass_note(detection_note_powers, kBassMinMidi,
-									  bass_max_midi,
-									  include_bass_harmonics,
-									  isolated_bass_harmonic_support);
+								  bass_max_midi,
+								  include_bass_harmonics,
+								  isolated_bass_harmonic_support);
 		RangeResult bass_note = spectral_bass_note;
 		if (isolated_bass) {
 			const RangeResult periodic_note =

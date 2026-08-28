@@ -161,6 +161,15 @@ def syncpoints_by_stem(root: Path) -> dict[str, Path]:
     return result
 
 
+def reset_output_directory(output: Path) -> Path:
+    """Clear a fixture target without replacing its external-store symlink."""
+    destination = output.resolve() if output.is_symlink() else output
+    if destination.exists():
+        shutil.rmtree(destination)
+    destination.mkdir(parents=True, exist_ok=True)
+    return destination
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--root", type=Path, required=True)
@@ -172,10 +181,9 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
     if not args.root.is_dir() or not args.pairs.is_file():
         raise SystemExit("prepare_filobass_tempo_fixture: missing extracted dataset or inspected pairs TSV")
-    if args.output.exists():
-        shutil.rmtree(args.output)
-    (args.output / "audio").mkdir(parents=True)
-    (args.output / "midi").mkdir()
+    output = reset_output_directory(args.output)
+    (output / "audio").mkdir(parents=True)
+    (output / "midi").mkdir()
     syncpoints = syncpoints_by_stem(args.root)
     rows: list[dict[str, str]] = []
     with args.pairs.open(newline="", encoding="utf-8") as handle:
@@ -199,13 +207,13 @@ def main(argv: list[str] | None = None) -> int:
             identity = f"filobass_{key}"
             audio_name = f"audio/{identity}.wav"
             midi_name = f"midi/{identity}.mid"
-            destination = args.output / audio_name
+            destination = output / audio_name
             # Decode exactly the selected bounded diagnostic subset.  ffmpeg is
             # invoked without an audio-output device, so it cannot play sound.
             subprocess.run(
                 [args.ffmpeg, "-nostdin", "-v", "error", "-y", "-i", str(audio), str(destination)], check=True
             )
-            (args.output / midi_name).write_bytes(midi_with_tempo(bpm))
+            (output / midi_name).write_bytes(midi_with_tempo(bpm))
             rows.append({
                 "audio_filename": audio_name,
                 "midi_filename": midi_name,
@@ -215,7 +223,7 @@ def main(argv: list[str] | None = None) -> int:
                 break
     if not rows:
         raise SystemExit("prepare_filobass_tempo_fixture: no paired FiloBass tracks with reviewed stable downbeats")
-    with (args.output / "maestro-v3.0.0.csv").open("w", newline="", encoding="utf-8") as handle:
+    with (output / "maestro-v3.0.0.csv").open("w", newline="", encoding="utf-8") as handle:
         writer = csv.DictWriter(handle, fieldnames=rows[0].keys())
         writer.writeheader()
         writer.writerows(rows)

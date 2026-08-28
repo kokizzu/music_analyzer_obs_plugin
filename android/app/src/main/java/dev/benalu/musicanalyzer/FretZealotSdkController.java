@@ -78,6 +78,21 @@ final class FretZealotSdkController implements Closeable {
         return activeScaleFrame != null;
     }
 
+    boolean needsInitialScaleReset() {
+        return needsInitialScaleReset;
+    }
+
+    /** Clears a newly connected board before an AUTO-root scale has stabilized. */
+    boolean prepareForAutomaticScale() {
+        if (!ready || !needsInitialScaleReset || activeScaleFrame != null) {
+            return false;
+        }
+        // Do not spend several legacy batches drawing the transient startup
+        // root. A clear is one command; the settled AUTO scale follows later.
+        startScaleFrame(new ScaleFrame(), true, true);
+        return true;
+    }
+
     private static byte dimChannel(int channel) {
         int clamped = Math.max(0, Math.min(15, channel));
         if (clamped == 0) {

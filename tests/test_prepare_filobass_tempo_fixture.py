@@ -26,6 +26,16 @@ def main():
         offset, bpm = fixture.stable_segment(fixture.syncpoint_downbeats(syncpoints), 4.0, 14.0)
         assert offset == 0.0
         assert abs(bpm - 120.0) < 0.001
+        external_fixture = root / "external-fixture"
+        external_fixture.mkdir()
+        (external_fixture / "stale.txt").write_text("stale", encoding="utf-8")
+        output = root / "fixture"
+        output.symlink_to(external_fixture, target_is_directory=True)
+        prepared = fixture.reset_output_directory(output)
+        assert output.is_symlink()
+        assert prepared == external_fixture
+        assert external_fixture.is_dir()
+        assert not (external_fixture / "stale.txt").exists()
     print("test_prepare_filobass_tempo_fixture: 3 checks passed")
 
 

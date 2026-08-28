@@ -1,32 +1,31 @@
 #!/usr/bin/env python3
-"""List detection-oriented Make targets without invoking shell search tools."""
+"""List Makefile targets related to detection and external device diagnostics."""
 
-import re
-import sys
 from pathlib import Path
+import sys
 
 
 def main() -> None:
-    makefile = Path(__file__).resolve().parents[1] / "Makefile"
-    lines = makefile.read_text(encoding="utf-8").splitlines()
-    matcher = re.compile(r"^([A-Za-z0-9_.-]+):")
-    if len(sys.argv) == 2:
-        target = sys.argv[1]
+    lines = Path("Makefile").read_text(encoding="utf-8").splitlines()
+    requested = sys.argv[1] if len(sys.argv) == 2 else ""
+    if requested:
         for index, line in enumerate(lines):
-            if line.startswith(f"{target}:"):
-                for recipe_line in lines[index : index + 8]:
-                    if recipe_line and not recipe_line.startswith("."):
-                        print(recipe_line)
+            if line.startswith(f"{requested}:"):
+                for context_line in lines[index:index + 18]:
+                    print(context_line)
                 return
-        raise SystemExit(f"target not found: {target}")
-
-    targets: list[str] = []
-    for line in lines:
-        match = matcher.match(line)
-        if match and any(token in match.group(1) for token in ("guitar", "chord", "note", "drum")):
-            targets.append(match.group(1))
-    for target in sorted(set(targets)):
-        print(target)
+        raise SystemExit(f"Makefile target not found: {requested}")
+    for index, line in enumerate(lines):
+        if not line or line[0].isspace() or ":" not in line:
+            continue
+        target = line.split(":", 1)[0]
+        lowered = target.lower()
+        if any(token in lowered for token in ("detect", "analyzer", "fret", "android")):
+            print(target)
+        if target == "list-detection-make-targets":
+            print("-- target context --")
+            for context_line in lines[index:index + 6]:
+                print(context_line)
 
 
 if __name__ == "__main__":

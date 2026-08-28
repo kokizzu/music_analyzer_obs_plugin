@@ -238,20 +238,32 @@ int run_visualizer_renderer_tests()
 	drum_snapshot.sequence = 1;
 	drum_snapshot.drums[0].level = 0.70f;
 	append_visualizer_drum_hits(&drum_renderer, drum_snapshot);
-	expect_true(drum_renderer.drum_history[0].back().is_peak,
-		    "the first drum rise should receive a white peak accent", &checks, &failures);
+	expect_true(!drum_renderer.drum_history[0].back().is_peak,
+		    "a rising drum bar must wait for a confirmed crest before turning white", &checks, &failures);
 	drum_snapshot.sequence = 2;
 	append_visualizer_drum_hits(&drum_renderer, drum_snapshot);
 	expect_true(!drum_renderer.drum_history[0].back().is_peak,
 		    "an equal-height subsequent drum frame must remain orange", &checks, &failures);
 	drum_snapshot.sequence = 3;
-	drum_snapshot.drums[0].level = 0.10f;
+	drum_snapshot.drums[0].level = 0.66f;
 	append_visualizer_drum_hits(&drum_renderer, drum_snapshot);
+	expect_true(drum_renderer.drum_history[0].front().is_peak,
+		    "the first lower drum bar must colour the preceding highest bar white", &checks, &failures);
+	expect_true(!drum_renderer.drum_history[0].back().is_peak,
+		    "the first lower drum bar must remain orange while the trough is tracked", &checks, &failures);
 	drum_snapshot.sequence = 4;
-	drum_snapshot.drums[0].level = 0.70f;
+	drum_snapshot.drums[0].level = 0.50f;
 	append_visualizer_drum_hits(&drum_renderer, drum_snapshot);
-	expect_true(drum_renderer.drum_history[0].back().is_peak,
-		    "a lower drum frame must rearm the next rise's white peak accent", &checks, &failures);
+	expect_true(!drum_renderer.drum_history[0].back().is_peak,
+		    "the lower follow-up drum bar must remain orange", &checks, &failures);
+	drum_snapshot.sequence = 5;
+	drum_snapshot.drums[0].level = 0.72f;
+	append_visualizer_drum_hits(&drum_renderer, drum_snapshot);
+	drum_snapshot.sequence = 6;
+	drum_snapshot.drums[0].level = 0.58f;
+	append_visualizer_drum_hits(&drum_renderer, drum_snapshot);
+	expect_true(drum_renderer.drum_history[0][4].is_peak,
+		    "a later rise followed by a fall must colour that new crest white", &checks, &failures);
 
 	if (failures != 0)
 		return 1;

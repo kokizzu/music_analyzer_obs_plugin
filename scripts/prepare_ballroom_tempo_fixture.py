@@ -71,10 +71,13 @@ def main() -> int:
     parser.add_argument("--limit", type=int, default=24)
     args = parser.parse_args()
 
-    if args.output.exists():
-        shutil.rmtree(args.output)
-    (args.output / "audio").mkdir(parents=True)
-    (args.output / "midi").mkdir()
+    # Generated sample fixtures are externalized through build/InstrumentSamples.
+    # Rebuild the target directory while preserving the build-side symlink.
+    output = args.output.resolve() if args.output.is_symlink() else args.output
+    if output.exists():
+        shutil.rmtree(output)
+    (output / "audio").mkdir(parents=True)
+    (output / "midi").mkdir()
     eligible_by_style: dict[str, list[tuple[Path, Path, float, float, float]]] = {}
     for label in sorted(args.annotations_root.rglob("*.beats")):
         wav = matching_wav(args.audio_root, label)
@@ -104,9 +107,9 @@ def main() -> int:
             identity = f"{label.parent.name}_{label.stem}".replace(" ", "_")
             audio_name = f"audio/{identity}.wav"
             midi_name = f"midi/{identity}.mid"
-            link = args.output / audio_name
+            link = output / audio_name
             os.symlink(os.path.relpath(wav, link.parent), link)
-            (args.output / midi_name).write_bytes(midi_with_tempo(bpm))
+            (output / midi_name).write_bytes(midi_with_tempo(bpm))
             rows.append({"audio_filename": audio_name, "midi_filename": midi_name,
                          "tempo_audio_offset_seconds": f"{offset:.6f}",
                          "tempo_duration_seconds": f"{duration:.6f}"})
@@ -115,11 +118,11 @@ def main() -> int:
             break
     if not rows:
         raise SystemExit("no matching Ballroom WAV/beat pairs with a stable interval")
-    with (args.output / "maestro-v3.0.0.csv").open("w", newline="", encoding="utf-8") as handle:
+    with (output / "maestro-v3.0.0.csv").open("w", newline="", encoding="utf-8") as handle:
         writer = csv.DictWriter(handle, fieldnames=rows[0].keys())
         writer.writeheader()
         writer.writerows(rows)
-    print(f"prepare_ballroom_tempo_fixture: tracks={len(rows)} output={args.output}")
+    print(f"prepare_ballroom_tempo_fixture: tracks={len(rows)} output={output}")
     return 0
 
 

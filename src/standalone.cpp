@@ -665,7 +665,12 @@ bool run_self_test()
 		mao::render_visualizer(&bpm_renderer, bpm_snapshot, 0.0f);
 
 		std::size_t bpm_pixels = 0;
-		for (int y = 520; y < 540; ++y) {
+		// The compact renderer keeps ROOT and BPM on one baseline with a
+		// deliberately even bottom margin, rather than pinning glyph pixels to
+		// the final 20 rows of a former 540px canvas.
+		const int bpm_scan_top = std::max(0, static_cast<int>(bpm_renderer.height) - 150);
+		const int bpm_scan_bottom = static_cast<int>(bpm_renderer.height);
+		for (int y = bpm_scan_top; y < bpm_scan_bottom; ++y) {
 			for (int x = 760; x < 940; ++x) {
 				const std::size_t offset = static_cast<std::size_t>((y * 960 + x) * 4);
 				if (offset + 2 < bpm_renderer.pixels.size() && bpm_renderer.pixels[offset] > 220 &&
@@ -1138,6 +1143,27 @@ class StandaloneAnalyzer {
 public:
 	explicit StandaloneAnalyzer(const Options &options)
 	{
+		reset(options);
+	}
+
+	// AnalysisEngine now owns an optional asynchronous inference worker, so it
+	// must not be copy-assigned.  Preserve the standalone hotkey behavior by
+	// resetting the existing engine and all wrapper state in place.
+	void reset(const Options &options)
+	{
+		engine_.reset();
+		settings_ = {};
+		ring_.fill(0.0f);
+		window_.fill(0.0f);
+		write_pos_ = 0;
+		consecutive_silent_windows_ = 0;
+		silent_skip_windows_ = 0;
+		sequence_ = 0;
+		audio_frames_ = 0;
+		analyzed_windows_ = 0;
+		cpu_percent_ = -1.0f;
+		ram_mb_ = -1.0f;
+		seen_nonsilent_audio_ = false;
 		settings_.sample_rate = options.sample_rate;
 		settings_.sensitivity = options.sensitivity;
 		settings_.analysis_interval_seconds = static_cast<float>(options.update_ms) / 1000.0f;
@@ -1680,7 +1706,7 @@ int main(int argc, char **argv)
 		std::chrono::duration<float>(1.0f / static_cast<float>(std::max<uint32_t>(1, options.fps)));
 	const auto idle_frame_interval = std::chrono::duration<float>(kStandaloneIdleFrameSeconds);
 	auto reset_visual_state = [&]() {
-		analyzer = StandaloneAnalyzer(options);
+		analyzer.reset(options);
 		visualizer = mao::VisualizerRenderer();
 		visualizer.layout_mode = options.layout_mode;
 		mao::resize_visualizer(&visualizer, options.width, options.height);

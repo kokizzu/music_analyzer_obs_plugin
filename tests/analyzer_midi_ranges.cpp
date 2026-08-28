@@ -321,6 +321,14 @@ void check_instrument_midi_ranges(Runner &runner)
 						    mao_test::note_label(midi);
 			if (std::strcmp(test_case.family, "bass") == 0) {
 				expect_label(runner, test_case.state(snapshot).label, mao_test::note_label(midi), context);
+			} else if (std::strcmp(test_case.family, "other") == 0 && !mao::kEnableOtherDetection) {
+				// OTHERS is deliberately dormant in the live analyzer. Keep these
+				// fixtures as a regression guard for that product decision rather
+				// than treating the suppressed row as a failed detector result.
+				runner.expect(std::strcmp(test_case.state(snapshot).label, "--") == 0,
+					      context + ": dormant OTHERS row must stay hidden");
+				runner.expect(!grid_has_pitch_class(test_case.grid(snapshot), midi),
+					      context + ": dormant OTHERS grid must stay empty");
 			} else {
 				expect_note_token(runner, test_case.state(snapshot).label, midi, context);
 				expect_grid_pitch(runner, test_case.grid(snapshot), midi, context);
@@ -354,14 +362,14 @@ void check_combined_midi_arrangement(Runner &runner)
 	mao::AnalysisSnapshot snapshot = {};
 	for (int i = 0; i < 4; ++i) {
 		const mao_test::Buffer bed = make_bed();
-		snapshot = engine.analyze(bed.data(), bed.size(), settings, "Mic/Aux", 0);
+		snapshot = engine.analyze(bed.data(), bed.size(), settings, "GM drum kit", 0);
 	}
 
 	mao_test::Buffer hit = make_bed();
 	add_drum_for_midi(hit, 36);
 	add_drum_for_midi(hit, 38);
 	add_drum_for_midi(hit, 42);
-	snapshot = engine.analyze(hit.data(), hit.size(), settings, "Mic/Aux", 0);
+	snapshot = engine.analyze(hit.data(), hit.size(), settings, "GM drum kit", 0);
 
 	expect_label(runner, snapshot.bass.label, "C2", "combined MIDI arrangement bass");
 	for (int midi : {60, 64, 67, 52, 55, 59, 69, 72, 76})

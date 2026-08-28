@@ -59,7 +59,7 @@ def main():
     require("kHalfMusicKeyboardFirstRow = 1" in renderer and "kHalfMusicKeyboardRowCount = 2" in renderer and
             "kHalfMusicGuitarY = 284" in renderer and
             "draw_compact_guitar_summary" not in renderer and
-            "draw_note_column_headers(visualizer, layout, 158 + y_shift, true, false)" in renderer,
+            "draw_note_column_headers(visualizer, layout, 158 + y_shift)" in renderer,
             "HalfMusic must show two keyboard rows with compact vertical spacing and a fixed guitar position")
     require("int chord_w = 72;" in renderer and renderer.count("kColumnGap = 12") == 2,
             "complete and HalfMusic layouts must keep CHORD close to SUSTAIN")

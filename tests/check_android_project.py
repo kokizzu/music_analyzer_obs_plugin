@@ -306,6 +306,14 @@ def main():
             "fretZealot.sendPacket" in external_devices and
             "connectBle(fretZealot" not in external_devices,
             "Android BLE manager must delegate Fret Zealot connection and output to the SDK")
+    require("basic_pitch_onnx_decoder.cpp" in native_cmake and
+            "basic_pitch_onnx_runtime.cpp" in native_cmake and
+            "basic_pitch_onnx_worker.cpp" in native_cmake and
+            "basic_pitch_pcm_history.cpp" in native_cmake,
+            "Android native build must link the analyzer's Basic Pitch support units")
+    require("ONNX Runtime is unavailable in this Android build" in
+            (ROOT / "src" / "basic_pitch_onnx_runtime.cpp").read_text(encoding="utf-8"),
+            "Android must compile the Basic Pitch runtime adapter without desktop ONNX headers")
     require("AuphySct86ProController" in external_devices and
             "isAuphySct86ProName" in external_devices and
             "auphySct86Pro.connect(result.getDevice())" in external_devices and

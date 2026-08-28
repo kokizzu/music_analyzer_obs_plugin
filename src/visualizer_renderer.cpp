@@ -1527,18 +1527,42 @@ bool append_drum_hits(VisualizerRenderer *visualizer, const AnalysisSnapshot &sn
 	for (std::size_t i = 0; i < snapshot.drums.size(); ++i) {
 		const DrumState &drum = snapshot.drums[i];
 		const float level = std::clamp(drum.level, 0.0f, 1.0f);
-		constexpr float kPeakDropEpsilon = 0.02f;
-		if (level + kPeakDropEpsilon < visualizer->previous_drum_levels[i])
-			visualizer->drum_peak_armed[i] = true;
-		const bool is_peak = level > 0.30f && visualizer->drum_peak_armed[i];
-		visualizer->previous_drum_levels[i] = level;
-		if (level <= 0.30f)
+		constexpr float kActiveLevel = 0.30f;
+		auto &history = visualizer->drum_history[i];
+		const uint64_t candidate_sequence = visualizer->drum_peak_candidate_sequences[i];
+		const float candidate_level = visualizer->drum_peak_candidate_levels[i];
+		if (candidate_sequence != 0 && level < candidate_level) {
+			for (DrumBar &bar : history) {
+				if (bar.sequence == candidate_sequence) {
+					bar.is_peak = true;
+					break;
+				}
+			}
+			visualizer->drum_peak_candidate_sequences[i] = 0;
+			visualizer->drum_peak_candidate_levels[i] = 0.0f;
+			visualizer->drum_peak_trough_levels[i] = level;
+			visualizer->drum_peak_tracking_trough[i] = true;
+		}
+		if (visualizer->drum_peak_candidate_sequences[i] == 0 &&
+		    visualizer->drum_peak_tracking_trough[i]) {
+			if (level <= visualizer->drum_peak_trough_levels[i]) {
+				visualizer->drum_peak_trough_levels[i] = level;
+			} else {
+				visualizer->drum_peak_candidate_sequences[i] = snapshot.sequence;
+				visualizer->drum_peak_candidate_levels[i] = level;
+				visualizer->drum_peak_tracking_trough[i] = false;
+			}
+		}
+		if (level <= kActiveLevel)
 			continue;
 
-		auto &history = visualizer->drum_history[i];
-		history.push_back(DrumBar{0.0f, level, is_peak});
-		if (is_peak)
-			visualizer->drum_peak_armed[i] = false;
+		history.push_back(DrumBar{0.0f, level, false, snapshot.sequence});
+		if (!visualizer->drum_peak_tracking_trough[i] &&
+		    (visualizer->drum_peak_candidate_sequences[i] == 0 ||
+		     level > visualizer->drum_peak_candidate_levels[i])) {
+			visualizer->drum_peak_candidate_sequences[i] = snapshot.sequence;
+			visualizer->drum_peak_candidate_levels[i] = level;
+		}
 		if (history.size() > 64)
 			history.erase(history.begin());
 		appended = true;

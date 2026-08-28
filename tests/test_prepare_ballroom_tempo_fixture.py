@@ -3,6 +3,7 @@
 import csv
 from collections import Counter
 from pathlib import Path
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -50,6 +51,23 @@ def main() -> None:
         assert len(rows) == 8
         assert selected_styles == Counter({style: 2 for style in styles})
         assert all(float(row["tempo_duration_seconds"]) >= 14.0 for row in rows)
+
+        external = root / "external-fixture"
+        shutil.rmtree(output)
+        output.symlink_to(external, target_is_directory=True)
+        subprocess.run(
+            [
+                sys.executable,
+                str(SCRIPT),
+                "--audio-root", str(audio_root),
+                "--annotations-root", str(annotations_root),
+                "--output", str(output),
+                "--limit", "8",
+            ],
+            check=True,
+        )
+        assert output.is_symlink()
+        assert (external / "maestro-v3.0.0.csv").is_file()
     print("test_prepare_ballroom_tempo_fixture: genre-balanced selection passed")
 
 

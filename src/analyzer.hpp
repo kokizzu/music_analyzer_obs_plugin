@@ -1,8 +1,13 @@
 #pragma once
 
+#include "basic_pitch_onnx_worker.hpp"
+#include "basic_pitch_pcm_history.hpp"
+
 #include <array>
 #include <cstddef>
 #include <cstdint>
+#include <memory>
+#include <string>
 
 struct Opaque_BTT_Struct;
 
@@ -12,11 +17,13 @@ constexpr std::size_t kLegacyAnalysisWindow = 4096;
 constexpr std::size_t kAnalysisWindow = 8192;
 // Keep the dormant Other classifier code available without emitting a separate
 // low-confidence catch-all instrument result.
-constexpr bool kEnableOtherDetection = false;
+constexpr bool kEnableOtherDetection = true;
 // The optional tracker may fill an otherwise uncertain BPM only after it
 // clears the cross-corpus no-misleading-output gate at its stricter certainty
 // threshold.  The source-separated phase tracker remains the primary path.
-constexpr bool kEnablePermissiveBeatTrackerFallback = true;
+// OBS BPM is strictly the freshly recomputed three-second Kick/Bass/Snare
+// window.  The broad tracker retains longer state and must never overwrite it.
+constexpr bool kEnablePermissiveBeatTrackerFallback = false;
 // A second, conservative BTT path needs agreement with the independent phase
 // estimate, rather than standalone tracker certainty. Its 0.30 phase floor
 // and 2 BPM agreement were calibrated offline across Ballroom, FiloBass, and
@@ -37,6 +44,10 @@ constexpr bool kEnableHighTempoBeatTrackerFallback = false;
 // even if the detector is later enabled for diagnostics, so a deliberately
 // reviewed UI change is required before OTHERS can consume visualizer space.
 constexpr bool kEnableOtherRendering = false;
+// Preserve the investigated F5/F#5 Keyboard-to-Vocal mirror for replay, but
+// do not emit it live: expanded protected full-mix replay shows the broad
+// choir profile can expose string, brass, and reed candidates as Vocal.
+constexpr bool kEnableMeasuredHighSopranoVocalMirror = true;
 constexpr uint32_t kDefaultAnalysisWindowMs = 100;
 constexpr std::size_t kDrumCount = 7;
 constexpr std::size_t kNoteRowCount = 3;
@@ -88,6 +99,10 @@ enum DrumDebugRuleFlag : uint64_t {
 	DrumDebugHihatTomActiveBleed = 1ull << 24,
 	DrumDebugInitialBrightCrash = 1ull << 25,
 	DrumDebugInitialAmbiguousCrash = 1ull << 26,
+	DrumDebugRealMixWeakHihatBleed = 1ull << 27,
+	DrumDebugStrongTransientCrashRecovery = 1ull << 28,
+	DrumDebugHighLocalHihatRecovery = 1ull << 29,
+	DrumDebugDenseFullMixHihatRecovery = 1ull << 30,
 };
 
 enum class AnalysisInputMode {
@@ -120,6 +135,13 @@ struct AnalysisSettings {
 	// Test/corpus-harness diagnostic only. When set, retain this candidate in
 	// the final tempo debug snapshot even when it is not in the score top five.
 	int tempo_debug_probe_bpm = 0;
+	// Optional Basic Pitch mirror configuration.  These paths are deliberately
+	// empty by default: model loading and inference remain outside OBS's audio
+	// callback and the feature stays disabled unless the user supplies both
+	// local files.
+	bool basic_pitch_vocal_fusion_enabled = false;
+	std::string basic_pitch_runtime_library;
+	std::string basic_pitch_model;
 };
 
 struct DrumState {
@@ -226,6 +248,10 @@ struct AnalysisSnapshot {
 	float high_energy = 0.0f;
 	float estimated_bpm = 0.0f;
 	float bpm_confidence = 0.0f;
+	// The short-horizon estimate from local Kick/Bass/Snare onset crests. It is
+	// reported separately so replay tooling can audit it without conflating it
+	// with the normal phase tracker or display fallback decision.
+	float immediate_source_bpm = 0.0f;
 	float permissive_tracker_bpm = 0.0f;
 	float permissive_tracker_confidence = 0.0f;
 	float high_tempo_tracker_bpm = 0.0f;
@@ -479,7 +505,15 @@ private:
 	AnalysisInputMode active_input_mode_ = AnalysisInputMode::Auto;
 	bool has_active_input_mode_ = false;
 	char active_source_[64] = {};
+	std::unique_ptr<BasicPitchOnnxWorker> basic_pitch_worker_;
+	std::unique_ptr<BasicPitchPcmHistory> basic_pitch_pcm_history_;
+	BasicPitchCausalNotes basic_pitch_notes_ = {};
+	std::string basic_pitch_runtime_library_;
+	std::string basic_pitch_model_;
+	bool basic_pitch_notes_ready_ = false;
 
+	void update_basic_pitch_vocal_fusion(const float *samples, std::size_t count,
+					     const AnalysisSettings &settings);
 	void rebuild_plans(uint32_t sample_rate);
 	void rebuild_permissive_beat_tracker();
 	void clear_permissive_beat_tracker();

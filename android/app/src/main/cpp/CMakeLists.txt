@@ -9,6 +9,10 @@ file(GLOB BTT_C_SOURCES CONFIGURE_DEPENDS
 
 add_library(music_analyzer_android SHARED
     "${MAO_ROOT}/src/analyzer.cpp"
+    "${MAO_ROOT}/src/basic_pitch_onnx_decoder.cpp"
+    "${MAO_ROOT}/src/basic_pitch_onnx_runtime.cpp"
+    "${MAO_ROOT}/src/basic_pitch_onnx_worker.cpp"
+    "${MAO_ROOT}/src/basic_pitch_pcm_history.cpp"
     "${MAO_ROOT}/src/fret_control.cpp"
     "${MAO_ROOT}/src/visualizer_renderer.cpp"
     "android_bridge.cpp"
