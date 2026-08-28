@@ -331,15 +331,21 @@ def main():
             "fretZealot.isScaleFrameInFlight()" in external_devices and
             "FRET_ZEALOT_FRAME_IDLE_RETRY_MILLIS" in external_devices and
             "retryFretZealotAutoReconciliation();" in external_devices and
-            "partial scales are worse" in external_devices and
-            "than a briefly older root" in external_devices and
             "handler.removeCallbacks(sendStableFretZealotPacket);" in external_devices and
-            "fretZealot.sendPacket(packet, true);" in external_devices and
-            "This also applies to the first render after a connection." in external_devices,
-            "Android AUTO root updates must not bypass stabilization after connection")
+            "Once a complete frame is visible" in external_devices,
+            "Android AUTO root replacements must remain stabilized")
+    require("if (fretZealot.needsInitialScaleReset())" in external_devices and
+            "fretZealot.prepareForAutomaticScale()" in external_devices and
+            "transient startup root" in external_devices and
+            "fretZealot.sendPacket(packet, true);" in external_devices,
+            "Android must debounce AUTO startup without delaying manual Fret Zealot scales")
     require("if (!force && Arrays.equals(packet, lastFretZealotPacket)) {\n            // A device-state revision" in external_devices and
             "cancelling it leaves a first-generation board showing only the" in external_devices,
             "An unchanged Fret Zealot packet must not cancel its scheduled AUTO reconciliation")
+    require("fretZealotAutoInitialScalePending" in external_devices and
+            "if (fretZealotAutoInitialScalePending) {\n            // Preserve the first connection timer" in external_devices and
+            "fretZealotAutoInitialScalePending = false;" in external_devices,
+            "Android must send an initial AUTO scale despite continuing root revisions")
     require("LEDBLELib.getInstance" in fret_zealot_sdk_controller and
             "sendCommandBufferClear" in fret_zealot_sdk_controller and
             "sdk.set_all" in fret_zealot_sdk_controller and
@@ -382,7 +388,7 @@ def main():
             "writeChunkBytes <= LEGACY_CHUNK_BYTES" in fret_zealot_sdk and
             "mainHandler.postDelayed(this::sendNextChunk, settleMillis)" in fret_zealot_sdk,
             "First-generation Fret Zealot packets must be paced for its LED processor")
-    require("LEGACY_BATCH_SETTLE_MILLIS = 750L" in fret_zealot_sdk_controller and
+    require("LEGACY_BATCH_SETTLE_MILLIS = 120L" in fret_zealot_sdk_controller and
             "finishScaleFrameBatch(completed, batchId)" in fret_zealot_sdk_controller and
             "batchId != activeScaleFrameBatchId" in fret_zealot_sdk_controller and
             "activeScaleFrame != completed" in fret_zealot_sdk_controller,
@@ -398,6 +404,8 @@ def main():
             "if (containsScaleResetMarker && needsInitialScaleReset)" in fret_zealot_sdk_controller,
             "Fret Zealot scale packets must reset the board only after a new connection")
     require("ScaleFrame" in fret_zealot_sdk_controller and
+            "boolean prepareForAutomaticScale()" in fret_zealot_sdk_controller and
+            "startScaleFrame(new ScaleFrame(), true, true);" in fret_zealot_sdk_controller and
             "flushNextScaleFrameBatch" in fret_zealot_sdk_controller and
             "LEGACY_SCALE_COMMANDS_PER_FLUSH = 12" in fret_zealot_sdk_controller and
             "STRING_COUNT" in fret_zealot_sdk_controller and
@@ -405,7 +413,7 @@ def main():
             "queuedScaleFrameRequiresReconciliation" in fret_zealot_sdk_controller and
             "activeScaleFrameReconcilesWholeBoard" in fret_zealot_sdk_controller and
             "activeScaleFrameClearsNonTargets" in fret_zealot_sdk_controller,
-            "Fret Zealot AUTO root changes must use bounded target and stale-clear batches")
+            "Fret Zealot AUTO root changes must use capped target and stale-clear phases")
     require("sdk.set_all((byte) 0, (byte) 0, (byte) 0" in fret_zealot_sdk_controller,
             "Fret Zealot must use the vendor full-board black reset command once per session")
     require("fretZealotPixelForStandardTuningString" in fret_zealot_sdk_controller and
@@ -427,7 +435,7 @@ def main():
             "commands < LEGACY_SCALE_COMMANDS_PER_FLUSH" in fret_zealot_sdk_controller and
             "sdk.sendCommandFlush(() -> onScaleFrameFlushed(target, batchId))" in fret_zealot_sdk_controller and
             "scheduleScaleFrameBatchFallback(target, batchId)" in fret_zealot_sdk_controller,
-            "Fret Zealot AUTO root changes must pace every target and stale-clear batch")
+            "Fret Zealot target and stale-clear phases must wait for transport and LED settlement")
     require("Fret Zealot LED service ready; sending current scale" in fret_zealot_sdk_controller and
             "listener.onReady();" in fret_zealot_sdk_controller,
             "Fret Zealot must render the current scale directly after its session is ready")

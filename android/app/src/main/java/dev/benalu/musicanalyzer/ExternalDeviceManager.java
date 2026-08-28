@@ -96,6 +96,11 @@ final class ExternalDeviceManager implements Closeable {
     // While the estimator is still changing, keep its last complete scale
     // rather than risking a partly applied replacement.
     private boolean fretZealotAutoReconciliationScheduled;
+    // The first automatic board after a connection must eventually be sent even
+    // while the root estimator is still revising.  Otherwise every revision
+    // restarts the debounce and an empty/partial legacy board can persist until
+    // audio stops or the device reconnects.
+    private boolean fretZealotAutoInitialScalePending;
     private final Runnable sendStableFretZealotPacket;
 
     private MidiManager midiManager;
@@ -184,6 +189,7 @@ final class ExternalDeviceManager implements Closeable {
         sendStableFretZealotPacket = () -> {
             if (!started || !fretZealot.isReady() || pendingFretZealotPacket == null) {
                 fretZealotAutoReconciliationScheduled = false;
+                fretZealotAutoInitialScalePending = false;
                 return;
             }
             if (fretZealot.isScaleFrameInFlight()) {
@@ -196,6 +202,7 @@ final class ExternalDeviceManager implements Closeable {
             byte[] packet = pendingFretZealotPacket;
             pendingFretZealotPacket = null;
             fretZealotAutoReconciliationScheduled = false;
+            fretZealotAutoInitialScalePending = false;
             // A genuinely stable AUTO root gets one complete scale replay.
             // Do not stream deltas while the estimator is still revising its
             // root: legacy boards can apply only a prefix of those frames.
@@ -890,21 +897,48 @@ final class ExternalDeviceManager implements Closeable {
             return;
         }
         lastFretZealotPacket = Arrays.copyOf(packet, packet.length);
+        if (fretZealot.needsInitialScaleReset()) {
+            if (MusicAnalyzerNative.nativeIsAutomaticRootMode(nativeHandle)
+                    && fretZealot.prepareForAutomaticScale()) {
+                // A legacy scale needs several small BLE batches. Do not render
+                // a transient startup root a prefix at a time; clear once and
+                // wait for the normal AUTO-root debounce below.
+                pendingFretZealotPacket = Arrays.copyOf(packet, packet.length);
+                handler.removeCallbacks(sendStableFretZealotPacket);
+                fretZealotAutoReconciliationScheduled = true;
+                fretZealotAutoInitialScalePending = true;
+                handler.postDelayed(sendStableFretZealotPacket,
+                        FRET_ZEALOT_AUTO_ROOT_STABLE_MILLIS);
+                return;
+            }
+            // Manual root selection has no estimator churn, so render it as
+            // soon as a newly connected board is ready.
+            handler.removeCallbacks(sendStableFretZealotPacket);
+            pendingFretZealotPacket = null;
+            fretZealotAutoReconciliationScheduled = false;
+            fretZealotAutoInitialScalePending = false;
+            fretZealot.sendPacket(packet, true);
+            return;
+        }
         if (!MusicAnalyzerNative.nativeIsAutomaticRootMode(nativeHandle)) {
             handler.removeCallbacks(sendStableFretZealotPacket);
             pendingFretZealotPacket = null;
             fretZealotAutoReconciliationScheduled = false;
+            fretZealotAutoInitialScalePending = false;
             // The controller clears the board once after each connection, then
             // writes this delta. Manual root changes consequently never blink.
             fretZealot.sendPacket(packet, false);
             return;
         }
         pendingFretZealotPacket = Arrays.copyOf(packet, packet.length);
-        // This also applies to the first render after a connection. The legacy
-        // controller needs several bounded batches to apply a full scale, so a
-        // forced refresh must not bypass AUTO-root stabilization and begin a
-        // frame from a root that is still changing: partial scales are worse
-        // than a briefly older root.
+        if (fretZealotAutoInitialScalePending) {
+            // Preserve the first connection timer. It will replay the newest
+            // packet once the initial board clear has settled.
+            return;
+        }
+        // Once a complete frame is visible, wait for AUTO-root revisions to
+        // settle before replacing it. The controller submits each replacement
+        // phase as a complete logical board frame.
         handler.removeCallbacks(sendStableFretZealotPacket);
         fretZealotAutoReconciliationScheduled = true;
         handler.postDelayed(sendStableFretZealotPacket, FRET_ZEALOT_AUTO_ROOT_STABLE_MILLIS);
