@@ -6985,6 +6985,21 @@ bool measured_low_confidence_electronic_keyboard_partial_supported(const FullMix
 	       debug.harmonic_ratios[4] <= 0.020f;
 }
 
+bool ambiguous_shared_keyboard_guitar_display_supported(FullMixDisplayRow row,
+							 const FullMixDebugCandidate &debug,
+							 int display_midi)
+{
+	if (debug.owner != InstrumentKind::Ambiguous || display_midi != debug.midi ||
+	    debug.spectral_level < 0.80f || debug.pitch_confidence < 0.75f ||
+	    debug.periodicity < 0.60f || debug.local_noise_level > 0.18f)
+		return false;
+	if (row == FullMixDisplayRow::Keyboard)
+		return display_midi >= 48 && display_midi <= 84;
+	if (row == FullMixDisplayRow::Guitar)
+		return display_midi >= kGuitarMinMidi && display_midi <= 80;
+	return false;
+}
+
 bool full_mix_display_mirror_supported(FullMixDisplayRow row, const FullMixDebugCandidate &debug,
 				       int display_midi)
 {
@@ -7019,6 +7034,8 @@ bool full_mix_display_mirror_supported(FullMixDisplayRow row, const FullMixDebug
 	    !measured_clean_organ_keyboard_octave_up &&
 	    !measured_noisy_guitar_octave_up_alias)
 		return false;
+	if (ambiguous_shared_keyboard_guitar_display_supported(row, debug, display_midi))
+		return true;
 
 	switch (row) {
 	case FullMixDisplayRow::Keyboard: {

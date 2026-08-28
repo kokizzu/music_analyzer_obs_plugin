@@ -7746,3 +7746,7 @@ test-idmt-bass-single-track: $(BUILD_DIR)/analyzer_real_note_samples test-prepar
 .PHONY: summarize-idmt-bass-single-track-measurement
 summarize-idmt-bass-single-track-measurement:
 	@python3 scripts/summarize_idmt_bass_single_track_measurement.py
+
+.PHONY: test-ambiguous-display-recovery
+test-ambiguous-display-recovery: analyze-real-note-attributes tests/test_ambiguous_display_recovery.py
+	@python3 tests/test_ambiguous_display_recovery.py
