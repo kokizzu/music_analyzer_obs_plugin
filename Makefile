@@ -7713,3 +7713,36 @@ test-mir1k-clean-vocal-fixtures: build/analyzer_real_note_samples
 .PHONY: test-mir1k-clean-vocal-fixtures-full-mix
 test-mir1k-clean-vocal-fixtures-full-mix: build/analyzer_real_note_samples
 	python3 scripts/run_mir1k_vocal_fixture_test.py --full-mix
+
+.PHONY: import-idmt-bass-single-track-archive
+import-idmt-bass-single-track-archive:
+	@python3 scripts/import_idmt_bass_single_track_archive.py
+
+.PHONY: inspect-idmt-bass-single-track-layout
+inspect-idmt-bass-single-track-layout:
+	@python3 scripts/inspect_idmt_bass_single_track_layout.py
+
+.PHONY: diagnose-idmt-bass-single-track-archive
+diagnose-idmt-bass-single-track-archive:
+	@python3 scripts/diagnose_idmt_bass_single_track_archive.py
+
+.PHONY: summarize-idmt-bass-single-track-annotations
+summarize-idmt-bass-single-track-annotations:
+	@python3 scripts/summarize_idmt_bass_single_track_annotations.py
+
+.PHONY: prepare-idmt-bass-single-track-fixture test-prepare-idmt-bass-single-track-fixture measure-idmt-bass-single-track test-idmt-bass-single-track
+prepare-idmt-bass-single-track-fixture: import-idmt-bass-single-track-archive
+	@python3 scripts/prepare_idmt_bass_single_track_fixture.py
+
+test-prepare-idmt-bass-single-track-fixture: prepare-idmt-bass-single-track-fixture
+	@python3 tests/test_prepare_idmt_bass_single_track_fixture.py
+
+measure-idmt-bass-single-track: $(BUILD_DIR)/analyzer_real_note_samples test-prepare-idmt-bass-single-track-fixture
+	@python3 scripts/run_idmt_bass_single_track_measurement.py
+
+test-idmt-bass-single-track: $(BUILD_DIR)/analyzer_real_note_samples test-prepare-idmt-bass-single-track-fixture
+	@python3 scripts/run_idmt_bass_single_track_measurement.py --min-recall 95
+
+.PHONY: summarize-idmt-bass-single-track-measurement
+summarize-idmt-bass-single-track-measurement:
+	@python3 scripts/summarize_idmt_bass_single_track_measurement.py
