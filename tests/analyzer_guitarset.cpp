@@ -948,11 +948,17 @@ void debug_guitar_window(const mao::AnalysisSnapshot &snapshot, const CandidateW
 	const std::array<bool, 12> guitar = grid_pitch_classes(snapshot.guitar_notes);
 	const std::array<bool, 12> guitar_analysis = grid_pitch_classes(snapshot.guitar_chord_analysis_notes);
 	const std::array<bool, 12> guitar_smoothed = grid_pitch_classes(snapshot.guitar_chord_smoothed_notes);
+	std::string expected_chords;
+	for (const std::string &label : candidate.chord_labels) {
+		if (!expected_chords.empty())
+			expected_chords += "=";
+		expected_chords += label;
+	}
 	std::fprintf(stderr,
-		     "%s: expected pc `%s`, guitar pc `%s`, guitar cells `%s`, global `%s`, key `%s`, "
+		     "%s: expected chord `%s`, expected pc `%s`, guitar pc `%s`, guitar cells `%s`, global `%s`, key `%s`, "
 		     "guitar `%s`, other `%s`, guitar analysis pc `%s`, guitar analysis cells `%s`, "
 		     "guitar smooth pc `%s`, guitar smooth cells `%s`\n",
-		     context.c_str(), pitch_class_list(candidate.pitch_classes).c_str(),
+		     context.c_str(), expected_chords.c_str(), pitch_class_list(candidate.pitch_classes).c_str(),
 		     pitch_class_list(guitar).c_str(), grid_cell_list(snapshot.guitar_notes).c_str(),
 		     snapshot.global_chord.label, snapshot.keyboard_chord.label, snapshot.guitar_chord.label,
 		     snapshot.other_chord.label, pitch_class_list(guitar_analysis).c_str(),

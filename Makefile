@@ -7655,3 +7655,8 @@ test-real-note-guitar-full-mix-recall: analyze-real-note-guitar-misses
 .PHONY: report-real-note-guitar-misses
 report-real-note-guitar-misses:
 	python3 scripts/analyze_real_note_guitar_misses.py --report
+guitarset-debug-windows: build/analyzer_guitarset
+	python3 scripts/run_guitarset_debug_windows.py
+
+report-guitarset-major-minor-debug:
+	python3 scripts/report_guitarset_major_minor_debug.py
