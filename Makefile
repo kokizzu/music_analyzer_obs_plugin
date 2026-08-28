@@ -7664,3 +7664,52 @@ report-guitarset-major-minor-debug:
 .PHONY: check-fret-zealot-auto-recovery
 check-fret-zealot-auto-recovery:
 	python3 scripts/check_fret_zealot_auto_recovery.py
+
+# Self-contained MIR-1K clean-vocal regression fixtures.
+.PHONY: plan-mir1k-vocal-fixtures
+plan-mir1k-vocal-fixtures:
+	python3 scripts/plan_mir1k_vocal_fixtures.py
+
+.PHONY: import-mir1k-vocal-archive
+import-mir1k-vocal-archive:
+	python3 scripts/import_mir1k_vocal_archive.py
+
+.PHONY: status-mir1k-vocal-import
+status-mir1k-vocal-import:
+	python3 scripts/status_mir1k_vocal_import.py
+
+.PHONY: inspect-mir1k-vocal-layout
+inspect-mir1k-vocal-layout:
+	python3 scripts/inspect_mir1k_vocal_layout.py
+
+.PHONY: inspect-mir1k-vocal-pitch-labels
+inspect-mir1k-vocal-pitch-labels:
+	python3 scripts/inspect_mir1k_vocal_pitch_labels.py
+
+.PHONY: prepare-mir1k-vocal-fixtures
+prepare-mir1k-vocal-fixtures:
+	python3 scripts/prepare_mir1k_vocal_fixtures.py
+
+.PHONY: plan-mir1k-vocal-test-fixtures
+plan-mir1k-vocal-test-fixtures:
+	python3 scripts/sync_mir1k_vocal_test_fixtures.py plan
+
+.PHONY: apply-mir1k-vocal-test-fixtures
+apply-mir1k-vocal-test-fixtures:
+	python3 scripts/sync_mir1k_vocal_test_fixtures.py apply
+
+.PHONY: plan-clean-mir1k-vocal-test-fixture-stale
+plan-clean-mir1k-vocal-test-fixture-stale:
+	python3 scripts/clean_mir1k_vocal_test_fixture_stale.py plan
+
+.PHONY: apply-clean-mir1k-vocal-test-fixture-stale
+apply-clean-mir1k-vocal-test-fixture-stale:
+	python3 scripts/clean_mir1k_vocal_test_fixture_stale.py apply
+
+.PHONY: test-mir1k-clean-vocal-fixtures
+test-mir1k-clean-vocal-fixtures: build/analyzer_real_note_samples
+	python3 scripts/run_mir1k_vocal_fixture_test.py
+
+.PHONY: test-mir1k-clean-vocal-fixtures-full-mix
+test-mir1k-clean-vocal-fixtures-full-mix: build/analyzer_real_note_samples
+	python3 scripts/run_mir1k_vocal_fixture_test.py --full-mix
