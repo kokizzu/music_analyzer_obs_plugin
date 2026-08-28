@@ -9688,3 +9688,6 @@ stage-code-baseline-commit:
 
 commit-code-baseline:
 	python3 scripts/manage_code_baseline_commit.py commit
+
+verify-code-baseline-commit:
+	python3 scripts/manage_code_baseline_commit.py verify

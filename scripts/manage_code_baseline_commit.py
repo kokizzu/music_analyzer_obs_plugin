@@ -79,9 +79,17 @@ def stage(plan: dict[str, object]) -> None:
     git("add", "--", *included)
 
 
+def verify(plan: dict[str, object]) -> None:
+    print(f"head={git('log', '-1', '--format=%h %s').strip()}")
+    staged = git("diff", "--cached", "--name-only").splitlines()
+    print(f"staged={len(staged)}")
+    print(f"eligible_uncommitted={len(plan['included'])}")
+    print(f"excluded_uncommitted={len(plan['excluded'])}")
+
+
 def main() -> int:
     parser = argparse.ArgumentParser()
-    parser.add_argument("mode", choices=("plan", "stage", "commit"))
+    parser.add_argument("mode", choices=("plan", "stage", "commit", "verify"))
     parser.add_argument(
         "--message", default="chore: checkpoint current analyzer implementation"
     )
@@ -90,6 +98,9 @@ def main() -> int:
     write_plan(plan)
     print_plan(plan)
     if args.mode == "plan":
+        return 0
+    if args.mode == "verify":
+        verify(plan)
         return 0
     stage(plan)
     print("staged eligible source-only baseline")
