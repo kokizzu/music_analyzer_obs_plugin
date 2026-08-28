@@ -89,7 +89,7 @@ def verify(plan: dict[str, object]) -> None:
 
 def main() -> int:
     parser = argparse.ArgumentParser()
-    parser.add_argument("mode", choices=("plan", "stage", "commit", "verify"))
+    parser.add_argument("mode", choices=("plan", "stage", "commit", "verify", "push"))
     parser.add_argument(
         "--message", default="chore: checkpoint current analyzer implementation"
     )
@@ -101,6 +101,11 @@ def main() -> int:
         return 0
     if args.mode == "verify":
         verify(plan)
+        return 0
+    if args.mode == "push":
+        if git("diff", "--cached", "--name-only").strip():
+            raise RuntimeError("refusing to push with staged but uncommitted changes")
+        subprocess.run(["git", "push"], cwd=ROOT, check=True)
         return 0
     stage(plan)
     print("staged eligible source-only baseline")

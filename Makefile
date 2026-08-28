@@ -9691,3 +9691,6 @@ commit-code-baseline:
 
 verify-code-baseline-commit:
 	python3 scripts/manage_code_baseline_commit.py verify
+
+push-code-baseline:
+	python3 scripts/manage_code_baseline_commit.py push
