@@ -28,6 +28,8 @@ final class FretZealotSdkController implements Closeable {
     // The first-generation board can acknowledge a large BLE payload before it
     // has applied every LED command. Keep each flushed command buffer bounded.
     private static final int LEGACY_SCALE_COMMANDS_PER_FLUSH = 12;
+    // Preserve a complete physical legacy frame before an AUTO-root replacement.
+    private static final long LEGACY_FRAME_SETTLE_MILLIS = 300L;
 
     interface Listener {
         void onConnecting();
@@ -57,6 +59,7 @@ final class FretZealotSdkController implements Closeable {
     private int activeScaleFramePhase;
     private int activeScaleFrameCursor;
     private int activeScaleFrameBatchId;
+    private int activeScaleFrameSettleId;
 
     FretZealotSdkController(Context context, Listener listener) {
         sdk = LEDBLELib.getInstance(context.getApplicationContext());
@@ -265,6 +268,7 @@ final class FretZealotSdkController implements Closeable {
         activeScaleFramePhase = 0;
         activeScaleFrameCursor = 0;
         ++activeScaleFrameBatchId;
+        ++activeScaleFrameSettleId;
     }
 
     private void onScaleFrameFlushed(ScaleFrame completed, int batchId) {
@@ -292,6 +296,20 @@ final class FretZealotSdkController implements Closeable {
             return;
         }
         if (flushNextScaleFrameBatch(completed)) {
+            return;
+        }
+        scheduleScaleFrameSettle(completed);
+    }
+
+    private void scheduleScaleFrameSettle(ScaleFrame completed) {
+        int settleId = ++activeScaleFrameSettleId;
+        handler.postDelayed(
+                () -> completeScaleFrame(completed, settleId), LEGACY_FRAME_SETTLE_MILLIS);
+    }
+
+    private void completeScaleFrame(ScaleFrame completed, int settleId) {
+        if (!active || closing || activeScaleFrame != completed
+                || settleId != activeScaleFrameSettleId) {
             return;
         }
         committedScaleFrame = completed;
