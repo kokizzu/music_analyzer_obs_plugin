@@ -142,6 +142,10 @@ constexpr float kNoteEnvelopeVisibleFloor = 0.015f;
 constexpr float kNoteEnvelopeNewNoteFloor = 0.010f;
 constexpr float kNoteEnvelopeImmediateConfirmFloor = 0.40f;
 constexpr float kMixedNoteEnvelopeImmediateConfirmFloor = 0.24f;
+// The aligned Prepared Multitrack fixture retains every labelled pitch at
+// >= 0.84 relative candidate strength while chromatic spill is predominantly
+// below 0.60. Apply only in the full-mix candidate path.
+constexpr float kFullMixCandidateChromaFloor = 0.60f;
 // Isolated acoustic strings and winds frequently establish an eligible,
 // correctly owned fundamental before a second callback arrives.  Their
 // monophonic route can show that current note immediately; the shared raw
@@ -10894,7 +10898,10 @@ FullMixOwnership build_full_mix_ownership(const std::array<float, kNoteProbeCoun
 		const int pitch_class = ((candidate.midi % 12) + 12) % 12;
 		const float chroma_level = std::clamp(candidate.score / strongest_score, 0.0f, 1.0f);
 		ownership.global_note_levels[index] = std::max(ownership.global_note_levels[index], chroma_level);
-		ownership.global_chroma[pitch_class] = std::max(ownership.global_chroma[pitch_class], chroma_level);
+		if ((source_hint != AnalysisInputMode::Auto && source_hint != AnalysisInputMode::FullMix) ||
+		    chroma_level >= kFullMixCandidateChromaFloor)
+			ownership.global_chroma[pitch_class] =
+				std::max(ownership.global_chroma[pitch_class], chroma_level);
 
 		switch (owner) {
 		case InstrumentKind::Keyboard:
