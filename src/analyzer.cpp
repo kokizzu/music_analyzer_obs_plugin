@@ -38303,7 +38303,50 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 		boost_existing_measured_acoustic_string_other_visual_notes(
 			snapshot.other_notes, snapshot.guitar_notes, full_mix_ownership);
 		boost_existing_low_string_other_octave_visual_notes(snapshot.other_notes,
-								      snapshot.keyboard_notes, full_mix_ownership);
+							      snapshot.keyboard_notes, full_mix_ownership);
+		// A plucked lower string can be owned as Other while its octave harmonic is
+		// spuriously owned as Keyboard. Preserve the strong guitar-grid evidence.
+		auto visual_level = [](const NoteCell &cell) {
+			return cell.visual_level >= 0.0f ? cell.visual_level : cell.level;
+		};
+		auto promote_guitar_midi = [&](int midi, float floor) {
+			auto promote = [&](NoteCell &cell) {
+				if (cell.active && cell.midi == midi)
+					cell.visual_level = std::max(visual_level(cell), floor);
+			};
+			if (midi >= kFirstMidi && midi <= kLastMidi)
+				promote(snapshot.guitar_notes.cells[midi_pitch_class(midi)]);
+			for (auto &row : snapshot.guitar_notes.rows)
+				for (NoteCell &cell : row)
+					promote(cell);
+		};
+		auto cap_keyboard_midi = [&](int midi, float cap) {
+			auto cap_cell = [&](NoteCell &cell) {
+				if (cell.active && cell.midi == midi)
+					cell.visual_level = std::min(visual_level(cell), cap);
+			};
+			if (midi >= kFirstMidi && midi <= kLastMidi)
+				cap_cell(snapshot.keyboard_notes.cells[midi_pitch_class(midi)]);
+			for (auto &row : snapshot.keyboard_notes.rows)
+				for (NoteCell &cell : row)
+					cap_cell(cell);
+		};
+		for (int midi = kGuitarMinMidi; midi + 12 <= kGuitarMaxMidi; ++midi) {
+			const float guitar_level = note_grid_midi_level(snapshot.guitar_notes, midi);
+			if (guitar_level < 0.75f)
+				continue;
+			const FullMixDebugCandidate *lower = full_mix_debug_for_midi(full_mix_ownership, midi);
+			const FullMixDebugCandidate *upper =
+				full_mix_debug_for_midi(full_mix_ownership, midi + 12);
+			if (!lower || !upper || lower->owner != InstrumentKind::Other ||
+			    lower->other_score < 0.70f || lower->guitar_score < 0.12f ||
+			    upper->owner != InstrumentKind::Keyboard || upper->keyboard_score < 0.90f)
+				continue;
+			const float promoted_level = std::min(guitar_level, 0.90f);
+			promote_guitar_midi(midi, promoted_level);
+			cap_keyboard_midi(midi, promoted_level * 0.82f);
+			cap_keyboard_midi(midi + 12, promoted_level * 0.82f);
+		}
 		attenuate_ambiguous_note_grid_by_named_rows(snapshot.ambiguous_notes, snapshot.bass_notes,
 							    snapshot.keyboard_notes, snapshot.guitar_notes,
 							    snapshot.vocal_notes, snapshot.other_notes);

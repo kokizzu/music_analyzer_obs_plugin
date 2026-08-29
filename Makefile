@@ -9855,6 +9855,9 @@ report-real-note-full-mix-shards:
 report-full-mix-guitar-attributes: build/analyzer_real_note_samples
 	python3 scripts/report_full_mix_guitar_attributes.py
 
+test-full-mix-guitar-octave-alias: report-full-mix-guitar-attributes
+	python3 scripts/test_full_mix_guitar_octave_alias.py
+
 report-external-fixture-coverage:
 	python3 scripts/report_external_fixture_coverage.py
 
