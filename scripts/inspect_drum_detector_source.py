@@ -10,7 +10,8 @@ MARKERS = (
 	"snapshot.drums[i].active =",
 	"final_real_mix_dense_hihat_recovery",
 	"final_hihat_trigger_ratio",
-	"generic_early_onset_hihat_evidence",
+    "generic_early_onset_hihat_evidence",
+    "DrumDebugRealMixWeakHihatBleed",
 )
 
 

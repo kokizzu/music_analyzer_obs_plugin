@@ -11,7 +11,8 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 PATHS = (
-    "scripts/inspect_drum_detector_source.py",
+	"src/analyzer.cpp",
+	"scripts/inspect_drum_detector_source.py",
     "scripts/inspect_real_drum_runner.py",
     "scripts/manage_real_drum_corpus_coverage.py",
     "scripts/report_external_drum_manifests.py",
@@ -34,6 +35,10 @@ report-real-drum-corpus: build/analyzer_real_drum_samples scripts/report_real_dr
 report-real-drum-corpus-debug: build/analyzer_real_drum_samples scripts/report_real_drum_corpus.sh
 \tsh scripts/report_real_drum_corpus.sh --verbose
 """,
+	""".PHONY: test-real-drum-corpus
+test-real-drum-corpus: build/analyzer_real_drum_samples scripts/report_real_drum_corpus.sh
+\tsh scripts/report_real_drum_corpus.sh --verify
+""",
     """.PHONY: commit-real-drum-corpus-coverage
 commit-real-drum-corpus-coverage: scripts/manage_real_drum_corpus_coverage.py
 \tpython3 scripts/manage_real_drum_corpus_coverage.py commit
@@ -43,7 +48,7 @@ push-real-drum-corpus-coverage: scripts/manage_real_drum_corpus_coverage.py
 \tpython3 scripts/manage_real_drum_corpus_coverage.py push
 """,
 )
-MESSAGE = "test: add external real drum corpus diagnostics"
+MESSAGE = "analyzer: recover compact generic hi-hats"
 
 
 def run(*args: str, capture: bool = False) -> str:

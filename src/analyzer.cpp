@@ -32489,7 +32489,13 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 	const bool generic_tonal_short_onset_hihat_bleed =
 		drum_detection_enabled && !named_drum_source && drum_level_[HiHat] > 0.30f &&
 		drum_transient && onset <= 2.00f && snapshot.high_energy >= 0.20f;
-	if (generic_tonal_short_onset_hihat_bleed)
+	const float generic_hihat_trigger_ratio = snapshot.drum_debug_trigger_scores[HiHat] /
+		(trigger_threshold + 1.0e-6f);
+	const bool compact_generic_hihat_hit =
+		generic_tonal_short_onset_hihat_bleed && generic_hihat_trigger_ratio >= 1.20f &&
+		generic_hihat_trigger_ratio <= 1.45f && drum_bands[HiHat] >= 1.0f &&
+		snare_body <= 10.0f;
+	if (generic_tonal_short_onset_hihat_bleed && !compact_generic_hihat_hit)
 		cap_drum_level(HiHat, 0.28f);
 	// The opening real-kit crash can be loud yet land exactly at the crash
 	// trigger threshold when its spectrum is overwhelmingly low-band.

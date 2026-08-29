@@ -10347,3 +10347,7 @@ commit-real-drum-corpus-coverage: scripts/manage_real_drum_corpus_coverage.py
 .PHONY: push-real-drum-corpus-coverage
 push-real-drum-corpus-coverage: scripts/manage_real_drum_corpus_coverage.py
 	python3 scripts/manage_real_drum_corpus_coverage.py push
+
+.PHONY: test-real-drum-corpus
+test-real-drum-corpus: build/analyzer_real_drum_samples scripts/report_real_drum_corpus.sh
+	sh scripts/report_real_drum_corpus.sh --verify
