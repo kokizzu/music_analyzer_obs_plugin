@@ -15,10 +15,12 @@ PATHS = (
     "scripts/inspect_drum_detector_source.py",
     "scripts/inspect_full_mix_attribute_report.py",
     "scripts/inspect_real_drum_runner.py",
+    "scripts/inspect_urmp_chord_report.py",
     "scripts/manage_real_drum_corpus_coverage.py",
     "scripts/report_external_drum_manifests.py",
     "scripts/report_full_mix_bass_attributes.py",
     "scripts/report_real_drum_corpus.sh",
+    "scripts/report_urmp_chord_attributes.py",
 )
 MAKEFILE_BLOCKS = (
     """.PHONY: inspect-real-drum-runner
@@ -76,6 +78,22 @@ inspect-low-electronic-keyboard-source: scripts/inspect_analyzer_section.py
 .PHONY: inspect-low-keyboard-restore-source
 inspect-low-keyboard-restore-source: scripts/inspect_analyzer_section.py
 \tpython3 scripts/inspect_analyzer_section.py --source src/analyzer.cpp --topic "restore_full_mix_low_keyboard"
+
+.PHONY: inspect-diminished-chord-source
+inspect-diminished-chord-source: scripts/inspect_analyzer_section.py
+\tpython3 scripts/inspect_analyzer_section.py --source src/analyzer.cpp --topic "diminished"
+
+.PHONY: inspect-urmp-chord-report
+inspect-urmp-chord-report: scripts/inspect_urmp_chord_report.py
+\tpython3 scripts/inspect_urmp_chord_report.py
+
+.PHONY: report-urmp-chord-attributes
+report-urmp-chord-attributes: scripts/report_urmp_chord_attributes.py report-urmp-other-recovery-profile
+\tpython3 scripts/report_urmp_chord_attributes.py
+
+.PHONY: report-urmp-chord-attributes-cached
+report-urmp-chord-attributes-cached: scripts/report_urmp_chord_attributes.py
+\tpython3 scripts/report_urmp_chord_attributes.py
 """,
     """.PHONY: commit-real-drum-corpus-coverage
 commit-real-drum-corpus-coverage: scripts/manage_real_drum_corpus_coverage.py
@@ -86,7 +104,7 @@ push-real-drum-corpus-coverage: scripts/manage_real_drum_corpus_coverage.py
 \tpython3 scripts/manage_real_drum_corpus_coverage.py push
 """,
 )
-MESSAGE = "test: inspect low keyboard recovery"
+MESSAGE = "test: detail URMP chord replay failures"
 
 
 def run(*args: str, capture: bool = False) -> str:

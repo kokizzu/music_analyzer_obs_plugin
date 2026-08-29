@@ -10403,3 +10403,39 @@ inspect-low-electronic-keyboard-source: scripts/inspect_analyzer_section.py
 .PHONY: inspect-low-keyboard-restore-source
 inspect-low-keyboard-restore-source: scripts/inspect_analyzer_section.py
 	python3 scripts/inspect_analyzer_section.py --source src/analyzer.cpp --topic "restore_full_mix_low_keyboard"
+
+.PHONY: inspect-full-mix-electric-piano-source
+inspect-full-mix-electric-piano-source: scripts/inspect_analyzer_section.py
+	python3 scripts/inspect_analyzer_section.py --source src/analyzer.cpp --topic "measured_other_owned_electric_piano_supported"
+
+.PHONY: inspect-full-mix-visual-boost-source
+inspect-full-mix-visual-boost-source: scripts/inspect_analyzer_section.py
+	python3 scripts/inspect_analyzer_section.py --source src/analyzer.cpp --topic "boost_existing"
+
+.PHONY: inspect-note-grid-source
+inspect-note-grid-source: scripts/inspect_analyzer_section.py
+	python3 scripts/inspect_analyzer_section.py --source src/analyzer.hpp --topic "NoteGrid"
+
+.PHONY: inspect-low-electronic-keyboard-source
+inspect-low-electronic-keyboard-source: scripts/inspect_analyzer_section.py
+	python3 scripts/inspect_analyzer_section.py --source src/analyzer.cpp --topic "low_electronic"
+
+.PHONY: inspect-low-keyboard-restore-source
+inspect-low-keyboard-restore-source: scripts/inspect_analyzer_section.py
+	python3 scripts/inspect_analyzer_section.py --source src/analyzer.cpp --topic "restore_full_mix_low_keyboard"
+
+.PHONY: inspect-diminished-chord-source
+inspect-diminished-chord-source: scripts/inspect_analyzer_section.py
+	python3 scripts/inspect_analyzer_section.py --source src/analyzer.cpp --topic "diminished"
+
+.PHONY: inspect-urmp-chord-report
+inspect-urmp-chord-report: scripts/inspect_urmp_chord_report.py
+	python3 scripts/inspect_urmp_chord_report.py
+
+.PHONY: report-urmp-chord-attributes
+report-urmp-chord-attributes: scripts/report_urmp_chord_attributes.py report-urmp-other-recovery-profile
+	python3 scripts/report_urmp_chord_attributes.py
+
+.PHONY: report-urmp-chord-attributes-cached
+report-urmp-chord-attributes-cached: scripts/report_urmp_chord_attributes.py
+	python3 scripts/report_urmp_chord_attributes.py
