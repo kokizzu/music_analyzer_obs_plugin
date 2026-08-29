@@ -120,6 +120,14 @@ bool read_wav_format(const std::string &path, WavFormat &format, std::string &er
 			(void)read_u32(file);
 			format.block_align = read_u16(file);
 			format.bits_per_sample = read_u16(file);
+			if (format.audio_format == 0xfffe) {
+				if (chunk_size < 40) {
+					error = "short WAVE_FORMAT_EXTENSIBLE fmt chunk";
+					return false;
+				}
+				file.seekg(chunk_data + static_cast<std::streamoff>(24));
+				format.audio_format = read_u16(file);
+			}
 		} else if (std::strncmp(id, "data", 4) == 0) {
 			format.data_offset = static_cast<uint64_t>(chunk_data);
 			format.data_size = chunk_size;
@@ -1448,6 +1456,60 @@ void check_instrument_samples(Runner &runner, const std::string &root, std::ostr
 	}
 }
 
+void check_optional_real_bass_fixture(Runner &runner, std::ostream *attribute_out, int shard_count,
+				      int shard_index)
+{
+	static constexpr int kRealBassFixtureFirstMidi = 28;
+	static constexpr int kRealBassFixtureLastMidi = 63;
+	const char *root_env = std::getenv("MUSIC_ANALYZER_REAL_BASS_FIXTURE_ROOT");
+	if (!root_env || !*root_env)
+		return;
+
+	const std::string root = root_env;
+	std::vector<SampleRow> rows;
+	runner.expect(read_manifest(join_path(root, "manifest.tsv"), rows),
+		      "missing real bass fixture manifest under " + root);
+	if (rows.empty())
+		return;
+
+	int tested = 0;
+	int detected = 0;
+	for (std::size_t row_index = 0; row_index < rows.size(); ++row_index) {
+		if (!shard_includes_row(row_index, shard_count, shard_index))
+			continue;
+		const SampleRow &row = rows[row_index];
+		if (row.family != "bass" || !filter_matches("real_bass", row))
+			continue;
+		if (row.midi < kRealBassFixtureFirstMidi || row.midi > kRealBassFixtureLastMidi)
+			continue;
+		mao_test::Buffer buffer = {};
+		uint32_t sample_rate = 0;
+		std::string error;
+		if (!load_sample(root, ".", row, buffer, sample_rate, 0.62f, false, error)) {
+			runner.expect(false, "failed to load real bass sample " + row.path + ": " + error);
+			continue;
+		}
+
+		const mao::AnalysisSnapshot snapshot =
+			analyze_buffer(buffer, sample_rate, mao::AnalysisInputMode::IsolatedBass, "double bass",
+				       kDefaultWindowSeconds);
+		const bool detected_expected =
+			mao_test::has_note_token(snapshot.bass.label, mao_test::note_label(row.midi).c_str()) ||
+			grid_has_pitch_class(snapshot.bass_notes, row.midi);
+		++tested;
+		if (detected_expected)
+			++detected;
+		if (attribute_out) {
+			const RawNoteAttributes raw = measure_raw_note_attributes(buffer, sample_rate, row.midi);
+			append_note_attribute_row(*attribute_out, "real_bass", row, snapshot,
+					  kDefaultWindowSeconds, detected_expected, detected_expected, raw,
+					  debug_candidate_for_pitch(snapshot, row.midi));
+		}
+	}
+	if (tested > 0)
+		std::printf("real_bass_fixture: %d/%d expected pitch classes detected\n", detected, tested);
+}
+
 void check_drum_kit_samples(Runner &runner, const std::string &root, std::ostream *attribute_out,
 			    int shard_count, int shard_index)
 {
@@ -1623,7 +1685,8 @@ int main()
 	const char *root_env = std::getenv("MUSIC_ANALYZER_INSTRUMENT_SAMPLE_ROOT");
 	const std::string root = root_env && *root_env ? root_env : "build";
 	const bool required = std::getenv("MUSIC_ANALYZER_INSTRUMENT_SAMPLES_REQUIRED") != nullptr;
-	if (!std::ifstream(join_path(join_path(root, "piano_samples"), "manifest.tsv"))) {
+	const bool skip_standard = std::getenv("MUSIC_ANALYZER_SKIP_STANDARD_INSTRUMENT_SAMPLES") != nullptr;
+	if (!skip_standard && !std::ifstream(join_path(join_path(root, "piano_samples"), "manifest.tsv"))) {
 		if (required) {
 			std::fprintf(stderr, "analyzer_instrument_samples: missing generated samples under %s\n",
 				     root.c_str());
@@ -1652,9 +1715,12 @@ int main()
 			print_attribute_header(attribute_out);
 	}
 	std::ostream *attribute_stream = attribute_out.good() ? &attribute_out : nullptr;
-	check_instrument_samples(runner, root, attribute_stream, shard_count, shard_index);
-	check_drum_kit_samples(runner, root, attribute_stream, shard_count, shard_index);
-	if (shard_index == 0)
+	if (!skip_standard)
+		check_instrument_samples(runner, root, attribute_stream, shard_count, shard_index);
+	check_optional_real_bass_fixture(runner, attribute_stream, shard_count, shard_index);
+	if (!skip_standard)
+		check_drum_kit_samples(runner, root, attribute_stream, shard_count, shard_index);
+	if (!skip_standard && shard_index == 0)
 		check_combined_samples(runner, root);
 
 	if (runner.failures) {

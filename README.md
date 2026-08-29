@@ -52,3 +52,28 @@ make android
 ## Performance
 
 The plugin uses bounded DSP heuristics rather than a stem-separation model. Audio is buffered through a fixed ring buffer, analyzed on a worker thread, and rendered into one reusable RGBA texture. The OBS audio callback avoids allocation after source creation and stale analysis windows are dropped rather than queued.
+## External real-audio fixtures
+
+Large real-audio fixtures are intentionally kept out of Git. The repository links
+`build/InstrumentSamples` to the configured external fixture store. The Sneakybass
+importer stages the CC0 double-bass source there, creates a labelled manifest, and
+never copies WAV data into the checkout:
+
+```sh
+make plan-sneakybass-fixture
+make prepare-sneakybass-fixture
+make verify-sneakybass-fixture
+```
+
+Run the isolated, sharded analyzer audit and inspect its persisted recall and raw
+tuning evidence with:
+
+```sh
+make analyze-sneakybass-fixture
+make report-sneakybass-fixture-audit
+make report-sneakybass-fixture-attributes
+```
+
+The importer currently maps 642 raw Sneakybass WAV samples. The audit limits its
+detector expectation to the analyzer's established bass display range, MIDI 28-63;
+the complete external corpus remains available for future range work.

@@ -9694,3 +9694,26 @@ verify-code-baseline-commit:
 
 push-code-baseline:
 	python3 scripts/manage_code_baseline_commit.py push
+
+report-instrument-sample-storage:
+	python3 scripts/report_instrument_sample_storage.py
+
+plan-sneakybass-fixture:
+	$(PYTHON) scripts/prepare_sneakybass_fixture.py plan --store "$(INSTRUMENT_SAMPLE_STORE)"
+
+prepare-sneakybass-fixture:
+	$(PYTHON) scripts/prepare_sneakybass_fixture.py apply --store "$(INSTRUMENT_SAMPLE_STORE)"
+
+verify-sneakybass-fixture:
+	$(PYTHON) scripts/prepare_sneakybass_fixture.py verify --store "$(INSTRUMENT_SAMPLE_STORE)"
+
+analyze-sneakybass-fixture: build/analyzer_instrument_samples verify-sneakybass-fixture
+	$(PYTHON) scripts/run_sneakybass_fixture_audit.py --binary "$(BUILD_DIR)/analyzer_instrument_samples" --fixture-root "$(INSTRUMENT_SAMPLE_STORE)/real-fixtures/sneakybass" --log "$(BUILD_DIR)/sneakybass_fixture_audit.log" --attributes "$(BUILD_DIR)/sneakybass_fixture_attributes.tsv" --jobs "$(PARALLEL_TEST_JOBS)"
+
+report-sneakybass-fixture-audit:
+	$(PYTHON) scripts/report_sneakybass_fixture_audit.py --log "$(BUILD_DIR)/sneakybass_fixture_audit.log"
+
+report-sneakybass-fixture-attributes:
+	$(PYTHON) scripts/report_sneakybass_fixture_attributes.py --attributes "$(BUILD_DIR)/sneakybass_fixture_attributes.tsv"
+commit-real-bass-fixture-audit:
+	python3 scripts/commit_staged_source_changes.py --message "test: add external real bass fixture audit"
