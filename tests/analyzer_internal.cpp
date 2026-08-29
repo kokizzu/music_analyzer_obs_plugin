@@ -6050,8 +6050,13 @@ void check_chord_tracking_preserves_equivalent_alias_order(Runner &runner)
 	const ChordResult g = make_stable_chord("G", 7);
 
 	stabilize_chord(state, tracking, c_am, c_am, true, 0.05f);
+	runner.expect(state.label[0] == '-' || state.label[0] == '\0',
+		      std::string("chord tracking initial confirmation: expected pending initial C=Am, got `") +
+			      state.label + "`");
+	stabilize_chord(state, tracking, c_am, c_am, true, 0.05f);
 	runner.expect(std::strcmp(state.label, "C=Am") == 0,
-		      std::string("chord tracking alias order: expected initial C=Am, got `") + state.label + "`");
+		      std::string("chord tracking initial confirmation: expected confirmed C=Am, got `") +
+			      state.label + "`");
 
 	stabilize_chord(state, tracking, am_c, am_c, true, 0.05f);
 	runner.expect(std::strcmp(state.label, "C=Am") == 0,
@@ -6065,6 +6070,36 @@ void check_chord_tracking_preserves_equivalent_alias_order(Runner &runner)
 	stabilize_chord(state, tracking, g, g, true, 0.05f);
 	runner.expect(std::strcmp(state.label, "G") == 0,
 		      std::string("chord tracking real switch: expected confirmed G, got `") + state.label + "`");
+}
+
+void check_chord_tracking_holds_partial_frames_and_clears_silence(Runner &runner)
+{
+	InstrumentState state = {};
+	ChordTrackingState tracking = {};
+	const ChordResult c = make_stable_chord("C", 0);
+	const ChordResult g = make_stable_chord("G", 7);
+	const ChordResult missing = {};
+
+	stabilize_chord(state, tracking, c, c, true, 0.05f);
+	stabilize_chord(state, tracking, c, c, true, 0.05f);
+	runner.expect(std::strcmp(state.label, "C") == 0,
+		      std::string("chord tracking hold: expected confirmed C, got `") + state.label + "`");
+
+	stabilize_chord(state, tracking, missing, missing, true, 0.05f);
+	runner.expect(std::strcmp(state.label, "C") == 0,
+		      std::string("chord tracking hold: expected C through one missing frame, got `") + state.label + "`");
+
+	stabilize_chord(state, tracking, g, g, true, 0.05f);
+	runner.expect(std::strcmp(state.label, "C") == 0,
+		      std::string("chord tracking replacement: expected pending G to retain C, got `") + state.label + "`");
+	stabilize_chord(state, tracking, g, g, true, 0.05f);
+	runner.expect(std::strcmp(state.label, "G") == 0,
+		      std::string("chord tracking replacement: expected confirmed G, got `") + state.label + "`");
+
+	for (int frame = 0; frame < 8; ++frame)
+		stabilize_chord(state, tracking, missing, missing, true, 0.05f);
+	runner.expect(state.label[0] == '-' || state.label[0] == '\0',
+		      std::string("chord tracking silence: expected cleared G after hold, got `") + state.label + "`");
 }
 
 int run()
@@ -6107,6 +6142,7 @@ int run()
 	check_probe_supported_guitar_rootless_major_seventh_with_analysis_residue(runner);
 	check_probe_supported_guitar_rootless_minor_sixth_alias(runner);
 	check_chord_tracking_preserves_equivalent_alias_order(runner);
+	check_chord_tracking_holds_partial_frames_and_clears_silence(runner);
 	check_ambiguous_guitar_power_quality_keeps_both_plain_aliases(runner);
 	check_display_guitar_power_opposite_quality_alias(runner);
 	check_compact_guitar_power_raw_profile_third_aliases(runner);

@@ -10491,3 +10491,15 @@ inspect-stabilize-chord-body: scripts/inspect_stabilize_chord_source.py
 .PHONY: inspect-chord-timing-source
 inspect-chord-timing-source: scripts/inspect_analyzer_section.py
 	python3 scripts/inspect_analyzer_section.py --source src/analyzer.cpp --topic "kChordHoldSeconds"
+
+.PHONY: inspect-chord-temporal-tests
+inspect-chord-temporal-tests: scripts/inspect_chord_temporal_tests.py
+	python3 scripts/inspect_chord_temporal_tests.py
+
+.PHONY: commit-chord-stability
+commit-chord-stability: scripts/manage_real_drum_improvement_commit.py
+	python3 scripts/manage_real_drum_improvement_commit.py apply
+
+.PHONY: push-chord-stability
+push-chord-stability: scripts/manage_real_drum_improvement_commit.py
+	python3 scripts/manage_real_drum_improvement_commit.py push

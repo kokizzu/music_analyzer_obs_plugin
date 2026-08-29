@@ -28384,11 +28384,24 @@ void stabilize_chord(InstrumentState &state, ChordTrackingState &tracking, const
 	if (valid_chord_result(candidate)) {
 		tracking.missing_seconds = 0.0f;
 		if (!has_displayed) {
-			copy_text(tracking.displayed_label, sizeof(tracking.displayed_label), candidate.label);
-			tracking.displayed_confidence = candidate.confidence;
-			tracking.pending_label[0] = '\0';
-			tracking.pending_frames = 0;
-			write_tracked_chord(state, tracking);
+			if (std::strcmp(tracking.pending_label, candidate.label) == 0) {
+				tracking.pending_frames = std::min(tracking.pending_frames + 1, 1000);
+				tracking.pending_confidence = std::max(tracking.pending_confidence, candidate.confidence);
+			} else {
+				copy_text(tracking.pending_label, sizeof(tracking.pending_label), candidate.label);
+				tracking.pending_confidence = candidate.confidence;
+				tracking.pending_frames = 1;
+			}
+			if (tracking.pending_frames >= kChordSwitchConfirmFrames) {
+				copy_text(tracking.displayed_label, sizeof(tracking.displayed_label), tracking.pending_label);
+				tracking.displayed_confidence = tracking.pending_confidence;
+				tracking.pending_label[0] = '\0';
+				tracking.pending_confidence = 0.0f;
+				tracking.pending_frames = 0;
+				write_tracked_chord(state, tracking);
+			} else {
+				clear_instrument_state(state);
+			}
 			return;
 		}
 

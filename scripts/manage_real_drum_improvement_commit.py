@@ -10,6 +10,7 @@ ROOT = Path(__file__).resolve().parents[1]
 PATHS = (
     "src/analyzer.cpp",
     "tests/analyzer_real_drum_samples.cpp",
+    "tests/analyzer_internal.cpp",
     "scripts/report_drum_fixture_candidates.py",
     "scripts/report_idmt_drum_fixture_manifest.py",
     "scripts/inspect_real_note_drum_test_source.py",
@@ -20,10 +21,11 @@ PATHS = (
     "scripts/test_real_drum_samples.sh",
     "scripts/manage_detection_improvement_commit.py",
     "scripts/manage_real_drum_improvement_commit.py",
+    "scripts/inspect_chord_temporal_tests.py",
     "Makefile",
 )
 STAGE_PATHS = tuple(path for path in PATHS if path != "Makefile")
-MESSAGE = "analyzer: improve real drum display recall"
+MESSAGE = "analyzer: stabilize chord display"
 
 
 def run(*args: str, capture: bool = False, stdin_text: str | None = None) -> subprocess.CompletedProcess[str]:
@@ -42,28 +44,36 @@ def plan() -> None:
     print(makefile_diff, end="")
 
 
-def stage_real_drum_makefile_hunk() -> None:
-    diff = run("git", "diff", "-U0", "--", "Makefile", capture=True).stdout
-    if not diff:
+def stage_chord_temporal_makefile_target() -> None:
+    block = (
+        ".PHONY: inspect-chord-temporal-tests\n"
+        "inspect-chord-temporal-tests: scripts/inspect_chord_temporal_tests.py\n"
+        "\tpython3 scripts/inspect_chord_temporal_tests.py\n"
+        "\n"
+        ".PHONY: commit-chord-stability\n"
+        "commit-chord-stability: scripts/manage_real_drum_improvement_commit.py\n"
+        "\tpython3 scripts/manage_real_drum_improvement_commit.py apply\n"
+        "\n"
+        ".PHONY: push-chord-stability\n"
+        "push-chord-stability: scripts/manage_real_drum_improvement_commit.py\n"
+        "\tpython3 scripts/manage_real_drum_improvement_commit.py push\n"
+    )
+    anchor = (
+        ".PHONY: inspect-chord-timing-source\n"
+        "inspect-chord-timing-source: scripts/inspect_analyzer_section.py\n"
+        "\tpython3 scripts/inspect_analyzer_section.py --source src/analyzer.cpp --topic \"kChordHoldSeconds\"\n"
+    )
+    worktree = (ROOT / "Makefile").read_text(encoding="utf-8")
+    if block not in worktree:
+        raise SystemExit("missing inspect-chord-temporal-tests target in Makefile")
+    indexed = run("git", "show", ":Makefile", capture=True).stdout
+    if block in indexed:
         return
-    lines = diff.splitlines(keepends=True)
-    header_end = next((index for index, line in enumerate(lines) if line.startswith("@@")), len(lines))
-    header = lines[:header_end]
-    hunks = []
-    current = []
-    for line in lines[header_end:]:
-        if line.startswith("@@") and current:
-            hunks.append(current)
-            current = []
-        current.append(line)
-    if current:
-        hunks.append(current)
-    selected = [hunk for hunk in hunks if any("report-drum-fixture-candidates" in line for line in hunk)]
-    if not selected:
-        return
-    if len(selected) != 1:
-        raise SystemExit("expected exactly one real-drum Makefile hunk")
-    run("git", "apply", "--cached", "--unidiff-zero", stdin_text="".join(header + selected[0]))
+    if anchor not in indexed:
+        raise SystemExit("missing chord timing target in indexed Makefile")
+    updated = indexed.replace(anchor, anchor + "\n" + block, 1)
+    object_id = run("git", "hash-object", "-w", "--stdin", capture=True, stdin_text=updated).stdout.strip()
+    run("git", "update-index", "--add", "--cacheinfo", f"100644,{object_id},Makefile")
 
 
 def apply() -> None:
@@ -76,7 +86,7 @@ def apply() -> None:
         raise SystemExit("refusing to commit pre-staged changes:\n" + pre_staged)
     run("git", "diff", "--check", "--", *PATHS)
     run("git", "add", "--", *STAGE_PATHS)
-    stage_real_drum_makefile_hunk()
+    stage_chord_temporal_makefile_target()
     run("git", "commit", "-m", MESSAGE)
 
 
