@@ -9858,6 +9858,14 @@ report-full-mix-guitar-attributes: build/analyzer_real_note_samples
 report-full-mix-other-attributes: build/analyzer_real_note_samples
 	python3 scripts/report_full_mix_other_attributes.py
 
+.PHONY: report-full-mix-other-visual-patterns
+report-full-mix-other-visual-patterns: report-full-mix-other-attributes
+	python3 scripts/report_full_mix_other_visual_patterns.py
+
+.PHONY: report-full-mix-piano-other-ownership
+report-full-mix-piano-other-ownership: build/analyzer_real_note_samples
+	python3 scripts/report_full_mix_piano_other_ownership.py
+
 report-full-mix-vocal-attributes: build/analyzer_real_note_samples
 	python3 scripts/report_full_mix_vocal_attributes.py
 
