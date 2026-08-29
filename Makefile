@@ -10323,3 +10323,27 @@ report-code-baseline-diff:
 
 test-real-note-vocal-recall-regression: audit-real-note-vocals
 	python3 scripts/check_real_note_vocal_recall.py build/real_note_vocal_audit.out --minimum-hits 167
+
+.PHONY: inspect-real-drum-runner
+inspect-real-drum-runner: scripts/inspect_real_drum_runner.py
+	python3 scripts/inspect_real_drum_runner.py
+
+.PHONY: report-external-drum-manifests
+report-external-drum-manifests: scripts/report_external_drum_manifests.py
+	python3 scripts/report_external_drum_manifests.py
+
+.PHONY: report-real-drum-corpus
+report-real-drum-corpus: build/analyzer_real_drum_samples scripts/report_real_drum_corpus.sh
+	sh scripts/report_real_drum_corpus.sh
+
+.PHONY: report-real-drum-corpus-debug
+report-real-drum-corpus-debug: build/analyzer_real_drum_samples scripts/report_real_drum_corpus.sh
+	sh scripts/report_real_drum_corpus.sh --verbose
+
+.PHONY: commit-real-drum-corpus-coverage
+commit-real-drum-corpus-coverage: scripts/manage_real_drum_corpus_coverage.py
+	python3 scripts/manage_real_drum_corpus_coverage.py commit
+
+.PHONY: push-real-drum-corpus-coverage
+push-real-drum-corpus-coverage: scripts/manage_real_drum_corpus_coverage.py
+	python3 scripts/manage_real_drum_corpus_coverage.py push
