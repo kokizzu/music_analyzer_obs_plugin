@@ -45,7 +45,7 @@ def plan() -> None:
 def stage_real_drum_makefile_hunk() -> None:
     diff = run("git", "diff", "-U0", "--", "Makefile", capture=True).stdout
     if not diff:
-        raise SystemExit("missing real-drum Makefile diff")
+        return
     lines = diff.splitlines(keepends=True)
     header_end = next((index for index, line in enumerate(lines) if line.startswith("@@")), len(lines))
     header = lines[:header_end]
@@ -59,6 +59,8 @@ def stage_real_drum_makefile_hunk() -> None:
     if current:
         hunks.append(current)
     selected = [hunk for hunk in hunks if any("report-drum-fixture-candidates" in line for line in hunk)]
+    if not selected:
+        return
     if len(selected) != 1:
         raise SystemExit("expected exactly one real-drum Makefile hunk")
     run("git", "apply", "--cached", "--unidiff-zero", stdin_text="".join(header + selected[0]))
@@ -68,7 +70,9 @@ def apply() -> None:
     if not status().strip():
         raise SystemExit("no real-drum changes to stage")
     pre_staged = run("git", "diff", "--cached", "--name-only", capture=True).stdout
-    if pre_staged.strip():
+    pre_staged_paths = {line for line in pre_staged.splitlines() if line}
+    allowed_pre_staged = {"scripts/manage_real_drum_improvement_commit.py"}
+    if pre_staged_paths - allowed_pre_staged:
         raise SystemExit("refusing to commit pre-staged changes:\n" + pre_staged)
     run("git", "diff", "--check", "--", *PATHS)
     run("git", "add", "--", *STAGE_PATHS)
@@ -77,7 +81,14 @@ def apply() -> None:
 
 
 def push() -> None:
-    run("git", "pull", "--rebase")
+    upstream = run("git", "rev-parse", "--abbrev-ref", "--symbolic-full-name", "@{u}", capture=True).stdout.strip()
+    if not upstream:
+        raise SystemExit("current branch has no upstream")
+    run("git", "fetch")
+    try:
+        run("git", "merge-base", "--is-ancestor", upstream, "HEAD")
+    except subprocess.CalledProcessError as error:
+        raise SystemExit(f"{upstream} has commits not present in HEAD; rebase is required") from error
     run("git", "push")
 
 
