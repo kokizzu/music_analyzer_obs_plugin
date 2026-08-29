@@ -6167,6 +6167,23 @@ void check_keyboard_owned_clean_low_mid_guitar_display(Runner &runner)
 int run()
 {
 	Runner runner;
+	FullMixDebugCandidate low_other_guitar = {};
+	low_other_guitar.midi = 45;
+	low_other_guitar.owner = InstrumentKind::Other;
+	low_other_guitar.ownership_confidence = 0.86f;
+	low_other_guitar.other_score = 0.86f;
+	low_other_guitar.guitar_score = 0.14f;
+	low_other_guitar.spectral_level = 0.80f;
+	low_other_guitar.pitch_confidence = 0.55f;
+	low_other_guitar.periodicity = 0.74f;
+	low_other_guitar.harmonic_fit_error = 0.30f;
+	low_other_guitar.local_noise_level = 0.34f;
+	low_other_guitar.harmonic_ratios = {1.0f, 1.12f, 0.62f, 0.24f, 0.05f};
+	runner.expect(full_mix_display_mirror_supported(FullMixDisplayRow::Guitar, low_other_guitar, 45),
+		      "low other-owned guitar body: expected bounded A2 mirror");
+	low_other_guitar.midi = 48;
+	runner.expect(!full_mix_display_mirror_supported(FullMixDisplayRow::Guitar, low_other_guitar, 48),
+		      "low other-owned guitar body: expected range guard");
 	check_other_owned_electric_bass_body_recovery(runner);
 	check_keyboard_owned_clean_low_mid_guitar_display(runner);
 	check_auto_source_mode_resolution(runner);

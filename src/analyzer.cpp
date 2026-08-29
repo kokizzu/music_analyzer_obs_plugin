@@ -7116,6 +7116,18 @@ bool full_mix_display_mirror_supported(FullMixDisplayRow row, const FullMixDebug
 		return false;
 	if (ambiguous_shared_keyboard_guitar_display_supported(row, debug, display_midi))
 		return true;
+	const bool low_other_owned_guitar_body =
+		row == FullMixDisplayRow::Guitar && display_midi == debug.midi &&
+		debug.owner == InstrumentKind::Other && debug.midi >= 45 && debug.midi <= 47 &&
+		debug.ownership_confidence >= 0.82f && debug.other_score >= 0.80f &&
+		debug.guitar_score <= 0.20f && debug.spectral_level >= 0.55f &&
+		debug.pitch_confidence >= 0.35f && debug.pitch_confidence <= 0.72f &&
+		debug.periodicity >= 0.68f && debug.harmonic_fit_error >= 0.18f &&
+		debug.harmonic_fit_error <= 0.52f && debug.local_noise_level >= 0.28f &&
+		debug.local_noise_level <= 0.42f && debug.harmonic_ratios[1] >= 1.0f &&
+		debug.harmonic_ratios[2] >= 0.30f && debug.harmonic_ratios[3] >= 0.18f;
+	if (low_other_owned_guitar_body)
+		return true;
 
 	switch (row) {
 	case FullMixDisplayRow::Keyboard: {
