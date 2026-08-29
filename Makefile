@@ -9741,6 +9741,9 @@ commit-synthetic-c5-fundamentals:
 commit-generated-gm-hihat-recovery:
 	python3 scripts/commit_staged_source_changes.py --message "fix: recover generated GM hi-hat tails"
 
+commit-real-bass-tracking-diagnostics:
+	python3 scripts/commit_staged_source_changes.py --message "test: add external bass tracking diagnostics"
+
 inspect-drum-fixture-harness:
 	python3 scripts/inspect_drum_fixture_harness.py
 
@@ -9755,6 +9758,18 @@ inspect-hihat-suppression:
 
 inspect-hihat-drum-policy:
 	python3 scripts/inspect_analyzer_source_range.py 31480 31740
+
+inspect-bass-detector-paths:
+	python3 scripts/inspect_bass_detector_paths.py
+
+inspect-bass-alias-policy:
+	python3 scripts/inspect_analyzer_source_range.py 1000 1245
+
+report-sneakybass-octave-aliases:
+	python3 scripts/report_sneakybass_octave_aliases.py
+
+report-sneakybass-tracking-alignment:
+	python3 scripts/report_sneakybass_tracking_alignment.py
 
 test-instrument-synth-c5: build/analyzer_instrument_samples
 	MUSIC_ANALYZER_INSTRUMENT_SAMPLES_REQUIRED=1 MUSIC_ANALYZER_INSTRUMENT_SAMPLE_ROOT="build" MUSIC_ANALYZER_INSTRUMENT_SAMPLE_FILTER_FAMILY="synth" MUSIC_ANALYZER_INSTRUMENT_SAMPLE_FILTER_PATH="C5" build/analyzer_instrument_samples
