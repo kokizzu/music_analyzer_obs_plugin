@@ -295,10 +295,15 @@ int main()
 	for (std::size_t category_index = 0; category_index < kCategories.size(); ++category_index) {
 		const char *category = kCategories[category_index];
 		std::set<std::string> sources;
+		std::set<std::string> signatures;
 		std::vector<DrumRow> selected;
 		for (const DrumRow &row : manifest) {
-			if (row.category != category || !sources.insert(row.source).second)
+			if (row.category != category)
 				continue;
+			const bool new_source = sources.insert(row.source).second;
+			if (!new_source && !signatures.insert(row.path).second)
+				continue;
+			signatures.insert(row.path);
 			selected.push_back(row);
 			if (static_cast<int>(selected.size()) >= kMaximumSamplesPerCategory)
 				break;
