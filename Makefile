@@ -9861,6 +9861,9 @@ report-full-mix-other-attributes: build/analyzer_real_note_samples
 report-full-mix-vocal-attributes: build/analyzer_real_note_samples
 	python3 scripts/report_full_mix_vocal_attributes.py
 
+report-full-mix-vocal-feature-patterns:
+	python3 scripts/report_full_mix_vocal_feature_patterns.py
+
 test-full-mix-guitar-octave-alias: report-full-mix-guitar-attributes
 	python3 scripts/test_full_mix_guitar_octave_alias.py
 
