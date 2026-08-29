@@ -4569,6 +4569,19 @@ bool shared_vocal_pitch_display_supported(const FullMixDebugCandidate &debug)
 
 	if (measured_owned_formant_vocal_partial_supported(debug))
 		return true;
+	// Real vocal fundamentals often retain a clean period but are classified as
+	// keyboard, guitar, or other because their formants resemble an instrument.
+	// Mirror only strong, in-range fundamentals so this does not create a vocal
+	// octave alias from arbitrary upper partials.
+	const bool strong_misrouted_vocal_fundamental =
+		(debug.owner == InstrumentKind::Keyboard || debug.owner == InstrumentKind::Guitar ||
+		 debug.owner == InstrumentKind::Other || debug.owner == InstrumentKind::Ambiguous) &&
+		debug.midi >= kFullMixVocalMinMidi && debug.midi <= kVocalMaxMidi &&
+		debug.spectral_level >= 0.90f && debug.pitch_confidence >= 0.74f &&
+		debug.periodicity >= 0.70f && debug.harmonic_fit_error <= 0.10f &&
+		debug.local_noise_level <= 0.35f;
+	if (strong_misrouted_vocal_fundamental)
+		return true;
 
 	if (debug.owner != InstrumentKind::Keyboard && debug.owner != InstrumentKind::Other)
 		return false;

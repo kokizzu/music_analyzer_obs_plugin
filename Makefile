@@ -9880,3 +9880,8 @@ export-external-prepared-multitrack-attributes: build/analyzer_musicnet
 
 report-external-prepared-multitrack-attributes:
 	python3 scripts/report_prepared_multitrack_attributes.py
+profile-real-note-vocal-misses:
+	python3 scripts/profile_real_note_vocal_misses.py
+
+test-real-note-vocal-recall-regression: audit-real-note-vocals
+	python3 scripts/check_real_note_vocal_recall.py build/real_note_vocal_audit.out --minimum-hits 166
