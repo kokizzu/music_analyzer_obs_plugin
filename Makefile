@@ -9777,6 +9777,12 @@ report-sneakybass-tracking-alignment:
 inventory-external-fixture-sources:
 	python3 scripts/inventory_external_fixture_sources.py
 
+inspect-instrument-route-logic:
+	python3 scripts/inspect_instrument_route_logic.py
+
+commit-instrument-route-inspection:
+	python3 scripts/commit_staged_source_changes.py --message "test: inspect instrument route logic"
+
 test-instrument-synth-c5: build/analyzer_instrument_samples
 	MUSIC_ANALYZER_INSTRUMENT_SAMPLES_REQUIRED=1 MUSIC_ANALYZER_INSTRUMENT_SAMPLE_ROOT="build" MUSIC_ANALYZER_INSTRUMENT_SAMPLE_FILTER_FAMILY="synth" MUSIC_ANALYZER_INSTRUMENT_SAMPLE_FILTER_PATH="C5" build/analyzer_instrument_samples
 
