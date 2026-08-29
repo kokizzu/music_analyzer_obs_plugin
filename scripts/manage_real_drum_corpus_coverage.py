@@ -12,10 +12,12 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 PATHS = (
 	"src/analyzer.cpp",
-	"scripts/inspect_drum_detector_source.py",
+    "scripts/inspect_drum_detector_source.py",
+    "scripts/inspect_full_mix_attribute_report.py",
     "scripts/inspect_real_drum_runner.py",
     "scripts/manage_real_drum_corpus_coverage.py",
     "scripts/report_external_drum_manifests.py",
+    "scripts/report_full_mix_bass_attributes.py",
     "scripts/report_real_drum_corpus.sh",
 )
 MAKEFILE_BLOCKS = (
@@ -35,9 +37,25 @@ report-real-drum-corpus: build/analyzer_real_drum_samples scripts/report_real_dr
 report-real-drum-corpus-debug: build/analyzer_real_drum_samples scripts/report_real_drum_corpus.sh
 \tsh scripts/report_real_drum_corpus.sh --verbose
 """,
-	""".PHONY: test-real-drum-corpus
+    """.PHONY: test-real-drum-corpus
 test-real-drum-corpus: build/analyzer_real_drum_samples scripts/report_real_drum_corpus.sh
 \tsh scripts/report_real_drum_corpus.sh --verify
+""",
+    """.PHONY: inspect-full-mix-attribute-report
+inspect-full-mix-attribute-report: scripts/inspect_full_mix_attribute_report.py
+\tpython3 scripts/inspect_full_mix_attribute_report.py
+""",
+    """.PHONY: report-full-mix-piano-attributes
+report-full-mix-piano-attributes: build/analyzer_real_note_samples scripts/report_full_mix_bass_attributes.py
+\tpython3 scripts/report_full_mix_bass_attributes.py piano --all-shards
+
+.PHONY: report-full-mix-piano-attributes-shard0
+report-full-mix-piano-attributes-shard0: build/analyzer_real_note_samples scripts/report_full_mix_bass_attributes.py
+\tpython3 scripts/report_full_mix_bass_attributes.py piano
+
+.PHONY: report-full-mix-piano-attributes-sample
+report-full-mix-piano-attributes-sample: build/analyzer_real_note_samples scripts/report_full_mix_bass_attributes.py
+\tpython3 scripts/report_full_mix_bass_attributes.py piano --shard-count=16
 """,
     """.PHONY: commit-real-drum-corpus-coverage
 commit-real-drum-corpus-coverage: scripts/manage_real_drum_corpus_coverage.py
@@ -48,7 +66,7 @@ push-real-drum-corpus-coverage: scripts/manage_real_drum_corpus_coverage.py
 \tpython3 scripts/manage_real_drum_corpus_coverage.py push
 """,
 )
-MESSAGE = "analyzer: recover compact generic hi-hats"
+MESSAGE = "test: expand full mix ownership diagnostics"
 
 
 def run(*args: str, capture: bool = False) -> str:

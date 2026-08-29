@@ -10351,3 +10351,19 @@ push-real-drum-corpus-coverage: scripts/manage_real_drum_corpus_coverage.py
 .PHONY: test-real-drum-corpus
 test-real-drum-corpus: build/analyzer_real_drum_samples scripts/report_real_drum_corpus.sh
 	sh scripts/report_real_drum_corpus.sh --verify
+
+.PHONY: inspect-full-mix-attribute-report
+inspect-full-mix-attribute-report: scripts/inspect_full_mix_attribute_report.py
+	python3 scripts/inspect_full_mix_attribute_report.py
+
+.PHONY: report-full-mix-piano-attributes
+report-full-mix-piano-attributes: build/analyzer_real_note_samples scripts/report_full_mix_bass_attributes.py
+	python3 scripts/report_full_mix_bass_attributes.py piano --all-shards
+
+.PHONY: report-full-mix-piano-attributes-shard0
+report-full-mix-piano-attributes-shard0: build/analyzer_real_note_samples scripts/report_full_mix_bass_attributes.py
+	python3 scripts/report_full_mix_bass_attributes.py piano
+
+.PHONY: report-full-mix-piano-attributes-sample
+report-full-mix-piano-attributes-sample: build/analyzer_real_note_samples scripts/report_full_mix_bass_attributes.py
+	python3 scripts/report_full_mix_bass_attributes.py piano --shard-count=16
