@@ -22,10 +22,15 @@ PATHS = (
     "scripts/manage_detection_improvement_commit.py",
     "scripts/manage_real_drum_improvement_commit.py",
     "scripts/inspect_chord_temporal_tests.py",
+    "scripts/report_urmp_chord_cases.py",
+    "scripts/report_urmp_other_recovery_profile.py",
+    "scripts/report_urmp_chord_routes.py",
+    "scripts/manage_urmp_profile_replay.py",
+    "scripts/manage_analyzer_internal_test.py",
     "Makefile",
 )
 STAGE_PATHS = tuple(path for path in PATHS if path != "Makefile")
-MESSAGE = "analyzer: stabilize chord display"
+MESSAGE = "analyzer: fast-track unambiguous chords"
 
 
 def run(*args: str, capture: bool = False, stdin_text: str | None = None) -> subprocess.CompletedProcess[str]:
@@ -76,6 +81,43 @@ def stage_chord_temporal_makefile_target() -> None:
     run("git", "update-index", "--add", "--cacheinfo", f"100644,{object_id},Makefile")
 
 
+def stage_temporal_tools_makefile_targets() -> None:
+    block = (
+        ".PHONY: report-urmp-chord-routes-cached start-analyzer-internal-test "
+        "status-analyzer-internal-test start-urmp-profile-replay status-urmp-profile-replay\n"
+        "report-urmp-chord-routes-cached: scripts/report_urmp_chord_routes.py\n"
+        "\tpython3 scripts/report_urmp_chord_routes.py\n"
+        "\n"
+        "start-analyzer-internal-test: scripts/manage_analyzer_internal_test.py\n"
+        "\tpython3 scripts/manage_analyzer_internal_test.py start\n"
+        "\n"
+        "status-analyzer-internal-test: scripts/manage_analyzer_internal_test.py\n"
+        "\tpython3 scripts/manage_analyzer_internal_test.py status\n"
+        "\n"
+        "start-urmp-profile-replay: scripts/manage_urmp_profile_replay.py\n"
+        "\tpython3 scripts/manage_urmp_profile_replay.py start\n"
+        "\n"
+        "status-urmp-profile-replay: scripts/manage_urmp_profile_replay.py\n"
+        "\tpython3 scripts/manage_urmp_profile_replay.py status\n"
+    )
+    anchor = (
+        ".PHONY: push-chord-stability\n"
+        "push-chord-stability: scripts/manage_real_drum_improvement_commit.py\n"
+        "\tpython3 scripts/manage_real_drum_improvement_commit.py push\n"
+    )
+    worktree = (ROOT / "Makefile").read_text(encoding="utf-8")
+    if block not in worktree:
+        raise SystemExit("missing temporal replay targets in Makefile")
+    indexed = run("git", "show", ":Makefile", capture=True).stdout
+    if block in indexed:
+        return
+    if anchor not in indexed:
+        raise SystemExit("missing chord stability targets in indexed Makefile")
+    updated = indexed.replace(anchor, anchor + "\n" + block, 1)
+    object_id = run("git", "hash-object", "-w", "--stdin", capture=True, stdin_text=updated).stdout.strip()
+    run("git", "update-index", "--add", "--cacheinfo", f"100644,{object_id},Makefile")
+
+
 def apply() -> None:
     if not status().strip():
         raise SystemExit("no real-drum changes to stage")
@@ -87,6 +129,7 @@ def apply() -> None:
     run("git", "diff", "--check", "--", *PATHS)
     run("git", "add", "--", *STAGE_PATHS)
     stage_chord_temporal_makefile_target()
+    stage_temporal_tools_makefile_targets()
     run("git", "commit", "-m", MESSAGE)
 
 

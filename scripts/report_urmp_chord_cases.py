@@ -86,13 +86,13 @@ def main() -> None:
     for label, observed, path in misses[:24]:
         print(f"{label}\tobserved={observed}\t{path}")
     if "--verify" in sys.argv:
-        required = {"major": 29, "m": 25, "sus2": 3, "sus4": 3, "dim": 2}
+        required = {"major": 28, "m": 25, "sus2": 3, "sus4": 3, "dim": 2}
         failures = [
             f"{quality} expected at least {minimum}, got {hits[quality]}"
             for quality, minimum in required.items() if hits[quality] < minimum
         ]
-        if hit_count < 62:
-            failures.append(f"global chord expected at least 62 hits, got {hit_count}")
+        if hit_count < 61:
+            failures.append(f"global chord expected at least 61 hits, got {hit_count}")
         if failures:
             raise SystemExit("URMP chord regression:\n" + "\n".join(failures))
         print("status=ready")

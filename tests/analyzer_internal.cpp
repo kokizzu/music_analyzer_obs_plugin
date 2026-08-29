@@ -6079,6 +6079,14 @@ void check_chord_tracking_holds_partial_frames_and_clears_silence(Runner &runner
 	const ChordResult c = make_stable_chord("C", 0);
 	const ChordResult g = make_stable_chord("G", 7);
 	const ChordResult missing = {};
+	ChordResult strong_d = make_stable_chord("D", 2);
+	strong_d.confidence = 0.95f;
+	InstrumentState strong_state = {};
+	ChordTrackingState strong_tracking = {};
+	stabilize_chord(strong_state, strong_tracking, strong_d, strong_d, true, 0.05f);
+	runner.expect(std::strcmp(strong_state.label, "D") == 0,
+		      std::string("chord tracking strong initial: expected immediate unambiguous D, got `") +
+			      strong_state.label + "`");
 
 	stabilize_chord(state, tracking, c, c, true, 0.05f);
 	stabilize_chord(state, tracking, c, c, true, 0.05f);

@@ -10503,3 +10503,19 @@ commit-chord-stability: scripts/manage_real_drum_improvement_commit.py
 .PHONY: push-chord-stability
 push-chord-stability: scripts/manage_real_drum_improvement_commit.py
 	python3 scripts/manage_real_drum_improvement_commit.py push
+
+.PHONY: report-urmp-chord-routes-cached start-analyzer-internal-test status-analyzer-internal-test start-urmp-profile-replay status-urmp-profile-replay
+report-urmp-chord-routes-cached: scripts/report_urmp_chord_routes.py
+	python3 scripts/report_urmp_chord_routes.py
+
+start-analyzer-internal-test: scripts/manage_analyzer_internal_test.py
+	python3 scripts/manage_analyzer_internal_test.py start
+
+status-analyzer-internal-test: scripts/manage_analyzer_internal_test.py
+	python3 scripts/manage_analyzer_internal_test.py status
+
+start-urmp-profile-replay: scripts/manage_urmp_profile_replay.py
+	python3 scripts/manage_urmp_profile_replay.py start
+
+status-urmp-profile-replay: scripts/manage_urmp_profile_replay.py
+	python3 scripts/manage_urmp_profile_replay.py status

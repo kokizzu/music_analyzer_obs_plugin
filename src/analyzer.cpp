@@ -156,6 +156,7 @@ constexpr float kAnalyticalChordNoteReleaseSeconds = 0.22f;
 constexpr float kAnalyticalChordNoteVisibleFloor = 0.06f;
 constexpr int kNoteAttackConfirmFrames = 2;
 constexpr int kChordSwitchConfirmFrames = 2;
+constexpr float kChordImmediateConfirmFloor = 0.92f;
 constexpr float kChordHoldSeconds = 0.35f;
 constexpr float kChordConfidenceFloor = 0.36f;
 constexpr float kChordCandidateMarginFloor = 0.025f;
@@ -28392,7 +28393,9 @@ void stabilize_chord(InstrumentState &state, ChordTrackingState &tracking, const
 				tracking.pending_confidence = candidate.confidence;
 				tracking.pending_frames = 1;
 			}
-			if (tracking.pending_frames >= kChordSwitchConfirmFrames) {
+			const bool immediate_confirm =
+				!candidate.uncertain && candidate.confidence >= kChordImmediateConfirmFloor;
+			if (tracking.pending_frames >= kChordSwitchConfirmFrames || immediate_confirm) {
 				copy_text(tracking.displayed_label, sizeof(tracking.displayed_label), tracking.pending_label);
 				tracking.displayed_confidence = tracking.pending_confidence;
 				tracking.pending_label[0] = '\0';

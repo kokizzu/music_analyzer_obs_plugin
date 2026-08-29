@@ -64,6 +64,8 @@ def export_attributes() -> None:
         raise SystemExit(f"missing analyzer test binary: {ANALYZER}")
     if not FIXTURES.is_dir():
         raise SystemExit(f"missing URMP mixture fixtures: {FIXTURES}")
+    temporary_attributes = ATTRIBUTES.with_suffix(".tmp.tsv")
+    temporary_attributes.unlink(missing_ok=True)
     environment = os.environ.copy()
     environment.update(
         {
@@ -72,15 +74,19 @@ def export_attributes() -> None:
             "MUSIC_ANALYZER_REAL_NOTE_SAMPLES_REQUIRED": "1",
             "MUSIC_ANALYZER_REAL_NOTE_FULL_MIX": "1",
             "MUSIC_ANALYZER_REAL_NOTE_MAX_FAILURES": "999999",
-            "MUSIC_ANALYZER_REAL_NOTE_ATTRIBUTE_TSV": str(ATTRIBUTES),
+            "MUSIC_ANALYZER_REAL_NOTE_ATTRIBUTE_TSV": str(temporary_attributes),
         }
     )
     result = run([str(ANALYZER)], cwd=ROOT, env=environment, check=False,
                  capture_output=True, text=True)
     if result.returncode:
+        temporary_attributes.unlink(missing_ok=True)
         print(result.stdout, end="")
         print(result.stderr, end="")
         raise SystemExit(result.returncode)
+    if not temporary_attributes.is_file() or temporary_attributes.stat().st_size == 0:
+        raise SystemExit(f"URMP attribute export did not produce {temporary_attributes}")
+    temporary_attributes.replace(ATTRIBUTES)
 
 
 def main() -> None:
