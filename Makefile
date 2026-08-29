@@ -9731,3 +9731,16 @@ report-instrument-vocal-voice-oohs-g3:
 	$(PYTHON) scripts/report_voice_oohs_g3_attributes.py --attributes "$(BUILD_DIR)/voice_oohs_g3_attributes.tsv"
 commit-vocal-source-hint-recovery:
 	python3 scripts/commit_staged_source_changes.py --message "fix: recover low vocals from keyboard ownership"
+
+commit-synthetic-overtone-pruning:
+	python3 scripts/commit_staged_source_changes.py --message "fix: prefer synthetic note fundamentals over overtones"
+test-instrument-synth-saw-lead-c4: build/analyzer_instrument_samples
+	MUSIC_ANALYZER_INSTRUMENT_SAMPLES_REQUIRED=1 MUSIC_ANALYZER_INSTRUMENT_SAMPLE_ROOT="$(INSTRUMENT_SAMPLE_BUILD_ROOT)" MUSIC_ANALYZER_INSTRUMENT_SAMPLE_FILTER_FAMILY="synth" MUSIC_ANALYZER_INSTRUMENT_SAMPLE_FILTER_PROGRAM="saw_lead" MUSIC_ANALYZER_INSTRUMENT_SAMPLE_FILTER_PATH="C4" build/analyzer_instrument_samples
+
+analyze-instrument-synth-saw-lead-c4: build/analyzer_instrument_samples
+	MUSIC_ANALYZER_INSTRUMENT_SAMPLES_REQUIRED=1 MUSIC_ANALYZER_INSTRUMENT_SAMPLE_ROOT="$(INSTRUMENT_SAMPLE_BUILD_ROOT)" MUSIC_ANALYZER_INSTRUMENT_SAMPLE_FILTER_FAMILY="synth" MUSIC_ANALYZER_INSTRUMENT_SAMPLE_FILTER_PROGRAM="saw_lead" MUSIC_ANALYZER_INSTRUMENT_SAMPLE_FILTER_PATH="C4" MUSIC_ANALYZER_INSTRUMENT_ATTRIBUTE_TSV="$(BUILD_DIR)/saw_lead_c4_attributes.tsv" build/analyzer_instrument_samples
+
+report-instrument-synth-saw-lead-c4:
+	$(PYTHON) scripts/report_voice_oohs_g3_attributes.py --attributes "$(BUILD_DIR)/saw_lead_c4_attributes.tsv"
+inspect-synth-harmonic-paths:
+	python3 scripts/inspect_synth_harmonic_paths.py

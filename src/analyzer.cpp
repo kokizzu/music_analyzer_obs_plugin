@@ -9306,7 +9306,7 @@ NoteCandidateList prune_low_synthetic_other_harmonic_aliases(const NoteCandidate
 
 	int low_fundamental = -1;
 	for (const NoteCandidate &candidate : candidates) {
-		if (candidate.midi < kOtherMinMidi || candidate.midi > 48)
+		if (candidate.midi < kOtherMinMidi || candidate.midi > 60)
 			continue;
 		if (candidate.score < strongest * 0.18f)
 			continue;
@@ -9329,8 +9329,11 @@ NoteCandidateList prune_low_synthetic_other_harmonic_aliases(const NoteCandidate
 
 	NoteCandidateList pruned;
 	for (const NoteCandidate &candidate : candidates) {
+		// In an explicitly synthetic Other source, a dense stack above the
+		// lowest plausible fundamental is an overtone series, including octave
+		// aliases with the same pitch class. Keeping those octave aliases lets a
+		// high harmonic outrank the actual played note in the display grid.
 		if (candidate.midi != low_fundamental &&
-		    midi_pitch_class(candidate.midi) != midi_pitch_class(low_fundamental) &&
 		    low_synthetic_other_harmonic_interval(candidate.midi - low_fundamental, true))
 			continue;
 		pruned.push_back(candidate);
@@ -13450,7 +13453,7 @@ void prune_low_synthetic_other_note_grid_harmonic_aliases(NoteGrid &grid, Instru
 		return;
 
 	int low_fundamental = -1;
-	for (int midi = kOtherMinMidi; midi <= 48; ++midi) {
+	for (int midi = kOtherMinMidi; midi <= 60; ++midi) {
 		if (!active_midis[static_cast<std::size_t>(midi - kFirstMidi)])
 			continue;
 		const float level = note_grid_midi_level(grid, midi);
@@ -13477,8 +13480,9 @@ void prune_low_synthetic_other_note_grid_harmonic_aliases(NoteGrid &grid, Instru
 	for (int midi = low_fundamental + 1; midi <= kLastMidi; ++midi) {
 		if (!active_midis[static_cast<std::size_t>(midi - kFirstMidi)])
 			continue;
-		if (midi_pitch_class(midi) == midi_pitch_class(low_fundamental))
-			continue;
+		// Treat octave aliases as overtones too. This function is only called
+		// for the dense synthetic-Other harmonic path, where retaining C7 for a
+		// played C4 makes the display prefer the overtone over the fundamental.
 		if (low_synthetic_other_harmonic_interval(midi - low_fundamental, true))
 			clear_note_grid_midi(grid, midi);
 	}
