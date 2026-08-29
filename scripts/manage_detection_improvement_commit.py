@@ -31,6 +31,7 @@ PATHS = (
     "scripts/inspect_real_note_test_source.py",
     "scripts/plan_urmp_mixture_cases.py",
     "scripts/prepare_real_instrument_expansion.py",
+    "scripts/prepare_nsynth_test_fixtures.sh",
     "scripts/prepare_urmp_analyzer_cases.py",
     "scripts/prepare_urmp_multitrack_fixtures.py",
     "scripts/report_full_mix_bass_attributes.py",
@@ -51,6 +52,7 @@ PATHS = (
     "scripts/report_urmp_multitrack_inventory.py",
     "scripts/report_urmp_other_recovery_profile.py",
     "scripts/test_real_instrument_expansion.py",
+    "scripts/check_nsynth_test_fixtures.py",
     "scripts/manage_detection_improvement_commit.py",
 )
 MAKEFILE_BLOCK_START = ".PHONY: report-full-mix-bass-attributes"

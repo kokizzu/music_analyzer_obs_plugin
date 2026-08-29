@@ -9996,6 +9996,19 @@ test-urmp-chord-cases: build/analyzer_real_note_samples scripts/report_urmp_othe
 	python3 scripts/report_urmp_other_recovery_profile.py
 	python3 scripts/report_urmp_chord_cases.py --verify
 
+.PHONY: plan-nsynth-test-fixtures
+plan-nsynth-test-fixtures: scripts/prepare_nsynth_test_fixtures.sh
+	bash scripts/prepare_nsynth_test_fixtures.sh plan
+
+.PHONY: setup-nsynth-test-fixtures
+setup-nsynth-test-fixtures: scripts/prepare_nsynth_test_fixtures.sh
+	bash scripts/prepare_nsynth_test_fixtures.sh apply
+
+.PHONY: verify-nsynth-test-fixtures
+verify-nsynth-test-fixtures: scripts/prepare_nsynth_test_fixtures.sh scripts/check_nsynth_test_fixtures.py
+	bash scripts/prepare_nsynth_test_fixtures.sh verify
+	python3 scripts/check_nsynth_test_fixtures.py
+
 .PHONY: inspect-chord-detector-source
 inspect-chord-detector-source: scripts/inspect_chord_detector_source.py
 	python3 scripts/inspect_chord_detector_source.py
