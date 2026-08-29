@@ -72,6 +72,10 @@ inspect-note-grid-source: scripts/inspect_analyzer_section.py
 .PHONY: inspect-low-electronic-keyboard-source
 inspect-low-electronic-keyboard-source: scripts/inspect_analyzer_section.py
 \tpython3 scripts/inspect_analyzer_section.py --source src/analyzer.cpp --topic "low_electronic"
+
+.PHONY: inspect-low-keyboard-restore-source
+inspect-low-keyboard-restore-source: scripts/inspect_analyzer_section.py
+\tpython3 scripts/inspect_analyzer_section.py --source src/analyzer.cpp --topic "restore_full_mix_low_keyboard"
 """,
     """.PHONY: commit-real-drum-corpus-coverage
 commit-real-drum-corpus-coverage: scripts/manage_real_drum_corpus_coverage.py
@@ -82,7 +86,7 @@ push-real-drum-corpus-coverage: scripts/manage_real_drum_corpus_coverage.py
 \tpython3 scripts/manage_real_drum_corpus_coverage.py push
 """,
 )
-MESSAGE = "test: detail full mix ownership evidence"
+MESSAGE = "test: inspect low keyboard recovery"
 
 
 def run(*args: str, capture: bool = False) -> str:
