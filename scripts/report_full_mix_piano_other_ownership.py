@@ -34,7 +34,12 @@ def run_fixture() -> None:
 
 
 def expected_note_row(rows: list[dict[str, str]]) -> dict[str, str] | None:
-    matching = [row for row in rows if row["debug_midi"] == row["expected_midi"]]
+    last_buffer = max(float(row["buffer"]) for row in rows)
+    matching = [
+        row
+        for row in rows
+        if float(row["buffer"]) == last_buffer and row["debug_midi"] == row["expected_midi"]
+    ]
     if not matching:
         return None
     return max(matching, key=lambda row: float(row["debug_conf"]))

@@ -9855,6 +9855,10 @@ report-real-note-full-mix-shards:
 report-full-mix-guitar-attributes: build/analyzer_real_note_samples
 	python3 scripts/report_full_mix_guitar_attributes.py
 
+.PHONY: report-full-mix-guitar-visual-patterns
+report-full-mix-guitar-visual-patterns: report-full-mix-guitar-attributes
+	python3 scripts/report_full_mix_guitar_visual_patterns.py
+
 report-full-mix-other-attributes: build/analyzer_real_note_samples
 	python3 scripts/report_full_mix_other_attributes.py
 
@@ -9865,6 +9869,10 @@ report-full-mix-other-visual-patterns: report-full-mix-other-attributes
 .PHONY: report-full-mix-piano-other-ownership
 report-full-mix-piano-other-ownership: build/analyzer_real_note_samples
 	python3 scripts/report_full_mix_piano_other_ownership.py
+
+.PHONY: report-full-mix-piano-guitar-ownership
+report-full-mix-piano-guitar-ownership: build/analyzer_real_note_samples
+	python3 scripts/report_full_mix_piano_guitar_ownership.py
 
 report-full-mix-vocal-attributes: build/analyzer_real_note_samples
 	python3 scripts/report_full_mix_vocal_attributes.py
