@@ -953,6 +953,8 @@ void print_attribute_header(std::ostream &out)
 	    << "\tbass_level\tguitar_level\tpiano_level\tvocal_level\tother_level\tamb_level"
 	    << "\tbass_visual_level\tguitar_visual_level\tpiano_visual_level\tvocal_visual_level"
 	    << "\tother_visual_level\tamb_visual_level"
+	    << "\tbass_spectral_midi\tbass_spectral_confidence\tbass_spectral_score"
+	    << "\tbass_displayed_midi\tbass_displayed_confidence\tbass_displayed_score"
 	    << "\tbass_notes\tguitar_notes\tpiano_notes\tvocal_notes\tother_notes\tamb_notes"
 	    << "\tbass_visual_notes\tguitar_visual_notes\tpiano_visual_notes\tvocal_visual_notes"
 	    << "\tother_visual_notes\tamb_visual_notes"
@@ -1068,6 +1070,12 @@ void append_attribute_row(std::vector<std::string> &lines, const SampleRow &row,
 	append_tsv(line, grid_pitch_class_visual_level(snapshot.vocal_notes, row.midi));
 	append_tsv(line, grid_pitch_class_visual_level(snapshot.other_notes, row.midi));
 	append_tsv(line, grid_pitch_class_visual_level(snapshot.ambiguous_notes, row.midi));
+	append_tsv(line, snapshot.bass_debug_spectral_midi);
+	append_tsv(line, snapshot.bass_debug_spectral_confidence);
+	append_tsv(line, snapshot.bass_debug_spectral_score);
+	append_tsv(line, snapshot.bass_debug_displayed_midi);
+	append_tsv(line, snapshot.bass_debug_displayed_confidence);
+	append_tsv(line, snapshot.bass_debug_displayed_score);
 	append_tsv(line, grid_debug_label(snapshot.bass_notes));
 	append_tsv(line, grid_debug_label(snapshot.guitar_notes));
 	append_tsv(line, grid_debug_label(snapshot.keyboard_notes));
@@ -1171,6 +1179,9 @@ void append_attribute_rows(std::vector<std::string> &lines, const SampleRow &row
 		return;
 	}
 	const int expected_pitch = ((row.midi % 12) + 12) % 12;
+	const mao::NoteGrid &expected_grid = family_grid(snapshot, row.family);
+	const int displayed_midi = expected_grid.cells[expected_pitch].active ?
+		expected_grid.cells[expected_pitch].midi : -1;
 	bool wrote = false;
 	const std::size_t count =
 		std::min<std::size_t>(snapshot.full_mix_debug_candidate_count,
@@ -1178,7 +1189,8 @@ void append_attribute_rows(std::vector<std::string> &lines, const SampleRow &row
 	for (std::size_t i = 0; i < count; ++i) {
 		const mao::FullMixDebugCandidate &debug = snapshot.full_mix_debug_candidates[i];
 		if (debug.midi < mao::kFirstAnalyzedMidi || debug.midi > mao::kLastAnalyzedMidi ||
-		    ((debug.midi % 12) + 12) % 12 != expected_pitch)
+		    (displayed_midi >= 0 ? debug.midi != displayed_midi :
+		     ((debug.midi % 12) + 12) % 12 != expected_pitch))
 			continue;
 		append_attribute_row(lines, row, expected, buffer_index, full_mix, snapshot, expected_state,
 				     grid_ok, any_grid_ok, raw, &debug);

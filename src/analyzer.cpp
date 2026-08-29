@@ -7058,6 +7058,22 @@ bool ambiguous_shared_keyboard_guitar_display_supported(FullMixDisplayRow row,
 	return false;
 }
 
+bool keyboard_owned_sustained_acoustic_other_supported(const FullMixDebugCandidate &debug)
+{
+	return debug.owner == InstrumentKind::Keyboard &&
+	       debug.midi >= 55 && debug.midi <= 88 &&
+	       debug.keyboard_score >= 0.80f &&
+	       debug.guitar_score <= 0.05f && debug.vocal_score <= 0.05f &&
+	       debug.other_score <= 0.05f &&
+	       debug.spectral_level >= 0.45f &&
+	       debug.pitch_confidence >= 0.12f && debug.periodicity >= 0.55f &&
+	       debug.harmonic_fit_error <= 0.10f && debug.local_noise_level <= 0.42f &&
+	       debug.spectral_centroid >= 0.06f && debug.spectral_centroid <= 0.20f &&
+	       debug.spectral_slope >= 0.01f && debug.spectral_slope <= 0.22f &&
+	       debug.harmonic_ratios[1] <= 0.24f && debug.harmonic_ratios[2] <= 0.16f &&
+	       debug.harmonic_ratios[3] <= 0.14f && debug.harmonic_ratios[4] <= 0.08f;
+}
+
 bool full_mix_display_mirror_supported(FullMixDisplayRow row, const FullMixDebugCandidate &debug,
 				       int display_midi)
 {
@@ -8424,6 +8440,22 @@ bool full_mix_display_mirror_supported(FullMixDisplayRow row, const FullMixDebug
 			sustained_other &&
 			(debug.other_score >= 0.060f || high_wind_like_guitar_other ||
 			 hollow_reed_like_guitar_other);
+		// Generic mixes cannot reliably separate a clean sustained wind or bowed
+		// voice from keyboard using its harmonic envelope alone. Keep this as a
+		// secondary Other-row mirror rather than changing the primary owner.
+		const bool keyboard_owned_sustained_acoustic_other =
+			debug.owner == InstrumentKind::Keyboard &&
+			debug.midi >= 55 && debug.midi <= 88 &&
+			debug.keyboard_score >= 0.80f &&
+			debug.guitar_score <= 0.05f && debug.vocal_score <= 0.05f &&
+			debug.other_score <= 0.05f &&
+			debug.spectral_level >= 0.45f &&
+			debug.pitch_confidence >= 0.12f && debug.periodicity >= 0.55f &&
+			debug.harmonic_fit_error <= 0.10f && debug.local_noise_level <= 0.42f &&
+			debug.spectral_centroid >= 0.06f && debug.spectral_centroid <= 0.20f &&
+			debug.spectral_slope >= 0.01f && debug.spectral_slope <= 0.22f &&
+			debug.harmonic_ratios[1] <= 0.24f && debug.harmonic_ratios[2] <= 0.16f &&
+			debug.harmonic_ratios[3] <= 0.14f && debug.harmonic_ratios[4] <= 0.08f;
 		if (debug.owner == InstrumentKind::Guitar && debug.ownership_confidence >= 0.58f &&
 		    debug.other_score < 0.30f && !sustained_guitar_other && !bright_high_brass_other &&
 		    !low_weak_upper_string_other && !low_bowed_string_display_other &&
@@ -8446,6 +8478,7 @@ bool full_mix_display_mirror_supported(FullMixDisplayRow row, const FullMixDebug
 		       square_lead_display_other ||
 		       measured_keyboard_synth_other ||
 		       measured_keyboard_synth_other_priority_supported(debug) ||
+		       keyboard_owned_sustained_acoustic_other ||
 		       measured_string_other ||
 		       measured_mid_acoustic_other_body_supported(debug) ||
 		       measured_low_acoustic_string_body_supported(debug) ||
@@ -8528,15 +8561,19 @@ void add_full_mix_display_mirror(NoteCandidateList &candidates, const FullMixOwn
 	const std::size_t index = static_cast<std::size_t>(display_midi - kFirstMidi);
 	if (full_mix_row_display_midi_suppressed(ownership, row, display_midi))
 		return;
-	if (clean_owned_chord_context_for_row(ownership, debug, row))
+	const bool sustained_acoustic_other_mirror =
+		row == FullMixDisplayRow::Other &&
+		keyboard_owned_sustained_acoustic_other_supported(debug);
+	if (clean_owned_chord_context_for_row(ownership, debug, row) &&
+	    !sustained_acoustic_other_mirror)
 		return;
 	const bool candidate_exists = candidate_list_has_midi(candidates, display_midi);
 	if (row == FullMixDisplayRow::Other &&
-	    keyboard_owned_other_mirror_blocked_in_chord_context(ownership, debug))
+	    keyboard_owned_other_mirror_blocked_in_chord_context(ownership, debug) &&
+	    !sustained_acoustic_other_mirror)
 		return;
 	if (!full_mix_display_mirror_supported(row, debug, display_midi))
 		return;
-
 	float global_level = std::clamp(ownership.global_note_levels[index], 0.0f, 1.0f);
 	if (display_midi != debug.midi && debug.midi >= kFirstMidi && debug.midi <= kLastMidi) {
 		const std::size_t debug_index = static_cast<std::size_t>(debug.midi - kFirstMidi);
@@ -8638,6 +8675,14 @@ void add_full_mix_display_mirror(NoteCandidateList &candidates, const FullMixOwn
 	float candidate_score = base_score * std::clamp(global_level, 0.18f, 1.0f) *
 				mirror_score_scale;
 	float candidate_confidence = row == FullMixDisplayRow::Other ? 0.21f : 0.20f;
+	const bool confirmed_exact_guitar_owner =
+		row == FullMixDisplayRow::Guitar && display_midi == debug.midi &&
+		debug.owner == InstrumentKind::Guitar &&
+		debug.ownership_confidence >= 0.80f;
+	if (confirmed_exact_guitar_owner) {
+		candidate_score = std::max(candidate_score, base_score * 0.82f);
+		candidate_confidence = 1.0f;
+	}
 	const bool confirmed_exact_vocal_owner =
 		row == FullMixDisplayRow::Vocal &&
 		display_midi == debug.midi &&
@@ -10533,6 +10578,21 @@ InstrumentKind choose_full_mix_owner(const std::array<float, kNoteProbeCount> &p
 		evidence.spectral_slope <= 0.115f &&
 		evidence.spectral_centroid <= 0.220f &&
 		!lower_mid_bright_other_candidate;
+	// Physical guitar recordings frequently select the octave harmonic as the
+	// candidate.  This narrow clean-pluck envelope is distinct from the
+	// octave-up piano recordings: the third/fourth partials, centroid, slope,
+	// fit error, and local noise all remain substantially lower.
+	const bool measured_octave_harmonic_guitar_profile =
+		candidate.midi >= 52 && candidate.midi <= 76 &&
+		second >= 0.18f && second <= 0.36f &&
+		third >= 0.015f && third <= 0.075f &&
+		fourth <= 0.035f && fifth <= 0.030f &&
+		evidence.periodicity >= 0.76f &&
+		evidence.harmonic_fit_error <= 0.080f &&
+		evidence.spectral_centroid >= 0.09f && evidence.spectral_centroid <= 0.18f &&
+		evidence.spectral_slope >= 0.025f && evidence.spectral_slope <= 0.10f &&
+		evidence.local_noise_level <= 0.035f &&
+		!lower_mid_bright_other_candidate;
 	const bool clean_plucked_guitar_profile =
 		candidate.midi >= 52 && candidate.midi <= 76 &&
 		second >= 0.12f && second <= 0.24f &&
@@ -10626,7 +10686,8 @@ InstrumentKind choose_full_mix_owner(const std::array<float, kNoteProbeCount> &p
 	}
 	if (candidate.midi >= kGuitarMinMidi && candidate.midi <= kGuitarMaxMidi &&
 	    ((second >= 0.12f && third >= 0.035f) || octave_stack_guitar_profile ||
-	     sparse_acoustic_guitar_profile || clean_plucked_guitar_profile ||
+	     sparse_acoustic_guitar_profile || measured_octave_harmonic_guitar_profile ||
+	     clean_plucked_guitar_profile ||
 	     thin_plucked_guitar_profile || upper_clean_guitar_profile ||
 	     upper_harmonic_guitar_profile || distorted_harmonic_guitar_profile)) {
 		scores[1] = guitar_weight * 1.18f + second * 0.24f + third * 0.16f;
@@ -10634,6 +10695,8 @@ InstrumentKind choose_full_mix_owner(const std::array<float, kNoteProbeCount> &p
 			scores[1] += 0.60f + fourth * 0.34f + fifth * 0.20f;
 		if (sparse_acoustic_guitar_profile)
 			scores[1] += 0.48f + second * 0.14f;
+		if (measured_octave_harmonic_guitar_profile)
+			scores[1] += 0.82f + second * 0.16f;
 		if (clean_plucked_guitar_profile)
 			scores[1] += 0.52f + fourth * 0.18f;
 		if (thin_plucked_guitar_profile)
@@ -10687,6 +10750,8 @@ InstrumentKind choose_full_mix_owner(const std::array<float, kNoteProbeCount> &p
 				scores[2] *= 0.65f;
 			if (sparse_acoustic_guitar_profile)
 				scores[2] *= 0.30f;
+			if (measured_octave_harmonic_guitar_profile)
+				scores[2] *= 0.24f;
 			if (clean_plucked_guitar_profile)
 				scores[2] *= 0.38f;
 			if (thin_plucked_guitar_profile || upper_clean_guitar_profile ||
@@ -10772,6 +10837,8 @@ InstrumentKind choose_full_mix_owner(const std::array<float, kNoteProbeCount> &p
 	const bool supported_measured_sustained_voice_winner = best == 2 && measured_sustained_voice;
 	const bool supported_octave_stack_guitar_winner = best == 1 && octave_stack_guitar_profile;
 	const bool supported_sparse_acoustic_guitar_winner = best == 1 && sparse_acoustic_guitar_profile;
+	const bool supported_measured_octave_harmonic_guitar_winner =
+		best == 1 && measured_octave_harmonic_guitar_profile;
 	const bool supported_clean_plucked_guitar_winner = best == 1 && clean_plucked_guitar_profile;
 	const bool supported_thin_plucked_guitar_winner = best == 1 && thin_plucked_guitar_profile;
 	const bool supported_upper_clean_guitar_winner = best == 1 && upper_clean_guitar_profile;
@@ -10787,6 +10854,7 @@ InstrumentKind choose_full_mix_owner(const std::array<float, kNoteProbeCount> &p
 	const float probability_floor =
 		supported_measured_sustained_voice_winner ? 0.40f :
 		(supported_octave_stack_guitar_winner || supported_sparse_acoustic_guitar_winner ||
+		 supported_measured_octave_harmonic_guitar_winner ||
 		 supported_clean_plucked_guitar_winner || supported_thin_plucked_guitar_winner ||
 		 supported_upper_clean_guitar_winner ||
 		 supported_upper_harmonic_guitar_winner ||
@@ -10799,6 +10867,7 @@ InstrumentKind choose_full_mix_owner(const std::array<float, kNoteProbeCount> &p
 	const float margin_floor =
 		supported_measured_sustained_voice_winner ? 0.04f :
 		(supported_octave_stack_guitar_winner || supported_sparse_acoustic_guitar_winner ||
+		 supported_measured_octave_harmonic_guitar_winner ||
 		 supported_clean_plucked_guitar_winner || supported_thin_plucked_guitar_winner ||
 		 supported_upper_clean_guitar_winner ||
 		 supported_upper_harmonic_guitar_winner ||

@@ -9879,6 +9879,214 @@ report-full-mix-guitar-attack-patterns: report-full-mix-guitar-attack-attributes
 report-full-mix-piano-guitar-onset-ownership: build/analyzer_real_note_samples
 	python3 scripts/report_full_mix_piano_guitar_attack_ownership.py
 
+.PHONY: report-full-mix-bass-attributes
+report-full-mix-bass-attributes: build/analyzer_real_note_samples
+	python3 scripts/report_full_mix_bass_attributes.py
+
+.PHONY: report-real-note-fixture-inventory
+report-real-note-fixture-inventory: scripts/report_real_note_fixture_inventory.py
+	python3 scripts/report_real_note_fixture_inventory.py
+
+.PHONY: report-real-note-full-mix-attributes
+report-real-note-full-mix-attributes: build/analyzer_real_note_samples scripts/report_real_note_full_mix_attributes.py
+	python3 scripts/report_real_note_full_mix_attributes.py
+
+.PHONY: report-real-note-full-mix-attributes-reuse
+report-real-note-full-mix-attributes-reuse: scripts/report_real_note_full_mix_attributes.py
+	python3 scripts/report_real_note_full_mix_attributes.py --reuse
+
+.PHONY: report-guitar-profile-search
+report-guitar-profile-search: scripts/report_guitar_profile_search.py
+	python3 scripts/report_guitar_profile_search.py
+
+.PHONY: report-timbre-classifier
+report-timbre-classifier: scripts/report_timbre_classifier.py
+	python3 scripts/report_timbre_classifier.py
+
+.PHONY: plan-urmp-multitrack-fixtures
+plan-urmp-multitrack-fixtures: scripts/prepare_urmp_multitrack_fixtures.py
+	python3 scripts/prepare_urmp_multitrack_fixtures.py plan
+
+.PHONY: apply-urmp-multitrack-fixtures
+apply-urmp-multitrack-fixtures: scripts/prepare_urmp_multitrack_fixtures.py
+	python3 scripts/prepare_urmp_multitrack_fixtures.py apply
+
+.PHONY: report-urmp-multitrack-inventory
+report-urmp-multitrack-inventory: scripts/report_urmp_multitrack_inventory.py
+	python3 scripts/report_urmp_multitrack_inventory.py
+
+.PHONY: inspect-real-note-test-source
+inspect-real-note-test-source: scripts/inspect_real_note_test_source.py
+	python3 scripts/inspect_real_note_test_source.py
+
+.PHONY: plan-urmp-analyzer-cases
+plan-urmp-analyzer-cases: scripts/prepare_urmp_analyzer_cases.py
+	python3 scripts/prepare_urmp_analyzer_cases.py plan
+
+.PHONY: apply-urmp-analyzer-cases
+apply-urmp-analyzer-cases: scripts/prepare_urmp_analyzer_cases.py
+	python3 scripts/prepare_urmp_analyzer_cases.py apply
+
+.PHONY: report-urmp-analyzer-cases
+report-urmp-analyzer-cases: build/analyzer_real_note_samples scripts/report_urmp_analyzer_cases.py
+	python3 scripts/report_urmp_analyzer_cases.py
+
+.PHONY: test-urmp-analyzer-cases
+test-urmp-analyzer-cases: build/analyzer_real_note_samples scripts/report_urmp_analyzer_cases.py
+	python3 scripts/report_urmp_analyzer_cases.py --verify
+
+.PHONY: report-urmp-mixture-cases
+report-urmp-mixture-cases: build/analyzer_real_note_samples scripts/report_urmp_analyzer_cases.py
+	python3 scripts/report_urmp_analyzer_cases.py --mixtures
+
+.PHONY: test-urmp-mixture-cases
+test-urmp-mixture-cases: build/analyzer_real_note_samples scripts/report_urmp_analyzer_cases.py
+	python3 scripts/report_urmp_analyzer_cases.py --mixtures --verify
+
+.PHONY: inspect-full-mix-owner-source
+inspect-full-mix-owner-source: scripts/inspect_full_mix_owner_source.py
+	python3 scripts/inspect_full_mix_owner_source.py
+
+.PHONY: report-urmp-mixture-ownership-attributes
+report-urmp-mixture-ownership-attributes: scripts/report_urmp_mixture_ownership_attributes.py
+	python3 scripts/report_urmp_mixture_ownership_attributes.py
+
+.PHONY: report-urmp-other-recovery-profile
+report-urmp-other-recovery-profile: build/analyzer_real_note_samples scripts/report_urmp_other_recovery_profile.py
+	python3 scripts/report_urmp_other_recovery_profile.py
+
+.PHONY: report-urmp-other-recovery-profile-reuse
+report-urmp-other-recovery-profile-reuse: scripts/report_urmp_other_recovery_profile.py
+	python3 scripts/report_urmp_other_recovery_profile.py --reuse
+
+.PHONY: plan-detection-improvement-commit
+plan-detection-improvement-commit: scripts/manage_detection_improvement_commit.py
+	python3 scripts/manage_detection_improvement_commit.py plan
+
+.PHONY: apply-detection-improvement-commit
+apply-detection-improvement-commit: scripts/manage_detection_improvement_commit.py
+	python3 scripts/manage_detection_improvement_commit.py apply
+
+.PHONY: commit-detection-improvement
+commit-detection-improvement: scripts/manage_detection_improvement_commit.py
+	python3 scripts/manage_detection_improvement_commit.py commit
+
+.PHONY: push-detection-improvement
+push-detection-improvement: scripts/manage_detection_improvement_commit.py
+	python3 scripts/manage_detection_improvement_commit.py push
+
+.PHONY: inspect-analysis-snapshot-source
+inspect-analysis-snapshot-source: scripts/inspect_analysis_snapshot_source.py
+	python3 scripts/inspect_analysis_snapshot_source.py
+
+.PHONY: inspect-full-mix-debug-write-source
+inspect-full-mix-debug-write-source: scripts/inspect_full_mix_debug_write_source.py
+	python3 scripts/inspect_full_mix_debug_write_source.py
+
+.PHONY: inspect-mixed-other-display-source
+inspect-mixed-other-display-source: scripts/inspect_mixed_other_display_source.py
+	python3 scripts/inspect_mixed_other_display_source.py
+
+.PHONY: inspect-full-mix-other-predicates-source
+inspect-full-mix-other-predicates-source: scripts/inspect_full_mix_other_predicates_source.py
+	python3 scripts/inspect_full_mix_other_predicates_source.py
+
+.PHONY: plan-urmp-mixture-cases
+plan-urmp-mixture-cases: scripts/plan_urmp_mixture_cases.py
+	python3 scripts/plan_urmp_mixture_cases.py
+
+.PHONY: apply-urmp-mixture-cases
+apply-urmp-mixture-cases: scripts/plan_urmp_mixture_cases.py
+	python3 scripts/plan_urmp_mixture_cases.py apply
+
+.PHONY: plan-real-instrument-expansion-fixtures
+plan-real-instrument-expansion-fixtures: scripts/prepare_real_instrument_expansion.py
+	python3 scripts/prepare_real_instrument_expansion.py plan
+
+.PHONY: apply-real-instrument-expansion-fixtures
+apply-real-instrument-expansion-fixtures: scripts/prepare_real_instrument_expansion.py
+	python3 scripts/prepare_real_instrument_expansion.py apply
+
+.PHONY: test-real-instrument-expansion
+test-real-instrument-expansion: build/analyzer_real_note_samples scripts/test_real_instrument_expansion.py
+	python3 scripts/test_real_instrument_expansion.py
+
+.PHONY: report-full-mix-display-mirror-source
+report-full-mix-display-mirror-source: scripts/report_full_mix_display_mirror_source.py
+	python3 scripts/report_full_mix_display_mirror_source.py
+
+.PHONY: report-full-mix-bass-attributes-script
+report-full-mix-bass-attributes-script: scripts/report_full_mix_bass_attributes_script.py
+	python3 scripts/report_full_mix_bass_attributes_script.py
+
+.PHONY: report-full-mix-ownership-signatures
+report-full-mix-ownership-signatures: scripts/report_full_mix_ownership_signatures.py
+	python3 scripts/report_full_mix_ownership_signatures.py
+
+.PHONY: report-real-instrument-expansion-bass-attributes
+report-real-instrument-expansion-bass-attributes: build/analyzer_real_note_samples scripts/report_real_instrument_expansion_bass_attributes.py
+	python3 scripts/report_real_instrument_expansion_bass_attributes.py
+
+.PHONY: report-real-instrument-expansion-guitar-attributes
+report-real-instrument-expansion-guitar-attributes: build/analyzer_real_note_samples scripts/report_real_instrument_expansion_bass_attributes.py
+	python3 scripts/report_real_instrument_expansion_bass_attributes.py --family guitar
+
+.PHONY: report-real-instrument-expansion-piano-attributes
+report-real-instrument-expansion-piano-attributes: build/analyzer_real_note_samples scripts/report_real_instrument_expansion_bass_attributes.py
+	python3 scripts/report_real_instrument_expansion_bass_attributes.py --family piano
+
+.PHONY: report-real-instrument-expansion-other-attributes
+report-real-instrument-expansion-other-attributes: build/analyzer_real_note_samples scripts/report_real_instrument_expansion_bass_attributes.py
+	python3 scripts/report_real_instrument_expansion_bass_attributes.py --family other
+
+.PHONY: report-real-instrument-expansion-flute-attributes
+report-real-instrument-expansion-flute-attributes: build/analyzer_real_note_samples scripts/report_real_instrument_expansion_bass_attributes.py
+	python3 scripts/report_real_instrument_expansion_bass_attributes.py --family other --source tinysol-flute
+
+.PHONY: inspect-real-instrument-attribute-reporter
+inspect-real-instrument-attribute-reporter: scripts/inspect_real_instrument_reporter_source.py
+	python3 scripts/inspect_real_instrument_reporter_source.py
+
+.PHONY: inspect-real-note-attribute-source
+inspect-real-note-attribute-source: scripts/inspect_real_note_attribute_source.py
+	python3 scripts/inspect_real_note_attribute_source.py
+
+.PHONY: inspect-real-instrument-expansion-preparer
+inspect-real-instrument-expansion-preparer: scripts/inspect_real_instrument_expansion_preparer_source.py
+	python3 scripts/inspect_real_instrument_expansion_preparer_source.py
+
+.PHONY: inspect-real-instrument-expansion-test
+inspect-real-instrument-expansion-test: scripts/inspect_real_instrument_expansion_test_source.py
+	python3 scripts/inspect_real_instrument_expansion_test_source.py
+
+.PHONY: report-tinysol-fixture-categories
+report-tinysol-fixture-categories: scripts/report_tinysol_fixture_categories.py
+	python3 scripts/report_tinysol_fixture_categories.py
+
+.PHONY: inspect-mixed-owner-source
+inspect-mixed-owner-source: scripts/inspect_mixed_owner_source.py
+	python3 scripts/inspect_mixed_owner_source.py
+
+.PHONY: inspect-full-mix-display-flow-source
+inspect-full-mix-display-flow-source: scripts/inspect_full_mix_display_flow_source.py
+	python3 scripts/inspect_full_mix_display_flow_source.py
+
+.PHONY: report-full-mix-vocal-guitar-collisions
+report-full-mix-vocal-guitar-collisions: build/analyzer_real_note_samples scripts/report_full_mix_vocal_guitar_collisions.py
+	python3 scripts/report_full_mix_vocal_guitar_collisions.py
+
+.PHONY: snapshot-full-mix-vocal-guitar-collisions-baseline
+snapshot-full-mix-vocal-guitar-collisions-baseline: build/analyzer_real_note_samples scripts/report_full_mix_vocal_guitar_collisions.py
+	python3 scripts/report_full_mix_vocal_guitar_collisions.py --snapshot baseline
+
+.PHONY: snapshot-full-mix-vocal-guitar-collisions-candidate
+snapshot-full-mix-vocal-guitar-collisions-candidate: build/analyzer_real_note_samples scripts/report_full_mix_vocal_guitar_collisions.py
+	python3 scripts/report_full_mix_vocal_guitar_collisions.py --snapshot candidate
+
+.PHONY: compare-full-mix-vocal-guitar-collisions
+compare-full-mix-vocal-guitar-collisions: scripts/report_full_mix_vocal_guitar_collisions.py
+	python3 scripts/report_full_mix_vocal_guitar_collisions.py --compare baseline candidate
+
 report-full-mix-other-attributes: build/analyzer_real_note_samples
 	python3 scripts/report_full_mix_other_attributes.py
 
