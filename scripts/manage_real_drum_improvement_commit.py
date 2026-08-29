@@ -30,7 +30,7 @@ PATHS = (
     "Makefile",
 )
 STAGE_PATHS = tuple(path for path in PATHS if path != "Makefile")
-MESSAGE = "analyzer: fast-track unambiguous chords"
+MESSAGE = "analyzer: recover clean midrange guitar"
 
 
 def run(*args: str, capture: bool = False, stdin_text: str | None = None) -> subprocess.CompletedProcess[str]:

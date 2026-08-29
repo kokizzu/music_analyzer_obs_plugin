@@ -6110,9 +6110,30 @@ void check_chord_tracking_holds_partial_frames_and_clears_silence(Runner &runner
 		      std::string("chord tracking silence: expected cleared G after hold, got `") + state.label + "`");
 }
 
+void check_keyboard_owned_clean_low_mid_guitar_display(Runner &runner)
+{
+	FullMixDebugCandidate debug = {};
+	debug.owner = InstrumentKind::Keyboard;
+	debug.midi = 60;
+	debug.keyboard_score = 0.91f;
+	debug.guitar_score = 0.16f;
+	debug.spectral_level = 0.92f;
+	debug.pitch_confidence = 0.90f;
+	debug.periodicity = 0.76f;
+	debug.harmonic_fit_error = 0.042f;
+	debug.local_noise_level = 0.030f;
+	debug.spectral_centroid = 0.068f;
+	debug.spectral_slope = 0.031f;
+	debug.harmonic_ratios = {1.0f, 0.096f, 0.020f, 0.004f, 0.002f};
+
+	runner.expect(full_mix_display_mirror_supported(FullMixDisplayRow::Guitar, debug, debug.midi),
+		      "clean low-mid guitar mirror: expected keyboard-owned C4 clean pluck to remain visible on guitar");
+}
+
 int run()
 {
 	Runner runner;
+	check_keyboard_owned_clean_low_mid_guitar_display(runner);
 	check_auto_source_mode_resolution(runner);
 	check_low_acoustic_bass_suboctave_display(runner);
 	check_low_brass_suboctave_display(runner);

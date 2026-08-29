@@ -7693,9 +7693,12 @@ bool full_mix_display_mirror_supported(FullMixDisplayRow row, const FullMixDebug
 			debug.spectral_centroid >= 0.12f &&
 			debug.spectral_centroid <= 0.22f &&
 			debug.spectral_slope <= 0.28f;
-		const bool pure_keyboard_owned_high_guitar_body =
+		// Cleanly plucked guitar fundamentals can be nearly sinusoidal, especially
+		// on the middle strings. Keep this as a Guitar-row mirror so the primary
+		// Keyboard ownership remains available for similarly shaped instruments.
+		const bool pure_keyboard_owned_clean_guitar_body =
 			debug.owner == InstrumentKind::Keyboard &&
-			debug.midi >= 68 && debug.midi <= 76 &&
+			debug.midi >= 52 && debug.midi <= 76 &&
 			debug.spectral_level >= 0.80f &&
 			debug.pitch_confidence >= 0.84f &&
 			debug.periodicity >= 0.68f &&
@@ -7988,7 +7991,7 @@ bool full_mix_display_mirror_supported(FullMixDisplayRow row, const FullMixDebug
 		       mid_vocal_like_acoustic_body ||
 		       clean_high_keyboard_owned_acoustic_body ||
 		       bright_keyboard_owned_high_guitar_body ||
-		       pure_keyboard_owned_high_guitar_body ||
+		       pure_keyboard_owned_clean_guitar_body ||
 		       resonant_mid_ambiguous_acoustic_body ||
 		       bright_mid_ambiguous_acoustic_body ||
 		       very_high_clean_acoustic_body ||
