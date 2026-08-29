@@ -9975,6 +9975,10 @@ commit-detection-improvement: scripts/manage_detection_improvement_commit.py
 push-detection-improvement: scripts/manage_detection_improvement_commit.py
 	python3 scripts/manage_detection_improvement_commit.py push
 
+.PHONY: debug-urmp-mixture-case
+debug-urmp-mixture-case: build/analyzer_real_note_samples scripts/debug_urmp_mixture_case.py
+	python3 scripts/debug_urmp_mixture_case.py
+
 .PHONY: inspect-analysis-snapshot-source
 inspect-analysis-snapshot-source: scripts/inspect_analysis_snapshot_source.py
 	python3 scripts/inspect_analysis_snapshot_source.py

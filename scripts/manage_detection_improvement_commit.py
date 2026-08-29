@@ -15,6 +15,7 @@ MESSAGE = "analyzer: improve real mix instrument recall"
 PATHS = (
     "src/analyzer.cpp",
     "tests/analyzer_real_note_samples.cpp",
+    "scripts/debug_urmp_mixture_case.py",
     "scripts/inspect_analysis_snapshot_source.py",
     "scripts/inspect_full_mix_debug_write_source.py",
     "scripts/inspect_full_mix_display_flow_source.py",
@@ -76,10 +77,17 @@ def makefile_patch() -> str:
         raise SystemExit("detection Makefile block was not found")
     block = current_text[start:end]
     base_text = base.stdout
-    anchor = base_text.find(MAKEFILE_BLOCK_END)
-    if anchor < 0:
-        raise SystemExit("HEAD Makefile anchor was not found")
-    desired = base_text[:anchor] + block + base_text[anchor:]
+    base_start = base_text.find(MAKEFILE_BLOCK_START)
+    if base_start >= 0:
+        base_end = base_text.find(MAKEFILE_BLOCK_END, base_start)
+        if base_end < 0:
+            raise SystemExit("HEAD detection Makefile block end was not found")
+        desired = base_text[:base_start] + block + base_text[base_end:]
+    else:
+        anchor = base_text.find(MAKEFILE_BLOCK_END)
+        if anchor < 0:
+            raise SystemExit("HEAD Makefile anchor was not found")
+        desired = base_text[:anchor] + block + base_text[anchor:]
     return "".join(difflib.unified_diff(
         base_text.splitlines(keepends=True), desired.splitlines(keepends=True),
         fromfile="a/Makefile", tofile="b/Makefile"))
