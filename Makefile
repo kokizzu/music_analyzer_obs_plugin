@@ -8724,8 +8724,20 @@ profile-drum-primary-confusions: build/analyzer_drum_samples
 profile-drum-primary-confusions-hihat: build/analyzer_drum_samples
 	DRUM_PROFILE_CATEGORY=hihat python3 scripts/profile_drum_primary_confusions.py
 
+profile-drum-primary-confusions-snare: build/analyzer_drum_samples
+	DRUM_PROFILE_CATEGORY=snare python3 scripts/profile_drum_primary_confusions.py
+
 profile-drum-primary-confusions-ride: build/analyzer_drum_samples
 	DRUM_PROFILE_CATEGORY=ride python3 scripts/profile_drum_primary_confusions.py
+
+test-drum-tom-primary-regression: build/analyzer_drum_samples
+	python3 scripts/test_drum_tom_primary_regression.py
+
+report-drum-tom-body-snare-tie-tom: build/analyzer_drum_samples
+	DRUM_RULE_HIT_CATEGORY=tom python3 scripts/report_drum_rule_hits.py
+
+report-drum-tom-body-snare-tie-snare: build/analyzer_drum_samples
+	DRUM_RULE_HIT_CATEGORY=snare python3 scripts/report_drum_rule_hits.py
 
 report-drum-classifier-source:
 	python3 scripts/report_drum_classifier_source.py

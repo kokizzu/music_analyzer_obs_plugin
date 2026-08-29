@@ -103,6 +103,7 @@ enum DrumDebugRuleFlag : uint64_t {
 	DrumDebugStrongTransientCrashRecovery = 1ull << 28,
 	DrumDebugHighLocalHihatRecovery = 1ull << 29,
 	DrumDebugDenseFullMixHihatRecovery = 1ull << 30,
+	DrumDebugTomBodySnareTieRecovery = 1ull << 31,
 };
 
 enum class AnalysisInputMode {

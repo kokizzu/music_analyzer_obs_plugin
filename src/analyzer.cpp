@@ -35389,6 +35389,25 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 	if (final_one_shot_measured_saturated_tom_snare_primary_recovery)
 		promote_drum_primary(Snare, 0.90f);
 
+	// A sampled tom can retain a nearly saturated snare envelope from its attack
+	// even when its shell body and upper resonance are decisively tom-shaped.
+	// Only resolve close, non-saturated ties with a materially stronger tom body.
+	// Low-heavy hits and a disproportionately large upper resonance are common
+	// on snares, so leave those with the existing snare arbitration. Keep this
+	// in one-shot mode because full mixes need the existing bleed caps.
+	const bool final_one_shot_measured_tom_body_snare_primary_recovery =
+		drum_detection_enabled && one_shot_drum_source && !generated_gm_drum_source &&
+		body_shape == Tom && drum_level_[Tom] >= 0.88f && drum_level_[Tom] <= 0.96f &&
+		drum_level_[Snare] >= drum_level_[Tom] &&
+		drum_level_[Snare] <= drum_level_[Tom] + 0.10f &&
+		tom_body >= snare_body * 1.50f && snapshot.low_energy <= 0.40f &&
+		upper_tom_body >= snare_crack * 3.0f && upper_tom_body <= snare_crack * 8.0f &&
+		snapshot.high_energy <= 0.25f;
+	if (final_one_shot_measured_tom_body_snare_primary_recovery)
+		snapshot.drum_debug_rule_flags |= DrumDebugTomBodySnareTieRecovery;
+	if (final_one_shot_measured_tom_body_snare_primary_recovery)
+		promote_drum_primary(Tom, 0.90f);
+
 	// A compact snare-only Beatles stem produces a second, near-saturated rim
 	// candidate through the same mid-band transient.  The low kick body and
 	// tightly bounded rim/snare bands distinguish it from genuine rim attacks.
