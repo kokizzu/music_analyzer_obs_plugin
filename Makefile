@@ -10519,3 +10519,37 @@ start-urmp-profile-replay: scripts/manage_urmp_profile_replay.py
 
 status-urmp-profile-replay: scripts/manage_urmp_profile_replay.py
 	python3 scripts/manage_urmp_profile_replay.py status
+
+.PHONY: inspect-vocadito-fixtures plan-vocadito-fixtures apply-vocadito-fixtures
+inspect-vocadito-fixtures: scripts/manage_vocadito_fixtures.py
+	python3 scripts/manage_vocadito_fixtures.py inspect
+
+plan-vocadito-fixtures: scripts/manage_vocadito_fixtures.py
+	python3 scripts/manage_vocadito_fixtures.py plan
+
+apply-vocadito-fixtures: scripts/manage_vocadito_fixtures.py
+	python3 scripts/manage_vocadito_fixtures.py apply
+
+.PHONY: plan-vocadito-midrange-fixtures apply-vocadito-midrange-fixtures
+plan-vocadito-midrange-fixtures: scripts/prepare_vocadito_midrange_fixtures.py
+	python3 scripts/prepare_vocadito_midrange_fixtures.py plan
+
+apply-vocadito-midrange-fixtures: scripts/prepare_vocadito_midrange_fixtures.py
+	python3 scripts/prepare_vocadito_midrange_fixtures.py apply
+
+.PHONY: report-vocadito-midrange-samples test-vocadito-midrange-samples
+report-vocadito-midrange-samples: build/analyzer_real_note_samples apply-vocadito-midrange-fixtures scripts/test_vocadito_midrange.py
+	python3 scripts/test_vocadito_midrange.py
+
+test-vocadito-midrange-samples: build/analyzer_real_note_samples apply-vocadito-midrange-fixtures scripts/test_vocadito_midrange.py
+	python3 scripts/test_vocadito_midrange.py --verify
+
+.PHONY: plan-vocadito-fixture-commit commit-vocadito-fixture-commit push-vocadito-fixture-commit
+plan-vocadito-fixture-commit: scripts/manage_vocadito_fixture_commit.py
+	python3 scripts/manage_vocadito_fixture_commit.py plan
+
+commit-vocadito-fixture-commit: scripts/manage_vocadito_fixture_commit.py
+	python3 scripts/manage_vocadito_fixture_commit.py commit
+
+push-vocadito-fixture-commit: scripts/manage_vocadito_fixture_commit.py
+	python3 scripts/manage_vocadito_fixture_commit.py push
