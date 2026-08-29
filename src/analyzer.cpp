@@ -10225,7 +10225,15 @@ bool full_mix_vocal_tone_profile_supported(const NoteEvidence &evidence, int mid
 		return false;
 	if (evidence.periodicity < (high_register ? 0.42f : 0.34f))
 		return false;
-	if (evidence.local_noise_level > (high_register ? 0.22f : 0.34f) ||
+	const bool potential_rich_low_polyphonic_voice =
+		!high_register && midi >= 40 && midi <= 60 && second >= 0.30f && second <= 0.56f &&
+		third >= 0.18f && third <= 0.56f && fourth <= 0.28f && fifth <= 0.12f &&
+		evidence.pitch_confidence >= 0.68f && evidence.periodicity >= 0.64f &&
+		evidence.harmonic_fit_error <= 0.13f && evidence.spectral_slope >= 0.22f &&
+		evidence.spectral_slope <= 0.60f && evidence.local_noise_level >= 0.20f &&
+		evidence.local_noise_level <= 0.60f;
+	if ((evidence.local_noise_level > (high_register ? 0.22f : 0.34f) &&
+	     !potential_rich_low_polyphonic_voice) ||
 	    evidence.harmonic_fit_error > (high_register ? 0.40f : 0.58f))
 		return false;
 	if (evidence.spectral_centroid > (high_register ? 0.24f : 0.36f))
@@ -10260,19 +10268,43 @@ bool full_mix_vocal_tone_profile_supported(const NoteEvidence &evidence, int mid
 	const bool rich_sustained_voice =
 		!high_register && second >= 0.08f && second <= 0.32f && third <= 0.22f &&
 		fourth <= 0.145f && fifth <= 0.085f && evidence.spectral_slope <= 0.42f;
+	// Sustained belting voices can concentrate energy in the third partial while
+	// retaining a compact, clean midrange body. This differs from the broader
+	// rich profile above and is bounded to the measured VocalSet range.
+	const bool measured_midrange_belt_voice =
+		!high_register && midi >= 60 && midi <= 69 && second >= 0.04f && second <= 0.16f &&
+		third >= 0.24f && third <= 0.42f && fourth <= 0.070f && fifth <= 0.040f &&
+		evidence.spectral_level >= 0.85f && evidence.pitch_confidence >= 0.85f &&
+		evidence.periodicity >= 0.75f && evidence.harmonic_fit_error <= 0.15f &&
+		evidence.spectral_centroid >= 0.16f && evidence.spectral_centroid <= 0.25f &&
+		evidence.spectral_slope >= 0.25f && evidence.spectral_slope <= 0.42f &&
+		evidence.local_noise_level <= 0.10f;
+	const bool rich_low_polyphonic_voice = potential_rich_low_polyphonic_voice;
 	const bool measured_sustained_voice =
 		measured_full_mix_sustained_voice_profile(evidence, midi, second, third, fourth, fifth);
 	return clean_sustained_like_partials || near_pure_tone_voice || measured_clean_high_vowel_voice ||
 	       midrange_sustained_voice ||
-	       rich_sustained_voice || measured_sustained_voice;
+	       rich_sustained_voice || measured_midrange_belt_voice || rich_low_polyphonic_voice ||
+	       measured_sustained_voice;
 }
 
-bool full_mix_polyphonic_vocal_profile_supported(int midi, float second)
+bool full_mix_polyphonic_vocal_profile_supported(const NoteEvidence &evidence, int midi, float second,
+								 float third, float fourth, float fifth)
 {
 	// Real low-register voices regularly share an analysis window with
 	// accompaniment. Keep this narrow: the light second partial distinguishes
 	// them from the denser keyboard profile used in the full-mix regressions.
-	return midi <= 64 && second <= 0.15f;
+	const bool sparse_low_voice = midi <= 64 && second <= 0.15f;
+	// Vocadito low voices can retain a rich second and third partial while their
+	// smooth, moderately noisy spectral body remains unlike a picked string.
+	const bool rich_low_voice =
+		midi >= 40 && midi <= 60 && second >= 0.30f && second <= 0.56f &&
+		third >= 0.18f && third <= 0.56f && fourth <= 0.28f && fifth <= 0.12f &&
+		evidence.pitch_confidence >= 0.68f && evidence.periodicity >= 0.64f &&
+		evidence.harmonic_fit_error <= 0.13f && evidence.spectral_slope >= 0.22f &&
+		evidence.spectral_slope <= 0.60f && evidence.local_noise_level >= 0.20f &&
+		evidence.local_noise_level <= 0.60f;
+	return sparse_low_voice || rich_low_voice;
 }
 
 bool full_mix_vocal_profile_supported(NoteEvidence &evidence, int midi, float second, float third,
@@ -10282,7 +10314,7 @@ bool full_mix_vocal_profile_supported(NoteEvidence &evidence, int midi, float se
 		full_mix_vocal_tone_profile_supported(evidence, midi, second, third, fourth, fifth);
 	evidence.vocal_tone_profile_supported = tone_profile;
 	const bool polyphonic_profile_supported =
-		full_mix_polyphonic_vocal_profile_supported(midi, second);
+		full_mix_polyphonic_vocal_profile_supported(evidence, midi, second, third, fourth, fifth);
 	evidence.vocal_rejected_for_polyphony =
 		tone_profile && polyphonic_vocal_context && !polyphonic_profile_supported;
 	return tone_profile && (!polyphonic_vocal_context || polyphonic_profile_supported);
@@ -10356,8 +10388,12 @@ InstrumentKind choose_full_mix_owner(const std::array<float, kNoteProbeCount> &p
 	const float fit_penalty = std::clamp(1.0f - evidence.harmonic_fit_error * 0.32f, 0.52f, 1.0f);
 
 	std::array<float, 4> scores = {};
+	const bool low_full_mix_vocal_candidate =
+		candidate.midi >= kVocalMinMidi && candidate.midi < kFullMixVocalMinMidi &&
+		full_mix_polyphonic_vocal_profile_supported(evidence, candidate.midi, second, third, fourth, fifth);
 	const bool vocal_supported =
-		candidate.midi >= kFullMixVocalMinMidi && candidate.midi <= kVocalMaxMidi &&
+		(candidate.midi >= kFullMixVocalMinMidi || low_full_mix_vocal_candidate) &&
+		candidate.midi <= kVocalMaxMidi &&
 		full_mix_vocal_profile_supported(evidence, candidate.midi, second, third, fourth, fifth,
 						 polyphonic_vocal_context);
 	const bool measured_sustained_voice =
@@ -10672,7 +10708,7 @@ InstrumentKind choose_full_mix_owner(const std::array<float, kNoteProbeCount> &p
 	evidence.ownership_scores[static_cast<std::size_t>(InstrumentKind::Other)] = scores[3] / total;
 	evidence.ownership_confidence = best_probability;
 	if (best == 2 && polyphonic_vocal_context &&
-	    !full_mix_polyphonic_vocal_profile_supported(candidate.midi, second))
+	    !full_mix_polyphonic_vocal_profile_supported(evidence, candidate.midi, second, third, fourth, fifth))
 		return InstrumentKind::Ambiguous;
 	const bool supported_vocal_winner = best == 2 && vocal_supported;
 	const bool supported_measured_sustained_voice_winner = best == 2 && measured_sustained_voice;
@@ -13850,6 +13886,62 @@ void prefer_debug_supported_vocal_lower_octave_primary(NoteGrid &grid, Instrumen
 
 	if (changed)
 		write_note_grid_label(state, grid, preferred_root);
+}
+
+void promote_measured_vocal_octave_alias(NoteGrid &vocal_grid, InstrumentState &vocal_state,
+						 const NoteGrid &keyboard_grid,
+						 const FullMixOwnership &ownership,
+						 const std::array<float, kNoteProbeCount> &powers,
+						 int preferred_root)
+{
+	bool changed = false;
+	for (int pitch_class = 0; pitch_class < 12; ++pitch_class) {
+		NoteCell upper = {};
+		for (const auto &row : keyboard_grid.rows) {
+			const NoteCell &cell = row[pitch_class];
+			if (cell.active && cell.midi >= kFirstMidi && cell.midi <= kLastMidi &&
+			    (!upper.active || cell.level > upper.level ||
+			     (cell.level == upper.level && cell.midi > upper.midi)))
+				upper = cell;
+		}
+		const NoteCell &display = keyboard_grid.cells[pitch_class];
+		if (display.active && display.midi >= kFirstMidi && display.midi <= kLastMidi &&
+		    (!upper.active || display.level > upper.level ||
+		     (display.level == upper.level && display.midi > upper.midi)))
+			upper = display;
+		if (!upper.active)
+			continue;
+
+		const int lower_midi = upper.midi - 12;
+		if (upper.midi < 72 || upper.midi > 76 || lower_midi < kFullMixVocalMinMidi ||
+		    lower_midi > kVocalMaxMidi)
+			continue;
+		const FullMixDebugCandidate *debug = full_mix_debug_for_midi(ownership, upper.midi);
+		if (!debug || debug->owner != InstrumentKind::Keyboard || debug->midi != upper.midi ||
+		    debug->ownership_confidence < 0.90f || debug->keyboard_score < 0.90f ||
+		    debug->spectral_level < 0.80f || debug->pitch_confidence < 0.70f ||
+		    debug->periodicity < 0.65f || debug->harmonic_fit_error < 0.05f ||
+		    debug->harmonic_fit_error > 0.18f || debug->spectral_centroid < 0.25f ||
+		    debug->spectral_centroid > 0.34f || debug->spectral_slope < 0.25f ||
+		    debug->spectral_slope > 0.55f || debug->local_noise_level > 0.24f ||
+		    debug->harmonic_ratios[1] < 0.02f || debug->harmonic_ratios[1] > 0.14f ||
+		    debug->harmonic_ratios[2] < 0.02f || debug->harmonic_ratios[2] > 0.12f ||
+		    debug->harmonic_ratios[3] < 0.02f || debug->harmonic_ratios[3] > 0.14f ||
+		    debug->harmonic_ratios[4] < 0.18f || debug->harmonic_ratios[4] > 0.40f)
+			continue;
+
+		const float lower_support = std::max({probe_level(powers, lower_midi),
+							       ownership_global_note_level(ownership, lower_midi),
+							       note_grid_midi_level(keyboard_grid, lower_midi)});
+		if (lower_support < 0.20f)
+			continue;
+		changed = promote_note_grid_primary_midi(
+				  vocal_grid, lower_midi,
+				  std::max({upper.level, lower_support, debug->spectral_level * 0.72f})) ||
+			  changed;
+	}
+	if (changed)
+		write_note_grid_label(vocal_state, vocal_grid, preferred_root);
 }
 
 void prefer_debug_supported_high_bass_primary(NoteGrid &grid, InstrumentState &state,
@@ -37907,9 +37999,12 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 			prefer_visible_lower_octave_primary(snapshot.vocal_notes, snapshot.vocal, kVocalMinMidi,
 							   0.20f, -1, 0.18f);
 			prefer_debug_supported_vocal_lower_octave_primary(snapshot.vocal_notes, snapshot.vocal,
-									  full_mix_ownership,
-									  note_powers,
-									  kFullMixVocalMinMidi, -1);
+								  full_mix_ownership,
+								  note_powers,
+								  kFullMixVocalMinMidi, -1);
+			promote_measured_vocal_octave_alias(snapshot.vocal_notes, snapshot.vocal,
+							    snapshot.keyboard_notes, full_mix_ownership,
+							    note_powers, -1);
 		}
 	} else {
 		reset_note_grid_envelope(snapshot.vocal_notes, snapshot.vocal, vocal_note_tracking_);

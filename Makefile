@@ -9686,6 +9686,9 @@ plan-code-baseline-commit:
 stage-code-baseline-commit:
 	python3 scripts/manage_code_baseline_commit.py stage
 
+unstage-code-baseline-commit:
+	python3 scripts/unstage_code_baseline_commit.py
+
 commit-code-baseline:
 	python3 scripts/manage_code_baseline_commit.py commit
 
@@ -9786,8 +9789,41 @@ report-full-mix-route-examples:
 test-real-note-samples-full-mix-route-examples:
 	MUSIC_ANALYZER_REAL_NOTE_ROUTE_EXAMPLES=1 MUSIC_ANALYZER_REAL_NOTE_ROUTE_EXAMPLE_LIMIT=48 $(MAKE) test-real-note-samples-full-mix
 
-debug-real-note-piano-guitar-route:
-	MUSIC_ANALYZER_REAL_NOTE_DEBUG_SAMPLE=keyboard_electronic_001-071-025 $(MAKE) test-real-note-samples-full-mix
+debug-real-note-piano-guitar-route: build/analyzer_real_note_samples
+	sh scripts/run_real_note_debug_sample.sh keyboard_electronic_001-071-025
+
+debug-real-note-piano-guitar-visual-route: build/analyzer_real_note_samples
+	sh scripts/run_real_note_debug_sample.sh keyboard_electronic_002-033-050
+
+debug-real-note-vocal-miss-route: build/analyzer_real_note_samples
+	sh scripts/run_real_note_debug_sample.sh vocadito_35_A1_004_A2
+
+debug-real-note-vocal-vibrato-miss-route: build/analyzer_real_note_samples
+	sh scripts/run_real_note_debug_sample.sh vocalset_f7_scales_vibrato_i_19_C_4
+
+debug-real-note-vocal-piano-miss-route: build/analyzer_real_note_samples
+	sh scripts/run_real_note_debug_sample.sh vocalset_f7_scales_belt_u_3_D_4
+
+report-real-note-debug-sample:
+	python3 scripts/report_real_note_debug_sample.py
+
+report-real-note-fixture-coverage:
+	python3 scripts/report_real_note_fixture_coverage.py
+
+audit-real-note-vocals: build/analyzer_real_note_samples
+	sh scripts/run_real_note_vocal_audit.sh
+
+report-real-note-vocal-audit:
+	python3 scripts/report_real_note_vocal_audit.py
+
+inspect-external-vocal-manifests:
+	python3 scripts/inspect_external_vocal_manifests.py
+
+plan-real-note-vocal-fixture:
+	python3 scripts/manage_real_note_vocal_fixture.py plan
+
+apply-real-note-vocal-fixture:
+	python3 scripts/manage_real_note_vocal_fixture.py apply
 
 commit-instrument-route-inspection:
 	python3 scripts/commit_staged_source_changes.py --message "test: inspect instrument route logic"
@@ -9828,3 +9864,8 @@ report-instrument-synth-saw-lead-c4:
 	$(PYTHON) scripts/report_voice_oohs_g3_attributes.py --attributes "$(BUILD_DIR)/saw_lead_c4_attributes.tsv"
 inspect-synth-harmonic-paths:
 	python3 scripts/inspect_synth_harmonic_paths.py
+export-real-note-vocal-attributes: build/analyzer_real_note_samples
+	python3 scripts/export_real_note_vocal_attributes.py
+
+report-real-note-vocal-attributes:
+	python3 scripts/report_real_note_vocal_attributes.py
