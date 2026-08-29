@@ -43,6 +43,7 @@ PATHS = (
     "scripts/report_full_mix_vocal_failures.py",
     "scripts/report_full_mix_visual_failures.py",
     "scripts/inspect_vocal_display_source.py",
+    "scripts/inspect_timbre_classifier_source.py",
     "scripts/report_real_instrument_expansion_bass_attributes.py",
     "scripts/report_real_note_fixture_inventory.py",
     "scripts/report_real_note_full_mix_attributes.py",
