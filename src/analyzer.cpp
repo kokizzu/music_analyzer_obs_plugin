@@ -31954,7 +31954,7 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 
 		drum_average_[i] = drum_average_[i] * 0.92f + drum_bands[i] * 0.08f;
 		snapshot.drums[i].level = drum_level_[i];
-		snapshot.drums[i].active = drum_level_[i] > 0.30f;
+		snapshot.drums[i].active = drum_level_[i] >= 0.25f;
 	}
 
 	auto cap_drum_level = [&](std::size_t index, float cap) {

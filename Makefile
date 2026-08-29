@@ -9962,6 +9962,77 @@ test-urmp-mixture-cases: build/analyzer_real_note_samples scripts/report_urmp_an
 .PHONY: inspect-full-mix-owner-source
 inspect-full-mix-owner-source: scripts/inspect_full_mix_owner_source.py
 	python3 scripts/inspect_full_mix_owner_source.py
+.PHONY: report-drum-fixture-candidates
+report-drum-fixture-candidates: scripts/report_drum_fixture_candidates.py
+	python3 scripts/report_drum_fixture_candidates.py
+
+.PHONY: inspect-real-note-drum-test-source
+inspect-real-note-drum-test-source: scripts/inspect_real_note_drum_test_source.py
+	python3 scripts/inspect_real_note_drum_test_source.py
+
+.PHONY: inspect-analyzer-test-utils-source
+inspect-analyzer-test-utils-source: scripts/inspect_analyzer_test_utils_source.py
+	python3 scripts/inspect_analyzer_test_utils_source.py
+
+.PHONY: inspect-drum-detector-source
+inspect-drum-detector-source: scripts/inspect_drum_detector_source.py
+	python3 scripts/inspect_drum_detector_source.py
+
+.PHONY: report-idmt-drum-fixture-manifest
+report-idmt-drum-fixture-manifest: scripts/report_idmt_drum_fixture_manifest.py
+	python3 scripts/report_idmt_drum_fixture_manifest.py
+
+.PHONY: report-real-drum-samples-debug
+report-real-drum-samples-debug: build/analyzer_real_drum_samples
+	MUSIC_ANALYZER_REAL_DRUM_VERBOSE=1 build/analyzer_real_drum_samples
+
+.PHONY: report-real-drum-samples-one-shot
+report-real-drum-samples-one-shot: build/analyzer_real_drum_samples
+	MUSIC_ANALYZER_REAL_DRUM_SOURCE="IDMT Drum One Shot" build/analyzer_real_drum_samples
+
+.PHONY: report-real-drum-samples-one-shot-debug
+report-real-drum-samples-one-shot-debug: build/analyzer_real_drum_samples
+	MUSIC_ANALYZER_REAL_DRUM_SOURCE="IDMT Drum One Shot" MUSIC_ANALYZER_REAL_DRUM_VERBOSE=1 build/analyzer_real_drum_samples
+
+build/analyzer_real_drum_samples.o: tests/analyzer_real_drum_samples.cpp src/analyzer.hpp tests/analyzer_test_utils.hpp
+	tmp="$@.$$$$.tmp"; g++ -O2 -g -std=c++17 -fPIC -Wall -Wextra -Isrc -Ithird_party/beat_and_tempo_tracking -c $< -o "$$tmp" && mv "$$tmp" "$@"
+
+build/analyzer_real_drum_samples: build/analyzer_test.o build/btt_BTT.o build/btt_DFT.o build/btt_Filter.o build/btt_STFT.o build/btt_Statistics.o build/btt_fastsin.o build/basic_pitch_onnx_runtime.o build/basic_pitch_onnx_decoder.o build/basic_pitch_onnx_worker.o build/basic_pitch_pcm_history.o build/analyzer_real_drum_samples.o
+	tmp="$@.$$$$.tmp"; g++ -o "$$tmp" $^ -lm -pthread && mv "$$tmp" "$@"
+
+.PHONY: report-real-drum-samples
+report-real-drum-samples: build/analyzer_real_drum_samples
+	build/analyzer_real_drum_samples
+
+.PHONY: report-real-drum-samples-matrix
+report-real-drum-samples-matrix: build/analyzer_real_drum_samples
+	sh ./scripts/run_real_drum_source_matrix.sh
+
+.PHONY: plan-real-drum-improvement-commit
+plan-real-drum-improvement-commit:
+	python3 scripts/manage_real_drum_improvement_commit.py plan
+
+.PHONY: commit-real-drum-improvement
+commit-real-drum-improvement:
+	python3 scripts/manage_real_drum_improvement_commit.py apply
+
+.PHONY: push-real-drum-improvement
+push-real-drum-improvement:
+	python3 scripts/manage_real_drum_improvement_commit.py push
+
+.PHONY: test-real-drum-samples
+test-real-drum-samples: build/analyzer_real_drum_samples
+	sh ./scripts/test_real_drum_samples.sh
+
+.PHONY: report-real-drum-samples-real-track
+report-real-drum-samples-real-track: build/analyzer_real_drum_samples
+	sh ./scripts/run_real_drum_source_report.sh "Real Drum Track"
+
+.PHONY: report-real-drum-samples-drum-track
+report-real-drum-samples-drum-track: build/analyzer_real_drum_samples
+	sh ./scripts/run_real_drum_source_report.sh "IDMT Drum Track"
+
+
 
 .PHONY: report-urmp-mixture-ownership-attributes
 report-urmp-mixture-ownership-attributes: scripts/report_urmp_mixture_ownership_attributes.py
