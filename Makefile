@@ -9810,6 +9810,9 @@ report-real-note-debug-sample:
 report-real-note-fixture-coverage:
 	python3 scripts/report_real_note_fixture_coverage.py
 
+report-external-fixture-inventory:
+	python3 scripts/report_external_fixture_inventory.py
+
 audit-real-note-vocals: build/analyzer_real_note_samples
 	sh scripts/run_real_note_vocal_audit.sh
 
@@ -9869,3 +9872,11 @@ export-real-note-vocal-attributes: build/analyzer_real_note_samples
 
 report-real-note-vocal-attributes:
 	python3 scripts/report_real_note_vocal_attributes.py
+test-external-prepared-multitrack-20:
+	sh scripts/run_external_prepared_multitrack_test.sh
+
+export-external-prepared-multitrack-attributes: build/analyzer_musicnet
+	python3 scripts/export_prepared_multitrack_attributes.py
+
+report-external-prepared-multitrack-attributes:
+	python3 scripts/report_prepared_multitrack_attributes.py
