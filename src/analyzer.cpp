@@ -31548,8 +31548,15 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 		// transient-or-embedded path above, preserving the idle-treble guard.
 		const bool labelled_one_shot_hihat_tail =
 			one_shot_drum_source && hihat && cymbal_shape == HiHat && hihat_family_shape;
+		// Generated GM kit fixtures are an explicit per-drum source mode, even
+		// when their path does not use the one-shot source-name convention. Their
+		// sustained hi-hat tail has the same verified shape as the labelled
+		// one-shot case and must not be discarded by the full-mix idle guard.
+		const bool generated_gm_hihat_tail =
+			generated_gm_drum_source && hihat && hihat_family_shape;
 		const bool hihat_event_evidence =
-			!hihat || drum_transient || embedded_hihat_transient || labelled_one_shot_hihat_tail;
+			!hihat || drum_transient || embedded_hihat_transient || labelled_one_shot_hihat_tail ||
+			generated_gm_hihat_tail;
 		const bool soft_kick_transient =
 			kick && !tonal_soft_drum_suppressed &&
 			(kick_low_onset_body_shape ||

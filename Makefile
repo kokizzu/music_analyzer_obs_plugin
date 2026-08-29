@@ -9738,6 +9738,24 @@ commit-synthetic-overtone-pruning:
 commit-synthetic-c5-fundamentals:
 	python3 scripts/commit_staged_source_changes.py --message "fix: recover high synthetic fundamentals from subharmonics"
 
+commit-generated-gm-hihat-recovery:
+	python3 scripts/commit_staged_source_changes.py --message "fix: recover generated GM hi-hat tails"
+
+inspect-drum-fixture-harness:
+	python3 scripts/inspect_drum_fixture_harness.py
+
+test-drum-kit-hihat: build/analyzer_instrument_samples
+	MUSIC_ANALYZER_INSTRUMENT_SAMPLES_REQUIRED=1 MUSIC_ANALYZER_INSTRUMENT_SAMPLE_ROOT="build" MUSIC_ANALYZER_INSTRUMENT_SAMPLE_FILTER_FAMILY="hihat" build/analyzer_instrument_samples
+
+analyze-drum-kit-hihat: build/analyzer_instrument_samples
+	MUSIC_ANALYZER_INSTRUMENT_SAMPLES_REQUIRED=1 MUSIC_ANALYZER_INSTRUMENT_SAMPLE_ROOT="build" MUSIC_ANALYZER_INSTRUMENT_SAMPLE_FILTER_FAMILY="hihat" MUSIC_ANALYZER_INSTRUMENT_ATTRIBUTE_TSV="build/drum_hihat_attributes.tsv" build/analyzer_instrument_samples
+
+inspect-hihat-suppression:
+	python3 scripts/inspect_hihat_suppression.py
+
+inspect-hihat-drum-policy:
+	python3 scripts/inspect_analyzer_source_range.py 31480 31740
+
 test-instrument-synth-c5: build/analyzer_instrument_samples
 	MUSIC_ANALYZER_INSTRUMENT_SAMPLES_REQUIRED=1 MUSIC_ANALYZER_INSTRUMENT_SAMPLE_ROOT="build" MUSIC_ANALYZER_INSTRUMENT_SAMPLE_FILTER_FAMILY="synth" MUSIC_ANALYZER_INSTRUMENT_SAMPLE_FILTER_PATH="C5" build/analyzer_instrument_samples
 
