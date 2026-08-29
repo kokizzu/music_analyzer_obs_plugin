@@ -9979,6 +9979,27 @@ push-detection-improvement: scripts/manage_detection_improvement_commit.py
 debug-urmp-mixture-case: build/analyzer_real_note_samples scripts/debug_urmp_mixture_case.py
 	python3 scripts/debug_urmp_mixture_case.py
 
+.PHONY: report-urmp-chord-opportunities
+report-urmp-chord-opportunities: scripts/report_urmp_chord_opportunities.py
+	python3 scripts/report_urmp_chord_opportunities.py
+
+.PHONY: report-urmp-chord-cases
+report-urmp-chord-cases: scripts/report_urmp_chord_cases.py
+	python3 scripts/report_urmp_chord_cases.py
+
+.PHONY: test-urmp-chord-cases-reuse
+test-urmp-chord-cases-reuse: scripts/report_urmp_chord_cases.py
+	python3 scripts/report_urmp_chord_cases.py --verify
+
+.PHONY: test-urmp-chord-cases
+test-urmp-chord-cases: build/analyzer_real_note_samples scripts/report_urmp_other_recovery_profile.py scripts/report_urmp_chord_cases.py
+	python3 scripts/report_urmp_other_recovery_profile.py
+	python3 scripts/report_urmp_chord_cases.py --verify
+
+.PHONY: inspect-chord-detector-source
+inspect-chord-detector-source: scripts/inspect_chord_detector_source.py
+	python3 scripts/inspect_chord_detector_source.py
+
 .PHONY: inspect-analysis-snapshot-source
 inspect-analysis-snapshot-source: scripts/inspect_analysis_snapshot_source.py
 	python3 scripts/inspect_analysis_snapshot_source.py

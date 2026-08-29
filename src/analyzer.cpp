@@ -11163,7 +11163,8 @@ bool chord_extension_tones_are_strong(const std::array<float, 12> &chroma, uint1
 }
 
 ChordResult detect_chord(const std::array<float, 12> &chroma, int bass_pitch_class = -1,
-			 bool allow_extensions = true, bool simplify_weak_extensions = true)
+			 bool allow_extensions = true, bool simplify_weak_extensions = true,
+			 bool allow_altered_triads = false)
 {
 	ChordResult best;
 	float best_score = 0.0f;
@@ -11260,7 +11261,7 @@ ChordResult detect_chord(const std::array<float, 12> &chroma, int bass_pitch_cla
 		}
 		consider_template(root, "", {0, 4, 7}, 0.06f);
 		consider_template(root, "m", {0, 3, 7}, 0.06f);
-		if (allow_extensions) {
+		if (allow_extensions || allow_altered_triads) {
 			consider_template(root, "dim", {0, 3, 6}, 0.08f);
 			consider_template(root, "aug", {0, 4, 8}, 0.08f);
 		}
@@ -26251,10 +26252,10 @@ bool chroma_is_not_too_crowded_for_chord(const std::array<float, 12> &chroma,
 ChordResult detect_mixed_display_global_chord(const std::array<float, 12> &chroma, int preferred_root)
 {
 	const std::array<float, 12> pruned = strongest_chord_chroma(chroma);
-	ChordResult best = detect_chord(chroma, preferred_root, false);
-	best = stronger_chord(best, detect_chord(chroma, -1, false));
-	best = stronger_chord(best, detect_chord(pruned, preferred_root, false));
-	best = stronger_chord(best, detect_chord(pruned, -1, false));
+	ChordResult best = detect_chord(chroma, preferred_root, false, true, true);
+	best = stronger_chord(best, detect_chord(chroma, -1, false, true, true));
+	best = stronger_chord(best, detect_chord(pruned, preferred_root, false, true, true));
+	best = stronger_chord(best, detect_chord(pruned, -1, false, true, true));
 	best = prefer_strict_symmetric_dim7_global_chord(best, chroma);
 	if (!chroma_is_not_too_crowded_for_chord(chroma, best))
 		return ChordResult{};
