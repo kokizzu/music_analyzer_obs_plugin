@@ -8668,7 +8668,7 @@ void add_full_mix_display_mirror(NoteCandidateList &candidates, const FullMixOwn
 	}
 	if (stable_misrouted_vocal_display) {
 		candidate_score = std::max(candidate_score, base_score * 0.58f);
-		candidate_confidence = std::max(candidate_confidence, 0.36f);
+		candidate_confidence = std::max(candidate_confidence, 0.24f);
 	}
 	if (row == FullMixDisplayRow::Vocal && display_midi != debug.midi &&
 	    (measured_vocal_octave_alias_priority_supported(debug) ||
@@ -12093,7 +12093,10 @@ void write_note_grid_cell(NoteGrid &grid, const NoteCandidate &candidate, float 
 					       std::clamp(candidate.score / strongest_score * visual_loudness,
 							  0.0f, 1.0f) :
 					       0.0f;
-	const float level = std::clamp(raw_visual_level * ownership_scale, 0.0f, 1.0f);
+	// The logical grid keeps a supported low-confidence candidate available to
+	// chord and expected-row detection. Its visual_level remains attenuated so
+	// a mirrored note does not dominate the rendered ownership row.
+	const float level = raw_visual_level;
 	if (level <= 1.0e-6f)
 		return;
 	cell.level = level;

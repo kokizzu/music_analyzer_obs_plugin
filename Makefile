@@ -9849,6 +9849,9 @@ audit-real-note-vocals: build/analyzer_real_note_samples
 report-real-note-vocal-audit:
 	python3 scripts/report_real_note_vocal_audit.py
 
+report-real-note-full-mix-shards:
+	python3 scripts/report_real_note_full_mix_shards.py
+
 test-real-note-vocal-display-recall: audit-real-note-vocals
 	python3 scripts/test_real_note_vocal_display_recall.py
 
