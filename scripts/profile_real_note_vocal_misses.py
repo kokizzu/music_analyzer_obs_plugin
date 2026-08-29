@@ -15,6 +15,7 @@ EXPECTED = re.compile(r"expected=([^ ]+)")
 OWNERSHIP = re.compile(
     r"own=([^:]+):(\w+)/conf=([0-9.]+)/bkvo=([0-9.,-]+)/spec=([0-9.]+)/pitch=([0-9.]+)/"
     r"per=([0-9.]+)/harm=([0-9.]+)/fit=([0-9.]+)/cent=([0-9.]+)/slope=([0-9.]+)/noise=([0-9.]+)"
+    r"/partials=([0-9.,-]+)"
 )
 
 
@@ -47,6 +48,7 @@ def parse_candidates(output: str, expected: str) -> list[dict[str, object]]:
             "centroid": float(ownership_match.group(10)),
             "slope": float(ownership_match.group(11)),
             "noise": float(ownership_match.group(12)),
+            "partials": ownership_match.group(13),
         })
     return candidates
 
@@ -81,6 +83,7 @@ def main() -> int:
             f"bkvo={scores[0]:.3f},{scores[1]:.3f},{scores[2]:.3f},{scores[3]:.3f},{scores[4]:.3f} "
             f"spec={item['spectral']:.3f} pitch={item['pitch']:.3f} per={item['periodicity']:.3f} "
             f"fit={item['fit']:.3f} cent={item['centroid']:.3f} slope={item['slope']:.3f} noise={item['noise']:.3f}"
+            f" partials={item['partials']}"
         )
     return 0
 
