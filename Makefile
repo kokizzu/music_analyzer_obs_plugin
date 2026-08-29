@@ -8712,6 +8712,24 @@ test-drum-regressions-parallel: verify-drum-regression-targets
 report-drum-regression-logs:
 	python3 scripts/report_drum_regression_logs.py
 
+report-drum-test-controls:
+	python3 scripts/report_drum_test_controls.py
+
+report-external-fixture-links:
+	python3 scripts/report_external_fixture_links.py
+
+profile-drum-primary-confusions: build/analyzer_drum_samples
+	python3 scripts/profile_drum_primary_confusions.py
+
+profile-drum-primary-confusions-hihat: build/analyzer_drum_samples
+	DRUM_PROFILE_CATEGORY=hihat python3 scripts/profile_drum_primary_confusions.py
+
+profile-drum-primary-confusions-ride: build/analyzer_drum_samples
+	DRUM_PROFILE_CATEGORY=ride python3 scripts/profile_drum_primary_confusions.py
+
+report-drum-classifier-source:
+	python3 scripts/report_drum_classifier_source.py
+
 report-spread-rim-ride-hihat-collisions: build/drum_spread_exact_attribute_rows_rim.tsv
 	python3 scripts/report_spread_rim_ride_hihat_collisions.py
 
