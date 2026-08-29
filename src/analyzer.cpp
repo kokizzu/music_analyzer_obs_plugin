@@ -13433,7 +13433,9 @@ void suppress_measured_other_owned_keyboard_shadows(NoteGrid &keyboard_grid, Ins
 		write_note_grid_label(keyboard_state, keyboard_grid, preferred_root);
 }
 
-void prune_low_synthetic_other_note_grid_harmonic_aliases(NoteGrid &grid, InstrumentState &state)
+void prune_low_synthetic_other_note_grid_harmonic_aliases(
+	NoteGrid &grid, InstrumentState &state, const FullMixOwnership &ownership,
+	const std::array<float, kNoteProbeCount> &powers)
 {
 	std::array<bool, kNoteProbeCount> active_midis = {};
 	float strongest = 0.0f;
@@ -13464,6 +13466,34 @@ void prune_low_synthetic_other_note_grid_harmonic_aliases(NoteGrid &grid, Instru
 	}
 	if (low_fundamental < 0)
 		return;
+
+	// The grid can contain a quiet subharmonic candidate from the raw display
+	// path. Prefer a strongly measured Other candidate above it only when the
+	// lower cell has no comparable spectral support. This resolves C5 synth
+	// leads/pads without allowing an upper harmonic to replace a true low root.
+	float strongest_probe = 0.0f;
+	for (int midi = kFirstMidi; midi <= kLastMidi; ++midi)
+		strongest_probe = std::max(strongest_probe, probe_level(powers, midi));
+	const std::size_t debug_count =
+		std::min<std::size_t>(ownership.debug_candidate_count, ownership.debug_candidates.size());
+	int supported_fundamental = -1;
+	for (std::size_t i = 0; i < debug_count; ++i) {
+		const FullMixDebugCandidate &debug = ownership.debug_candidates[i];
+		if (debug.owner != InstrumentKind::Other || debug.midi <= low_fundamental ||
+		    debug.midi > kOtherMaxMidi ||
+		    !low_synthetic_other_harmonic_interval(debug.midi - low_fundamental, true))
+			continue;
+		const float debug_probe = probe_level(powers, debug.midi);
+		const float low_probe = probe_level(powers, low_fundamental);
+		if (debug.ownership_confidence < 0.72f || debug.other_score < 0.70f ||
+		    debug.pitch_confidence < 0.30f || debug.periodicity < 0.55f ||
+		    debug_probe < strongest_probe * 0.50f || low_probe > debug_probe * 0.15f)
+			continue;
+		if (supported_fundamental < 0 || debug.midi < supported_fundamental)
+			supported_fundamental = debug.midi;
+	}
+	if (supported_fundamental >= 0)
+		low_fundamental = supported_fundamental;
 
 	int upper_aliases = 0;
 	for (int midi = low_fundamental + 19; midi <= kLastMidi; ++midi) {
@@ -15107,8 +15137,29 @@ void promote_source_hinted_other_debug_primaries(NoteGrid &grid, InstrumentState
 		const NoteCell primary = note_grid_primary_cell_for_pitch_class(grid, pitch_class);
 		if (primary.active && debug.midi < primary.midi) {
 			const float debug_level = std::max(ownership_global_note_level(ownership, debug.midi),
-							  debug.spectral_level);
+						  debug.spectral_level);
 			consider(debug.midi, std::max({primary.level, debug_level, debug.other_score}), true);
+		}
+
+		// A source-hinted synthetic tone can leave a low, display-only
+		// subharmonic in the grid even when the measured debug candidate has the
+		// actual fundamental. Promote the lowest strongly probed debug candidate
+		// only when it decisively outweighs that lower cell; this preserves true
+		// low fundamentals while recovering high synth leads and pads.
+		const float dominant_debug_probe = probe_level(powers, debug.midi);
+		const float dominant_primary_probe =
+			primary.active ? probe_level(powers, primary.midi) : 0.0f;
+		const bool dominant_source_hinted_debug_primary =
+			allow_probe_lower_octave && primary.active && debug.midi > primary.midi &&
+			debug.midi - primary.midi >= 24 && debug.ownership_confidence >= 0.72f &&
+			debug.other_score >= 0.70f && debug.pitch_confidence >= 0.30f &&
+			debug.periodicity >= 0.55f && dominant_debug_probe >= strongest_probe * 0.50f &&
+			dominant_primary_probe <= dominant_debug_probe * 0.15f;
+		if (dominant_source_hinted_debug_primary) {
+			const float debug_level = std::max(ownership_global_note_level(ownership, debug.midi),
+						  debug.spectral_level);
+			consider(debug.midi, std::max({primary.level, debug_level, debug.other_score, 0.85f}),
+				 true);
 		}
 
 		const bool source_hinted_exact_debug_primary =
@@ -37935,7 +37986,8 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 			}
 			if (synthetic_other_source_hint)
 				prune_low_synthetic_other_note_grid_harmonic_aliases(snapshot.other_notes,
-										     snapshot.other);
+									     snapshot.other, full_mix_ownership,
+									     note_powers);
 		}
 		smooth_note_grid_envelope(other_chord_grid, other_chord_note_state, other_chord_note_tracking_,
 					  -1, interval_seconds, other_max_notes, other_new_notes,

@@ -9734,6 +9734,33 @@ commit-vocal-source-hint-recovery:
 
 commit-synthetic-overtone-pruning:
 	python3 scripts/commit_staged_source_changes.py --message "fix: prefer synthetic note fundamentals over overtones"
+
+commit-synthetic-c5-fundamentals:
+	python3 scripts/commit_staged_source_changes.py --message "fix: recover high synthetic fundamentals from subharmonics"
+
+test-instrument-synth-c5: build/analyzer_instrument_samples
+	MUSIC_ANALYZER_INSTRUMENT_SAMPLES_REQUIRED=1 MUSIC_ANALYZER_INSTRUMENT_SAMPLE_ROOT="build" MUSIC_ANALYZER_INSTRUMENT_SAMPLE_FILTER_FAMILY="synth" MUSIC_ANALYZER_INSTRUMENT_SAMPLE_FILTER_PATH="C5" build/analyzer_instrument_samples
+
+analyze-instrument-synth-c5: build/analyzer_instrument_samples
+	MUSIC_ANALYZER_INSTRUMENT_SAMPLES_REQUIRED=1 MUSIC_ANALYZER_INSTRUMENT_SAMPLE_ROOT="build" MUSIC_ANALYZER_INSTRUMENT_SAMPLE_FILTER_FAMILY="synth" MUSIC_ANALYZER_INSTRUMENT_SAMPLE_FILTER_PATH="C5" MUSIC_ANALYZER_INSTRUMENT_ATTRIBUTE_TSV="build/synth_c5_attributes.tsv" build/analyzer_instrument_samples
+
+report-instrument-synth-c5:
+	python3 scripts/report_synth_c5_attributes.py
+
+inspect-synth-c5-display-path:
+	python3 scripts/inspect_analyzer_source_range.py 37890 37945
+
+inspect-synth-c5-ranking-path:
+	python3 scripts/inspect_synth_c5_ranking_symbols.py
+
+inspect-synth-c5-low-octave-policy:
+	python3 scripts/inspect_analyzer_source_range.py 15062 15375
+
+inspect-synth-c5-pre-display-policy:
+	python3 scripts/inspect_analyzer_source_range.py 37850 37895
+
+inspect-synth-c5-visible-lower-policy:
+	python3 scripts/inspect_analyzer_source_range.py 13664 13750
 test-instrument-synth-saw-lead-c4: build/analyzer_instrument_samples
 	MUSIC_ANALYZER_INSTRUMENT_SAMPLES_REQUIRED=1 MUSIC_ANALYZER_INSTRUMENT_SAMPLE_ROOT="$(INSTRUMENT_SAMPLE_BUILD_ROOT)" MUSIC_ANALYZER_INSTRUMENT_SAMPLE_FILTER_FAMILY="synth" MUSIC_ANALYZER_INSTRUMENT_SAMPLE_FILTER_PROGRAM="saw_lead" MUSIC_ANALYZER_INSTRUMENT_SAMPLE_FILTER_PATH="C4" build/analyzer_instrument_samples
 
