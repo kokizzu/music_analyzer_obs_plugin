@@ -9852,8 +9852,23 @@ report-real-note-vocal-audit:
 report-real-note-full-mix-shards:
 	python3 scripts/report_real_note_full_mix_shards.py
 
+report-full-mix-guitar-attributes: build/analyzer_real_note_samples
+	python3 scripts/report_full_mix_guitar_attributes.py
+
 report-external-fixture-coverage:
 	python3 scripts/report_external_fixture_coverage.py
+
+report-fixture-storage:
+	python3 scripts/report_fixture_storage.py
+
+plan-external-audio-fixture-storage:
+	python3 scripts/migrate_audio_fixture_storage.py plan
+
+apply-external-audio-fixture-storage:
+	python3 scripts/migrate_audio_fixture_storage.py apply
+
+verify-external-audio-fixture-storage:
+	python3 scripts/migrate_audio_fixture_storage.py verify
 
 test-real-note-vocal-display-recall: audit-real-note-vocals
 	python3 scripts/test_real_note_vocal_display_recall.py
