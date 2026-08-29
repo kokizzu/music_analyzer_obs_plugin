@@ -15,6 +15,7 @@ PATHS = (
     "scripts/inspect_drum_detector_source.py",
     "scripts/inspect_full_mix_attribute_report.py",
     "scripts/inspect_real_drum_runner.py",
+    "scripts/inspect_stabilize_chord_source.py",
     "scripts/inspect_urmp_chord_report.py",
     "scripts/manage_real_drum_corpus_coverage.py",
     "scripts/report_external_drum_manifests.py",
@@ -94,6 +95,22 @@ report-urmp-chord-attributes: scripts/report_urmp_chord_attributes.py report-urm
 .PHONY: report-urmp-chord-attributes-cached
 report-urmp-chord-attributes-cached: scripts/report_urmp_chord_attributes.py
 \tpython3 scripts/report_urmp_chord_attributes.py
+
+.PHONY: inspect-global-chord-state-source
+inspect-global-chord-state-source: scripts/inspect_analyzer_section.py
+\tpython3 scripts/inspect_analyzer_section.py --source src/analyzer.cpp --topic "snapshot.global_chord"
+
+.PHONY: inspect-stabilize-chord-source
+inspect-stabilize-chord-source: scripts/inspect_analyzer_section.py
+\tpython3 scripts/inspect_analyzer_section.py --source src/analyzer.cpp --topic "stabilize_chord"
+
+.PHONY: inspect-stabilize-chord-body
+inspect-stabilize-chord-body: scripts/inspect_stabilize_chord_source.py
+\tpython3 scripts/inspect_stabilize_chord_source.py
+
+.PHONY: inspect-chord-timing-source
+inspect-chord-timing-source: scripts/inspect_analyzer_section.py
+\tpython3 scripts/inspect_analyzer_section.py --source src/analyzer.cpp --topic "kChordHoldSeconds"
 """,
     """.PHONY: commit-real-drum-corpus-coverage
 commit-real-drum-corpus-coverage: scripts/manage_real_drum_corpus_coverage.py
@@ -104,7 +121,7 @@ push-real-drum-corpus-coverage: scripts/manage_real_drum_corpus_coverage.py
 \tpython3 scripts/manage_real_drum_corpus_coverage.py push
 """,
 )
-MESSAGE = "test: detail URMP chord replay failures"
+MESSAGE = "test: inspect global chord stabilization"
 
 
 def run(*args: str, capture: bool = False) -> str:
