@@ -6414,6 +6414,20 @@ bool clean_owned_chord_context_for_row(const FullMixOwnership &ownership, const 
 	return false;
 }
 
+bool sparse_vocal_owned_guitar_octave_alias_supported(const FullMixDebugCandidate &debug)
+{
+	return debug.owner == InstrumentKind::Vocal &&
+	       debug.midi >= 60 && debug.midi <= 61 &&
+	       debug.vocal_score >= 0.78f && debug.keyboard_score <= 0.25f &&
+	       debug.guitar_score <= 0.05f && debug.other_score <= 0.05f &&
+	       debug.spectral_level >= 0.90f && debug.pitch_confidence >= 0.88f &&
+	       debug.periodicity >= 0.68f && debug.harmonic_fit_error <= 0.05f &&
+	       debug.local_noise_level <= 0.10f && debug.harmonic_ratios[1] <= 0.05f &&
+	       debug.harmonic_ratios[2] <= 0.02f && debug.harmonic_ratios[3] <= 0.01f &&
+	       debug.harmonic_ratios[4] <= 0.004f && debug.spectral_centroid <= 0.04f &&
+	       debug.spectral_slope <= 0.02f;
+}
+
 int full_mix_display_mirror_midi(FullMixDisplayRow row, const FullMixDebugCandidate &debug,
 				 const FullMixOwnership &ownership)
 {
@@ -6492,6 +6506,12 @@ int full_mix_display_mirror_midi(FullMixDisplayRow row, const FullMixDebugCandid
 			if (ownership_global_note_level(ownership, midi) >= 0.45f)
 				return midi;
 		}
+	}
+	if (row == FullMixDisplayRow::Guitar &&
+	    sparse_vocal_owned_guitar_octave_alias_supported(debug)) {
+		const int lowered = debug.midi - 12;
+		if (lowered >= kGuitarMinMidi && ownership_global_note_level(ownership, lowered) >= 0.08f)
+			return lowered;
 	}
 	if (row == FullMixDisplayRow::Guitar && measured_guitar_octave_alias_supported(debug))
 		return debug.midi - 12;
@@ -7085,6 +7105,9 @@ bool full_mix_display_mirror_supported(FullMixDisplayRow row, const FullMixDebug
 {
 	if (!full_mix_display_row_midi_allowed(row, display_midi))
 		return false;
+	if (row == FullMixDisplayRow::Guitar && display_midi == debug.midi - 12 &&
+	    sparse_vocal_owned_guitar_octave_alias_supported(debug))
+		return true;
 	const bool measured_low_organ_keyboard_alias =
 		row == FullMixDisplayRow::Keyboard &&
 		measured_low_organ_keyboard_octave_alias_supported(debug);

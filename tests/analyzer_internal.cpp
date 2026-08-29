@@ -6167,6 +6167,28 @@ void check_keyboard_owned_clean_low_mid_guitar_display(Runner &runner)
 int run()
 {
 	Runner runner;
+	mao::FullMixDebugCandidate sparse_vocal_octave_alias;
+	sparse_vocal_octave_alias.owner = mao::InstrumentKind::Vocal;
+	sparse_vocal_octave_alias.midi = 60;
+	sparse_vocal_octave_alias.vocal_score = 0.807f;
+	sparse_vocal_octave_alias.keyboard_score = 0.193f;
+	sparse_vocal_octave_alias.spectral_level = 1.0f;
+	sparse_vocal_octave_alias.pitch_confidence = 0.915f;
+	sparse_vocal_octave_alias.periodicity = 0.702f;
+	sparse_vocal_octave_alias.harmonic_fit_error = 0.042f;
+	sparse_vocal_octave_alias.local_noise_level = 0.057f;
+	sparse_vocal_octave_alias.spectral_centroid = 0.021f;
+	sparse_vocal_octave_alias.spectral_slope = 0.011f;
+	sparse_vocal_octave_alias.harmonic_ratios = {1.0f, 0.033f, 0.010f, 0.000f, 0.001f};
+	mao::FullMixOwnership sparse_vocal_octave_ownership;
+	sparse_vocal_octave_ownership.global_note_levels[48 - mao::kFirstMidi] = 0.20f;
+	runner.expect(mao::full_mix_display_mirror_midi(mao::FullMixDisplayRow::Guitar,
+							 sparse_vocal_octave_alias,
+							 sparse_vocal_octave_ownership) == 48,
+		      "sparse vocal-owned C4 guitar body: expected C3 display alias");
+	runner.expect(mao::full_mix_display_mirror_supported(mao::FullMixDisplayRow::Guitar,
+							      sparse_vocal_octave_alias, 48),
+		      "sparse vocal-owned C4 guitar body: expected C3 mirror support");
 	FullMixDebugCandidate low_other_guitar = {};
 	low_other_guitar.midi = 45;
 	low_other_guitar.owner = InstrumentKind::Other;
