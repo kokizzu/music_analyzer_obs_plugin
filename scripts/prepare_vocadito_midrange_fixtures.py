@@ -31,6 +31,7 @@ class Candidate:
     duration: float
     frequency: float
     midi: int
+    cents: float
 
     @property
     def output_name(self) -> str:
@@ -44,6 +45,11 @@ def note_name(midi: int) -> str:
 
 def midi_from_hertz(frequency: float) -> int:
     return int(round(69 + 12 * math.log2(frequency / 440.0)))
+
+
+def cents_from_midi(frequency: float, midi: int) -> float:
+    reference = 440.0 * (2.0 ** ((midi - 69) / 12.0))
+    return 1200.0 * math.log2(frequency / reference)
 
 
 def sample_root() -> Path:
@@ -64,7 +70,9 @@ def parse_recording(path: Path) -> int:
     return int(stem[len(marker) :].split("_", 1)[0])
 
 
-def candidates(root: Path, minimum_duration: float, limit_per_midi: int) -> list[Candidate]:
+def candidates(
+    root: Path, minimum_duration: float, maximum_cents: float, limit_per_midi: int
+) -> list[Candidate]:
     notes_directory = root / VOCADITO_DIRECTORY / "Annotations" / "Notes"
     audio_directory = root / VOCADITO_DIRECTORY / "Audio"
     if not notes_directory.is_dir() or not audio_directory.is_dir():
@@ -88,8 +96,13 @@ def candidates(root: Path, minimum_duration: float, limit_per_midi: int) -> list
                 midi = midi_from_hertz(frequency)
                 if midi < 50 or midi > 54:
                     continue
+                cents = cents_from_midi(frequency, midi)
+                if abs(cents) > maximum_cents:
+                    continue
                 identifier = f"vocadito_{recording:02d}_{index:04d}_{note_name(midi)}"
-                all_candidates.append(Candidate(identifier, recording, onset, duration, frequency, midi))
+                all_candidates.append(
+                    Candidate(identifier, recording, onset, duration, frequency, midi, cents)
+                )
 
     selected: list[Candidate] = []
     selected_per_midi: Counter[int] = Counter()
@@ -109,7 +122,7 @@ def manifest_text(items: list[Candidate]) -> str:
     for item in items:
         qualities = (
             f"recording={item.recording},onset={item.onset:.6f},duration={item.duration:.6f},"
-            f"annotated_hz={item.frequency:.3f},annotator=A1,vocadito-v1"
+            f"annotated_hz={item.frequency:.3f},cents={item.cents:.2f},annotator=A1,vocadito-v1"
         )
         rows.append(
             "\t".join(
@@ -129,7 +142,7 @@ def describe(items: list[Candidate], root: Path) -> None:
     for item in items[:20]:
         print(
             f"{item.identifier}\t{note_name(item.midi)}\t{item.onset:.3f}s\t"
-            f"{item.duration:.3f}s\t{item.frequency:.2f}Hz"
+            f"{item.duration:.3f}s\t{item.frequency:.2f}Hz\t{item.cents:+.1f}c"
         )
 
 
@@ -200,13 +213,14 @@ def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("command", choices=("plan", "apply"))
     parser.add_argument("--minimum-duration", type=float, default=0.20)
+    parser.add_argument("--maximum-cents", type=float, default=9.0)
     parser.add_argument("--limit-per-midi", type=int, default=40)
     parser.add_argument("--ffmpeg", default=os.environ.get("FFMPEG", "ffmpeg"))
     args = parser.parse_args()
-    if args.minimum_duration <= 0.0 or args.limit_per_midi <= 0:
-        raise SystemExit("minimum duration and per-MIDI limit must be positive")
+    if args.minimum_duration <= 0.0 or args.maximum_cents <= 0.0 or args.limit_per_midi <= 0:
+        raise SystemExit("minimum duration, maximum cents, and per-MIDI limit must be positive")
     root = sample_root()
-    items = candidates(root, args.minimum_duration, args.limit_per_midi)
+    items = candidates(root, args.minimum_duration, args.maximum_cents, args.limit_per_midi)
     if not items:
         raise RuntimeError("no annotated D3-F#3 clips matched the selection")
     if args.command == "plan":
