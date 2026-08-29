@@ -1207,6 +1207,23 @@ mao::AnalysisSnapshot analyze_buffer(const mao_test::Buffer &buffer, uint32_t sa
 	return snapshot;
 }
 
+mao::AnalysisSnapshot analyze_buffer_attack(const mao_test::Buffer &buffer, uint32_t sample_rate,
+					    mao::AnalysisInputMode mode, const char *source)
+{
+	mao::AnalysisEngine engine;
+	mao::AnalysisSettings settings = mao_test::default_settings();
+	settings.sample_rate = sample_rate;
+	settings.analysis_interval_seconds = 0.05f;
+	settings.analysis_window_samples = 0;
+	settings.analysis_window_seconds = kDefaultWindowSeconds;
+	settings.input_mode = mode;
+
+	// Pre-roll exactly one silent interval so the next snapshot captures the live onset.
+	mao_test::Buffer silence = {};
+	engine.analyze(silence.data(), silence.size(), settings, source, 0);
+	return engine.analyze(buffer.data(), buffer.size(), settings, source, 0);
+}
+
 int positive_int_env(const char *name, int fallback)
 {
 	const char *value = std::getenv(name);
@@ -1241,6 +1258,8 @@ int main()
 		debug_sample_id_env && *debug_sample_id_env ? debug_sample_id_env : "";
 	const char *attribute_path_env = std::getenv("MUSIC_ANALYZER_REAL_NOTE_ATTRIBUTE_TSV");
 	const bool attribute_export = attribute_path_env && *attribute_path_env;
+	const bool attack_attribute_export =
+		attribute_export && std::getenv("MUSIC_ANALYZER_REAL_NOTE_ATTACK_ATTRIBUTE_EXPORT") != nullptr;
 	const int required_samples = positive_int_env("MUSIC_ANALYZER_REAL_NOTE_REQUIRED_SAMPLES", 1000);
 	const int max_failures = nonnegative_int_env("MUSIC_ANALYZER_REAL_NOTE_MAX_FAILURES", 0);
 	const bool full_mix = std::getenv("MUSIC_ANALYZER_REAL_NOTE_FULL_MIX") != nullptr;
@@ -1393,10 +1412,11 @@ int main()
 										 row.family.c_str();
 		for (const mao_test::Buffer &buffer : buffers) {
 			const RawNoteAttributes raw = measure_raw_note_attributes(buffer, sample_rate, row.midi);
-			const mao::AnalysisSnapshot snapshot =
-				analyze_buffer(buffer, sample_rate,
-					       full_mix ? mao::AnalysisInputMode::FullMix : family_mode(row.family),
-					       analysis_source);
+			const mao::AnalysisInputMode mode =
+				full_mix ? mao::AnalysisInputMode::FullMix : family_mode(row.family);
+			const mao::AnalysisSnapshot snapshot = attack_attribute_export ?
+				analyze_buffer_attack(buffer, sample_rate, mode, analysis_source) :
+				analyze_buffer(buffer, sample_rate, mode, analysis_source);
 			last_label = family_state(snapshot, row.family).label;
 			const bool label_ok = mao_test::has_note_token(family_state(snapshot, row.family).label,
 								       expected.c_str()) ||

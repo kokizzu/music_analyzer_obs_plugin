@@ -9859,6 +9859,18 @@ report-full-mix-guitar-attributes: build/analyzer_real_note_samples
 report-full-mix-guitar-visual-patterns: report-full-mix-guitar-attributes
 	python3 scripts/report_full_mix_guitar_visual_patterns.py
 
+.PHONY: report-full-mix-guitar-attack-attributes
+report-full-mix-guitar-attack-attributes: build/analyzer_real_note_samples
+	python3 scripts/report_full_mix_guitar_attributes.py --attack
+
+.PHONY: report-full-mix-guitar-attack-patterns
+report-full-mix-guitar-attack-patterns: report-full-mix-guitar-attack-attributes
+	python3 scripts/report_full_mix_guitar_visual_patterns.py --buffer first --input-phase attack
+
+.PHONY: report-full-mix-piano-guitar-onset-ownership
+report-full-mix-piano-guitar-onset-ownership: build/analyzer_real_note_samples
+	python3 scripts/report_full_mix_piano_guitar_attack_ownership.py
+
 report-full-mix-other-attributes: build/analyzer_real_note_samples
 	python3 scripts/report_full_mix_other_attributes.py
 

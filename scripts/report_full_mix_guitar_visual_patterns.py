@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Compare exact guitar-owned expected notes rendered as guitar versus piano."""
 
+import argparse
 import csv
 from collections import defaultdict
 from pathlib import Path
@@ -16,12 +17,13 @@ FEATURES = (
 )
 
 
-def expected_note_row(rows: list[dict[str, str]]) -> dict[str, str] | None:
-    last_buffer = max(float(row["buffer"]) for row in rows)
+def expected_note_row(rows: list[dict[str, str]], phase: str) -> dict[str, str] | None:
+    buffer_selector = min if phase == "attack" else max
+    selected_buffer = buffer_selector(float(row["buffer"]) for row in rows)
     matching = [
         row
         for row in rows
-        if float(row["buffer"]) == last_buffer and row["debug_midi"] == row["expected_midi"]
+        if float(row["buffer"]) == selected_buffer and row["debug_midi"] == row["expected_midi"]
     ]
     if not matching:
         return None
@@ -29,14 +31,24 @@ def expected_note_row(rows: list[dict[str, str]]) -> dict[str, str] | None:
 
 
 def main() -> int:
-    with REPORT.open(encoding="utf-8", newline="") as source:
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--buffer", choices=("first", "final"), default="final")
+    parser.add_argument("--input-phase", choices=("settled", "attack"), default="settled")
+    arguments = parser.parse_args()
+    buffer_phase = arguments.buffer
+    report = (
+        REPORT.with_name("full_mix_guitar_attack_attributes_shard_0.tsv")
+        if arguments.input_phase == "attack"
+        else REPORT
+    )
+    with report.open(encoding="utf-8", newline="") as source:
         grouped: dict[str, list[dict[str, str]]] = defaultdict(list)
         for row in csv.DictReader(source, delimiter="\t"):
             grouped[row["sample_id"]].append(row)
 
     buckets: dict[str, list[dict[str, str]]] = defaultdict(list)
     for rows in grouped.values():
-        row = expected_note_row(rows)
+        row = expected_note_row(rows, "attack" if buffer_phase == "first" else "final")
         if row is None or row["debug_owner"] != "guitar":
             continue
         visual = row["buffer_visual_strongest_row"]
@@ -45,7 +57,7 @@ def main() -> int:
 
     for visual in ("guitar", "piano"):
         rows = buckets[visual]
-        print(f"guitar-owned visual-{visual} samples={len(rows)}")
+        print(f"{arguments.input_phase}/{buffer_phase} guitar-owned visual-{visual} samples={len(rows)}")
         if not rows:
             continue
         for feature in FEATURES:
