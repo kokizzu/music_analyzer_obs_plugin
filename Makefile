@@ -10367,3 +10367,19 @@ report-full-mix-piano-attributes-shard0: build/analyzer_real_note_samples script
 .PHONY: report-full-mix-piano-attributes-sample
 report-full-mix-piano-attributes-sample: build/analyzer_real_note_samples scripts/report_full_mix_bass_attributes.py
 	python3 scripts/report_full_mix_bass_attributes.py piano --shard-count=16
+
+.PHONY: inspect-full-mix-electric-piano-source
+inspect-full-mix-electric-piano-source: scripts/inspect_analyzer_section.py
+	python3 scripts/inspect_analyzer_section.py --source src/analyzer.cpp --topic "measured_other_owned_electric_piano_supported"
+
+.PHONY: inspect-full-mix-visual-boost-source
+inspect-full-mix-visual-boost-source: scripts/inspect_analyzer_section.py
+	python3 scripts/inspect_analyzer_section.py --source src/analyzer.cpp --topic "boost_existing"
+
+.PHONY: inspect-note-grid-source
+inspect-note-grid-source: scripts/inspect_analyzer_section.py
+	python3 scripts/inspect_analyzer_section.py --source src/analyzer.hpp --topic "NoteGrid"
+
+.PHONY: inspect-low-electronic-keyboard-source
+inspect-low-electronic-keyboard-source: scripts/inspect_analyzer_section.py
+	python3 scripts/inspect_analyzer_section.py --source src/analyzer.cpp --topic "low_electronic"

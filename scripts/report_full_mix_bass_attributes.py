@@ -82,7 +82,7 @@ def main() -> int:
             + " ".join(
                 f"{key}={row[key]}"
                 for key in sorted(row)
-                if key.startswith(f"{family}_debug_") and row[key] not in {"0", "0.0", "0.000000"}
+                if key.startswith("debug_") and row[key] not in {"", "0", "0.0", "0.000000"}
             )
         )
     return 0
