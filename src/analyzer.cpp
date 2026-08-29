@@ -3504,7 +3504,23 @@ bool source_hinted_vocal_candidate_supported(const NoteEvidence &evidence, int m
 		third >= 0.010f && third <= 0.016f &&
 		fourth >= 0.016f && fourth <= 0.024f &&
 		fifth <= 0.010f;
-	return measured_ooh_octave_alias || measured_synth_voice_octave_alias;
+	// A named vocal source can contain a rounded lower voice whose steady body
+	// resembles an electric piano to the timbre classifier. Keep reassignment
+	// bounded to a two-candidate, clean low-vocal shape rather than relaxing
+	// generic mixed-source keyboard ownership.
+	const bool source_hinted_low_vocal_keyboard_body =
+		candidate_count <= 2 && midi >= 52 && midi <= 59 &&
+		keyboard_score >= 0.98f && guitar_score <= 0.02f && vocal_score <= 0.02f &&
+		other_score <= 0.02f && evidence.spectral_level >= 0.90f &&
+		evidence.pitch_confidence >= 0.82f && evidence.periodicity >= 0.70f &&
+		evidence.harmonic_fit_error <= 0.09f && evidence.local_noise_level >= 0.05f &&
+		evidence.local_noise_level <= 0.25f && evidence.spectral_centroid >= 0.10f &&
+		evidence.spectral_centroid <= 0.26f && evidence.spectral_slope >= 0.06f &&
+		evidence.spectral_slope <= 0.28f && second >= 0.20f && second <= 0.48f &&
+		third <= 0.10f && fourth >= 0.04f && fourth <= 0.16f && fifth >= 0.02f &&
+		fifth <= 0.12f;
+	return measured_ooh_octave_alias || measured_synth_voice_octave_alias ||
+	       source_hinted_low_vocal_keyboard_body;
 }
 
 void apply_full_mix_source_hint_owner(AnalysisInputMode source_hint, const NoteCandidate &candidate,

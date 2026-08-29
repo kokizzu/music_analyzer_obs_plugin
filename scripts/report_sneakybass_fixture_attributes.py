@@ -37,12 +37,18 @@ def main() -> int:
     articulations: dict[str, Counter[str]] = {}
     evidence: dict[tuple[str, str], Counter[str]] = {}
     examples: dict[str, list[dict[str, str]]] = {}
+    peak_deltas = Counter()
     for row in rows:
         cents = abs(as_float(row, "raw_tuned_cent_offset"))
         bucket = "within_9c" if cents <= 9.01 else "within_18c" if cents <= 18.01 else "outside_18c"
         buckets[bucket] += 1
         if active(row):
             detected[bucket] += 1
+        try:
+            peak_delta = int(row.get("raw_local_best_midi", "-999")) - int(row.get("midi", "0"))
+        except ValueError:
+            peak_delta = -999
+        peak_deltas[peak_delta] += 1
         parts = Path(row.get("path", "")).parts
         articulation = parts[2] if len(parts) > 2 and parts[0] == "source" and parts[1] == "Samples" else "unknown"
         values = articulations.setdefault(articulation, Counter())
@@ -65,6 +71,9 @@ def main() -> int:
         hits = detected[bucket]
         recall = 100.0 * hits / total if total else 0.0
         print(f"{bucket}=samples:{total} detected:{hits} recall:{recall:.1f}%")
+    print("raw_local_peak_delta:")
+    for delta, count in peak_deltas.most_common(8):
+        print(f"delta:{delta:+d}=samples:{count}")
     print("articulations:")
     for articulation in sorted(articulations):
         values = articulations[articulation]
@@ -95,6 +104,8 @@ def main() -> int:
                 f"label:{row.get('bass_label')} grid:{row.get('bass_notes')} "
                 f"raw_best:{row.get('raw_local_best_note')}({row.get('raw_local_best_midi')}) "
                 f"rank:{row.get('raw_expected_rank')} "
+				f"spectral:{row.get('bass_spectral_midi')}/{row.get('bass_spectral_confidence')} "
+				f"periodic:{row.get('bass_periodic_midi')}/{row.get('bass_periodic_confidence')} "
                 f"candidates:{row.get('debug_candidates')}"
             )
     return 0

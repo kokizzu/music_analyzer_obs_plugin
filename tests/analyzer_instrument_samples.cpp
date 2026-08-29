@@ -738,6 +738,8 @@ void print_attribute_header(std::ostream &out)
 	    << "\tbass_label\tpiano_label\tguitar_label\tvocal_label\tother_label"
 	    << "\tglobal_chord\tkeyboard_chord\tguitar_chord\tother_chord"
 	    << "\trms\tlow\tmid\thigh"
+	    << "\tbass_spectral_midi\tbass_spectral_confidence\tbass_spectral_score"
+	    << "\tbass_periodic_midi\tbass_periodic_confidence\tbass_periodic_score"
 	    << "\traw_expected_peak\traw_expected_ratio\traw_tuned_peak\traw_tuned_ratio"
 	    << "\traw_tuned_cent_offset\traw_tuned_abs_cent_offset"
 	    << "\traw_local_best_note\traw_local_best_midi\traw_local_best_peak\traw_expected_rank"
@@ -786,6 +788,12 @@ void append_snapshot_attribute_fields(std::ostringstream &line, const mao::Analy
 	append_tsv(line, snapshot.low_energy);
 	append_tsv(line, snapshot.mid_energy);
 	append_tsv(line, snapshot.high_energy);
+	append_tsv(line, snapshot.bass_debug_spectral_midi);
+	append_tsv(line, snapshot.bass_debug_spectral_confidence);
+	append_tsv(line, snapshot.bass_debug_spectral_score);
+	append_tsv(line, snapshot.bass_debug_periodic_midi);
+	append_tsv(line, snapshot.bass_debug_periodic_confidence);
+	append_tsv(line, snapshot.bass_debug_periodic_score);
 }
 
 void append_raw_note_attribute_fields(std::ostringstream &line, const RawNoteAttributes *raw)
@@ -1466,6 +1474,8 @@ void check_optional_real_bass_fixture(Runner &runner, std::ostream *attribute_ou
 		return;
 
 	const std::string root = root_env;
+	const char *source_env = std::getenv("MUSIC_ANALYZER_REAL_BASS_SOURCE_NAME");
+	const char *source_name = source_env && *source_env ? source_env : "double bass";
 	std::vector<SampleRow> rows;
 	runner.expect(read_manifest(join_path(root, "manifest.tsv"), rows),
 		      "missing real bass fixture manifest under " + root);
@@ -1474,6 +1484,8 @@ void check_optional_real_bass_fixture(Runner &runner, std::ostream *attribute_ou
 
 	int tested = 0;
 	int detected = 0;
+	int spectral_expected = 0;
+	int periodic_expected = 0;
 	for (std::size_t row_index = 0; row_index < rows.size(); ++row_index) {
 		if (!shard_includes_row(row_index, shard_count, shard_index))
 			continue;
@@ -1491,12 +1503,16 @@ void check_optional_real_bass_fixture(Runner &runner, std::ostream *attribute_ou
 		}
 
 		const mao::AnalysisSnapshot snapshot =
-			analyze_buffer(buffer, sample_rate, mao::AnalysisInputMode::IsolatedBass, "double bass",
+			analyze_buffer(buffer, sample_rate, mao::AnalysisInputMode::IsolatedBass, source_name,
 				       kDefaultWindowSeconds);
 		const bool detected_expected =
 			mao_test::has_note_token(snapshot.bass.label, mao_test::note_label(row.midi).c_str()) ||
 			grid_has_pitch_class(snapshot.bass_notes, row.midi);
 		++tested;
+		if (snapshot.bass_debug_spectral_midi == row.midi)
+			++spectral_expected;
+		if (snapshot.bass_debug_periodic_midi == row.midi)
+			++periodic_expected;
 		if (detected_expected)
 			++detected;
 		if (attribute_out) {
@@ -1508,6 +1524,9 @@ void check_optional_real_bass_fixture(Runner &runner, std::ostream *attribute_ou
 	}
 	if (tested > 0)
 		std::printf("real_bass_fixture: %d/%d expected pitch classes detected\n", detected, tested);
+	if (tested > 0)
+		std::printf("real_bass_fixture_debug: spectral=%d periodic=%d total=%d\n", spectral_expected,
+			    periodic_expected, tested);
 }
 
 void check_drum_kit_samples(Runner &runner, const std::string &root, std::ostream *attribute_out,

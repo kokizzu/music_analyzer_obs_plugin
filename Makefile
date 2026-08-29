@@ -9708,7 +9708,10 @@ verify-sneakybass-fixture:
 	$(PYTHON) scripts/prepare_sneakybass_fixture.py verify --store "$(INSTRUMENT_SAMPLE_STORE)"
 
 analyze-sneakybass-fixture: build/analyzer_instrument_samples verify-sneakybass-fixture
-	$(PYTHON) scripts/run_sneakybass_fixture_audit.py --binary "$(BUILD_DIR)/analyzer_instrument_samples" --fixture-root "$(INSTRUMENT_SAMPLE_STORE)/real-fixtures/sneakybass" --log "$(BUILD_DIR)/sneakybass_fixture_audit.log" --attributes "$(BUILD_DIR)/sneakybass_fixture_attributes.tsv" --jobs "$(PARALLEL_TEST_JOBS)"
+	$(PYTHON) scripts/run_sneakybass_fixture_audit.py --binary "$(BUILD_DIR)/analyzer_instrument_samples" --fixture-root "$(INSTRUMENT_SAMPLE_STORE)/real-fixtures/sneakybass" --log "$(BUILD_DIR)/sneakybass_fixture_audit.log" --attributes "$(BUILD_DIR)/sneakybass_fixture_attributes.tsv" --jobs "$(PARALLEL_TEST_JOBS)" --source-name "$(SNEAKYBASS_SOURCE_NAME)"
+
+analyze-sneakybass-fixture-regular-bass: build/analyzer_instrument_samples verify-sneakybass-fixture
+	$(PYTHON) scripts/run_sneakybass_fixture_audit.py --binary "$(BUILD_DIR)/analyzer_instrument_samples" --fixture-root "$(INSTRUMENT_SAMPLE_STORE)/real-fixtures/sneakybass" --log "$(BUILD_DIR)/sneakybass_fixture_regular_bass_audit.log" --attributes "$(BUILD_DIR)/sneakybass_fixture_regular_bass_attributes.tsv" --jobs "$(PARALLEL_TEST_JOBS)" --source-name "bass"
 
 report-sneakybass-fixture-audit:
 	$(PYTHON) scripts/report_sneakybass_fixture_audit.py --log "$(BUILD_DIR)/sneakybass_fixture_audit.log"
@@ -9717,3 +9720,14 @@ report-sneakybass-fixture-attributes:
 	$(PYTHON) scripts/report_sneakybass_fixture_attributes.py --attributes "$(BUILD_DIR)/sneakybass_fixture_attributes.tsv"
 commit-real-bass-fixture-audit:
 	python3 scripts/commit_staged_source_changes.py --message "test: add external real bass fixture audit"
+SNEAKYBASS_SOURCE_NAME ?= double bass
+test-instrument-vocal-voice-oohs-g3: build/analyzer_instrument_samples
+	MUSIC_ANALYZER_INSTRUMENT_SAMPLES_REQUIRED=1 MUSIC_ANALYZER_INSTRUMENT_SAMPLE_ROOT="$(INSTRUMENT_SAMPLE_BUILD_ROOT)" MUSIC_ANALYZER_INSTRUMENT_SAMPLE_FILTER_FAMILY="vocals" MUSIC_ANALYZER_INSTRUMENT_SAMPLE_FILTER_PROGRAM="voice_oohs" MUSIC_ANALYZER_INSTRUMENT_SAMPLE_FILTER_PATH="G3" build/analyzer_instrument_samples
+
+analyze-instrument-vocal-voice-oohs-g3: build/analyzer_instrument_samples
+	MUSIC_ANALYZER_INSTRUMENT_SAMPLES_REQUIRED=1 MUSIC_ANALYZER_INSTRUMENT_SAMPLE_ROOT="$(INSTRUMENT_SAMPLE_BUILD_ROOT)" MUSIC_ANALYZER_INSTRUMENT_SAMPLE_FILTER_FAMILY="vocals" MUSIC_ANALYZER_INSTRUMENT_SAMPLE_FILTER_PROGRAM="voice_oohs" MUSIC_ANALYZER_INSTRUMENT_SAMPLE_FILTER_PATH="G3" MUSIC_ANALYZER_INSTRUMENT_ATTRIBUTE_TSV="$(BUILD_DIR)/voice_oohs_g3_attributes.tsv" build/analyzer_instrument_samples
+
+report-instrument-vocal-voice-oohs-g3:
+	$(PYTHON) scripts/report_voice_oohs_g3_attributes.py --attributes "$(BUILD_DIR)/voice_oohs_g3_attributes.tsv"
+commit-vocal-source-hint-recovery:
+	python3 scripts/commit_staged_source_changes.py --message "fix: recover low vocals from keyboard ownership"

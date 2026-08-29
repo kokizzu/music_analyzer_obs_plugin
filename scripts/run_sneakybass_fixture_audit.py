@@ -15,6 +15,7 @@ from pathlib import Path
 
 
 SUMMARY = re.compile(r"^real_bass_fixture: (\d+)/(\d+) expected pitch classes detected$", re.MULTILINE)
+DEBUG_SUMMARY = re.compile(r"^real_bass_fixture_debug: spectral=(\d+) periodic=(\d+) total=(\d+)$", re.MULTILINE)
 
 
 def main() -> int:
@@ -24,6 +25,7 @@ def main() -> int:
     parser.add_argument("--log", required=True, type=Path)
     parser.add_argument("--attributes", required=True, type=Path)
     parser.add_argument("--jobs", type=int, default=1)
+    parser.add_argument("--source-name", default="double bass")
     args = parser.parse_args()
     if not args.binary.is_file():
         raise SystemExit(f"missing analyzer test binary: {args.binary}")
@@ -36,6 +38,7 @@ def main() -> int:
         environment = os.environ.copy()
         environment["MUSIC_ANALYZER_SKIP_STANDARD_INSTRUMENT_SAMPLES"] = "1"
         environment["MUSIC_ANALYZER_REAL_BASS_FIXTURE_ROOT"] = str(args.fixture_root)
+        environment["MUSIC_ANALYZER_REAL_BASS_SOURCE_NAME"] = args.source_name
         environment["MUSIC_ANALYZER_INSTRUMENT_SAMPLE_SHARD_COUNT"] = str(args.jobs)
         environment["MUSIC_ANALYZER_INSTRUMENT_SAMPLE_SHARD_INDEX"] = str(index)
         attribute_path = staged_attributes / f"shard-{index:03d}.tsv"
@@ -81,6 +84,7 @@ def main() -> int:
         f"timestamp_utc={datetime.now(timezone.utc).strftime('%Y-%m-%dT%H:%M:%SZ')}\n"
         f"exit_code={exit_code}\n"
         f"jobs={args.jobs}\n"
+        f"source_name={args.source_name}\n"
         f"fixture={args.fixture_root}\n"
         f"\n{output}"
     )
@@ -97,6 +101,12 @@ def main() -> int:
         print(f"sneakybass_audit: detected={detected} total={total} recall={percent:.1f}%")
     else:
         print("sneakybass_audit: no result summary; inspect log")
+    debug_matches = [tuple(int(value) for value in match.groups()) for match in DEBUG_SUMMARY.finditer(output)]
+    if debug_matches:
+        spectral = sum(match[0] for match in debug_matches)
+        periodic = sum(match[1] for match in debug_matches)
+        debug_total = sum(match[2] for match in debug_matches)
+        print(f"sneakybass_audit_debug: spectral={spectral} periodic={periodic} total={debug_total}")
     print(f"sneakybass_audit_log={args.log}")
     print(f"sneakybass_audit_attributes={args.attributes}")
     return exit_code
