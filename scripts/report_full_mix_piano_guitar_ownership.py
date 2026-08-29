@@ -12,6 +12,7 @@ ROOT = Path(__file__).resolve().parents[1]
 BINARY = ROOT / "build" / "analyzer_real_note_samples"
 FEATURES = (
     "debug_conf", "keyboard_score", "guitar_score", "vocal_score", "other_score",
+    "onset_strength", "decay_rate", "pitch_stability", "simultaneous_onset",
     "spectral_level", "pitch_confidence", "periodicity", "harmonicity", "fit_error",
     "centroid", "slope", "noise", "partial1", "partial2", "partial3", "partial4",
     "partial5",
@@ -78,6 +79,8 @@ def main() -> int:
                 f"conf={row['debug_conf']} keyboard={row['keyboard_score']} "
                 f"guitar={row['guitar_score']} vocal={row['vocal_score']} "
                 f"other={row['other_score']} level={row['spectral_level']} "
+                f"onset={row['onset_strength']} decay={row['decay_rate']} "
+                f"stability={row['pitch_stability']} simultaneous={row['simultaneous_onset']} "
                 f"pitch={row['pitch_confidence']} period={row['periodicity']} "
                 f"harmonicity={row['harmonicity']} fit={row['fit_error']} "
                 f"centroid={row['centroid']} slope={row['slope']} noise={row['noise']} "
