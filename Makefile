@@ -9883,6 +9883,14 @@ report-full-mix-piano-guitar-onset-ownership: build/analyzer_real_note_samples
 report-full-mix-bass-attributes: build/analyzer_real_note_samples
 	python3 scripts/report_full_mix_bass_attributes.py
 
+.PHONY: report-full-mix-vocal-failures
+report-full-mix-vocal-failures: scripts/report_full_mix_vocal_failures.py
+	python3 scripts/report_full_mix_vocal_failures.py
+
+.PHONY: inspect-vocal-display-source
+inspect-vocal-display-source: scripts/inspect_vocal_display_source.py
+	python3 scripts/inspect_vocal_display_source.py
+
 .PHONY: report-real-note-fixture-inventory
 report-real-note-fixture-inventory: scripts/report_real_note_fixture_inventory.py
 	python3 scripts/report_real_note_fixture_inventory.py

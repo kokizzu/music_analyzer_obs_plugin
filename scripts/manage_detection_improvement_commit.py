@@ -40,6 +40,8 @@ PATHS = (
     "scripts/report_full_mix_ownership_signatures.py",
     "scripts/report_full_mix_vocal_guitar_collisions.py",
     "scripts/report_guitar_profile_search.py",
+    "scripts/report_full_mix_vocal_failures.py",
+    "scripts/inspect_vocal_display_source.py",
     "scripts/report_real_instrument_expansion_bass_attributes.py",
     "scripts/report_real_note_fixture_inventory.py",
     "scripts/report_real_note_full_mix_attributes.py",

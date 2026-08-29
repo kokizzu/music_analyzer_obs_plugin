@@ -137,7 +137,5 @@ def main() -> None:
             f"precision={leaf.precision:.0%} conditions={' '.join(leaf.conditions)} "
             + "routes=" + ",".join(f"{route}:{count}" for route, count in sorted(routes.items()))
         )
-
-
 if __name__ == "__main__":
     main()

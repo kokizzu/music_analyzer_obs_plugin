@@ -4323,7 +4323,8 @@ bool measured_low_full_mix_vocal_display_supported(const FullMixDebugCandidate &
 {
 	if (debug.midi < kVocalMinMidi || debug.midi >= kFullMixVocalMinMidi)
 		return false;
-	if (debug.owner != InstrumentKind::Ambiguous && debug.owner != InstrumentKind::Guitar)
+	if (debug.owner != InstrumentKind::Ambiguous && debug.owner != InstrumentKind::Guitar &&
+	    debug.owner != InstrumentKind::Keyboard)
 		return false;
 
 	const float second = debug.harmonic_ratios[1];
@@ -4332,7 +4333,11 @@ bool measured_low_full_mix_vocal_display_supported(const FullMixDebugCandidate &
 	const float fifth = debug.harmonic_ratios[4];
 	if (measured_low_ambiguous_breathy_vowel_supported(debug))
 		return true;
-	return debug.spectral_level >= 0.90f &&
+	// Low voiced C3-area vocals can receive a piano owner in a mixed source.
+	// Their moderate noise and tightly bounded partial pattern remain distinct
+	// from the clean keyboard mirrors that this display recovery must reject.
+	const float minimum_level = debug.owner == InstrumentKind::Keyboard ? 0.80f : 0.90f;
+	return debug.spectral_level >= minimum_level &&
 	       debug.pitch_confidence >= 0.50f &&
 	       debug.periodicity >= 0.50f &&
 	       debug.harmonic_fit_error <= 0.18f &&
@@ -8564,8 +8569,7 @@ void add_full_mix_display_mirror(NoteCandidateList &candidates, const FullMixOwn
 	const bool sustained_acoustic_other_mirror =
 		row == FullMixDisplayRow::Other &&
 		keyboard_owned_sustained_acoustic_other_supported(debug);
-	if (clean_owned_chord_context_for_row(ownership, debug, row) &&
-	    !sustained_acoustic_other_mirror)
+	if (clean_owned_chord_context_for_row(ownership, debug, row) && !sustained_acoustic_other_mirror)
 		return;
 	const bool candidate_exists = candidate_list_has_midi(candidates, display_midi);
 	if (row == FullMixDisplayRow::Other &&
