@@ -9838,6 +9838,48 @@ bool full_mix_debug_bass_display_supported(const FullMixDebugCandidate &debug)
 	       ambiguous_upper_synth_bass_body;
 }
 
+float note_grid_midi_level(const NoteGrid &grid, int midi);
+void write_note_grid_cell(NoteGrid &grid, const NoteCandidate &candidate, float strongest_score,
+			  float visual_loudness);
+void write_note_grid_label(InstrumentState &state, const NoteGrid &grid, int preferred_root);
+
+bool full_mix_other_owned_electric_bass_body_supported(const FullMixDebugCandidate &debug)
+{
+	// IDMT electric-bass lines at E2--B2 can be owned as Other because their
+	// dense overtone stack resembles a synthetic source. Restrict recovery to
+	// this low range and the measured noisy, multi-overtone body.
+	return debug.owner == InstrumentKind::Other && debug.midi >= 40 && debug.midi <= 47 &&
+	       debug.ownership_confidence >= 0.80f && debug.other_score >= 0.75f &&
+	       debug.guitar_score <= 0.25f && debug.spectral_level >= 0.50f &&
+	       debug.pitch_confidence >= 0.24f && debug.pitch_confidence <= 0.72f &&
+	       debug.periodicity >= 0.52f && debug.periodicity <= 0.80f &&
+	       debug.harmonic_fit_error >= 0.10f && debug.harmonic_fit_error <= 0.90f &&
+	       debug.local_noise_level >= 0.38f && debug.local_noise_level <= 0.58f &&
+	       debug.harmonic_ratios[1] >= 0.70f && debug.harmonic_ratios[2] >= 0.20f &&
+	       debug.harmonic_ratios[3] >= 0.05f && debug.harmonic_ratios[4] <= 0.90f;
+}
+
+void restore_full_mix_other_owned_electric_bass_bodies(NoteGrid &grid, InstrumentState &state,
+						       const FullMixOwnership &ownership, int preferred_root)
+{
+	bool changed = false;
+	const std::size_t debug_count =
+		std::min<std::size_t>(ownership.debug_candidate_count, ownership.debug_candidates.size());
+	for (std::size_t i = 0; i < debug_count; ++i) {
+		const FullMixDebugCandidate &debug = ownership.debug_candidates[i];
+		if (!full_mix_other_owned_electric_bass_body_supported(debug))
+			continue;
+		const float level = std::max(ownership_global_note_level(ownership, debug.midi),
+					     debug.spectral_level * debug.pitch_confidence);
+		if (level < 0.18f || note_grid_midi_level(grid, debug.midi) >= level)
+			continue;
+		write_note_grid_cell(grid, NoteCandidate{debug.midi, level}, level, level);
+		changed = true;
+	}
+	if (changed)
+		write_note_grid_label(state, grid, preferred_root);
+}
+
 bool source_hinted_bass_fifth_harmonic(const FullMixOwnership &ownership,
 				       const FullMixDebugCandidate &debug)
 {
@@ -37370,6 +37412,9 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 	const std::array<bool, kNoteProbeCount> *other_new_notes = nullptr;
 
 	if (bass_processed) {
+		if (mixed_source)
+			restore_full_mix_other_owned_electric_bass_bodies(snapshot.bass_notes, snapshot.bass,
+								 full_mix_ownership, -1);
 		smooth_note_grid_envelope(snapshot.bass_notes, snapshot.bass, bass_note_tracking_, -1,
 					  interval_seconds, 1, nullptr, 1);
 		prefer_supported_lower_octave_display(snapshot.bass_notes, snapshot.bass, note_powers,

@@ -148,6 +148,40 @@ void check_low_acoustic_bass_suboctave_display(Runner &runner)
 		      "low acoustic bass suboctave: expected fifth-free C2 to stay at C2");
 }
 
+void check_other_owned_electric_bass_body_recovery(Runner &runner)
+{
+	static constexpr int kBassMidi = 41; // F2
+	FullMixOwnership ownership = {};
+	ownership.debug_candidate_count = 1;
+	FullMixDebugCandidate &debug = ownership.debug_candidates[0];
+	debug.midi = kBassMidi;
+	debug.owner = InstrumentKind::Other;
+	debug.ownership_confidence = 0.87f;
+	debug.other_score = 0.87f;
+	debug.guitar_score = 0.13f;
+	debug.spectral_level = 0.82f;
+	debug.pitch_confidence = 0.54f;
+	debug.periodicity = 0.70f;
+	debug.harmonic_fit_error = 0.30f;
+	debug.local_noise_level = 0.50f;
+	debug.harmonic_ratios = {1.0f, 1.10f, 0.72f, 0.30f, 0.08f};
+	ownership.global_note_levels[static_cast<std::size_t>(kBassMidi - kFirstMidi)] = 0.82f;
+
+	NoteGrid grid = {};
+	InstrumentState state = {};
+	restore_full_mix_other_owned_electric_bass_bodies(grid, state, ownership, -1);
+	runner.expect(note_grid_midi_level(grid, kBassMidi) >= 0.70f,
+		      "other-owned electric bass body: expected F2 to populate the bass grid");
+
+	FullMixOwnership weak = ownership;
+	weak.debug_candidates[0].harmonic_ratios[1] = 0.50f;
+	grid = {};
+	state = {};
+	restore_full_mix_other_owned_electric_bass_bodies(grid, state, weak, -1);
+	runner.expect(!note_grid_midi_level(grid, kBassMidi),
+		      "other-owned electric bass body: expected thin non-bass shape to remain absent");
+}
+
 void check_low_brass_suboctave_display(Runner &runner)
 {
 	NoteGrid grid = {};
@@ -6133,6 +6167,7 @@ void check_keyboard_owned_clean_low_mid_guitar_display(Runner &runner)
 int run()
 {
 	Runner runner;
+	check_other_owned_electric_bass_body_recovery(runner);
 	check_keyboard_owned_clean_low_mid_guitar_display(runner);
 	check_auto_source_mode_resolution(runner);
 	check_low_acoustic_bass_suboctave_display(runner);
