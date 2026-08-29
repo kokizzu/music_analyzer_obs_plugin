@@ -1343,7 +1343,10 @@ void draw_root_and_bpm(VisualizerRenderer *visualizer, const AnalysisSnapshot &s
 		constexpr std::array<const char *, 12> kRootNames = {
 			"C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B",
 		};
-		constexpr std::array<const char *, 5> kDeviceNames = {"LJ", "FZ", "APC", "MV", "AU"};
+		// Presentation order intentionally differs from the stable device-state
+		// indices: AUPHY is index 4 but is shown first for quick access.
+		constexpr std::array<const char *, 5> kDeviceNames = {"AU", "LJ", "FZ", "APC", "MV"};
+		constexpr std::array<std::size_t, 5> kDeviceDisplayOrder = {4, 0, 1, 2, 3};
 		const auto state_color = [](DeviceConnectionState state) {
 			switch (state) {
 			case DeviceConnectionState::Connected:
@@ -1389,7 +1392,7 @@ void draw_root_and_bpm(VisualizerRenderer *visualizer, const AnalysisSnapshot &s
 		control_x += text_width(mode_root, 2);
 		for (std::size_t i = 0; i < kDeviceNames.size(); ++i) {
 			control_x += text_width(" ", 2);
-			const DeviceConnectionState state = visualizer->external_control.devices[i];
+			const DeviceConnectionState state = visualizer->external_control.devices[kDeviceDisplayOrder[i]];
 			draw_text(visualizer, control_x, baseline_y, kDeviceNames[i], 2, state_color(state));
 			control_x += text_width(kDeviceNames[i], 2);
 			draw_text(visualizer, control_x, baseline_y, state_suffix(state), 2, state_color(state));

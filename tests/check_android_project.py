@@ -286,9 +286,19 @@ def main():
     require("ExternalDeviceManager" in activity and "setOnLongClickListener" in activity and
             "nativeToggleAutoconnect" in activity,
             "Android activity must own device discovery and expose the autoconnect toggle")
-    require("toggleDeviceAutoconnect(target - 1)" in activity and
+    require("deviceIndexForTouchTarget(target)" in activity and
+            "toggleDeviceAutoconnect(deviceIndex)" in activity and
             "nativeTouchTarget" in bridge and "nativeTouchTarget" in native_api,
             "Android device labels must expose per-device autoconnect touch targets")
+    renderer = (ROOT / "src" / "visualizer_renderer.cpp").read_text(encoding="utf-8")
+    require("kDeviceDisplayOrder = {4, 0, 1, 2, 3}" in renderer and
+            "kDeviceNames = {\"AU\", \"LJ\", \"FZ\", \"APC\", \"MV\"}" in renderer and
+            "devices[kDeviceDisplayOrder[i]]" in renderer,
+            "Android status strip must render AUPHY first while preserving its device state")
+    require("DEVICE_INDEX_BY_LABEL_POSITION = {4, 0, 1, 2, 3}" in activity and
+            "deviceIndexForTouchTarget(target)" in activity and
+            "toggleDeviceAutoconnect(deviceIndex)" in activity,
+            "Android AUPHY-first status strip must map taps back to device indices")
     require("BLUETOOTH_SCAN" in activity and "BLUETOOTH_CONNECT" in activity,
             "Android activity must request runtime BLE permissions")
     require("readAppCpuPercent" in activity and "Math.min(999.0f" not in activity,

@@ -7275,6 +7275,14 @@ inspect-beat-this-environment: scripts/inspect_beat_this_environment.py
 inspect-fretspark-sdk: scripts/inspect_fretspark_sdk.sh
 	bash scripts/inspect_fretspark_sdk.sh
 
+.PHONY: android-check-auphy-sct86pro
+android-check-auphy-sct86pro: scripts/check_android_auphy_sct86pro_runtime.sh
+	bash scripts/check_android_auphy_sct86pro_runtime.sh
+
+.PHONY: test-android-project-static
+test-android-project-static: scripts/test_android_project_static.sh
+	bash scripts/test_android_project_static.sh
+
 .PHONY: inspect-fretspark-sdk-path
 inspect-fretspark-sdk-path: scripts/inspect_fretspark_sdk.sh
 	@test -n "$(FRETSPARK_SDK_PATH)"

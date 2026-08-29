@@ -625,6 +625,9 @@ public final class MainActivity extends Activity {
     }
 
     private final class AnalyzerView extends View {
+        // The native renderer presents AUPHY first, while ExternalDeviceManager
+        // keeps its long-standing AUPHY state at index 4.
+        private static final int[] DEVICE_INDEX_BY_LABEL_POSITION = {4, 0, 1, 2, 3};
         private final Bitmap bitmap;
         private final Paint paint = new Paint(Paint.FILTER_BITMAP_FLAG);
         private final RectF destination = new RectF();
@@ -652,6 +655,14 @@ public final class MainActivity extends Activity {
             return target;
         }
 
+        private int deviceIndexForTouchTarget(int target) {
+            int labelPosition = target - 1;
+            if (labelPosition < 0 || labelPosition >= DEVICE_INDEX_BY_LABEL_POSITION.length) {
+                return -1;
+            }
+            return DEVICE_INDEX_BY_LABEL_POSITION[labelPosition];
+        }
+
         @Override
         public boolean onTouchEvent(MotionEvent event) {
             int action = event.getActionMasked();
@@ -669,7 +680,10 @@ public final class MainActivity extends Activity {
                         if (target == 0) {
                             cycleInputDevice();
                         } else if (externalDevices != null) {
-                            externalDevices.toggleDeviceAutoconnect(target - 1);
+                            int deviceIndex = deviceIndexForTouchTarget(target);
+                            if (deviceIndex >= 0) {
+                                externalDevices.toggleDeviceAutoconnect(deviceIndex);
+                            }
                         }
                         invalidate();
                     }

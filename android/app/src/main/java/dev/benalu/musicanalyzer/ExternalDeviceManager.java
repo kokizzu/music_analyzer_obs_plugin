@@ -1282,6 +1282,9 @@ final class ExternalDeviceManager implements Closeable {
         @Override
         public void onScanResult(int callbackType, ScanResult result) {
             String name = scanName(result);
+            if (BuildConfig.DEBUG) {
+                Log.d(TAG, "BLE scan name=" + (name.isEmpty() ? "<unnamed>" : name));
+            }
             if (isLiteJamName(name)) {
                 connectBle(liteJam, result.getDevice());
             } else if (isFretZealotName(name)) {
