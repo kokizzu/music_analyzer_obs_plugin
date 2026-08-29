@@ -1347,6 +1347,10 @@ int main()
 	bool found_debug_sample = debug_sample_id.empty();
 	int verbose_drum_lines = 0;
 	const int verbose_drum_limit = positive_int_env("MUSIC_ANALYZER_REAL_NOTE_VERBOSE_DRUM_LIMIT", 24);
+	const bool route_examples = std::getenv("MUSIC_ANALYZER_REAL_NOTE_ROUTE_EXAMPLES") != nullptr;
+	const int route_example_limit =
+		positive_int_env("MUSIC_ANALYZER_REAL_NOTE_ROUTE_EXAMPLE_LIMIT", 48);
+	int route_example_lines = 0;
 	int usable = 0;
 	for (std::size_t row_index = 0; row_index < rows.size(); ++row_index) {
 		const int row_shard = static_cast<int>(row_index % static_cast<std::size_t>(shard_count));
@@ -1545,6 +1549,13 @@ int main()
 			add_source_route(row_confusion_source_routes, row, index, first_detected_row);
 			add_source_route(visual_row_confusion_source_routes, row, index,
 					 first_visual_detected_row);
+			if (route_examples && first_detected_row != index && route_example_lines < route_example_limit) {
+				std::printf("route-example id=%s family=%s source=%s path=%s expected=%s first-row=%s visual-row=%s\n",
+					    row.id.c_str(), row.family.c_str(), row.source.c_str(), row.path.c_str(),
+					    expected.c_str(), kObservedRowNames[first_detected_row],
+					    kObservedRowNames[first_visual_detected_row]);
+				++route_example_lines;
+			}
 		}
 	}
 	if (!debug_sample_id.empty())

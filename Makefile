@@ -9780,8 +9780,20 @@ inventory-external-fixture-sources:
 inspect-instrument-route-logic:
 	python3 scripts/inspect_instrument_route_logic.py
 
+report-full-mix-route-examples:
+	python3 scripts/report_full_mix_route_examples.py
+
+test-real-note-samples-full-mix-route-examples:
+	MUSIC_ANALYZER_REAL_NOTE_ROUTE_EXAMPLES=1 MUSIC_ANALYZER_REAL_NOTE_ROUTE_EXAMPLE_LIMIT=48 $(MAKE) test-real-note-samples-full-mix
+
+debug-real-note-piano-guitar-route:
+	MUSIC_ANALYZER_REAL_NOTE_DEBUG_SAMPLE=keyboard_electronic_001-071-025 $(MAKE) test-real-note-samples-full-mix
+
 commit-instrument-route-inspection:
 	python3 scripts/commit_staged_source_changes.py --message "test: inspect instrument route logic"
+
+commit-full-mix-route-observability:
+	python3 scripts/commit_staged_source_changes.py --message "test: expose full mix route examples"
 
 test-instrument-synth-c5: build/analyzer_instrument_samples
 	MUSIC_ANALYZER_INSTRUMENT_SAMPLES_REQUIRED=1 MUSIC_ANALYZER_INSTRUMENT_SAMPLE_ROOT="build" MUSIC_ANALYZER_INSTRUMENT_SAMPLE_FILTER_FAMILY="synth" MUSIC_ANALYZER_INSTRUMENT_SAMPLE_FILTER_PATH="C5" build/analyzer_instrument_samples
