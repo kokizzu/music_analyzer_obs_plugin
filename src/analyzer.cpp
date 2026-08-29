@@ -4364,14 +4364,25 @@ bool shared_vocal_pitch_display_supported(const FullMixDebugCandidate &debug)
 		debug.harmonic_ratios[3] <= 0.008f &&
 		debug.harmonic_ratios[4] <= 0.008f;
 	const bool measured_low_vocal_display = measured_low_full_mix_vocal_display_supported(debug);
-	if ((!measured_low_vocal_display && debug.midi < kFullMixVocalMinMidi) ||
-	    (debug.midi > kVocalMaxMidi && !high_keyboard_vocal_octave_alias))
-		return false;
-
 	const float second = debug.harmonic_ratios[1];
 	const float third = debug.harmonic_ratios[2];
 	const float fourth = debug.harmonic_ratios[3];
 	const float fifth = debug.harmonic_ratios[4];
+	// The bottom of the vocal range falls below the generic full-mix cutoff.
+	// Admit only the measured compact low-register profile; it has a stable
+	// fundamental and controlled upper partials unlike bass and pick attacks.
+	const bool low_register_misrouted_vocal_fundamental =
+		debug.owner == InstrumentKind::Guitar && debug.midi >= 45 && debug.midi <= 47 &&
+		debug.spectral_level >= 0.90f && debug.pitch_confidence >= 0.74f &&
+		debug.periodicity >= 0.68f && debug.harmonic_fit_error <= 0.10f &&
+		debug.spectral_centroid >= 0.10f && debug.spectral_centroid <= 0.30f &&
+		debug.spectral_slope >= 0.10f && debug.spectral_slope <= 0.45f &&
+		debug.local_noise_level <= 0.36f && second >= 0.10f && second <= 0.26f &&
+		third >= 0.08f && third <= 0.35f && fourth <= 0.11f && fifth <= 0.05f;
+	if ((!measured_low_vocal_display && !low_register_misrouted_vocal_fundamental &&
+	     debug.midi < kFullMixVocalMinMidi) ||
+	    (debug.midi > kVocalMaxMidi && !high_keyboard_vocal_octave_alias))
+		return false;
 	if (debug.owner == InstrumentKind::Vocal) {
 		const bool measured_low_vocal_owner =
 			debug.ownership_confidence >= 0.56f &&
@@ -4580,7 +4591,7 @@ bool shared_vocal_pitch_display_supported(const FullMixDebugCandidate &debug)
 		debug.spectral_level >= 0.90f && debug.pitch_confidence >= 0.74f &&
 		debug.periodicity >= 0.70f && debug.harmonic_fit_error <= 0.10f &&
 		debug.local_noise_level <= 0.35f;
-	if (strong_misrouted_vocal_fundamental)
+	if (strong_misrouted_vocal_fundamental || low_register_misrouted_vocal_fundamental)
 		return true;
 
 	if (debug.owner != InstrumentKind::Keyboard && debug.owner != InstrumentKind::Other)
