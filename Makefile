@@ -10645,3 +10645,22 @@ commit-medleydb-vocal-fixture: scripts/manage_medleydb_vocal_fixture_commit.py
 	python3 scripts/manage_medleydb_vocal_fixture_commit.py commit
 push-medleydb-vocal-fixture: scripts/manage_medleydb_vocal_fixture_commit.py
 	python3 scripts/manage_medleydb_vocal_fixture_commit.py push
+
+.PHONY: report-medleydb-vocal-mix-attributes
+report-medleydb-vocal-mix-attributes: report-medleydb-vocal-mix scripts/report_medleydb_vocal_mix_attributes.py
+	python3 scripts/report_medleydb_vocal_mix_attributes.py
+.PHONY: report-medleydb-vocal-stem test-medleydb-vocal-stem
+report-medleydb-vocal-stem: build/analyzer_real_note_samples build/medleydb_vocal_stem_samples scripts/test_medleydb_vocal_mix.py
+	python3 scripts/test_medleydb_vocal_mix.py --stem
+test-medleydb-vocal-stem: build/analyzer_real_note_samples build/medleydb_vocal_stem_samples scripts/test_medleydb_vocal_mix.py
+	python3 scripts/test_medleydb_vocal_mix.py --stem --verify
+.PHONY: report-medleydb-vocal-stem-attributes
+report-medleydb-vocal-stem-attributes: report-medleydb-vocal-stem scripts/report_medleydb_vocal_mix_attributes.py
+	python3 scripts/report_medleydb_vocal_mix_attributes.py --stem
+.PHONY: plan-medleydb-vocal-fixture-update-commit commit-medleydb-vocal-fixture-update push-medleydb-vocal-fixture-update
+plan-medleydb-vocal-fixture-update-commit: scripts/manage_medleydb_vocal_fixture_update_commit.py
+	python3 scripts/manage_medleydb_vocal_fixture_update_commit.py plan
+commit-medleydb-vocal-fixture-update: scripts/manage_medleydb_vocal_fixture_update_commit.py
+	python3 scripts/manage_medleydb_vocal_fixture_update_commit.py commit
+push-medleydb-vocal-fixture-update: scripts/manage_medleydb_vocal_fixture_update_commit.py
+	python3 scripts/manage_medleydb_vocal_fixture_update_commit.py push

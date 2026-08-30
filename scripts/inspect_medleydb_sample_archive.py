@@ -29,6 +29,8 @@ def main() -> int:
         print(f"metadata={name}")
     for name in pitch[:24]:
         print(f"pitch={name}")
+    for name in stems:
+        print(f"stem={name}")
     with tarfile.open(ARCHIVE, "r:gz") as archive:
         for name in metadata:
             if "/._" in name:

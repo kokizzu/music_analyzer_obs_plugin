@@ -97,7 +97,12 @@ make inspect-medleydb-vocal-annotations
 make apply-medleydb-vocal-mix-fixtures
 make verify-medleydb-vocal-mix-fixtures
 make test-medleydb-vocal-mix
+make test-medleydb-vocal-stem
 ```
+
+The matched isolated melody stem uses the same annotated windows as the mix. Its
+90% floor separates native Vocal candidate recall from mix masking; the mix has
+an 80% floor because it retains the concurrent singers and guitars.
 
 The source is the [MedleyDB sample archive](https://zenodo.org/records/1438309) and its [dataset documentation](https://medleydb.weebly.com/description.html).
 
