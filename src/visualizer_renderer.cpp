@@ -1423,6 +1423,8 @@ void draw_waiting_status(VisualizerRenderer *visualizer, const AnalysisSnapshot 
 void render_complete_pixels(VisualizerRenderer *visualizer, const AnalysisSnapshot &snapshot, float snapshot_age)
 {
 	constexpr int y_shift = kCompleteContentShiftY;
+	constexpr int kKeyboardAfterVocalOffset = -2;
+	constexpr int kRootAfterGuitarGutter = 18;
 	draw_visualizer_header(visualizer, snapshot, snapshot_age, nullptr, y_shift);
 	draw_drum_row(visualizer, snapshot, 96 + y_shift, 88 + y_shift);
 
@@ -1452,12 +1454,14 @@ void render_complete_pixels(VisualizerRenderer *visualizer, const AnalysisSnapsh
 	// KEYS, in the same summary column that carries the compact KEY values.
 	draw_text(visualizer, layout.chord_x, row_y, "CHORD", 2, kLabelColor);
 	const int degree_root_pitch_class = pitch_class_from_note_label(snapshot.root.label);
-	row_y = draw_piano_keyboard(visualizer, layout, row_y + 4, snapshot.keyboard_notes, snapshot.keyboard_chord,
+	row_y = draw_piano_keyboard(visualizer, layout, row_y + kKeyboardAfterVocalOffset, snapshot.keyboard_notes,
+				    snapshot.keyboard_chord,
 				    visualizer->stable_labels[StableKeyboard].label, degree_root_pitch_class);
 	row_y = draw_guitar_fretboard(visualizer, layout, row_y + 4, snapshot.guitar_notes, snapshot.guitar_chord,
 				      visualizer->stable_labels[StableGuitar].label, degree_root_pitch_class);
 
-	const int root_y = std::min(row_y + 6, std::max(0, static_cast<int>(visualizer->height) - 14 + y_shift));
+	const int root_y = std::min(row_y + kRootAfterGuitarGutter,
+				    std::max(0, static_cast<int>(visualizer->height) - 14 + y_shift));
 	draw_root_and_bpm(visualizer, snapshot, root_y);
 
 	draw_waiting_status(visualizer, snapshot, snapshot_age, 230, 145 + y_shift);
