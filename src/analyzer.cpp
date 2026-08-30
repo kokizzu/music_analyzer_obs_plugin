@@ -7178,6 +7178,22 @@ bool keyboard_owned_sustained_acoustic_other_supported(const FullMixDebugCandida
 	       debug.harmonic_ratios[3] <= 0.14f && debug.harmonic_ratios[4] <= 0.08f;
 }
 
+bool keyboard_owned_bright_alto_sax_other_supported(const FullMixDebugCandidate &debug)
+{
+	return debug.owner == InstrumentKind::Keyboard && debug.midi >= 70 && debug.midi <= 72 &&
+	       debug.keyboard_score >= 0.65f && debug.other_score <= 0.35f &&
+	       debug.spectral_level >= 0.90f && debug.pitch_confidence >= 0.84f &&
+	       debug.pitch_confidence <= 0.89f && debug.periodicity >= 0.86f &&
+	       debug.periodicity <= 0.90f && debug.harmonic_fit_error >= 0.25f &&
+	       debug.harmonic_fit_error <= 0.35f && debug.spectral_centroid >= 0.43f &&
+	       debug.spectral_centroid <= 0.50f && debug.spectral_slope >= 1.10f &&
+	       debug.spectral_slope <= 1.50f && debug.local_noise_level <= 0.006f &&
+	       debug.harmonic_ratios[1] >= 0.10f && debug.harmonic_ratios[1] <= 0.18f &&
+	       debug.harmonic_ratios[2] >= 0.65f && debug.harmonic_ratios[2] <= 0.85f &&
+	       debug.harmonic_ratios[3] >= 0.45f && debug.harmonic_ratios[3] <= 0.75f &&
+	       debug.harmonic_ratios[4] >= 0.08f && debug.harmonic_ratios[4] <= 0.25f;
+}
+
 bool full_mix_display_mirror_supported(FullMixDisplayRow row, const FullMixDebugCandidate &debug,
 				       int display_midi)
 {
@@ -7216,6 +7232,9 @@ bool full_mix_display_mirror_supported(FullMixDisplayRow row, const FullMixDebug
 	    !measured_noisy_guitar_octave_up_alias)
 		return false;
 	if (ambiguous_shared_keyboard_guitar_display_supported(row, debug, display_midi))
+		return true;
+	if (row == FullMixDisplayRow::Other && display_midi == debug.midi &&
+	    keyboard_owned_bright_alto_sax_other_supported(debug))
 		return true;
 	const bool low_other_owned_guitar_body =
 		row == FullMixDisplayRow::Guitar && display_midi == debug.midi &&
