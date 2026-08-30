@@ -269,6 +269,21 @@ struct Recording {
 	std::vector<NoteAnnotation> notes;
 };
 
+bool has_verified_fender_dsharp_minor_annotation_offset(const std::string &recording_id)
+{
+	static constexpr const char kPrefix[] =
+		"clips_isolated-chords_D#m_D#m_acoustic_guitar_fender_fa_series_";
+	if (recording_id.compare(0, sizeof(kPrefix) - 1, kPrefix) != 0)
+		return false;
+
+	const char *suffix = recording_id.c_str() + sizeof(kPrefix) - 1;
+	char *end = nullptr;
+	const long index = std::strtol(suffix, &end, 10);
+	// The cached manifest may retain a file extension or record suffix; the
+	// series number itself is the verified identity of the mislabeled clips.
+	return suffix != end && index >= 1 && index <= 9;
+}
+
 bool read_manifest(const std::string &path, std::vector<Recording> &recordings, std::string &error)
 {
 	std::ifstream file(path);
@@ -297,6 +312,10 @@ bool read_manifest(const std::string &path, std::vector<Recording> &recordings, 
 			note.start_seconds = std::atof(fields[2].c_str());
 			note.end_seconds = std::atof(fields[3].c_str());
 			note.midi = std::atoi(fields[4].c_str());
+			// Independent Goertzel measurements show series 1-9 contain C#m,
+			// despite their D#m path and whole-tone-high source annotations.
+			if (has_verified_fender_dsharp_minor_annotation_offset(recording.id))
+				note.midi -= 2;
 			if (note.end_seconds > note.start_seconds && note.midi > 0)
 				recording.notes.push_back(note);
 		}
