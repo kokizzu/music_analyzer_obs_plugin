@@ -1,3 +1,13 @@
+.PHONY: plan-basic-pitch-other-vocal-recovery-commit commit-basic-pitch-other-vocal-recovery push-basic-pitch-other-vocal-recovery
+plan-basic-pitch-other-vocal-recovery-commit: scripts/manage_basic_pitch_other_vocal_recovery_commit.py
+	$(PYTHON) scripts/manage_basic_pitch_other_vocal_recovery_commit.py plan
+
+commit-basic-pitch-other-vocal-recovery: scripts/manage_basic_pitch_other_vocal_recovery_commit.py
+	$(PYTHON) scripts/manage_basic_pitch_other_vocal_recovery_commit.py commit
+
+push-basic-pitch-other-vocal-recovery: scripts/manage_basic_pitch_other_vocal_recovery_commit.py
+	$(PYTHON) scripts/manage_basic_pitch_other_vocal_recovery_commit.py push
+
 CXX ?= g++
 PYTHON ?= python3
 

@@ -43,6 +43,8 @@ def main() -> int:
         native, total, fused = summary(result.stdout)
         if total == 0 or fused < native:
             raise RuntimeError(f"BasicPitch mirror regressed {root.name}: native={native}/{total} fused={fused}/{total}")
+        if root.name == "medleydb_vocal_stem_context_samples" and fused < 7:
+            raise RuntimeError(f"high-confidence stem recovery missing: fused={fused}/{total}")
         temporal = temporal_rows(result.stdout)
         if len(temporal) != total or not any(frames > 1 and onset > 0.0 for frames, onset in temporal):
             raise RuntimeError(f"continuous temporal evidence missing for {root.name}")

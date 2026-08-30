@@ -20,6 +20,11 @@ constexpr float kBasicPitchVocalFusionMinKeyboardScore = 0.1817f;
 // and ESMUC. Keep the same small margin below the six-decimal replay boundary
 // (0.205994) so binary-float rounding cannot disagree with the audit.
 constexpr float kBasicPitchVocalFusionMinGuitarScore = 0.2059f;
+// A very high-confidence model note may recover a narrow Vocal display mirror
+// from the residual Other bucket. Keep this above the observed sustained piano
+// control range and require decisive native Other ownership.
+constexpr float kBasicPitchVocalFusionOtherMinConfidence = 0.87f;
+constexpr float kBasicPitchVocalFusionOtherMinScore = 0.75f;
 
 inline bool basic_pitch_vocal_fusion_supported(const FullMixDebugCandidate &native,
 						       float basic_pitch_confidence)
@@ -29,7 +34,10 @@ inline bool basic_pitch_vocal_fusion_supported(const FullMixDebugCandidate &nati
 	return (native.owner == InstrumentKind::Guitar &&
 		native.keyboard_score >= kBasicPitchVocalFusionMinKeyboardScore) ||
 	       (native.owner == InstrumentKind::Keyboard &&
-		native.guitar_score >= kBasicPitchVocalFusionMinGuitarScore);
+		native.guitar_score >= kBasicPitchVocalFusionMinGuitarScore) ||
+	       (native.owner == InstrumentKind::Other &&
+		basic_pitch_confidence >= kBasicPitchVocalFusionOtherMinConfidence &&
+		native.other_score >= kBasicPitchVocalFusionOtherMinScore);
 }
 
 } // namespace mao

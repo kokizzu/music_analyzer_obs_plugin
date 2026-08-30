@@ -50,8 +50,26 @@ int main()
 		std::fprintf(stderr, "basic_pitch_vocal_fusion: accepted unsupported owner\n");
 		++failures;
 	}
+	candidate.guitar_score = 0.0f;
+	candidate.other_score = mao::kBasicPitchVocalFusionOtherMinScore;
+	if (mao::basic_pitch_vocal_fusion_supported(
+			candidate, mao::kBasicPitchVocalFusionOtherMinConfidence - 0.001f)) {
+		std::fprintf(stderr, "basic_pitch_vocal_fusion: accepted Other below ONNX boundary\n");
+		++failures;
+	}
+	if (!mao::basic_pitch_vocal_fusion_supported(
+			candidate, mao::kBasicPitchVocalFusionOtherMinConfidence)) {
+		std::fprintf(stderr, "basic_pitch_vocal_fusion: rejected audited Other boundary\n");
+		++failures;
+	}
+	candidate.other_score = mao::kBasicPitchVocalFusionOtherMinScore - 0.0001f;
+	if (mao::basic_pitch_vocal_fusion_supported(
+			candidate, mao::kBasicPitchVocalFusionOtherMinConfidence)) {
+		std::fprintf(stderr, "basic_pitch_vocal_fusion: accepted Other below score boundary\n");
+		++failures;
+	}
 	if (failures)
 		return 1;
-	std::printf("basic_pitch_vocal_fusion: 7 boundary checks passed\n");
+	std::printf("basic_pitch_vocal_fusion: 10 boundary checks passed\n");
 	return 0;
 }
