@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Regression test for a sustained Alto Sax note routed out of Other."""
+"""Regression test for sustained TinySOL wind and brass notes in Other."""
 
 import os
 from pathlib import Path
@@ -13,6 +13,7 @@ BINARY = Path("build/analyzer_real_note_samples")
 SAMPLES = (
     ("tinysol_alto-saxophone_ASax-ord-B4-ff-N", "B4"),
     ("tinysol_alto-saxophone_ASax-ord-A5-pp-N", "A5"),
+    ("tinysol_bass-tuba_BTb-ord-F_1-ff-N", "F#1"),
 )
 
 
@@ -29,13 +30,13 @@ def verify_sample(sample_id: str, expected_note: str) -> None:
         raise RuntimeError(completed.stdout + completed.stderr)
     lines = [line for line in (completed.stdout + completed.stderr).splitlines() if line.startswith("debug sample=")]
     if not any(re.search(rf"\bother=([^\[]*\b{re.escape(expected_note)}\b[^\[]*)\[", line) for line in lines):
-        raise RuntimeError(f"Alto Sax {expected_note} is not recovered in Other")
+        raise RuntimeError(f"{sample_id} {expected_note} is not recovered in Other")
 
 
 def main() -> int:
     for sample_id, expected_note in SAMPLES:
         verify_sample(sample_id, expected_note)
-    print("tinysol-wind-routing: Alto Sax B4 and A5 reach Other")
+    print("tinysol-wind-routing: Alto Sax B4/A5 and Bass Tuba F#1 reach Other")
     return 0
 
 

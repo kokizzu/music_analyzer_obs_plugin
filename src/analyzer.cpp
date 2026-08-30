@@ -2970,6 +2970,34 @@ void restore_full_mix_low_other_from_bass(FullMixOwnership &ownership,
 	(void)restore_candidate(bass_midi - 12, true);
 }
 
+void restore_full_mix_tuba_fs1_from_keyboard(FullMixOwnership &ownership,
+						     const std::array<float, kNoteProbeCount> &powers)
+{
+	constexpr int kFundamentalMidi = 30;
+	constexpr int kOctaveMidi = kFundamentalMidi + 12;
+	if (full_mix_row_midi_active(ownership.other, kFundamentalMidi))
+		return;
+
+	const float fundamental = probe_level(powers, kFundamentalMidi);
+	const float octave = probe_level(powers, kOctaveMidi);
+	const float fifth = probe_level(powers, kFundamentalMidi + 19);
+	const float second_octave = probe_level(powers, kFundamentalMidi + 24);
+	if (fundamental <= 1.0e-6f || octave <= 1.0e-6f || fifth <= 1.0e-6f ||
+	    fundamental < octave * 0.05f || fundamental > octave * 0.18f ||
+	    fifth < octave * 0.80f || second_octave < octave * 0.50f)
+		return;
+
+	const float display_level =
+		std::max({fundamental, octave * 0.62f, fifth * 0.78f, second_octave * 0.72f});
+	NoteCandidate candidate;
+	candidate.midi = kFundamentalMidi;
+	candidate.score = capped_restored_low_owner_score(
+		ownership.other_candidates, kFundamentalMidi, display_level * display_level);
+	candidate.ownership_confidence = 0.50f;
+	ownership.other[static_cast<std::size_t>(kFundamentalMidi - kFirstMidi)] = true;
+	ownership.other_candidates.push_back(candidate);
+}
+
 void restore_full_mix_low_synth_other_from_bass(FullMixOwnership &ownership,
 						const std::array<float, kNoteProbeCount> &powers,
 						int bass_midi, float bass_confidence, float bass_score)
@@ -36398,6 +36426,8 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 						 contains_case_insensitive(resolved_source_name, "contrabass");
 		const int bass_max_midi = isolated_bass ? kBassMaxMidi : kDefaultBassMaxMidi;
 		const bool include_bass_harmonics = true;
+		if (mixed_source)
+			restore_full_mix_tuba_fs1_from_keyboard(full_mix_ownership, detection_note_powers);
 		const bool isolated_bass_harmonic_support = isolated_bass && !upright_bass_source;
 		const RangeResult spectral_bass_note = dominant_bass_note(detection_note_powers, kBassMinMidi,
 								  bass_max_midi,
@@ -37433,7 +37463,7 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 						supported_named_brass_rich_octave_fundamental(resolved_source_name,
 															 other_note_powers, candidate.midi);
 					const int recovered = recovered_fundamental >= 0 ? recovered_fundamental :
-															 source_recovered_fundamental;
+											 source_recovered_fundamental;
 					snapshot.other_debug_pre_envelope_recovered_midi = recovered;
 					if (recovered >= 0) {
 						quiet_monophonic_allowed_midis.fill(false);
