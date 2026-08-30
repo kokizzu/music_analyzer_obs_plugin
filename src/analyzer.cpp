@@ -7194,11 +7194,27 @@ bool keyboard_owned_bright_alto_sax_other_supported(const FullMixDebugCandidate 
 	       debug.harmonic_ratios[4] >= 0.08f && debug.harmonic_ratios[4] <= 0.25f;
 }
 
+bool ambiguous_clean_high_alto_sax_other_supported(const FullMixDebugCandidate &debug)
+{
+	return debug.owner == InstrumentKind::Ambiguous && debug.midi == 81 &&
+	       debug.ownership_confidence >= 0.58f && debug.ownership_confidence <= 0.62f &&
+	       debug.spectral_level >= 0.98f && debug.pitch_confidence >= 0.92f &&
+	       debug.pitch_confidence <= 0.96f && debug.periodicity >= 0.69f &&
+	       debug.periodicity <= 0.74f && debug.harmonicity <= 0.06f &&
+	       debug.harmonic_fit_error >= 0.035f && debug.harmonic_fit_error <= 0.060f &&
+	       debug.spectral_slope <= 0.006f && debug.local_noise_level <= 0.002f &&
+	       debug.harmonic_ratios[1] <= 0.040f && debug.harmonic_ratios[2] <= 0.005f &&
+	       debug.harmonic_ratios[3] <= 0.002f && debug.harmonic_ratios[4] <= 0.002f;
+}
+
 bool full_mix_display_mirror_supported(FullMixDisplayRow row, const FullMixDebugCandidate &debug,
 				       int display_midi)
 {
 	if (!full_mix_display_row_midi_allowed(row, display_midi))
 		return false;
+	if (row == FullMixDisplayRow::Other && display_midi == debug.midi &&
+	    ambiguous_clean_high_alto_sax_other_supported(debug))
+		return true;
 	if (row == FullMixDisplayRow::Guitar && display_midi == debug.midi - 12 &&
 	    sparse_vocal_owned_guitar_octave_alias_supported(debug))
 		return true;

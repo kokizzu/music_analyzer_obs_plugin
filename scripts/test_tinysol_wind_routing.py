@@ -10,24 +10,32 @@ import sys
 
 ROOT = Path("build/real_instrument_expansion_samples")
 BINARY = Path("build/analyzer_real_note_samples")
-SAMPLE_ID = "tinysol_alto-saxophone_ASax-ord-B4-ff-N"
+SAMPLES = (
+    ("tinysol_alto-saxophone_ASax-ord-B4-ff-N", "B4"),
+    ("tinysol_alto-saxophone_ASax-ord-A5-pp-N", "A5"),
+)
 
 
-def main() -> int:
+def verify_sample(sample_id: str, expected_note: str) -> None:
     environment = os.environ.copy()
     environment.update({
         "MUSIC_ANALYZER_REAL_NOTE_SAMPLES_REQUIRED": "1",
         "MUSIC_ANALYZER_REAL_NOTE_FULL_MIX": "1",
         "MUSIC_ANALYZER_REAL_NOTE_SAMPLE_ROOT": str(ROOT),
-        "MUSIC_ANALYZER_REAL_NOTE_DEBUG_SAMPLE_ID": SAMPLE_ID,
+        "MUSIC_ANALYZER_REAL_NOTE_DEBUG_SAMPLE_ID": sample_id,
     })
     completed = subprocess.run([str(BINARY)], env=environment, text=True, capture_output=True, check=False)
     if completed.returncode:
         raise RuntimeError(completed.stdout + completed.stderr)
     lines = [line for line in (completed.stdout + completed.stderr).splitlines() if line.startswith("debug sample=")]
-    if not any(re.search(r"\bother=([^\[]*\bB4\b[^\[]*)\[", line) for line in lines):
-        raise RuntimeError("Alto Sax B4 is not recovered in Other")
-    print("tinysol-wind-routing: Alto Sax B4 reaches Other")
+    if not any(re.search(rf"\bother=([^\[]*\b{re.escape(expected_note)}\b[^\[]*)\[", line) for line in lines):
+        raise RuntimeError(f"Alto Sax {expected_note} is not recovered in Other")
+
+
+def main() -> int:
+    for sample_id, expected_note in SAMPLES:
+        verify_sample(sample_id, expected_note)
+    print("tinysol-wind-routing: Alto Sax B4 and A5 reach Other")
     return 0
 
 
