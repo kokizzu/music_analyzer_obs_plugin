@@ -10947,6 +10947,23 @@ InstrumentKind choose_full_mix_owner(const std::array<float, kNoteProbeCount> &p
 		evidence.spectral_slope <= 0.08f &&
 		evidence.local_noise_level <= 0.04f &&
 		!lower_mid_bright_other_candidate;
+	// Some clean physical-string fundamentals have a subdued octave but a
+	// stronger third partial.  Without this bounded profile they satisfy the
+	// sustained-vocal gate before reaching the generic guitar admission path.
+	// The range was measured from the IDMT midrange guitar fixtures.
+	const bool measured_midrange_sparse_harmonic_guitar_profile =
+		candidate.midi >= 60 && candidate.midi <= 76 &&
+		second >= 0.045f && second <= 0.120f &&
+		third >= 0.075f && third <= 0.140f &&
+		fourth <= 0.060f && fifth <= 0.035f &&
+		evidence.spectral_level >= 0.90f &&
+		evidence.pitch_confidence >= 0.84f &&
+		evidence.periodicity >= 0.64f && evidence.periodicity <= 0.82f &&
+		evidence.harmonic_fit_error <= 0.080f &&
+		evidence.spectral_centroid >= 0.070f && evidence.spectral_centroid <= 0.160f &&
+		evidence.spectral_slope >= 0.020f && evidence.spectral_slope <= 0.160f &&
+		evidence.local_noise_level <= 0.080f &&
+		!lower_mid_bright_other_candidate;
 	const bool upper_clean_guitar_profile =
 		candidate.midi >= 67 && candidate.midi <= 80 &&
 		second >= 0.070f && second <= 0.140f &&
@@ -11022,7 +11039,8 @@ InstrumentKind choose_full_mix_owner(const std::array<float, kNoteProbeCount> &p
 	    ((second >= 0.12f && third >= 0.035f) || octave_stack_guitar_profile ||
 	     sparse_acoustic_guitar_profile || measured_octave_harmonic_guitar_profile ||
 	     clean_plucked_guitar_profile ||
-	     thin_plucked_guitar_profile || upper_clean_guitar_profile ||
+	     thin_plucked_guitar_profile || measured_midrange_sparse_harmonic_guitar_profile ||
+	     upper_clean_guitar_profile ||
 	     upper_harmonic_guitar_profile || distorted_harmonic_guitar_profile)) {
 		scores[1] = guitar_weight * 1.18f + second * 0.24f + third * 0.16f;
 		if (octave_stack_guitar_profile)
@@ -11035,6 +11053,8 @@ InstrumentKind choose_full_mix_owner(const std::array<float, kNoteProbeCount> &p
 			scores[1] += 0.52f + fourth * 0.18f;
 		if (thin_plucked_guitar_profile)
 			scores[1] += 0.46f + second * 0.12f;
+		if (measured_midrange_sparse_harmonic_guitar_profile)
+			scores[1] += 0.74f + third * 0.18f;
 		if (upper_clean_guitar_profile)
 			scores[1] += 0.42f + fourth * 0.18f;
 		if (upper_harmonic_guitar_profile)
@@ -11089,6 +11109,7 @@ InstrumentKind choose_full_mix_owner(const std::array<float, kNoteProbeCount> &p
 			if (clean_plucked_guitar_profile)
 				scores[2] *= 0.38f;
 			if (thin_plucked_guitar_profile || upper_clean_guitar_profile ||
+			    measured_midrange_sparse_harmonic_guitar_profile ||
 			    upper_harmonic_guitar_profile || distorted_harmonic_guitar_profile)
 				scores[2] *= 0.36f;
 		}
@@ -11175,6 +11196,8 @@ InstrumentKind choose_full_mix_owner(const std::array<float, kNoteProbeCount> &p
 		best == 1 && measured_octave_harmonic_guitar_profile;
 	const bool supported_clean_plucked_guitar_winner = best == 1 && clean_plucked_guitar_profile;
 	const bool supported_thin_plucked_guitar_winner = best == 1 && thin_plucked_guitar_profile;
+	const bool supported_measured_midrange_sparse_harmonic_guitar_winner =
+		best == 1 && measured_midrange_sparse_harmonic_guitar_profile;
 	const bool supported_upper_clean_guitar_winner = best == 1 && upper_clean_guitar_profile;
 	const bool supported_upper_harmonic_guitar_winner = best == 1 && upper_harmonic_guitar_profile;
 	const bool supported_distorted_harmonic_guitar_winner =
@@ -11190,6 +11213,7 @@ InstrumentKind choose_full_mix_owner(const std::array<float, kNoteProbeCount> &p
 		(supported_octave_stack_guitar_winner || supported_sparse_acoustic_guitar_winner ||
 		 supported_measured_octave_harmonic_guitar_winner ||
 		 supported_clean_plucked_guitar_winner || supported_thin_plucked_guitar_winner ||
+		 supported_measured_midrange_sparse_harmonic_guitar_winner ||
 		 supported_upper_clean_guitar_winner ||
 		 supported_upper_harmonic_guitar_winner ||
 		 supported_distorted_harmonic_guitar_winner) ? 0.38f :
@@ -11203,6 +11227,7 @@ InstrumentKind choose_full_mix_owner(const std::array<float, kNoteProbeCount> &p
 		(supported_octave_stack_guitar_winner || supported_sparse_acoustic_guitar_winner ||
 		 supported_measured_octave_harmonic_guitar_winner ||
 		 supported_clean_plucked_guitar_winner || supported_thin_plucked_guitar_winner ||
+		 supported_measured_midrange_sparse_harmonic_guitar_winner ||
 		 supported_upper_clean_guitar_winner ||
 		 supported_upper_harmonic_guitar_winner ||
 		 supported_distorted_harmonic_guitar_winner) ? 0.08f :
