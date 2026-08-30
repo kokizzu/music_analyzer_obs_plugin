@@ -10589,3 +10589,23 @@ commit-iowa-piano-fixture: scripts/manage_iowa_piano_fixture_commit.py
 	python3 scripts/manage_iowa_piano_fixture_commit.py commit
 push-iowa-piano-fixture: scripts/manage_iowa_piano_fixture_commit.py
 	python3 scripts/manage_iowa_piano_fixture_commit.py push
+
+.PHONY: report-guitar-profile-search-details
+report-guitar-profile-search-details: scripts/report_guitar_profile_search.py
+	python3 scripts/report_guitar_profile_search.py --details
+.PHONY: report-vocal-profile-search-details
+report-vocal-profile-search-details: scripts/report_guitar_profile_search.py
+	python3 scripts/report_guitar_profile_search.py --family vocals --details
+.PHONY: report-real-note-visible-recall
+report-real-note-visible-recall: scripts/report_real_note_visible_recall.py
+	python3 scripts/report_real_note_visible_recall.py
+.PHONY: report-real-note-visible-recall-details
+report-real-note-visible-recall-details: scripts/report_real_note_visible_recall.py
+	python3 scripts/report_real_note_visible_recall.py --details
+.PHONY: plan-visible-recall-reporting-commit commit-visible-recall-reporting push-visible-recall-reporting
+plan-visible-recall-reporting-commit: scripts/manage_visible_recall_reporting_commit.py
+	python3 scripts/manage_visible_recall_reporting_commit.py plan
+commit-visible-recall-reporting: scripts/manage_visible_recall_reporting_commit.py
+	python3 scripts/manage_visible_recall_reporting_commit.py commit
+push-visible-recall-reporting: scripts/manage_visible_recall_reporting_commit.py
+	python3 scripts/manage_visible_recall_reporting_commit.py push

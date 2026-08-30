@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import csv
 import math
+import sys
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -17,6 +18,13 @@ FEATURES = (
     "pitch_confidence", "periodicity", "fit_error", "centroid", "slope", "noise",
     "partial2", "partial3", "partial4", "partial5", "harmonicity",
 )
+VISUAL_COLUMNS = {
+    "bass": "bass_visual_level",
+    "guitar": "guitar_visual_level",
+    "piano": "piano_visual_level",
+    "vocals": "vocal_visual_level",
+    "other": "other_visual_level",
+}
 MAX_DEPTH = 3
 MIN_LEAF_ROWS = 12
 MIN_LEAF_POSITIVES = 4
@@ -49,16 +57,30 @@ class Leaf:
         return self.positives / len(self.examples) if self.examples else 0.0
 
 
-def read_examples() -> list[Example]:
-    rows: dict[str, dict[str, str]] = {}
+def read_examples(family: str) -> list[Example]:
+    visual_column = VISUAL_COLUMNS[family]
+    rows: dict[str, list[dict[str, str]]] = {}
     for path in ATTRIBUTE_PATHS:
         if not path.is_file():
             raise SystemExit("missing historic attribute exports; run make report-real-note-full-mix-attributes first")
         with path.open(encoding="utf-8", newline="") as stream:
             for row in csv.DictReader(stream, delimiter="\t"):
-                rows.setdefault(row["sample_id"], row)
+                rows.setdefault(row["sample_id"], []).append(row)
     examples: list[Example] = []
-    for row in rows.values():
+    for sample_rows in rows.values():
+        sample_visible = any(number(row, visual_column) >= 0.25 for row in sample_rows)
+        matching_rows: list[dict[str, str]] = []
+        for row in sample_rows:
+            try:
+                expected_midi = int(row["expected_midi"])
+                debug_midi = int(row["debug_midi"])
+            except (KeyError, ValueError):
+                continue
+            if debug_midi == expected_midi and (family != "guitar" or 40 <= debug_midi <= 76):
+                matching_rows.append(row)
+        if not matching_rows:
+            continue
+        row = max(matching_rows, key=lambda candidate: number(candidate, visual_column))
         try:
             expected_midi = int(row["expected_midi"])
             debug_midi = int(row["debug_midi"])
@@ -68,9 +90,8 @@ def read_examples() -> list[Example]:
             continue
         if any(not math.isfinite(number(row, feature)) for feature in FEATURES):
             continue
-        # The only examples a supplemental profile needs to change are guitar
-        # notes that are not already visible in the guitar row.
-        positive = row["family"] == "guitar" and row["visual_first_row"] != "guitar"
+        # The profile targets only notes never bright enough to render in their row.
+        positive = row["family"] == family and not sample_visible
         examples.append(Example(row, positive))
     return examples
 
@@ -121,9 +142,18 @@ def split_tree(examples: list[Example], conditions: tuple[str, ...], depth: int)
 
 
 def main() -> None:
-    examples = read_examples()
+    details = "--details" in sys.argv
+    family = "guitar"
+    if "--family" in sys.argv:
+        index = sys.argv.index("--family")
+        if index + 1 >= len(sys.argv):
+            raise SystemExit("--family requires bass, guitar, piano, vocals, or other")
+        family = sys.argv[index + 1]
+    if family not in VISUAL_COLUMNS:
+        raise SystemExit("--family requires bass, guitar, piano, vocals, or other")
+    examples = read_examples(family)
     positives = sum(example.label for example in examples)
-    print(f"eligible={len(examples)} missed-guitar={positives}")
+    print(f"eligible={len(examples)} missed-{family}={positives}")
     leaves = split_tree(examples, (), 0)
     candidates = [leaf for leaf in leaves if leaf.positives >= MIN_LEAF_POSITIVES]
     candidates.sort(key=lambda leaf: (leaf.precision * leaf.positives, leaf.precision, leaf.positives), reverse=True)
@@ -137,5 +167,20 @@ def main() -> None:
             f"precision={leaf.precision:.0%} conditions={' '.join(leaf.conditions)} "
             + "routes=" + ",".join(f"{route}:{count}" for route, count in sorted(routes.items()))
         )
+        if details:
+            positives = [example.row for example in leaf.examples if example.label]
+            positive_routes: dict[str, int] = {}
+            positive_sources: dict[str, int] = {}
+            for row in positives:
+                route = row["visual_first_row"]
+                source = row["source"]
+                positive_routes[route] = positive_routes.get(route, 0) + 1
+                positive_sources[source] = positive_sources.get(source, 0) + 1
+            print("  positive-routes=" + ",".join(
+                f"{route}:{count}" for route, count in sorted(positive_routes.items())
+            ))
+            print("  positive-sources=" + ",".join(
+                f"{source}:{count}" for source, count in sorted(positive_sources.items())
+            ))
 if __name__ == "__main__":
     main()
