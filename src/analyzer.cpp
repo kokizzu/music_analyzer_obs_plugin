@@ -5337,38 +5337,57 @@ bool other_owned_overdrive_guitar_body_supported(const FullMixDebugCandidate &de
 {
 	if (debug.owner != InstrumentKind::Other)
 		return false;
-	if (debug.midi < 57 || debug.midi > 59)
-		return false;
 
 	const float second = debug.harmonic_ratios[1];
 	const float third = debug.harmonic_ratios[2];
 	const float fourth = debug.harmonic_ratios[3];
 	const float fifth = debug.harmonic_ratios[4];
-	return debug.other_score >= 0.78f &&
-	       debug.guitar_score >= 0.070f &&
-	       debug.guitar_score <= 0.17f &&
-	       debug.spectral_level >= 0.75f &&
-	       debug.spectral_level <= 0.90f &&
-	       debug.pitch_confidence >= 0.68f &&
-	       debug.pitch_confidence <= 0.78f &&
-	       debug.periodicity >= 0.84f &&
-	       debug.periodicity <= 0.92f &&
-	       debug.harmonic_fit_error >= 0.10f &&
-	       debug.harmonic_fit_error <= 0.20f &&
-	       debug.spectral_centroid >= 0.40f &&
-	       debug.spectral_centroid <= 0.50f &&
-	       debug.spectral_slope >= 0.70f &&
-	       debug.spectral_slope <= 0.90f &&
-	       debug.local_noise_level >= 0.070f &&
-	       debug.local_noise_level <= 0.12f &&
-	       second >= 0.50f &&
-	       second <= 0.60f &&
-	       third >= 0.45f &&
-	       third <= 0.55f &&
-	       fourth >= 0.22f &&
-	       fourth <= 0.30f &&
-	       fifth >= 0.45f &&
-	       fifth <= 0.56f;
+	const bool upper_overdrive_body =
+		debug.midi >= 57 && debug.midi <= 59 &&
+		debug.other_score >= 0.78f &&
+		debug.guitar_score >= 0.070f &&
+		debug.guitar_score <= 0.17f &&
+		debug.spectral_level >= 0.75f &&
+		debug.spectral_level <= 0.90f &&
+		debug.pitch_confidence >= 0.68f &&
+		debug.pitch_confidence <= 0.78f &&
+		debug.periodicity >= 0.84f &&
+		debug.periodicity <= 0.92f &&
+		debug.harmonic_fit_error >= 0.10f &&
+		debug.harmonic_fit_error <= 0.20f &&
+		debug.spectral_centroid >= 0.40f &&
+		debug.spectral_centroid <= 0.50f &&
+		debug.spectral_slope >= 0.70f &&
+		debug.spectral_slope <= 0.90f &&
+		debug.local_noise_level >= 0.070f &&
+		debug.local_noise_level <= 0.12f &&
+		second >= 0.50f && second <= 0.60f &&
+		third >= 0.45f && third <= 0.55f &&
+		fourth >= 0.22f && fourth <= 0.30f &&
+		fifth >= 0.45f && fifth <= 0.56f;
+	const bool midband_distorted_body =
+		debug.midi >= 52 && debug.midi <= 56 &&
+		debug.other_score >= 0.82f &&
+		debug.guitar_score >= 0.14f &&
+		debug.guitar_score <= 0.18f &&
+		debug.keyboard_score <= 0.001f &&
+		debug.vocal_score <= 0.001f &&
+		debug.spectral_level >= 0.95f &&
+		debug.pitch_confidence >= 0.74f &&
+		debug.pitch_confidence <= 0.79f &&
+		debug.periodicity >= 0.78f &&
+		debug.periodicity <= 0.81f &&
+		debug.harmonic_fit_error >= 0.38f &&
+		debug.harmonic_fit_error <= 0.44f &&
+		debug.spectral_centroid >= 0.34f &&
+		debug.spectral_centroid <= 0.39f &&
+		debug.spectral_slope >= 0.27f &&
+		debug.spectral_slope <= 0.33f &&
+		debug.local_noise_level >= 0.12f &&
+		debug.local_noise_level <= 0.15f &&
+		second >= 1.50f && third >= 0.60f && third <= 0.75f &&
+		fourth <= 0.12f && fifth <= 0.08f;
+	return upper_overdrive_body || midband_distorted_body;
 }
 
 bool non_guitar_third_octave_shadow_blocks_guitar_display(const FullMixDebugCandidate &debug)
@@ -7194,6 +7213,9 @@ bool full_mix_display_mirror_supported(FullMixDisplayRow row, const FullMixDebug
 		debug.local_noise_level <= 0.42f && debug.harmonic_ratios[1] >= 1.0f &&
 		debug.harmonic_ratios[2] >= 0.30f && debug.harmonic_ratios[3] >= 0.18f;
 	if (low_other_owned_guitar_body)
+		return true;
+	if (row == FullMixDisplayRow::Guitar && display_midi == debug.midi &&
+	    other_owned_overdrive_guitar_body_supported(debug))
 		return true;
 
 	switch (row) {
