@@ -152,21 +152,47 @@ const mao::FullMixDebugCandidate *debug_candidate_for(const mao::AnalysisSnapsho
 	return nullptr;
 }
 
+struct TemporalSummary {
+	int frames = 0;
+	float max_onset = 0.0f;
+	float max_decay = 0.0f;
+	float min_stability = 1.0f;
+	float max_simultaneous = 0.0f;
+};
+
+void observe_temporal(const mao::AnalysisSnapshot &snapshot, int midi, TemporalSummary *summary)
+{
+	if (!summary)
+		return;
+	const mao::FullMixDebugCandidate *debug = debug_candidate_for(snapshot, midi);
+	if (!debug)
+		return;
+	++summary->frames;
+	summary->max_onset = std::max(summary->max_onset, debug->onset_strength);
+	summary->max_decay = std::max(summary->max_decay, debug->decay_rate);
+	summary->min_stability = std::min(summary->min_stability, debug->pitch_stability);
+	summary->max_simultaneous = std::max(summary->max_simultaneous, debug->simultaneous_onset);
+}
+
 mao::AnalysisSnapshot analyze_context(const std::vector<float> &samples, uint32_t sample_rate,
-				      const mao::AnalysisSettings &settings)
+				      const mao::AnalysisSettings &settings, int expected_midi,
+				      TemporalSummary *summary)
 {
 	mao::AnalysisEngine engine;
 	const std::size_t hop = std::max<std::size_t>(1, static_cast<std::size_t>(sample_rate / 20));
 	const std::size_t window = hop * 2;
 	mao::AnalysisSnapshot snapshot = {};
-	for (std::size_t offset = 0; offset + window <= samples.size(); offset += hop)
+	for (std::size_t offset = 0; offset + window <= samples.size(); offset += hop) {
 		snapshot = engine.analyze(samples.data() + offset, window, settings, "MedleyDB Rainfall full mix", 0);
+		observe_temporal(snapshot, expected_midi, summary);
+	}
 	if (samples.size() < window)
 		return snapshot;
 	const float *final_window = samples.data() + samples.size() - window;
 	for (int attempt = 0; attempt < 8; ++attempt) {
 		std::this_thread::sleep_for(std::chrono::milliseconds(25));
 		snapshot = engine.analyze(final_window, window, settings, "MedleyDB Rainfall full mix", 0);
+		observe_temporal(snapshot, expected_midi, summary);
 	}
 	return snapshot;
 }
@@ -228,22 +254,29 @@ int main(int argc, char **argv)
 		settings.sample_rate = sample_rate;
 		settings.analysis_interval_seconds = 0.05f;
 		settings.input_mode = mao::AnalysisInputMode::FullMix;
-		const mao::AnalysisSnapshot native_snapshot = analyze_context(samples, sample_rate, settings);
+		TemporalSummary temporal = {};
+		const mao::AnalysisSnapshot native_snapshot =
+			analyze_context(samples, sample_rate, settings, row.midi, &temporal);
 		settings.basic_pitch_vocal_fusion_enabled = true;
 		settings.basic_pitch_runtime_library = argv[2];
 		settings.basic_pitch_model = argv[3];
-		const mao::AnalysisSnapshot fused_snapshot = analyze_context(samples, sample_rate, settings);
+		const mao::AnalysisSnapshot fused_snapshot =
+			analyze_context(samples, sample_rate, settings, row.midi, nullptr);
 		const bool native_hit = active_midi(native_snapshot.vocal_notes, row.midi);
 		const bool fused_hit = active_midi(fused_snapshot.vocal_notes, row.midi);
 		const float onnx_confidence = direct_onnx_confidence(samples, sample_rate, row.midi, runtime, decoder);
 		const mao::FullMixDebugCandidate *debug = debug_candidate_for(fused_snapshot, row.midi);
 		native_recovered += native_hit ? 1 : 0;
 		fused_recovered += fused_hit ? 1 : 0;
-		std::printf("id=%s expected_midi=%d native_hit=%d fused_hit=%d onnx_confidence=%.3f debug=%d owner=%d vocal=%.3f keyboard=%.3f guitar=%.3f other=%.3f native_label=%s fused_label=%s\n",
+		std::printf("id=%s expected_midi=%d native_hit=%d fused_hit=%d onnx_confidence=%.3f debug=%d owner=%d vocal=%.3f keyboard=%.3f guitar=%.3f other=%.3f onset=%.3f decay=%.3f stability=%.3f simultaneous=%.3f temporal_frames=%d temporal_max_onset=%.3f temporal_max_decay=%.3f temporal_min_stability=%.3f temporal_max_simultaneous=%.3f native_label=%s fused_label=%s\n",
 			    row.id.c_str(), row.midi, native_hit ? 1 : 0, fused_hit ? 1 : 0, onnx_confidence,
 			    debug ? 1 : 0, debug ? static_cast<int>(debug->owner) : -1, debug ? debug->vocal_score : 0.0f,
 			    debug ? debug->keyboard_score : 0.0f, debug ? debug->guitar_score : 0.0f,
-			    debug ? debug->other_score : 0.0f,
+			    debug ? debug->other_score : 0.0f, debug ? debug->onset_strength : 0.0f,
+			    debug ? debug->decay_rate : 0.0f, debug ? debug->pitch_stability : 0.0f,
+			    debug ? debug->simultaneous_onset : 0.0f,
+			    temporal.frames, temporal.max_onset, temporal.max_decay, temporal.min_stability,
+			    temporal.max_simultaneous,
 			    native_snapshot.vocal.label, fused_snapshot.vocal.label);
 	}
 	std::printf("medleydb-basic-pitch-context native=%d/%zu fused=%d/%zu\n", native_recovered, rows.size(),

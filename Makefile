@@ -10673,6 +10673,14 @@ report-basic-pitch-medleydb-stem-context: $(BUILD_DIR)/basic_pitch_medleydb_cont
 test-basic-pitch-medleydb-context: $(BUILD_DIR)/basic_pitch_medleydb_context apply-medleydb-vocal-mix-fixtures $(ONNXRUNTIME_LIBRARY) $(BASIC_PITCH_ONNX_MODEL) scripts/test_basic_pitch_medleydb_context.py
 	$(PYTHON) scripts/test_basic_pitch_medleydb_context.py
 
+.PHONY: plan-basic-pitch-medleydb-temporal-commit commit-basic-pitch-medleydb-temporal push-basic-pitch-medleydb-temporal
+plan-basic-pitch-medleydb-temporal-commit: scripts/manage_basic_pitch_medleydb_temporal_commit.py
+	$(PYTHON) scripts/manage_basic_pitch_medleydb_temporal_commit.py plan
+commit-basic-pitch-medleydb-temporal: scripts/manage_basic_pitch_medleydb_temporal_commit.py
+	$(PYTHON) scripts/manage_basic_pitch_medleydb_temporal_commit.py commit
+push-basic-pitch-medleydb-temporal: scripts/manage_basic_pitch_medleydb_temporal_commit.py
+	$(PYTHON) scripts/manage_basic_pitch_medleydb_temporal_commit.py push
+
 .PHONY: plan-medleydb-vocal-fixture-update-commit commit-medleydb-vocal-fixture-update push-medleydb-vocal-fixture-update
 plan-medleydb-vocal-fixture-update-commit: scripts/manage_medleydb_vocal_fixture_update_commit.py
 	python3 scripts/manage_medleydb_vocal_fixture_update_commit.py plan

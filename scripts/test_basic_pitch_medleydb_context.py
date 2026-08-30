@@ -26,6 +26,13 @@ def summary(output: str) -> tuple[int, int, int]:
     return tuple(int(value) for value in match.groups())
 
 
+def temporal_rows(output: str) -> list[tuple[int, float]]:
+    return [
+        (int(frames), float(onset))
+        for frames, onset in re.findall(r"temporal_frames=(\d+) temporal_max_onset=([0-9.]+)", output)
+    ]
+
+
 def main() -> int:
     for root in ROOTS:
         result = subprocess.run([str(BINARY), str(root), str(RUNTIME), str(MODEL)], text=True, capture_output=True)
@@ -36,7 +43,13 @@ def main() -> int:
         native, total, fused = summary(result.stdout)
         if total == 0 or fused < native:
             raise RuntimeError(f"BasicPitch mirror regressed {root.name}: native={native}/{total} fused={fused}/{total}")
-        print(f"basic-pitch-medleydb-context root={root.name} native={native}/{total} fused={fused}/{total}")
+        temporal = temporal_rows(result.stdout)
+        if len(temporal) != total or not any(frames > 1 and onset > 0.0 for frames, onset in temporal):
+            raise RuntimeError(f"continuous temporal evidence missing for {root.name}")
+        print(
+            f"basic-pitch-medleydb-context root={root.name} native={native}/{total} fused={fused}/{total} "
+            f"temporal-rows={len(temporal)}"
+        )
     return 0
 
 
