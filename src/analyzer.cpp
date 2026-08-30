@@ -5387,7 +5387,22 @@ bool other_owned_overdrive_guitar_body_supported(const FullMixDebugCandidate &de
 		debug.local_noise_level <= 0.15f &&
 		second >= 1.50f && third >= 0.60f && third <= 0.75f &&
 		fourth <= 0.12f && fifth <= 0.08f;
-	return upper_overdrive_body || midband_distorted_body;
+	const bool high_mid_distorted_body =
+		debug.midi >= 65 && debug.midi <= 67 &&
+		debug.other_score >= 0.80f && debug.other_score <= 0.86f &&
+		debug.guitar_score >= 0.14f && debug.guitar_score <= 0.18f &&
+		debug.keyboard_score <= 0.001f && debug.vocal_score <= 0.001f &&
+		debug.spectral_level >= 0.90f && debug.spectral_level <= 0.98f &&
+		debug.pitch_confidence >= 0.80f && debug.pitch_confidence <= 0.87f &&
+		debug.periodicity >= 0.88f && debug.periodicity <= 0.94f &&
+		debug.harmonic_fit_error >= 0.18f && debug.harmonic_fit_error <= 0.25f &&
+		debug.spectral_centroid >= 0.25f && debug.spectral_centroid <= 0.35f &&
+		debug.spectral_slope >= 0.20f && debug.spectral_slope <= 0.32f &&
+		debug.local_noise_level <= 0.015f &&
+		second >= 0.95f && second <= 1.20f &&
+		third >= 0.40f && third <= 0.60f &&
+		fourth >= 0.06f && fourth <= 0.13f && fifth <= 0.06f;
+	return upper_overdrive_body || midband_distorted_body || high_mid_distorted_body;
 }
 
 bool non_guitar_third_octave_shadow_blocks_guitar_display(const FullMixDebugCandidate &debug)
@@ -9539,7 +9554,8 @@ NoteCandidateList prune_shadowed_full_mix_guitar_display_candidates(const FullMi
 	for (const NoteCandidate &candidate : candidates) {
 		const FullMixDebugCandidate *debug = full_mix_debug_for_midi(ownership, candidate.midi);
 		if (guitar_display_candidate_shadowed_by_non_guitar_pitch(ownership, candidate) &&
-		    !(debug && partial_rich_misrouted_guitar_display_supported(*debug)))
+		    !(debug && (partial_rich_misrouted_guitar_display_supported(*debug) ||
+			       other_owned_overdrive_guitar_body_supported(*debug))))
 			continue;
 		pruned.push_back(candidate);
 	}
