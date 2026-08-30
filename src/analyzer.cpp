@@ -10151,6 +10151,53 @@ RangeResult recover_full_mix_bass_from_debug(const FullMixOwnership &ownership,
 	return best;
 }
 
+RangeResult recover_full_mix_low_bass_octave_stack(
+	const FullMixOwnership &ownership, const std::array<float, kNoteProbeCount> &powers)
+{
+	RangeResult best;
+	best.midi = -1;
+	const std::size_t debug_count =
+		std::min<std::size_t>(ownership.debug_candidate_count, ownership.debug_candidates.size());
+	for (std::size_t lower_index = 0; lower_index < debug_count; ++lower_index) {
+		const FullMixDebugCandidate &lower = ownership.debug_candidates[lower_index];
+		if (lower.owner != InstrumentKind::Guitar || lower.midi < kBassMinMidi + 12 ||
+		    lower.midi > kBassMinMidi + 19 || lower.ownership_confidence < 0.96f ||
+		    lower.guitar_score < 0.95f || lower.spectral_level < 0.50f ||
+		    lower.pitch_confidence < 0.28f || lower.pitch_confidence > 0.64f ||
+		    lower.periodicity < 0.55f || lower.periodicity > 0.82f ||
+		    lower.harmonicity < 0.60f || lower.harmonicity > 1.75f ||
+		    lower.harmonic_ratios[1] < 0.35f || lower.harmonic_ratios[2] < 0.20f ||
+		    lower.local_noise_level < 0.30f || lower.local_noise_level > 0.98f)
+			continue;
+
+		const int fundamental_midi = lower.midi - 12;
+		const float fundamental = probe_level(powers, fundamental_midi);
+		if (fundamental <= 1.0e-6f)
+			continue;
+
+		for (std::size_t upper_index = 0; upper_index < debug_count; ++upper_index) {
+			const FullMixDebugCandidate &upper = ownership.debug_candidates[upper_index];
+			if (upper.midi != lower.midi + 12 || upper.owner != InstrumentKind::Keyboard ||
+			    upper.ownership_confidence < 0.78f || upper.keyboard_score < 0.78f ||
+			    upper.spectral_level < 0.48f || upper.pitch_confidence < 0.38f ||
+			    upper.periodicity < 0.50f || upper.harmonic_fit_error > 0.075f)
+				continue;
+
+			const float score = fundamental *
+				(0.42f + lower.pitch_confidence * 0.28f + lower.periodicity * 0.18f +
+				 upper.pitch_confidence * 0.12f);
+			if (score <= best.score)
+				continue;
+			best.midi = fundamental_midi;
+			best.score = score;
+			best.confidence = std::clamp(0.28f + lower.pitch_confidence * 0.24f +
+						     lower.periodicity * 0.22f + upper.pitch_confidence * 0.16f,
+						 0.0f, 0.68f);
+		}
+	}
+	return best;
+}
+
 bool high_zero_partial_alias_candidate(const FullMixDebugCandidate &debug)
 {
 	if (debug.owner != InstrumentKind::Ambiguous || debug.midi < kGuitarMaxMidi + 8)
@@ -36378,6 +36425,19 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 			const RangeResult recovered_bass =
 				recover_full_mix_bass_from_debug(full_mix_ownership, detection_note_powers);
 			if (recovered_bass.midi >= kFirstMidi) {
+				bass_note = recovered_bass;
+				mixed_bass_supported = true;
+			}
+		}
+		if (!isolated_bass) {
+			const RangeResult recovered_bass =
+				recover_full_mix_low_bass_octave_stack(full_mix_ownership, detection_note_powers);
+			const bool replaces_competing_pitch_class =
+				mixed_bass_supported && bass_note.midi >= kFirstMidi &&
+				midi_pitch_class(recovered_bass.midi) != midi_pitch_class(bass_note.midi) &&
+				recovered_bass.score >= bass_note.score * 0.18f;
+			if (recovered_bass.midi >= kFirstMidi &&
+			    (!mixed_bass_supported || replaces_competing_pitch_class)) {
 				bass_note = recovered_bass;
 				mixed_bass_supported = true;
 			}
