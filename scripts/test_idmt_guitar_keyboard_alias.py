@@ -12,6 +12,7 @@ import sys
 ROOT = Path("build/real_instrument_expansion_samples")
 BINARY = Path("build/analyzer_real_note_samples")
 GUITAR_ID = "idmt_guitar_G53-40100-1111-00001_0001_E2_PK_NO"
+GUITAR_G2_ID = "idmt_guitar_G53-43103-1111-00004_0001_G2_PK_NO"
 
 
 def midi_label(midi: int) -> str:
@@ -62,8 +63,16 @@ def main() -> int:
         raise RuntimeError("missing guitar debug output")
     if not any(row_has_note(line, "guitar", "E2") for line in guitar_lines):
         raise RuntimeError("IDMT E2 guitar control is no longer detected in Guitar")
-    if any(row_has_note(line, "keys", "E2") for line in guitar_lines):
-        raise RuntimeError("IDMT E2 guitar is still restored into Keyboard")
+    if any(row_has_note(line, "keys", note) for line in guitar_lines for note in ("E1", "E2", "E3")):
+        raise RuntimeError("IDMT E2 guitar is still projected into Keyboard octaves")
+
+    guitar_g2_lines = debug_lines(debug_output(GUITAR_G2_ID))
+    if not guitar_g2_lines:
+        raise RuntimeError("missing G2 guitar debug output")
+    if not any(row_has_note(line, "guitar", "G2") for line in guitar_g2_lines):
+        raise RuntimeError("IDMT G2 guitar control is no longer detected in Guitar")
+    if any(row_has_note(line, "keys", note) for line in guitar_g2_lines for note in ("G1", "G2", "G3")):
+        raise RuntimeError("IDMT G2 guitar is still projected into Keyboard octaves")
 
     piano_id, piano_note = low_piano_control()
     piano_lines = debug_lines(debug_output(piano_id))
@@ -72,7 +81,7 @@ def main() -> int:
     if not any(row_has_note(line, "keys", piano_note) for line in piano_lines):
         raise RuntimeError(f"low-piano control {piano_id} no longer reaches Keyboard as {piano_note}")
 
-    print(f"idmt-guitar-keyboard-alias: E2 stays Guitar; {piano_id} retains Keyboard {piano_note}")
+    print(f"idmt-guitar-keyboard-alias: E2/G2 stay Guitar; {piano_id} retains Keyboard {piano_note}")
     return 0
 
 

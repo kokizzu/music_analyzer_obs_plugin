@@ -2696,10 +2696,22 @@ void restore_full_mix_low_guitar_from_bass(FullMixOwnership &ownership,
 
 bool noisy_other_owned_distorted_guitar_body(const FullMixDebugCandidate &debug)
 {
-	return debug.owner == InstrumentKind::Other && debug.ownership_confidence >= 0.80f &&
+	const bool strongly_noisy_body =
+		debug.owner == InstrumentKind::Other && debug.ownership_confidence >= 0.80f &&
 	       debug.other_score >= 0.80f && debug.keyboard_score <= 0.02f &&
 	       debug.guitar_score >= 0.10f &&
 	       debug.harmonic_fit_error >= 0.60f && debug.local_noise_level >= 0.48f;
+	const bool low_pedal_body =
+		debug.owner == InstrumentKind::Other && debug.midi >= 40 && debug.midi <= 44 &&
+		debug.ownership_confidence >= 0.84f && debug.other_score >= 0.84f &&
+		debug.keyboard_score <= 0.02f && debug.guitar_score >= 0.10f &&
+		debug.guitar_score <= 0.20f && debug.spectral_level >= 0.85f &&
+		debug.pitch_confidence >= 0.60f && debug.pitch_confidence <= 0.70f &&
+		debug.periodicity >= 0.70f && debug.harmonic_fit_error >= 0.15f &&
+		debug.harmonic_fit_error <= 0.25f && debug.local_noise_level >= 0.40f &&
+		debug.local_noise_level <= 0.46f && debug.harmonic_ratios[1] >= 1.0f &&
+		debug.harmonic_ratios[2] >= 0.23f && debug.harmonic_ratios[3] >= 0.17f;
+	return strongly_noisy_body || low_pedal_body;
 }
 
 void restore_full_mix_low_keyboard_from_bass(FullMixOwnership &ownership,
@@ -2714,7 +2726,8 @@ void restore_full_mix_low_keyboard_from_bass(FullMixOwnership &ownership,
 			std::min<std::size_t>(ownership.debug_candidate_count, ownership.debug_candidates.size());
 		for (std::size_t i = 0; i < debug_count; ++i) {
 			const FullMixDebugCandidate &debug = ownership.debug_candidates[i];
-			if (debug.midi == keyboard_midi && noisy_other_owned_distorted_guitar_body(debug))
+			if ((debug.midi == keyboard_midi || debug.midi == keyboard_midi + 12) &&
+			    noisy_other_owned_distorted_guitar_body(debug))
 				return false;
 		}
 		// A strongly low-dominant bass body can have an electronic-looking harmonic
@@ -37581,6 +37594,8 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 					continue;
 				const std::size_t index = static_cast<std::size_t>(debug.midi - kFirstMidi);
 				keyboard_note_tracking_[index] = {};
+				if (debug.midi - 12 >= kFirstMidi)
+					keyboard_note_tracking_[index - 12] = {};
 				if (debug.midi + 12 <= kLastMidi)
 					keyboard_note_tracking_[index + 12] = {};
 			}
