@@ -65,6 +65,23 @@ make prepare-sneakybass-fixture
 make verify-sneakybass-fixture
 ```
 
+The University of Iowa Musical Instrument Samples Steinway Piano corpus extends
+the full-mix keyboard coverage with 108 labelled C3-B5 notes at `pp`, `mf`, and
+`ff`. The original AIFF files are converted to external FLAC storage; a compact
+three-second PCM WAV cache is derived locally only for the existing WAV-based
+test runner. No audio asset is added to Git.
+
+```sh
+make plan-iowa-piano-midrange-fixtures
+make probe-iowa-piano-midrange-fixtures
+make start-iowa-piano-midrange-fixtures
+make status-iowa-piano-midrange-fixtures
+make verify-iowa-piano-midrange-fixtures
+make test-iowa-piano-midrange-samples
+```
+
+The source is the [University of Iowa Musical Instrument Samples Piano collection](https://theremin.music.uiowa.edu/MISPiano.html).
+
 Run the isolated, sharded analyzer audit and inspect its persisted recall and raw
 tuning evidence with:
 

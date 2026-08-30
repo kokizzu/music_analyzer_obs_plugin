@@ -10553,3 +10553,39 @@ commit-vocadito-fixture-commit: scripts/manage_vocadito_fixture_commit.py
 
 push-vocadito-fixture-commit: scripts/manage_vocadito_fixture_commit.py
 	python3 scripts/manage_vocadito_fixture_commit.py push
+
+.PHONY: plan-iowa-piano-midrange-fixtures probe-iowa-piano-midrange-fixtures apply-iowa-piano-midrange-fixtures verify-iowa-piano-midrange-fixtures
+plan-iowa-piano-midrange-fixtures: scripts/prepare_iowa_piano_midrange_fixtures.py
+	python3 scripts/prepare_iowa_piano_midrange_fixtures.py plan
+probe-iowa-piano-midrange-fixtures: scripts/prepare_iowa_piano_midrange_fixtures.py
+	python3 scripts/prepare_iowa_piano_midrange_fixtures.py probe
+apply-iowa-piano-midrange-fixtures: scripts/prepare_iowa_piano_midrange_fixtures.py
+	python3 scripts/prepare_iowa_piano_midrange_fixtures.py apply
+verify-iowa-piano-midrange-fixtures: scripts/prepare_iowa_piano_midrange_fixtures.py
+	python3 scripts/prepare_iowa_piano_midrange_fixtures.py verify
+.PHONY: start-iowa-piano-midrange-fixtures status-iowa-piano-midrange-fixtures stop-iowa-piano-midrange-fixtures
+start-iowa-piano-midrange-fixtures: scripts/manage_iowa_piano_fixture_download.py
+	python3 scripts/manage_iowa_piano_fixture_download.py start
+status-iowa-piano-midrange-fixtures: scripts/manage_iowa_piano_fixture_download.py
+	python3 scripts/manage_iowa_piano_fixture_download.py status
+stop-iowa-piano-midrange-fixtures: scripts/manage_iowa_piano_fixture_download.py
+	python3 scripts/manage_iowa_piano_fixture_download.py stop
+.PHONY: test-iowa-piano-midrange-samples
+test-iowa-piano-midrange-samples: build/analyzer_real_note_samples build/iowa_piano_midrange_samples scripts/test_iowa_piano_midrange.py
+	python3 scripts/test_iowa_piano_midrange.py --verify
+.PHONY: report-iowa-piano-midrange-samples
+report-iowa-piano-midrange-samples: build/analyzer_real_note_samples build/iowa_piano_midrange_samples scripts/test_iowa_piano_midrange.py
+	python3 scripts/test_iowa_piano_midrange.py --details --attributes
+.PHONY: report-iowa-piano-attributes
+report-iowa-piano-attributes: report-iowa-piano-midrange-samples scripts/report_iowa_piano_attributes.py
+	python3 scripts/report_iowa_piano_attributes.py
+.PHONY: publish-iowa-piano-midrange-partial
+publish-iowa-piano-midrange-partial: scripts/prepare_iowa_piano_midrange_fixtures.py
+	python3 scripts/prepare_iowa_piano_midrange_fixtures.py publish-partial
+.PHONY: plan-iowa-piano-fixture-commit commit-iowa-piano-fixture push-iowa-piano-fixture
+plan-iowa-piano-fixture-commit: scripts/manage_iowa_piano_fixture_commit.py
+	python3 scripts/manage_iowa_piano_fixture_commit.py plan
+commit-iowa-piano-fixture: scripts/manage_iowa_piano_fixture_commit.py
+	python3 scripts/manage_iowa_piano_fixture_commit.py commit
+push-iowa-piano-fixture: scripts/manage_iowa_piano_fixture_commit.py
+	python3 scripts/manage_iowa_piano_fixture_commit.py push
