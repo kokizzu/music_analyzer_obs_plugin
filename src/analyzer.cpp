@@ -9511,6 +9511,12 @@ bool partial_rich_misrouted_guitar_display_supported(const FullMixDebugCandidate
 	       debug.harmonic_ratios[4] > 0.002f;
 }
 
+bool confident_guitar_owner_display_supported(const FullMixDebugCandidate &debug)
+{
+	return debug.owner == InstrumentKind::Guitar && debug.guitar_score >= 0.62f &&
+	       debug.ownership_confidence >= 0.62f;
+}
+
 bool guitar_display_candidate_shadowed_by_non_guitar_pitch(const FullMixOwnership &ownership,
 							   const NoteCandidate &candidate)
 {
@@ -9618,7 +9624,8 @@ NoteCandidateList prune_shadowed_full_mix_guitar_display_candidates(const FullMi
 		const FullMixDebugCandidate *debug = full_mix_debug_for_midi(ownership, candidate.midi);
 		if (guitar_display_candidate_shadowed_by_non_guitar_pitch(ownership, candidate) &&
 		    !(debug && (partial_rich_misrouted_guitar_display_supported(*debug) ||
-			       other_owned_overdrive_guitar_body_supported(*debug))))
+			       other_owned_overdrive_guitar_body_supported(*debug) ||
+			       confident_guitar_owner_display_supported(*debug))))
 			continue;
 		pruned.push_back(candidate);
 	}
