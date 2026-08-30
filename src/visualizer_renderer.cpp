@@ -1423,8 +1423,10 @@ void draw_waiting_status(VisualizerRenderer *visualizer, const AnalysisSnapshot 
 void render_complete_pixels(VisualizerRenderer *visualizer, const AnalysisSnapshot &snapshot, float snapshot_age)
 {
 	constexpr int y_shift = kCompleteContentShiftY;
-	constexpr int kKeyboardAfterVocalOffset = -20;
-	constexpr int kRootAfterGuitarGutter = 46;
+	// Reclaim quiet space after VOCAL for the denser keyboard area, then use it
+	// below the fretboard so ROOT has a clear visual boundary from GUITAR.
+	constexpr int kKeyboardAfterVocalOffset = -36;
+	constexpr int kRootAfterGuitarGutter = 62;
 	draw_visualizer_header(visualizer, snapshot, snapshot_age, nullptr, y_shift);
 	draw_drum_row(visualizer, snapshot, 96 + y_shift, 88 + y_shift);
 
