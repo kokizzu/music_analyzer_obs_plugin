@@ -646,6 +646,28 @@ std::string full_mix_debug_line(const mao::AnalysisSnapshot &snapshot, int expec
 	return line.str();
 }
 
+std::string full_mix_keyboard_display_provenance_line(const mao::AnalysisSnapshot &snapshot,
+									  int expected_midi)
+{
+	if (expected_midi < mao::kFirstAnalyzedMidi || expected_midi > mao::kLastAnalyzedMidi)
+		return "";
+	std::ostringstream line;
+	const std::size_t count = std::min<std::size_t>(
+		snapshot.full_mix_keyboard_display_provenance_count,
+		snapshot.full_mix_keyboard_display_provenance.size());
+	for (std::size_t i = 0; i < count; ++i) {
+		const mao::FullMixDisplayProvenance &record =
+			snapshot.full_mix_keyboard_display_provenance[i];
+		if (record.display_midi != expected_midi)
+			continue;
+		line << " keysrc=" << (record.mirrored ? "mirror" : "direct") << ":"
+		     << debug_note_label(record.display_midi) << "<-"
+		     << debug_note_label(record.source_midi) << "/"
+		     << instrument_kind_name(record.source_owner) << "/score=" << record.score;
+	}
+	return line.str();
+}
+
 std::string grid_debug_label(const mao::NoteGrid &grid, bool visual = false)
 {
 	std::array<float, mao::kNoteProbeCount> levels = {};
@@ -721,6 +743,7 @@ std::string snapshot_note_debug_line(const mao::AnalysisSnapshot &snapshot, int 
 	     << " rms=" << snapshot.rms << " low=" << snapshot.low_energy << " mid=" << snapshot.mid_energy
 	     << " high=" << snapshot.high_energy;
 	line << full_mix_debug_line(snapshot, expected_midi);
+	line << full_mix_keyboard_display_provenance_line(snapshot, expected_midi);
 	return line.str();
 }
 

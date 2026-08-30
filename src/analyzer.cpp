@@ -1327,6 +1327,17 @@ template <typename T, std::size_t Capacity> struct FixedList {
 };
 
 using NoteCandidateList = FixedList<NoteCandidate, kNoteProbeCount>;
+using FullMixDisplayProvenanceList =
+	FixedList<FullMixDisplayProvenance, kFullMixDisplayProvenanceCount>;
+
+void append_full_mix_display_provenance(FullMixDisplayProvenanceList *provenance,
+									int display_midi, int source_midi,
+									InstrumentKind source_owner, float score, bool mirrored)
+{
+	if (!provenance)
+		return;
+	provenance->push_back({display_midi, source_midi, source_owner, score, mirrored});
+}
 
 struct NoteEvidence {
 	int midi = -1;
@@ -2683,6 +2694,14 @@ void restore_full_mix_low_guitar_from_bass(FullMixOwnership &ownership,
 	ownership.guitar_candidates.push_back(candidate);
 }
 
+bool noisy_other_owned_distorted_guitar_body(const FullMixDebugCandidate &debug)
+{
+	return debug.owner == InstrumentKind::Other && debug.ownership_confidence >= 0.80f &&
+	       debug.other_score >= 0.80f && debug.keyboard_score <= 0.02f &&
+	       debug.guitar_score >= 0.10f &&
+	       debug.harmonic_fit_error >= 0.60f && debug.local_noise_level >= 0.48f;
+}
+
 void restore_full_mix_low_keyboard_from_bass(FullMixOwnership &ownership,
 					     const std::array<float, kNoteProbeCount> &powers,
 					     int bass_midi, float low_energy, float mid_energy)
@@ -2691,6 +2710,13 @@ void restore_full_mix_low_keyboard_from_bass(FullMixOwnership &ownership,
 		if (keyboard_midi < kKeyboardMinMidi || keyboard_midi >= 48 ||
 		    full_mix_row_midi_active(ownership.keyboard, keyboard_midi))
 			return false;
+		const std::size_t debug_count =
+			std::min<std::size_t>(ownership.debug_candidate_count, ownership.debug_candidates.size());
+		for (std::size_t i = 0; i < debug_count; ++i) {
+			const FullMixDebugCandidate &debug = ownership.debug_candidates[i];
+			if (debug.midi == keyboard_midi && noisy_other_owned_distorted_guitar_body(debug))
+				return false;
+		}
 		// A strongly low-dominant bass body can have an electronic-looking harmonic
 		// stack. Do not reintroduce that exact fundamental as a keyboard note.
 		if (!octave_alias && keyboard_midi == bass_midi && keyboard_midi < kGuitarMinMidi &&
@@ -7168,7 +7194,7 @@ bool full_mix_display_mirror_supported(FullMixDisplayRow row, const FullMixDebug
 		const bool noisy_low_keyboard_hint =
 			debug.midi < 60 && debug.local_noise_level >= 0.28f &&
 			debug.spectral_level >= 0.45f && debug.pitch_confidence >= 0.20f &&
-			debug.guitar_score < 0.42f;
+			debug.guitar_score < 0.42f && !noisy_other_owned_distorted_guitar_body(debug);
 		const bool electronic_keyboard_partial_shape =
 			debug.harmonic_ratios[1] >= 0.40f || debug.harmonic_ratios[3] >= 0.10f;
 		const bool noisy_electronic_keyboard_hint =
@@ -8616,6 +8642,12 @@ void add_full_mix_display_mirror(NoteCandidateList &candidates, const FullMixOwn
 	if (clean_owned_chord_context_for_row(ownership, debug, row) && !sustained_acoustic_other_mirror)
 		return;
 	const bool candidate_exists = candidate_list_has_midi(candidates, display_midi);
+	const bool noisy_other_owned_distorted_guitar_keyboard_projection =
+		row == FullMixDisplayRow::Keyboard &&
+		(display_midi == debug.midi || display_midi == debug.midi + 12) &&
+		noisy_other_owned_distorted_guitar_body(debug);
+	if (noisy_other_owned_distorted_guitar_keyboard_projection)
+		return;
 	if (row == FullMixDisplayRow::Other &&
 	    keyboard_owned_other_mirror_blocked_in_chord_context(ownership, debug) &&
 	    !sustained_acoustic_other_mirror)
@@ -8866,7 +8898,8 @@ void add_full_mix_display_mirror(NoteCandidateList &candidates, const FullMixOwn
 }
 
 NoteCandidateList full_mix_display_candidates(const FullMixOwnership &ownership, FullMixDisplayRow row,
-					      const std::array<float, kNoteProbeCount> *raw_powers = nullptr)
+					      const std::array<float, kNoteProbeCount> *raw_powers = nullptr,
+					      FullMixDisplayProvenanceList *provenance = nullptr)
 {
 	NoteCandidateList candidates;
 	switch (row) {
@@ -8883,11 +8916,52 @@ NoteCandidateList full_mix_display_candidates(const FullMixOwnership &ownership,
 		candidates = ownership.other_candidates;
 		break;
 	}
+	if (provenance) {
+		const InstrumentKind direct_owner =
+			row == FullMixDisplayRow::Keyboard ? InstrumentKind::Keyboard :
+			row == FullMixDisplayRow::Guitar ? InstrumentKind::Guitar :
+			row == FullMixDisplayRow::Vocal ? InstrumentKind::Vocal : InstrumentKind::Other;
+		for (const NoteCandidate &candidate : candidates)
+			append_full_mix_display_provenance(
+				provenance, candidate.midi, candidate.midi, direct_owner, candidate.score, false);
+	}
 
 	const std::size_t debug_count =
 		std::min<std::size_t>(ownership.debug_candidate_count, ownership.debug_candidates.size());
-	for (std::size_t i = 0; i < debug_count; ++i)
-		add_full_mix_display_mirror(candidates, ownership, ownership.debug_candidates[i], row, raw_powers);
+	for (std::size_t i = 0; i < debug_count; ++i) {
+		const FullMixDebugCandidate &debug = ownership.debug_candidates[i];
+		const int display_midi = full_mix_display_mirror_midi(row, debug, ownership);
+		const bool existed = candidate_list_has_midi(candidates, display_midi);
+		add_full_mix_display_mirror(candidates, ownership, debug, row, raw_powers);
+		if (!existed && candidate_list_has_midi(candidates, display_midi)) {
+			float score = 0.0f;
+			for (const NoteCandidate &candidate : candidates) {
+				if (candidate.midi == display_midi) {
+					score = candidate.score;
+					break;
+				}
+			}
+			append_full_mix_display_provenance(provenance, display_midi, debug.midi, debug.owner,
+									   score, true);
+		}
+	}
+	if (row == FullMixDisplayRow::Keyboard) {
+		NoteCandidateList filtered;
+		for (const NoteCandidate &candidate : candidates) {
+			bool projected_distorted_guitar_body = false;
+			for (std::size_t i = 0; i < debug_count; ++i) {
+				const FullMixDebugCandidate &debug = ownership.debug_candidates[i];
+				if ((debug.midi == candidate.midi || debug.midi + 12 == candidate.midi) &&
+				    noisy_other_owned_distorted_guitar_body(debug)) {
+					projected_distorted_guitar_body = true;
+					break;
+				}
+			}
+			if (!projected_distorted_guitar_body)
+				filtered.push_back(candidate);
+		}
+		candidates = filtered;
+	}
 	if (row == FullMixDisplayRow::Keyboard || row == FullMixDisplayRow::Guitar) {
 		for (std::size_t i = 0; i < debug_count; ++i) {
 			const FullMixDebugCandidate &debug = ownership.debug_candidates[i];
@@ -36523,8 +36597,14 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 			preferred_root = mixed_bass_pitch_class >= 0 ?
 						 mixed_bass_pitch_class :
 						 lowest_candidate_pitch_class(full_mix_ownership.keyboard_candidates);
-				NoteCandidateList keyboard_display =
-					full_mix_display_candidates(full_mix_ownership, FullMixDisplayRow::Keyboard);
+				FullMixDisplayProvenanceList keyboard_display_provenance;
+				NoteCandidateList keyboard_display = full_mix_display_candidates(
+					full_mix_ownership, FullMixDisplayRow::Keyboard, nullptr,
+					&keyboard_display_provenance);
+				snapshot.full_mix_keyboard_display_provenance_count =
+					keyboard_display_provenance.count;
+				snapshot.full_mix_keyboard_display_provenance =
+					keyboard_display_provenance.items;
 				if (snapshot.bass_debug_displayed_midi >= kKeyboardMinMidi &&
 				    snapshot.bass_debug_displayed_midi < kGuitarMinMidi) {
 					if (full_mix_source_hint_mode == AnalysisInputMode::IsolatedKeyboard)
@@ -37491,6 +37571,20 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 	}
 
 	if (keyboard_enabled) {
+		if (mixed_source) {
+			const std::size_t debug_count = std::min<std::size_t>(
+				full_mix_ownership.debug_candidate_count,
+				full_mix_ownership.debug_candidates.size());
+			for (std::size_t i = 0; i < debug_count; ++i) {
+				const FullMixDebugCandidate &debug = full_mix_ownership.debug_candidates[i];
+				if (!noisy_other_owned_distorted_guitar_body(debug))
+					continue;
+				const std::size_t index = static_cast<std::size_t>(debug.midi - kFirstMidi);
+				keyboard_note_tracking_[index] = {};
+				if (debug.midi + 12 <= kLastMidi)
+					keyboard_note_tracking_[index + 12] = {};
+			}
+		}
 		smooth_note_grid_envelope(snapshot.keyboard_notes, snapshot.keyboard, keyboard_note_tracking_, -1,
 					  interval_seconds, mixed_source ? 8 : 10, keyboard_new_notes,
 					  kNoteAttackConfirmFrames,

@@ -204,6 +204,18 @@ struct FullMixDebugCandidate {
 	std::array<float, 5> harmonic_ratios = {};
 };
 
+// Corpus-harness diagnostic only. These records describe how Keyboard display
+// candidates were formed after ownership routing; they are not used by analysis
+// or rendering.
+constexpr std::size_t kFullMixDisplayProvenanceCount = kNoteProbeCount * 2;
+struct FullMixDisplayProvenance {
+	int display_midi = -1;
+	int source_midi = -1;
+	InstrumentKind source_owner = InstrumentKind::Ambiguous;
+	float score = 0.0f;
+	bool mirrored = false;
+};
+
 struct TempoDebugCandidate {
 	int bpm = 0;
 	float score = 0.0f;
@@ -304,6 +316,9 @@ struct AnalysisSnapshot {
 	float bass_debug_displayed_score = 0.0f;
 	std::size_t full_mix_debug_candidate_count = 0;
 	std::array<FullMixDebugCandidate, kFullMixDebugCandidateCount> full_mix_debug_candidates = {};
+	std::size_t full_mix_keyboard_display_provenance_count = 0;
+	std::array<FullMixDisplayProvenance, kFullMixDisplayProvenanceCount>
+		full_mix_keyboard_display_provenance = {};
 	InstrumentState root = {};
 	char root_candidates[64] = {};
 	InstrumentState global_chord = {};
