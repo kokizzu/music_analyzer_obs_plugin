@@ -9312,6 +9312,13 @@ bool guitar_upper_octave_supports_lower_fundamental(const FullMixOwnership &owne
 	return false;
 }
 
+bool partial_rich_misrouted_guitar_display_supported(const FullMixDebugCandidate &debug)
+{
+	return debug.midi >= kGuitarMinMidi && debug.midi <= kGuitarMaxMidi &&
+	       debug.harmonic_ratios[3] > 0.040f && debug.harmonic_ratios[2] <= 0.051f &&
+	       debug.harmonic_ratios[4] > 0.002f;
+}
+
 bool guitar_display_candidate_shadowed_by_non_guitar_pitch(const FullMixOwnership &ownership,
 							   const NoteCandidate &candidate)
 {
@@ -9416,7 +9423,9 @@ NoteCandidateList prune_shadowed_full_mix_guitar_display_candidates(const FullMi
 {
 	NoteCandidateList pruned;
 	for (const NoteCandidate &candidate : candidates) {
-		if (guitar_display_candidate_shadowed_by_non_guitar_pitch(ownership, candidate))
+		const FullMixDebugCandidate *debug = full_mix_debug_for_midi(ownership, candidate.midi);
+		if (guitar_display_candidate_shadowed_by_non_guitar_pitch(ownership, candidate) &&
+		    !(debug && partial_rich_misrouted_guitar_display_supported(*debug)))
 			continue;
 		pruned.push_back(candidate);
 	}

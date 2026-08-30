@@ -6187,8 +6187,16 @@ int run()
 							 sparse_vocal_octave_ownership) == 48,
 		      "sparse vocal-owned C4 guitar body: expected C3 display alias");
 	runner.expect(mao::full_mix_display_mirror_supported(mao::FullMixDisplayRow::Guitar,
-							      sparse_vocal_octave_alias, 48),
+						      sparse_vocal_octave_alias, 48),
 		      "sparse vocal-owned C4 guitar body: expected C3 mirror support");
+	FullMixDebugCandidate partial_rich_guitar;
+	partial_rich_guitar.midi = 57;
+	partial_rich_guitar.harmonic_ratios = {1.0f, 0.46f, 0.048f, 0.072f, 0.010f};
+	runner.expect(mao::partial_rich_misrouted_guitar_display_supported(partial_rich_guitar),
+		      "partial-rich middle guitar body: expected shadow-pruning recovery");
+	partial_rich_guitar.harmonic_ratios[4] = 0.002f;
+	runner.expect(!mao::partial_rich_misrouted_guitar_display_supported(partial_rich_guitar),
+		      "partial-rich middle guitar body: expected lower-bound rejection");
 	FullMixDebugCandidate low_other_guitar = {};
 	low_other_guitar.midi = 45;
 	low_other_guitar.owner = InstrumentKind::Other;
