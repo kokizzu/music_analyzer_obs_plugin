@@ -2685,11 +2685,16 @@ void restore_full_mix_low_guitar_from_bass(FullMixOwnership &ownership,
 
 void restore_full_mix_low_keyboard_from_bass(FullMixOwnership &ownership,
 					     const std::array<float, kNoteProbeCount> &powers,
-					     int bass_midi)
+					     int bass_midi, float low_energy, float mid_energy)
 {
 	auto restore_candidate = [&](int keyboard_midi, bool octave_alias) {
 		if (keyboard_midi < kKeyboardMinMidi || keyboard_midi >= 48 ||
 		    full_mix_row_midi_active(ownership.keyboard, keyboard_midi))
+			return false;
+		// A strongly low-dominant bass body can have an electronic-looking harmonic
+		// stack. Do not reintroduce that exact fundamental as a keyboard note.
+		if (!octave_alias && keyboard_midi == bass_midi && keyboard_midi < kGuitarMinMidi &&
+		    low_energy >= std::max(0.02f, mid_energy) * 1.25f)
 			return false;
 
 		const float fundamental = probe_level(powers, keyboard_midi);
@@ -36308,7 +36313,8 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 									      displayed_bass.midi);
 					restore_full_mix_low_keyboard_from_bass(full_mix_ownership,
 										detection_note_powers,
-										displayed_bass.midi);
+										displayed_bass.midi, snapshot.low_energy,
+										snapshot.mid_energy);
 					restore_full_mix_low_other_from_bass(full_mix_ownership,
 									     detection_note_powers,
 									     displayed_bass.midi);
@@ -36369,7 +36375,8 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 										      displayed_bass.midi);
 						restore_full_mix_low_keyboard_from_bass(full_mix_ownership,
 											detection_note_powers,
-											displayed_bass.midi);
+											displayed_bass.midi, snapshot.low_energy,
+											snapshot.mid_energy);
 						restore_full_mix_low_other_from_bass(full_mix_ownership,
 										    detection_note_powers,
 										    displayed_bass.midi);

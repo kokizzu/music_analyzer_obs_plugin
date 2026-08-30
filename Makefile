@@ -10718,3 +10718,11 @@ commit-medleydb-vocal-fixture-update: scripts/manage_medleydb_vocal_fixture_upda
 	python3 scripts/manage_medleydb_vocal_fixture_update_commit.py commit
 push-medleydb-vocal-fixture-update: scripts/manage_medleydb_vocal_fixture_update_commit.py
 	python3 scripts/manage_medleydb_vocal_fixture_update_commit.py push
+
+.PHONY: plan-low-bass-keyboard-routing-commit commit-low-bass-keyboard-routing push-low-bass-keyboard-routing
+plan-low-bass-keyboard-routing-commit: scripts/manage_low_bass_keyboard_routing_commit.py
+	$(PYTHON) scripts/manage_low_bass_keyboard_routing_commit.py plan
+commit-low-bass-keyboard-routing: scripts/manage_low_bass_keyboard_routing_commit.py
+	$(PYTHON) scripts/manage_low_bass_keyboard_routing_commit.py commit
+push-low-bass-keyboard-routing: scripts/manage_low_bass_keyboard_routing_commit.py
+	$(PYTHON) scripts/manage_low_bass_keyboard_routing_commit.py push
