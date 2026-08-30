@@ -10681,6 +10681,26 @@ commit-basic-pitch-medleydb-temporal: scripts/manage_basic_pitch_medleydb_tempor
 push-basic-pitch-medleydb-temporal: scripts/manage_basic_pitch_medleydb_temporal_commit.py
 	$(PYTHON) scripts/manage_basic_pitch_medleydb_temporal_commit.py push
 
+.PHONY: plan-iowa-piano-temporal-control-commit commit-iowa-piano-temporal-control push-iowa-piano-temporal-control
+plan-iowa-piano-temporal-control-commit: scripts/manage_iowa_piano_temporal_control_commit.py
+	$(PYTHON) scripts/manage_iowa_piano_temporal_control_commit.py plan
+commit-iowa-piano-temporal-control: scripts/manage_iowa_piano_temporal_control_commit.py
+	$(PYTHON) scripts/manage_iowa_piano_temporal_control_commit.py commit
+push-iowa-piano-temporal-control: scripts/manage_iowa_piano_temporal_control_commit.py
+	$(PYTHON) scripts/manage_iowa_piano_temporal_control_commit.py push
+
+.PHONY: inspect-iowa-piano-continuous-candidates
+inspect-iowa-piano-continuous-candidates: scripts/inspect_iowa_piano_continuous_candidates.py
+	$(PYTHON) scripts/inspect_iowa_piano_continuous_candidates.py
+
+.PHONY: apply-iowa-piano-temporal-controls verify-iowa-piano-temporal-controls test-iowa-piano-temporal-controls
+apply-iowa-piano-temporal-controls: scripts/prepare_iowa_piano_temporal_controls.py
+	$(PYTHON) scripts/prepare_iowa_piano_temporal_controls.py apply
+verify-iowa-piano-temporal-controls: scripts/prepare_iowa_piano_temporal_controls.py
+	$(PYTHON) scripts/prepare_iowa_piano_temporal_controls.py verify
+test-iowa-piano-temporal-controls: $(BUILD_DIR)/basic_pitch_medleydb_context apply-iowa-piano-temporal-controls $(ONNXRUNTIME_LIBRARY) $(BASIC_PITCH_ONNX_MODEL) scripts/test_iowa_piano_temporal_controls.py
+	$(PYTHON) scripts/test_iowa_piano_temporal_controls.py
+
 .PHONY: plan-medleydb-vocal-fixture-update-commit commit-medleydb-vocal-fixture-update push-medleydb-vocal-fixture-update
 plan-medleydb-vocal-fixture-update-commit: scripts/manage_medleydb_vocal_fixture_update_commit.py
 	python3 scripts/manage_medleydb_vocal_fixture_update_commit.py plan
