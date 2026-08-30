@@ -10609,3 +10609,39 @@ commit-visible-recall-reporting: scripts/manage_visible_recall_reporting_commit.
 	python3 scripts/manage_visible_recall_reporting_commit.py commit
 push-visible-recall-reporting: scripts/manage_visible_recall_reporting_commit.py
 	python3 scripts/manage_visible_recall_reporting_commit.py push
+
+.PHONY: probe-medleydb-sample
+probe-medleydb-sample: scripts/probe_medleydb_sample.py
+	python3 scripts/probe_medleydb_sample.py
+.PHONY: start-medleydb-sample-download status-medleydb-sample-download stop-medleydb-sample-download
+start-medleydb-sample-download: scripts/manage_medleydb_sample_download.py
+	python3 scripts/manage_medleydb_sample_download.py start
+status-medleydb-sample-download: scripts/manage_medleydb_sample_download.py
+	python3 scripts/manage_medleydb_sample_download.py status
+stop-medleydb-sample-download: scripts/manage_medleydb_sample_download.py
+	python3 scripts/manage_medleydb_sample_download.py stop
+.PHONY: inspect-medleydb-sample-archive
+inspect-medleydb-sample-archive: scripts/inspect_medleydb_sample_archive.py
+	python3 scripts/inspect_medleydb_sample_archive.py
+.PHONY: inspect-medleydb-vocal-annotations
+inspect-medleydb-vocal-annotations: scripts/inspect_medleydb_vocal_annotations.py
+	python3 scripts/inspect_medleydb_vocal_annotations.py
+.PHONY: plan-medleydb-vocal-mix-fixtures apply-medleydb-vocal-mix-fixtures verify-medleydb-vocal-mix-fixtures
+plan-medleydb-vocal-mix-fixtures: scripts/prepare_medleydb_vocal_mix_fixtures.py
+	python3 scripts/prepare_medleydb_vocal_mix_fixtures.py plan
+apply-medleydb-vocal-mix-fixtures: scripts/prepare_medleydb_vocal_mix_fixtures.py
+	python3 scripts/prepare_medleydb_vocal_mix_fixtures.py apply
+verify-medleydb-vocal-mix-fixtures: scripts/prepare_medleydb_vocal_mix_fixtures.py
+	python3 scripts/prepare_medleydb_vocal_mix_fixtures.py verify
+.PHONY: report-medleydb-vocal-mix test-medleydb-vocal-mix
+report-medleydb-vocal-mix: build/analyzer_real_note_samples build/medleydb_vocal_mix_samples scripts/test_medleydb_vocal_mix.py
+	python3 scripts/test_medleydb_vocal_mix.py
+test-medleydb-vocal-mix: build/analyzer_real_note_samples build/medleydb_vocal_mix_samples scripts/test_medleydb_vocal_mix.py
+	python3 scripts/test_medleydb_vocal_mix.py --verify
+.PHONY: plan-medleydb-vocal-fixture-commit commit-medleydb-vocal-fixture push-medleydb-vocal-fixture
+plan-medleydb-vocal-fixture-commit: scripts/manage_medleydb_vocal_fixture_commit.py
+	python3 scripts/manage_medleydb_vocal_fixture_commit.py plan
+commit-medleydb-vocal-fixture: scripts/manage_medleydb_vocal_fixture_commit.py
+	python3 scripts/manage_medleydb_vocal_fixture_commit.py commit
+push-medleydb-vocal-fixture: scripts/manage_medleydb_vocal_fixture_commit.py
+	python3 scripts/manage_medleydb_vocal_fixture_commit.py push

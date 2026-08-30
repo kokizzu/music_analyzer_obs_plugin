@@ -82,6 +82,25 @@ make test-iowa-piano-midrange-samples
 
 The source is the [University of Iowa Musical Instrument Samples Piano collection](https://theremin.music.uiowa.edu/MISPiano.html).
 
+The official MedleyDB sample archive provides a real multitrack vocal mix with
+continuous F0 annotations. The fixture workflow selects semitone-stable windows
+from the annotated `LizNelson_Rainfall` female-singer melody and extracts ten
+compact full-mix excerpts. The archive and derived audio remain in the external
+fixture cache; MedleyDB audio is licensed CC BY-NC-SA.
+
+```sh
+make probe-medleydb-sample
+make start-medleydb-sample-download
+make status-medleydb-sample-download
+make inspect-medleydb-sample-archive
+make inspect-medleydb-vocal-annotations
+make apply-medleydb-vocal-mix-fixtures
+make verify-medleydb-vocal-mix-fixtures
+make test-medleydb-vocal-mix
+```
+
+The source is the [MedleyDB sample archive](https://zenodo.org/records/1438309) and its [dataset documentation](https://medleydb.weebly.com/description.html).
+
 Run the isolated, sharded analyzer audit and inspect its persisted recall and raw
 tuning evidence with:
 
