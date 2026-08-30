@@ -1423,8 +1423,8 @@ void draw_waiting_status(VisualizerRenderer *visualizer, const AnalysisSnapshot 
 void render_complete_pixels(VisualizerRenderer *visualizer, const AnalysisSnapshot &snapshot, float snapshot_age)
 {
 	constexpr int y_shift = kCompleteContentShiftY;
-	constexpr int kKeyboardAfterVocalOffset = -2;
-	constexpr int kRootAfterGuitarGutter = 18;
+	constexpr int kKeyboardAfterVocalOffset = -12;
+	constexpr int kRootAfterGuitarGutter = 28;
 	draw_visualizer_header(visualizer, snapshot, snapshot_age, nullptr, y_shift);
 	draw_drum_row(visualizer, snapshot, 96 + y_shift, 88 + y_shift);
 
