@@ -21,11 +21,20 @@ DESTINATION = CACHE_ROOT / "medleydb_vocal_mix_samples"
 OUTPUT_LINK = REPO_ROOT / "build" / "medleydb_vocal_mix_samples"
 STEM_DESTINATION = CACHE_ROOT / "medleydb_vocal_stem_samples"
 STEM_OUTPUT_LINK = REPO_ROOT / "build" / "medleydb_vocal_stem_samples"
+CONTEXT_DESTINATION = CACHE_ROOT / "medleydb_vocal_mix_context_samples"
+CONTEXT_OUTPUT_LINK = REPO_ROOT / "build" / "medleydb_vocal_mix_context_samples"
+STEM_CONTEXT_DESTINATION = CACHE_ROOT / "medleydb_vocal_stem_context_samples"
+STEM_CONTEXT_OUTPUT_LINK = REPO_ROOT / "build" / "medleydb_vocal_stem_context_samples"
 MIX_MEMBER = "MedleyDB_sample/Audio/LizNelson_Rainfall/LizNelson_Rainfall_MIX.wav"
 STEM_MEMBER = "MedleyDB_sample/Audio/LizNelson_Rainfall/LizNelson_Rainfall_STEMS/LizNelson_Rainfall_STEM_01.wav"
 HEADER = ("id", "family", "nsynth_family", "source", "midi", "note", "path", "details")
 MIN_DURATION = 0.65
 CLIP_DURATION = 0.62
+CONTEXT_DURATION = 2.00
+# Basic Pitch's causal output is 1.736 seconds into its 2-second context.  Keep
+# the annotated stable note active at that point and at the final native frame.
+CONTEXT_CAUSAL_SECONDS = 1.736
+CONTEXT_NOTE_OFFSET_SECONDS = 0.08
 
 
 def note_name(midi: int) -> str:
@@ -46,14 +55,14 @@ def ensure_link(link: Path, destination: Path) -> None:
     link.symlink_to(destination)
 
 
-def manifest_text(source_name: str) -> str:
+def manifest_text(source_name: str, duration: float) -> str:
     rows = ["\t".join(HEADER)]
     for index, (midi, start, end) in enumerate(entries()):
         stem = f"rainfall_mix_{index:02d}_{note_name(midi)}"
         rows.append("\t".join((
             f"medleydb_rainfall_mix_{index:02d}_{note_name(midi)}", "vocals", "vocals",
             source_name, str(midi), note_name(midi), f"audio/{stem}.wav",
-            f"f0_start={start:.3f},f0_end={end:.3f},window={CLIP_DURATION:.2f},source=MedleyDB",
+            f"f0_start={start:.3f},f0_end={end:.3f},window={duration:.2f},source=MedleyDB",
         )))
     return "\n".join(rows) + "\n"
 
@@ -74,7 +83,8 @@ def extract_member(destination: Path, member_name: str) -> Path:
     return source
 
 
-def prepare_destination(destination: Path, link: Path, member_name: str, source_name: str, ffmpeg: str) -> None:
+def prepare_destination(destination: Path, link: Path, member_name: str, source_name: str, ffmpeg: str,
+                        duration: float, causal_context: bool) -> None:
     destination.mkdir(parents=True, exist_ok=True)
     ensure_link(link, destination)
     source = extract_member(destination, member_name)
@@ -84,15 +94,18 @@ def prepare_destination(destination: Path, link: Path, member_name: str, source_
         target = audio / f"rainfall_mix_{index:02d}_{note_name(midi)}.wav"
         if target.is_file():
             continue
+        seek = start
+        if causal_context:
+            seek = max(0.0, start + CONTEXT_NOTE_OFFSET_SECONDS - CONTEXT_CAUSAL_SECONDS)
         temporary = target.with_suffix(".tmp.wav")
         subprocess.run([
-            ffmpeg, "-v", "error", "-y", "-ss", f"{start:.6f}", "-t", f"{CLIP_DURATION:.2f}",
+            ffmpeg, "-v", "error", "-y", "-ss", f"{seek:.6f}", "-t", f"{duration:.2f}",
             "-i", str(source), "-ac", "1", "-ar", "44100", "-c:a", "pcm_s16le", str(temporary),
         ], check=True)
         temporary.replace(target)
     manifest = destination / "manifest.tsv"
     temporary_manifest = manifest.with_suffix(".tmp")
-    temporary_manifest.write_text(manifest_text(source_name), encoding="utf-8")
+    temporary_manifest.write_text(manifest_text(source_name, duration), encoding="utf-8")
     temporary_manifest.replace(manifest)
 
 
@@ -101,10 +114,18 @@ def apply(ffmpeg: str) -> int:
         raise RuntimeError(f"missing MedleyDB sample archive: {ARCHIVE}")
     if not shutil.which(ffmpeg):
         raise RuntimeError(f"ffmpeg is required but was not found: {ffmpeg}")
-    prepare_destination(DESTINATION, OUTPUT_LINK, MIX_MEMBER, "medleydb-liznelson-rainfall-mix", ffmpeg)
-    prepare_destination(STEM_DESTINATION, STEM_OUTPUT_LINK, STEM_MEMBER, "medleydb-liznelson-rainfall-stem", ffmpeg)
+    prepare_destination(DESTINATION, OUTPUT_LINK, MIX_MEMBER, "medleydb-liznelson-rainfall-mix", ffmpeg,
+                        CLIP_DURATION, False)
+    prepare_destination(STEM_DESTINATION, STEM_OUTPUT_LINK, STEM_MEMBER, "medleydb-liznelson-rainfall-stem", ffmpeg,
+                        CLIP_DURATION, False)
+    prepare_destination(CONTEXT_DESTINATION, CONTEXT_OUTPUT_LINK, MIX_MEMBER,
+                        "medleydb-liznelson-rainfall-mix-context", ffmpeg, CONTEXT_DURATION, True)
+    prepare_destination(STEM_CONTEXT_DESTINATION, STEM_CONTEXT_OUTPUT_LINK, STEM_MEMBER,
+                        "medleydb-liznelson-rainfall-stem-context", ffmpeg, CONTEXT_DURATION, True)
     print(f"link={OUTPUT_LINK} -> {DESTINATION}")
     print(f"stem-link={STEM_OUTPUT_LINK} -> {STEM_DESTINATION}")
+    print(f"context-link={CONTEXT_OUTPUT_LINK} -> {CONTEXT_DESTINATION}")
+    print(f"stem-context-link={STEM_CONTEXT_OUTPUT_LINK} -> {STEM_CONTEXT_DESTINATION}")
     print(f"samples={len(entries())}")
     return 0
 
@@ -122,11 +143,19 @@ def verify() -> int:
     expected = len(entries())
     actual, rows = verify_destination(DESTINATION)
     stem_actual, stem_rows = verify_destination(STEM_DESTINATION)
+    context_actual, context_rows = verify_destination(CONTEXT_DESTINATION)
+    stem_context_actual, stem_context_rows = verify_destination(STEM_CONTEXT_DESTINATION)
     print(f"audio-files={actual}/{expected}")
     print(f"manifest-rows={rows}/{expected}")
     print(f"stem-audio-files={stem_actual}/{expected}")
     print(f"stem-manifest-rows={stem_rows}/{expected}")
-    return 0 if actual == expected and rows == expected and stem_actual == expected and stem_rows == expected else 1
+    print(f"context-audio-files={context_actual}/{expected}")
+    print(f"context-manifest-rows={context_rows}/{expected}")
+    print(f"stem-context-audio-files={stem_context_actual}/{expected}")
+    print(f"stem-context-manifest-rows={stem_context_rows}/{expected}")
+    return 0 if (actual == expected and rows == expected and stem_actual == expected and stem_rows == expected and
+                 context_actual == expected and context_rows == expected and
+                 stem_context_actual == expected and stem_context_rows == expected) else 1
 
 
 if __name__ == "__main__":

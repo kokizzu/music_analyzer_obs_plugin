@@ -10657,6 +10657,22 @@ test-medleydb-vocal-stem: build/analyzer_real_note_samples build/medleydb_vocal_
 .PHONY: report-medleydb-vocal-stem-attributes
 report-medleydb-vocal-stem-attributes: report-medleydb-vocal-stem scripts/report_medleydb_vocal_mix_attributes.py
 	python3 scripts/report_medleydb_vocal_mix_attributes.py --stem
+.PHONY: report-basic-pitch-medleydb-mix-context report-basic-pitch-medleydb-stem-context test-basic-pitch-medleydb-context
+$(BUILD_DIR)/basic_pitch_medleydb_context.o: tests/basic_pitch_medleydb_context.cpp src/analyzer.hpp src/basic_pitch_onnx_runtime.hpp src/basic_pitch_onnx_worker.hpp src/basic_pitch_pcm_history.hpp | $(BUILD_DIR)
+	$(CXX) $(CXXFLAGS) -Isrc -Itests -I$(BTT_SOURCE_DIR) -c $< -o $@
+
+$(BUILD_DIR)/basic_pitch_medleydb_context: $(ANALYZER_TEST_OBJ) $(BUILD_DIR)/basic_pitch_medleydb_context.o
+	$(CXX) $(LDFLAGS) -o $@ $^ -ldl -lm -pthread
+
+report-basic-pitch-medleydb-mix-context: $(BUILD_DIR)/basic_pitch_medleydb_context apply-medleydb-vocal-mix-fixtures $(ONNXRUNTIME_LIBRARY) $(BASIC_PITCH_ONNX_MODEL)
+	$(BUILD_DIR)/basic_pitch_medleydb_context "$(BUILD_DIR)/medleydb_vocal_mix_context_samples" "$(ONNXRUNTIME_LIBRARY)" "$(BASIC_PITCH_ONNX_MODEL)"
+
+report-basic-pitch-medleydb-stem-context: $(BUILD_DIR)/basic_pitch_medleydb_context apply-medleydb-vocal-mix-fixtures $(ONNXRUNTIME_LIBRARY) $(BASIC_PITCH_ONNX_MODEL)
+	$(BUILD_DIR)/basic_pitch_medleydb_context "$(BUILD_DIR)/medleydb_vocal_stem_context_samples" "$(ONNXRUNTIME_LIBRARY)" "$(BASIC_PITCH_ONNX_MODEL)"
+
+test-basic-pitch-medleydb-context: $(BUILD_DIR)/basic_pitch_medleydb_context apply-medleydb-vocal-mix-fixtures $(ONNXRUNTIME_LIBRARY) $(BASIC_PITCH_ONNX_MODEL) scripts/test_basic_pitch_medleydb_context.py
+	$(PYTHON) scripts/test_basic_pitch_medleydb_context.py
+
 .PHONY: plan-medleydb-vocal-fixture-update-commit commit-medleydb-vocal-fixture-update push-medleydb-vocal-fixture-update
 plan-medleydb-vocal-fixture-update-commit: scripts/manage_medleydb_vocal_fixture_update_commit.py
 	python3 scripts/manage_medleydb_vocal_fixture_update_commit.py plan

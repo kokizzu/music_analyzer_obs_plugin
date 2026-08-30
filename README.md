@@ -98,11 +98,16 @@ make apply-medleydb-vocal-mix-fixtures
 make verify-medleydb-vocal-mix-fixtures
 make test-medleydb-vocal-mix
 make test-medleydb-vocal-stem
+make test-basic-pitch-medleydb-context
 ```
 
 The matched isolated melody stem uses the same annotated windows as the mix. Its
 90% floor separates native Vocal candidate recall from mix masking; the mix has
 an 80% floor because it retains the concurrent singers and guitars.
+
+The BasicPitch context test additionally renders two-second causal contexts for
+the same windows and verifies that the optional Vocal mirror never reduces the
+native result. These contexts are external-cache fixtures, not repository data.
 
 The source is the [MedleyDB sample archive](https://zenodo.org/records/1438309) and its [dataset documentation](https://medleydb.weebly.com/description.html).
 
