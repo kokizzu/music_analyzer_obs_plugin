@@ -2393,102 +2393,9 @@ void mirror_measured_high_soprano_vocal_candidates(FullMixOwnership &ownership)
 
 bool measured_ambiguous_choir_vocal_mirror_supported(const FullMixDebugCandidate &debug)
 {
-	// This is only a display recovery for ambiguous choir material.  An Other
-	// score alone is not vocal evidence: dense instrumental harmony can satisfy
-	// that older shape and otherwise keeps the VOCAL row permanently lit.
-	// Preserve the original ambiguous candidate; this does not rewrite ownership.
 	return debug.owner == InstrumentKind::Ambiguous && debug.ownership_confidence >= 0.785f &&
 	       debug.other_score >= 0.815f && debug.vocal_score >= 0.18f &&
 	       debug.vocal_tone_profile_supported;
-}
-
-void mirror_measured_ambiguous_choir_vocal_candidates(FullMixOwnership &ownership)
-{
-	static constexpr float kVocalConfidence = 0.78f;
-	const std::size_t debug_count =
-		std::min<std::size_t>(ownership.debug_candidate_count, ownership.debug_candidates.size());
-	for (std::size_t i = 0; i < debug_count; ++i) {
-		const FullMixDebugCandidate &debug = ownership.debug_candidates[i];
-		if (!measured_ambiguous_choir_vocal_mirror_supported(debug))
-			continue;
-
-		const std::size_t note_index = static_cast<std::size_t>(debug.midi - kFirstMidi);
-		const float global_level = ownership.global_note_levels[note_index];
-		if (global_level < 0.18f)
-			continue;
-
-		float vocal_reference = 1.0f;
-		for (const NoteCandidate &candidate : ownership.vocal_candidates)
-			vocal_reference = std::max(vocal_reference, candidate.score);
-		const float mirror_score = std::max(global_level, vocal_reference * 1.02f);
-		bool updated = false;
-		for (NoteCandidate &candidate : ownership.vocal_candidates) {
-			if (candidate.midi != debug.midi)
-				continue;
-			candidate.score = std::max(candidate.score, mirror_score);
-			candidate.ownership_confidence = std::max(candidate.ownership_confidence, kVocalConfidence);
-			updated = true;
-		}
-		ownership.vocal[note_index] = true;
-		if (!updated)
-			ownership.vocal_candidates.push_back(
-				NoteCandidate{debug.midi, mirror_score, kVocalConfidence});
-		// The generic ambiguous mirror routes this exact score state to Other.
-		// Its zero-regression cross-corpus audit instead identifies it as a Vocal
-		// display case, so prevent the later same-pitch Other shadow suppression
-		// from immediately removing the recovered Vocal cell.
-		remove_full_mix_row_midi(ownership.other, ownership.other_candidates, debug.midi);
-		ownership.other_display_suppressed[note_index] = true;
-	}
-}
-
-template <typename VocalTracking>
-void restore_measured_ambiguous_choir_vocal_display(NoteGrid &vocal_grid, InstrumentState &vocal_state,
-						     const NoteGrid &ambiguous_grid,
-						     const FullMixOwnership &ownership,
-						     const VocalTracking &vocal_tracking)
-{
-	const std::size_t debug_count =
-		std::min<std::size_t>(ownership.debug_candidate_count, ownership.debug_candidates.size());
-	for (std::size_t i = 0; i < debug_count; ++i) {
-		const FullMixDebugCandidate &debug = ownership.debug_candidates[i];
-		if (!measured_ambiguous_choir_vocal_mirror_supported(debug))
-			continue;
-		if (!vocal_tracking[static_cast<std::size_t>(debug.midi - kFirstMidi)].confirmed)
-			continue;
-
-		const int pitch_class = midi_pitch_class(debug.midi);
-		NoteCell source;
-		const NoteCell &primary = ambiguous_grid.cells[static_cast<std::size_t>(pitch_class)];
-		if (primary.active && primary.midi == debug.midi)
-			source = primary;
-		else {
-			for (const auto &row : ambiguous_grid.rows) {
-				const NoteCell &cell = row[static_cast<std::size_t>(pitch_class)];
-				if (cell.active && cell.midi == debug.midi) {
-					source = cell;
-					break;
-				}
-			}
-		}
-		if (!source.active)
-			continue;
-
-		source.level = std::max(source.level, 0.78f);
-		source.visual_level = std::max(source.visual_level, 0.78f);
-		if (!vocal_grid.cells[static_cast<std::size_t>(pitch_class)].active ||
-		    vocal_grid.cells[static_cast<std::size_t>(pitch_class)].level <= source.level)
-			vocal_grid.cells[static_cast<std::size_t>(pitch_class)] = source;
-		for (auto &row : vocal_grid.rows) {
-			NoteCell &cell = row[static_cast<std::size_t>(pitch_class)];
-			if (!cell.active || cell.midi == debug.midi) {
-				cell = source;
-				break;
-			}
-		}
-		write_note(vocal_state.label, sizeof(vocal_state.label), debug.midi);
-		vocal_state.confidence = std::max(vocal_state.confidence, 0.78f);
-	}
 }
 
 void suppress_full_mix_row_display_midi(FullMixOwnership &ownership, FullMixDisplayRow row, int midi)
@@ -11542,7 +11449,6 @@ FullMixOwnership build_full_mix_ownership(const std::array<float, kNoteProbeCoun
 	mirror_ambiguous_full_mix_candidates(ownership);
 	if constexpr (kEnableMeasuredHighSopranoVocalMirror)
 		mirror_measured_high_soprano_vocal_candidates(ownership);
-	mirror_measured_ambiguous_choir_vocal_candidates(ownership);
 
 	return ownership;
 }
@@ -38932,9 +38838,6 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 		suppress_named_owned_same_pitch_vocal_shadows(snapshot.vocal_notes, snapshot.vocal,
 							      snapshot.other_notes, full_mix_ownership,
 							      InstrumentKind::Other, -1);
-		restore_measured_ambiguous_choir_vocal_display(snapshot.vocal_notes, snapshot.vocal,
-						       snapshot.ambiguous_notes, full_mix_ownership,
-						       vocal_note_tracking_);
 		boost_existing_reed_brass_other_visual_notes(snapshot.other_notes, full_mix_ownership);
 		boost_existing_measured_violin_other_visual_notes(
 			snapshot.other_notes, snapshot.keyboard_notes, full_mix_ownership);
