@@ -180,6 +180,17 @@ void check_other_owned_electric_bass_body_recovery(Runner &runner)
 	restore_full_mix_other_owned_electric_bass_bodies(grid, state, weak, -1);
 	runner.expect(!note_grid_midi_level(grid, kBassMidi),
 		      "other-owned electric bass body: expected thin non-bass shape to remain absent");
+
+	FullMixDebugCandidate ambiguous_choir = {};
+	ambiguous_choir.midi = 64;
+	ambiguous_choir.owner = InstrumentKind::Ambiguous;
+	ambiguous_choir.ownership_confidence = 0.80f;
+	ambiguous_choir.other_score = 0.90f;
+	runner.expect(!measured_ambiguous_choir_vocal_mirror_supported(ambiguous_choir),
+		      "ambiguous choir mirror: expected instrumental Other-only candidate to stay out of vocal row");
+	ambiguous_choir.vocal_score = 0.18f;
+	runner.expect(measured_ambiguous_choir_vocal_mirror_supported(ambiguous_choir),
+		      "ambiguous choir mirror: expected independently vocal-supported candidate to remain eligible");
 }
 
 void check_low_brass_suboctave_display(Runner &runner)

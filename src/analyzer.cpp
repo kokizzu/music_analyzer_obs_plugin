@@ -2385,13 +2385,12 @@ void mirror_measured_high_soprano_vocal_candidates(FullMixOwnership &ownership)
 
 bool measured_ambiguous_choir_vocal_mirror_supported(const FullMixDebugCandidate &debug)
 {
-	// The cross-corpus ownership audit finds this exact high-confidence
-	// ambiguous/other-score state only on three otherwise-correct choir vocal
-	// windows (CSD and ESMUC), and on no protected keyboard, guitar, bass, or
-	// vocal rows.  Preserve the original ambiguous candidate too: this is a
-	// conservative display recovery, not a rewrite of the owner classifier.
+	// This is only a display recovery for ambiguous choir material.  An Other
+	// score alone is not vocal evidence: dense instrumental harmony can satisfy
+	// that older shape and otherwise keeps the VOCAL row permanently lit.
+	// Preserve the original ambiguous candidate; this does not rewrite ownership.
 	return debug.owner == InstrumentKind::Ambiguous && debug.ownership_confidence >= 0.785f &&
-	       debug.other_score >= 0.815f;
+	       debug.other_score >= 0.815f && debug.vocal_score >= 0.18f;
 }
 
 void mirror_measured_ambiguous_choir_vocal_candidates(FullMixOwnership &ownership)
