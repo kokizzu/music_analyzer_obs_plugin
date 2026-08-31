@@ -1411,6 +1411,14 @@ NoteCandidate vocal_display_weighted_candidate(const NoteCandidate &candidate,
 	return weighted;
 }
 
+bool full_mix_direct_vocal_owner_supported(const NoteEvidence &evidence)
+{
+	constexpr float kDirectVocalScoreFloor = 0.70f;
+	const float vocal_score =
+		evidence.ownership_scores[static_cast<std::size_t>(InstrumentKind::Vocal)];
+	return evidence.vocal_tone_profile_supported || vocal_score >= kDirectVocalScoreFloor;
+}
+
 enum class TimbreKind : std::size_t {
 	Keyboard = 0,
 	Guitar = 1,
@@ -11446,6 +11454,8 @@ FullMixOwnership build_full_mix_ownership(const std::array<float, kNoteProbeCoun
 			choose_full_mix_owner(powers, candidate, strongest_score, polyphonic_vocal_context, temporal,
 					      evidence);
 		apply_full_mix_source_hint_owner(source_hint, candidate, evidence, owner, candidates.size());
+		if (owner == InstrumentKind::Vocal && !full_mix_direct_vocal_owner_supported(evidence))
+			owner = InstrumentKind::Ambiguous;
 		append_full_mix_debug_candidate(ownership, candidate, evidence, owner);
 
 		const std::size_t index = static_cast<std::size_t>(candidate.midi - kFirstMidi);

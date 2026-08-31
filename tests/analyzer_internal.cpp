@@ -6272,6 +6272,24 @@ void check_keyboard_owned_clean_low_mid_guitar_display(Runner &runner)
 		      "clean low-mid guitar mirror: expected keyboard-owned C4 clean pluck to remain visible on guitar");
 }
 
+void check_full_mix_direct_vocal_owner_requires_voice_evidence(Runner &runner)
+{
+	NoteEvidence guitar_like = {};
+	guitar_like.ownership_scores[static_cast<std::size_t>(InstrumentKind::Vocal)] = 0.591f;
+	runner.expect(!full_mix_direct_vocal_owner_supported(guitar_like),
+		      "direct vocal ownership: expected guitar-like low-score profile to be rejected");
+
+	NoteEvidence confident_voice = {};
+	confident_voice.ownership_scores[static_cast<std::size_t>(InstrumentKind::Vocal)] = 0.82f;
+	runner.expect(full_mix_direct_vocal_owner_supported(confident_voice),
+		      "direct vocal ownership: expected confident vocal score to remain accepted");
+
+	NoteEvidence profiled_voice = {};
+	profiled_voice.vocal_tone_profile_supported = true;
+	runner.expect(full_mix_direct_vocal_owner_supported(profiled_voice),
+		      "direct vocal ownership: expected supported vocal timbre to remain accepted");
+}
+
 int run()
 {
 	Runner runner;
@@ -6324,6 +6342,7 @@ int run()
 		      "low other-owned guitar body: expected range guard");
 	check_other_owned_electric_bass_body_recovery(runner);
 	check_keyboard_owned_clean_low_mid_guitar_display(runner);
+	check_full_mix_direct_vocal_owner_requires_voice_evidence(runner);
 	check_auto_source_mode_resolution(runner);
 	check_low_acoustic_bass_suboctave_display(runner);
 	check_low_brass_suboctave_display(runner);
