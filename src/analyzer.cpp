@@ -10103,15 +10103,26 @@ bool full_mix_other_owned_electric_bass_body_supported(const FullMixDebugCandida
 	       debug.harmonic_ratios[3] >= 0.05f && debug.harmonic_ratios[4] <= 0.90f;
 }
 
+bool full_mix_other_owned_clean_contrabass_body_supported(const FullMixDebugCandidate &debug)
+{
+	// Tinysol contrabass bodies can be Other-owned in a full mix even with a
+	// stable fundamental. Their compact second/fourth partials separate this
+	// group from the low tuba and cello controls in the same fixture corpus.
+	return debug.owner == InstrumentKind::Other && debug.midi >= 40 && debug.midi <= 52 &&
+	       debug.pitch_confidence >= 0.80f && debug.harmonic_ratios[1] <= 0.70f &&
+	       debug.harmonic_ratios[3] <= 0.25f;
+}
+
 void restore_full_mix_other_owned_electric_bass_bodies(NoteGrid &grid, InstrumentState &state,
-						       const FullMixOwnership &ownership, int preferred_root)
+					       const FullMixOwnership &ownership, int preferred_root)
 {
 	bool changed = false;
 	const std::size_t debug_count =
 		std::min<std::size_t>(ownership.debug_candidate_count, ownership.debug_candidates.size());
 	for (std::size_t i = 0; i < debug_count; ++i) {
 		const FullMixDebugCandidate &debug = ownership.debug_candidates[i];
-		if (!full_mix_other_owned_electric_bass_body_supported(debug))
+		if (!full_mix_other_owned_electric_bass_body_supported(debug) &&
+		    !full_mix_other_owned_clean_contrabass_body_supported(debug))
 			continue;
 		const float level = std::max(ownership_global_note_level(ownership, debug.midi),
 					     debug.spectral_level * debug.pitch_confidence);

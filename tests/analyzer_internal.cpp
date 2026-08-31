@@ -181,6 +181,35 @@ void check_other_owned_electric_bass_body_recovery(Runner &runner)
 	runner.expect(!note_grid_midi_level(grid, kBassMidi),
 		      "other-owned electric bass body: expected thin non-bass shape to remain absent");
 
+	FullMixOwnership clean_contrabass = {};
+	clean_contrabass.debug_candidate_count = 1;
+	FullMixDebugCandidate &clean_debug = clean_contrabass.debug_candidates[0];
+	clean_debug.midi = 49;
+	clean_debug.owner = InstrumentKind::Other;
+	clean_debug.ownership_confidence = 0.70f;
+	clean_debug.other_score = 0.70f;
+	clean_debug.spectral_level = 1.00f;
+	clean_debug.pitch_confidence = 0.83f;
+	clean_debug.periodicity = 0.85f;
+	clean_debug.harmonic_fit_error = 0.10f;
+	clean_debug.local_noise_level = 0.27f;
+	clean_debug.spectral_centroid = 0.34f;
+	clean_debug.harmonic_ratios = {1.0f, 0.61f, 0.35f, 0.22f, 0.09f};
+	clean_contrabass.global_note_levels[static_cast<std::size_t>(clean_debug.midi - kFirstMidi)] =
+		0.90f;
+	grid = {};
+	state = {};
+	restore_full_mix_other_owned_electric_bass_bodies(grid, state, clean_contrabass, -1);
+	runner.expect(note_grid_midi_level(grid, clean_debug.midi) >= 0.80f,
+		      "other-owned clean contrabass body: expected C#3 to populate the bass grid");
+
+	clean_contrabass.debug_candidates[0].harmonic_ratios[1] = 0.75f;
+	grid = {};
+	state = {};
+	restore_full_mix_other_owned_electric_bass_bodies(grid, state, clean_contrabass, -1);
+	runner.expect(!note_grid_midi_level(grid, clean_debug.midi),
+		      "other-owned clean contrabass body: expected dense low Other shape to remain absent");
+
 	NoteGrid bass_shadow_grid = {};
 	NoteGrid other_shadow_grid = {};
 	InstrumentState bass_shadow_state = {};
