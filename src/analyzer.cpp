@@ -2390,7 +2390,8 @@ bool measured_ambiguous_choir_vocal_mirror_supported(const FullMixDebugCandidate
 	// that older shape and otherwise keeps the VOCAL row permanently lit.
 	// Preserve the original ambiguous candidate; this does not rewrite ownership.
 	return debug.owner == InstrumentKind::Ambiguous && debug.ownership_confidence >= 0.785f &&
-	       debug.other_score >= 0.815f && debug.vocal_score >= 0.18f;
+	       debug.other_score >= 0.815f && debug.vocal_score >= 0.18f &&
+	       debug.vocal_tone_profile_supported;
 }
 
 void mirror_measured_ambiguous_choir_vocal_candidates(FullMixOwnership &ownership)

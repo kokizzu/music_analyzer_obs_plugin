@@ -209,6 +209,9 @@ void check_other_owned_electric_bass_body_recovery(Runner &runner)
 	runner.expect(!measured_ambiguous_choir_vocal_mirror_supported(ambiguous_choir),
 		      "ambiguous choir mirror: expected instrumental Other-only candidate to stay out of vocal row");
 	ambiguous_choir.vocal_score = 0.18f;
+	runner.expect(!measured_ambiguous_choir_vocal_mirror_supported(ambiguous_choir),
+		      "ambiguous choir mirror: expected a nonzero vocal score without a vocal tone profile to stay out");
+	ambiguous_choir.vocal_tone_profile_supported = true;
 	runner.expect(measured_ambiguous_choir_vocal_mirror_supported(ambiguous_choir),
 		      "ambiguous choir mirror: expected independently vocal-supported candidate to remain eligible");
 }
