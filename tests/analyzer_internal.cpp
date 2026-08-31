@@ -6288,6 +6288,24 @@ void check_full_mix_direct_vocal_owner_requires_voice_evidence(Runner &runner)
 	profiled_voice.vocal_tone_profile_supported = true;
 	runner.expect(full_mix_direct_vocal_owner_supported(profiled_voice),
 		      "direct vocal ownership: expected supported vocal timbre to remain accepted");
+
+	FullMixDebugCandidate guitar_without_voice = {};
+	guitar_without_voice.owner = InstrumentKind::Guitar;
+	guitar_without_voice.midi = 64;
+	guitar_without_voice.ownership_confidence = 0.78f;
+	guitar_without_voice.guitar_score = 0.78f;
+	guitar_without_voice.vocal_score = 0.0f;
+	guitar_without_voice.spectral_level = 0.82f;
+	guitar_without_voice.pitch_confidence = 0.86f;
+	guitar_without_voice.periodicity = 0.77f;
+	guitar_without_voice.harmonic_fit_error = 0.18f;
+	guitar_without_voice.local_noise_level = 0.18f;
+	guitar_without_voice.spectral_centroid = 0.19f;
+	guitar_without_voice.spectral_slope = 0.16f;
+	guitar_without_voice.harmonic_ratios = {1.0f, 0.36f, 0.18f, 0.08f, 0.03f};
+	runner.expect(!full_mix_display_mirror_supported(FullMixDisplayRow::Vocal,
+							guitar_without_voice, guitar_without_voice.midi),
+		      "vocal mirror: expected stable guitar without vocal evidence to stay out of vocal row");
 }
 
 int run()

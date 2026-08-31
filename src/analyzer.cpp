@@ -4688,18 +4688,15 @@ bool shared_vocal_pitch_display_supported(const FullMixDebugCandidate &debug)
 		debug.spectral_level >= 0.90f && debug.pitch_confidence >= 0.74f &&
 		debug.periodicity >= 0.70f && debug.harmonic_fit_error <= 0.10f &&
 		debug.local_noise_level <= 0.35f;
-	// Real sung fundamentals can be cleanly periodic while their formants route
-	// them to a neighboring instrument row. This display-only fallback retains
-	// those notes without changing ownership or admitting rejected polyphony.
-	const bool stable_misrouted_vocal_fundamental =
+	const bool supported_misrouted_vocal_fundamental =
 		(debug.owner == InstrumentKind::Keyboard || debug.owner == InstrumentKind::Guitar ||
 		 debug.owner == InstrumentKind::Other || debug.owner == InstrumentKind::Ambiguous) &&
-		!debug.vocal_rejected_for_polyphony && debug.midi >= kFullMixVocalMinMidi &&
-		debug.midi <= kVocalMaxMidi && debug.spectral_level >= 0.62f &&
-		debug.pitch_confidence >= 0.45f && debug.periodicity >= 0.64f &&
-		debug.harmonic_fit_error <= 0.48f && debug.local_noise_level <= 0.56f &&
-		debug.spectral_centroid <= 0.40f;
-	if (strong_misrouted_vocal_fundamental || stable_misrouted_vocal_fundamental ||
+		!debug.vocal_rejected_for_polyphony &&
+		debug.midi >= kFullMixVocalMinMidi && debug.midi <= kVocalMaxMidi &&
+		debug.spectral_level >= 0.75f && debug.pitch_confidence >= 0.60f &&
+		debug.periodicity >= 0.70f && debug.harmonic_fit_error <= 0.15f &&
+		debug.local_noise_level <= 0.35f && debug.spectral_centroid <= 0.40f;
+	if (strong_misrouted_vocal_fundamental || supported_misrouted_vocal_fundamental ||
 	    low_register_misrouted_vocal_fundamental)
 		return true;
 
@@ -8834,15 +8831,15 @@ void add_full_mix_display_mirror(NoteCandidateList &candidates, const FullMixOwn
 		row == FullMixDisplayRow::Vocal &&
 		display_midi == debug.midi &&
 		measured_low_full_mix_vocal_display_supported(debug);
-	const bool stable_misrouted_vocal_display =
+	const bool supported_misrouted_vocal_display =
 		row == FullMixDisplayRow::Vocal && display_midi == debug.midi &&
 		(debug.owner == InstrumentKind::Keyboard || debug.owner == InstrumentKind::Guitar ||
 		 debug.owner == InstrumentKind::Other || debug.owner == InstrumentKind::Ambiguous) &&
-		!debug.vocal_rejected_for_polyphony && debug.midi >= kFullMixVocalMinMidi &&
-		debug.midi <= kVocalMaxMidi && debug.spectral_level >= 0.62f &&
-		debug.pitch_confidence >= 0.45f && debug.periodicity >= 0.64f &&
-		debug.harmonic_fit_error <= 0.48f && debug.local_noise_level <= 0.56f &&
-		debug.spectral_centroid <= 0.40f;
+		!debug.vocal_rejected_for_polyphony &&
+		debug.midi >= kFullMixVocalMinMidi && debug.midi <= kVocalMaxMidi &&
+		debug.spectral_level >= 0.75f && debug.pitch_confidence >= 0.60f &&
+		debug.periodicity >= 0.70f && debug.harmonic_fit_error <= 0.15f &&
+		debug.local_noise_level <= 0.35f && debug.spectral_centroid <= 0.40f;
 	const bool measured_low_acoustic_guitar_floor =
 		row == FullMixDisplayRow::Guitar &&
 		display_midi == debug.midi &&
@@ -8871,7 +8868,7 @@ void add_full_mix_display_mirror(NoteCandidateList &candidates, const FullMixOwn
 					std::clamp(debug.spectral_level * debug.pitch_confidence * 0.78f,
 							   0.0f, 1.0f));
 	}
-	if (stable_misrouted_vocal_display) {
+	if (supported_misrouted_vocal_display) {
 		global_level = std::max(global_level,
 					std::clamp(debug.spectral_level * debug.pitch_confidence * 0.45f,
 							   0.0f, 1.0f));
@@ -8923,7 +8920,7 @@ void add_full_mix_display_mirror(NoteCandidateList &candidates, const FullMixOwn
 		candidate_confidence = std::max(candidate_confidence,
 						measured_low_breathy_vocal ? 0.58f : 0.38f);
 	}
-	if (stable_misrouted_vocal_display) {
+	if (supported_misrouted_vocal_display) {
 		candidate_score = std::max(candidate_score, base_score * 0.58f);
 		candidate_confidence = std::max(candidate_confidence, 0.24f);
 	}
