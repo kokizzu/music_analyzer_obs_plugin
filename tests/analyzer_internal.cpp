@@ -6272,6 +6272,31 @@ void check_keyboard_owned_clean_low_mid_guitar_display(Runner &runner)
 		      "clean low-mid guitar mirror: expected keyboard-owned C4 clean pluck to remain visible on guitar");
 }
 
+void check_full_mix_instrumental_pitch_does_not_create_vocal_mirror(Runner &runner)
+{
+	FullMixOwnership ownership = {};
+	static constexpr int kMidi = 64;
+	ownership.global_note_levels[static_cast<std::size_t>(kMidi - kFirstMidi)] = 0.80f;
+
+	FullMixDebugCandidate debug = {};
+	debug.midi = kMidi;
+	debug.owner = InstrumentKind::Guitar;
+	debug.ownership_confidence = 0.72f;
+	debug.guitar_score = 0.72f;
+	debug.vocal_score = 0.0f;
+	debug.spectral_level = 0.80f;
+	debug.pitch_confidence = 0.70f;
+	debug.periodicity = 0.72f;
+	debug.harmonic_fit_error = 0.18f;
+	debug.local_noise_level = 0.18f;
+	debug.spectral_centroid = 0.18f;
+
+	NoteCandidateList candidates;
+	add_full_mix_display_mirror(candidates, ownership, debug, FullMixDisplayRow::Vocal);
+	runner.expect(!candidate_list_has_midi(candidates, kMidi),
+		      "instrumental full-mix pitch: expected no VOCAL display mirror without vocal evidence");
+}
+
 int run()
 {
 	Runner runner;
@@ -6324,6 +6349,7 @@ int run()
 		      "low other-owned guitar body: expected range guard");
 	check_other_owned_electric_bass_body_recovery(runner);
 	check_keyboard_owned_clean_low_mid_guitar_display(runner);
+	check_full_mix_instrumental_pitch_does_not_create_vocal_mirror(runner);
 	check_auto_source_mode_resolution(runner);
 	check_low_acoustic_bass_suboctave_display(runner);
 	check_low_brass_suboctave_display(runner);
