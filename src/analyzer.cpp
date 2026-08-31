@@ -10113,6 +10113,18 @@ bool full_mix_other_owned_clean_contrabass_body_supported(const FullMixDebugCand
 	       debug.harmonic_ratios[3] <= 0.25f;
 }
 
+bool full_mix_other_owned_textured_contrabass_body_supported(const FullMixDebugCandidate &debug)
+{
+	// A second measured TinySOL contrabass body has a stronger second partial,
+	// but keeps a noisy, stable low fundamental and a present fifth partial.
+	// The fifth requirement excludes the nearby thin non-bass controls.
+	return debug.owner == InstrumentKind::Other && debug.midi >= 40 && debug.midi <= 52 &&
+	       debug.pitch_confidence >= 0.80f && debug.harmonic_fit_error <= 0.15f &&
+	       debug.local_noise_level >= 0.20f && debug.spectral_centroid <= 0.45f &&
+	       debug.harmonic_ratios[1] >= 0.78f && debug.harmonic_ratios[3] <= 0.30f &&
+	       debug.harmonic_ratios[4] >= 0.03f;
+}
+
 void restore_full_mix_other_owned_electric_bass_bodies(NoteGrid &grid, InstrumentState &state,
 					       const FullMixOwnership &ownership, int preferred_root)
 {
@@ -10122,7 +10134,8 @@ void restore_full_mix_other_owned_electric_bass_bodies(NoteGrid &grid, Instrumen
 	for (std::size_t i = 0; i < debug_count; ++i) {
 		const FullMixDebugCandidate &debug = ownership.debug_candidates[i];
 		if (!full_mix_other_owned_electric_bass_body_supported(debug) &&
-		    !full_mix_other_owned_clean_contrabass_body_supported(debug))
+		    !full_mix_other_owned_clean_contrabass_body_supported(debug) &&
+		    !full_mix_other_owned_textured_contrabass_body_supported(debug))
 			continue;
 		const float level = std::max(ownership_global_note_level(ownership, debug.midi),
 					     debug.spectral_level * debug.pitch_confidence);

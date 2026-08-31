@@ -210,6 +210,22 @@ void check_other_owned_electric_bass_body_recovery(Runner &runner)
 	runner.expect(!note_grid_midi_level(grid, clean_debug.midi),
 		      "other-owned clean contrabass body: expected dense low Other shape to remain absent");
 
+	FullMixOwnership textured_contrabass = clean_contrabass;
+	FullMixDebugCandidate &textured_debug = textured_contrabass.debug_candidates[0];
+	textured_debug.harmonic_ratios = {1.0f, 0.80f, 0.39f, 0.22f, 0.09f};
+	grid = {};
+	state = {};
+	restore_full_mix_other_owned_electric_bass_bodies(grid, state, textured_contrabass, -1);
+	runner.expect(note_grid_midi_level(grid, textured_debug.midi) >= 0.80f,
+		      "other-owned textured contrabass body: expected C#3 to populate the bass grid");
+
+	textured_contrabass.debug_candidates[0].harmonic_ratios[4] = 0.02f;
+	grid = {};
+	state = {};
+	restore_full_mix_other_owned_electric_bass_bodies(grid, state, textured_contrabass, -1);
+	runner.expect(!note_grid_midi_level(grid, textured_debug.midi),
+		      "other-owned textured contrabass body: expected a weak fifth partial to remain absent");
+
 	NoteGrid bass_shadow_grid = {};
 	NoteGrid other_shadow_grid = {};
 	InstrumentState bass_shadow_state = {};
