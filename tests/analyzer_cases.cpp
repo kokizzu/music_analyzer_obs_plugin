@@ -2713,7 +2713,10 @@ void check_high_full_mix_cluster_not_vocal_or_other(Runner &runner)
 		add_harmonic_note(buffer, 84, 0.24f, piano_profile);
 		const auto snapshot = analyze_buffer(buffer, "full mix");
 		expect_global_pitch_class(runner, snapshot, 0, "single high piano global");
-		expect_no_pitch_class(runner, snapshot.vocal_notes, 0, "single high piano vocal");
+		runner.expect(!grid_pitch_active(snapshot.vocal_notes, 0),
+			      std::string("single high piano vocal: expected pitch class C inactive, got vocal `") +
+				      snapshot.vocal.label + "`, debug `" +
+				      full_mix_debug_summary_for_midi(snapshot, 84) + "`");
 		expect_no_pitch_class(runner, snapshot.other_notes, 0, "single high piano other");
 	}
 	{

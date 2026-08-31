@@ -4454,6 +4454,17 @@ bool shared_vocal_pitch_display_supported(const FullMixDebugCandidate &debug)
 	const float third = debug.harmonic_ratios[2];
 	const float fourth = debug.harmonic_ratios[3];
 	const float fifth = debug.harmonic_ratios[4];
+	const bool measured_high_piano_vocal_alias =
+		debug.owner == InstrumentKind::Ambiguous && debug.midi >= 80 && debug.midi <= 84 &&
+		debug.spectral_level >= 0.95f && debug.pitch_confidence >= 0.94f &&
+		debug.periodicity >= 0.74f && debug.periodicity <= 0.80f &&
+		debug.harmonic_fit_error <= 0.010f && debug.spectral_centroid >= 0.06f &&
+		debug.spectral_centroid <= 0.09f && debug.spectral_slope >= 0.03f &&
+		debug.spectral_slope <= 0.07f && debug.local_noise_level <= 0.005f &&
+		second >= 0.10f && second <= 0.14f && third >= 0.03f && third <= 0.05f &&
+		fourth >= 0.010f && fourth <= 0.020f && fifth <= 0.002f;
+	if (measured_high_piano_vocal_alias)
+		return false;
 	// The bottom of the vocal range falls below the generic full-mix cutoff.
 	// Admit only the measured compact low-register profile; it has a stable
 	// fundamental and controlled upper partials unlike bass and pick attacks.
