@@ -8,6 +8,12 @@ int main()
 	mao::FullMixDebugCandidate candidate;
 	candidate.owner = mao::InstrumentKind::Guitar;
 	candidate.keyboard_score = mao::kBasicPitchVocalFusionMinKeyboardScore;
+	if (mao::basic_pitch_vocal_fusion_supported(candidate,
+					 mao::kBasicPitchVocalFusionMinConfidence)) {
+		std::fprintf(stderr, "basic_pitch_vocal_fusion: accepted instrumental guitar pitch\n");
+		++failures;
+	}
+	candidate.vocal_tone_profile_supported = true;
 	if (!mao::basic_pitch_vocal_fusion_supported(candidate,
 						 mao::kBasicPitchVocalFusionMinConfidence)) {
 		std::fprintf(stderr, "basic_pitch_vocal_fusion: rejected audited boundary\n");
@@ -70,6 +76,6 @@ int main()
 	}
 	if (failures)
 		return 1;
-	std::printf("basic_pitch_vocal_fusion: 10 boundary checks passed\n");
+	std::printf("basic_pitch_vocal_fusion: 11 boundary checks passed\n");
 	return 0;
 }
