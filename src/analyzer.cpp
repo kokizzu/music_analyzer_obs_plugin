@@ -2442,15 +2442,19 @@ void mirror_measured_ambiguous_choir_vocal_candidates(FullMixOwnership &ownershi
 	}
 }
 
+template <typename VocalTracking>
 void restore_measured_ambiguous_choir_vocal_display(NoteGrid &vocal_grid, InstrumentState &vocal_state,
 						     const NoteGrid &ambiguous_grid,
-						     const FullMixOwnership &ownership)
+						     const FullMixOwnership &ownership,
+						     const VocalTracking &vocal_tracking)
 {
 	const std::size_t debug_count =
 		std::min<std::size_t>(ownership.debug_candidate_count, ownership.debug_candidates.size());
 	for (std::size_t i = 0; i < debug_count; ++i) {
 		const FullMixDebugCandidate &debug = ownership.debug_candidates[i];
 		if (!measured_ambiguous_choir_vocal_mirror_supported(debug))
+			continue;
+		if (!vocal_tracking[static_cast<std::size_t>(debug.midi - kFirstMidi)].confirmed)
 			continue;
 
 		const int pitch_class = midi_pitch_class(debug.midi);
@@ -37433,7 +37437,8 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 					continue;
 				const FullMixDebugCandidate *debug =
 					full_mix_debug_for_midi(full_mix_ownership, candidate.midi);
-				if (debug && measured_adjacent_vocal_display_supported(*debug))
+				if (debug && (measured_adjacent_vocal_display_supported(*debug) ||
+					      measured_ambiguous_choir_vocal_mirror_supported(*debug)))
 					mixed_vocal_requires_confirmation[
 						static_cast<std::size_t>(candidate.midi - kFirstMidi)] = true;
 			}
@@ -38905,7 +38910,8 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 							      snapshot.other_notes, full_mix_ownership,
 							      InstrumentKind::Other, -1);
 		restore_measured_ambiguous_choir_vocal_display(snapshot.vocal_notes, snapshot.vocal,
-							       snapshot.ambiguous_notes, full_mix_ownership);
+						       snapshot.ambiguous_notes, full_mix_ownership,
+						       vocal_note_tracking_);
 		boost_existing_reed_brass_other_visual_notes(snapshot.other_notes, full_mix_ownership);
 		boost_existing_measured_violin_other_visual_notes(
 			snapshot.other_notes, snapshot.keyboard_notes, full_mix_ownership);
