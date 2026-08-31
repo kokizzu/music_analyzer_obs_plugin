@@ -4495,11 +4495,6 @@ bool shared_vocal_pitch_display_supported(const FullMixDebugCandidate &debug)
 			third <= 0.096f;
 		return debug.ownership_confidence >= 0.58f || measured_low_vocal_owner;
 	}
-	// A non-vocal owner can be a misclassified singer, but it still needs some
-	// classifier evidence for that claim. Without this floor, guitar and piano
-	// harmonics matching one of the recovery profiles permanently light VOCAL.
-	if (debug.vocal_score < 0.30f)
-		return false;
 	if (measured_low_vocal_display)
 		return true;
 	if (measured_adjacent_vocal_display_supported(debug))
@@ -4516,6 +4511,12 @@ bool shared_vocal_pitch_display_supported(const FullMixDebugCandidate &debug)
 		return true;
 	if (measured_other_owned_low_harmonic_vocal_body_supported(debug))
 		return true;
+	// A non-vocal owner can be a misclassified singer, but it still needs some
+	// classifier evidence unless it matches one of the measured vocal profiles
+	// above. This keeps profile-backed recovery for real voices while rejecting
+	// generic keyboard and guitar harmonic mirrors.
+	if (debug.vocal_score < 0.30f)
+		return false;
 	const bool keyboard_owned_pure_choir =
 		debug.owner == InstrumentKind::Keyboard &&
 		debug.midi >= 69 && debug.midi <= 84 &&
@@ -36886,6 +36887,7 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 	NoteCandidateList mixed_keyboard_display_candidates;
 	NoteCandidateList mixed_guitar_display_candidates;
 	NoteCandidateList mixed_vocal_display_candidates;
+	std::array<bool, kNoteProbeCount> mixed_vocal_requires_confirmation = {};
 	NoteCandidateList mixed_other_display_candidates;
 
 	auto process_keyboard = [&]() {
@@ -37420,6 +37422,15 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 				add_basic_pitch_vocal_fusion_candidates(vocal_display_candidates,
 									full_mix_ownership, basic_pitch_notes_);
 			mixed_vocal_display_candidates = vocal_display_candidates;
+			for (const NoteCandidate &candidate : vocal_display_candidates) {
+				if (candidate.midi < kFirstMidi || candidate.midi > kLastMidi)
+					continue;
+				const FullMixDebugCandidate *debug =
+					full_mix_debug_for_midi(full_mix_ownership, candidate.midi);
+				if (debug && measured_adjacent_vocal_display_supported(*debug))
+					mixed_vocal_requires_confirmation[
+						static_cast<std::size_t>(candidate.midi - kFirstMidi)] = true;
+			}
 			const int preferred_root = lowest_candidate_pitch_class(vocal_display_candidates);
 			set_instrument_note_set_from_candidates(snapshot.vocal_notes, snapshot.vocal,
 								vocal_display_candidates,
@@ -38653,10 +38664,16 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 		const std::array<float, kNoteProbeCount> *vocal_immediate_floors = nullptr;
 		if (mixed_source) {
 			mixed_vocal_immediate_floors.fill(kNoteEnvelopeImmediateConfirmFloor);
+			for (std::size_t i = 0; i < mixed_vocal_requires_confirmation.size(); ++i) {
+				if (mixed_vocal_requires_confirmation[i])
+					mixed_vocal_immediate_floors[i] = 1.10f;
+			}
 			vocal_immediate_floors = &mixed_vocal_immediate_floors;
 			if (tracked_vocal_midi_ >= kFirstMidi && tracked_vocal_midi_ <= kLastMidi)
-				mixed_vocal_immediate_floors[tracked_vocal_midi_ - kFirstMidi] =
-					kMixedVocalConfirmedImmediateFloor;
+				if (!mixed_vocal_requires_confirmation[
+						static_cast<std::size_t>(tracked_vocal_midi_ - kFirstMidi)])
+					mixed_vocal_immediate_floors[tracked_vocal_midi_ - kFirstMidi] =
+						kMixedVocalConfirmedImmediateFloor;
 		}
 		smooth_note_grid_envelope(snapshot.vocal_notes, snapshot.vocal, vocal_note_tracking_, -1,
 					  interval_seconds, vocal_max_notes, nullptr, kNoteAttackConfirmFrames,
