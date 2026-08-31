@@ -10764,6 +10764,18 @@ bool full_mix_vocal_profile_supported(NoteEvidence &evidence, int midi, float se
 	return tone_profile && (!polyphonic_vocal_context || polyphonic_profile_supported);
 }
 
+bool measured_clean_guitar_vocal_confusion_supported(const NoteEvidence &evidence, int midi, float fourth)
+{
+	// Real IDMT guitar notes can match the vocal body score after their attack
+	// decays. MIR-1K controls show this compact, low-noise/low-slope/weak-fourth
+	// partial profile is rare for correctly owned vocals, so keep the pitch in
+	// the guitar row instead of producing a persistent false vocal highlight.
+	return midi >= 52 && midi <= 76 && evidence.pitch_confidence >= 0.90f &&
+	       evidence.periodicity >= 0.72f && evidence.harmonic_fit_error <= 0.04f &&
+	       evidence.local_noise_level <= 0.055f && evidence.spectral_centroid <= 0.075f &&
+	       evidence.spectral_slope <= 0.035f && fourth <= 0.008f;
+}
+
 bool competing_full_mix_timbres(float keyboard_weight, float guitar_weight, float other_weight)
 {
 	const float total = keyboard_weight + guitar_weight + other_weight;
@@ -11214,6 +11226,8 @@ InstrumentKind choose_full_mix_owner(const std::array<float, kNoteProbeCount> &p
 	const bool supported_high_flute_other_winner = best == 3 && measured_high_flute_other_profile;
 	const bool supported_high_sax_other_winner = best == 3 && measured_high_sax_other_profile;
 	const bool supported_low_other_winner = best == 3 && low_other_profile_supported;
+	const bool clean_guitar_vocal_confusion =
+		best == 2 && measured_clean_guitar_vocal_confusion_supported(evidence, candidate.midi, fourth);
 	const bool blended_non_vocal = (competing_timbres || blended_partials) && !supported_vocal_winner;
 	const float probability_floor =
 		supported_measured_sustained_voice_winner ? 0.40f :
@@ -11245,6 +11259,10 @@ InstrumentKind choose_full_mix_owner(const std::array<float, kNoteProbeCount> &p
 				     0.20f;
 	if (best_probability < probability_floor || best_probability - second_probability < margin_floor)
 		return InstrumentKind::Ambiguous;
+	if (clean_guitar_vocal_confusion) {
+		evidence.owner = InstrumentKind::Guitar;
+		return InstrumentKind::Guitar;
+	}
 
 	InstrumentKind owner = InstrumentKind::Ambiguous;
 	switch (best) {

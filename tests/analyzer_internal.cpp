@@ -214,6 +214,20 @@ void check_other_owned_electric_bass_body_recovery(Runner &runner)
 	ambiguous_choir.vocal_tone_profile_supported = true;
 	runner.expect(measured_ambiguous_choir_vocal_mirror_supported(ambiguous_choir),
 		      "ambiguous choir mirror: expected independently vocal-supported candidate to remain eligible");
+
+	NoteEvidence clean_guitar_vocal_confusion = {};
+	clean_guitar_vocal_confusion.pitch_confidence = 0.92f;
+	clean_guitar_vocal_confusion.periodicity = 0.75f;
+	clean_guitar_vocal_confusion.harmonic_fit_error = 0.03f;
+	clean_guitar_vocal_confusion.local_noise_level = 0.04f;
+	clean_guitar_vocal_confusion.spectral_centroid = 0.06f;
+	clean_guitar_vocal_confusion.spectral_slope = 0.03f;
+	runner.expect(measured_clean_guitar_vocal_confusion_supported(clean_guitar_vocal_confusion, 64, 0.008f),
+		      "clean guitar vocal confusion: expected measured clean guitar profile to route away from vocals");
+	clean_guitar_vocal_confusion.local_noise_level = 0.08f;
+	runner.expect(!measured_clean_guitar_vocal_confusion_supported(clean_guitar_vocal_confusion, 64, 0.008f),
+		      "clean guitar vocal confusion: expected noisy vocal body to retain vocal eligibility");
+
 }
 
 void check_low_brass_suboctave_display(Runner &runner)
