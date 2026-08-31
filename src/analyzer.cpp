@@ -4495,6 +4495,11 @@ bool shared_vocal_pitch_display_supported(const FullMixDebugCandidate &debug)
 			third <= 0.096f;
 		return debug.ownership_confidence >= 0.58f || measured_low_vocal_owner;
 	}
+	// A non-vocal owner can be a misclassified singer, but it still needs some
+	// classifier evidence for that claim. Without this floor, guitar and piano
+	// harmonics matching one of the recovery profiles permanently light VOCAL.
+	if (debug.vocal_score < 0.30f)
+		return false;
 	if (measured_low_vocal_display)
 		return true;
 	if (measured_adjacent_vocal_display_supported(debug))
@@ -23427,7 +23432,6 @@ void append_source_supported_guitar_diminished_triad_aliases_after_prune(
 			continue;
 		if (!supported_guitar_diminished_triad_alias(root, display_grid, analysis_grid))
 			continue;
-
 		char alias[16] = {};
 		std::snprintf(alias, sizeof(alias), "%sdim", note_name(root));
 		const std::size_t alias_len = std::strlen(alias);
@@ -38411,10 +38415,10 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 			append_source_supported_guitar_diminished_triad_aliases_after_prune(
 				snapshot.guitar_chord, smoothed_guitar_chord, snapshot.guitar_notes,
 				guitar_chord_detection_grid);
-			append_probe_supported_guitar_weak_diminished_triad_alias_after_prune(
-				snapshot.guitar_chord, snapshot.guitar_notes, guitar_chord_detection_grid,
-				note_powers, kGuitarMinMidi, kGuitarMaxMidi);
-			append_analysis_complete_guitar_source_dominant_seventh_aliases_after_prune(
+		append_probe_supported_guitar_weak_diminished_triad_alias_after_prune(
+			snapshot.guitar_chord, snapshot.guitar_notes, guitar_chord_detection_grid,
+			note_powers, kGuitarMinMidi, kGuitarMaxMidi);
+		append_analysis_complete_guitar_source_dominant_seventh_aliases_after_prune(
 				snapshot.guitar_chord, raw_guitar_chord, snapshot.guitar_notes,
 				guitar_chord_detection_grid);
 			append_analysis_complete_guitar_source_dominant_seventh_aliases_after_prune(
