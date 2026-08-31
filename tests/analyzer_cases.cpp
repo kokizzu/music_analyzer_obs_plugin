@@ -54,7 +54,11 @@ mao::AnalysisSnapshot analyze_buffer(const mao_test::Buffer &buffer, const char 
 {
 	mao::AnalysisEngine engine;
 	const mao::AnalysisSettings settings = mao_test::default_settings();
-	return engine.analyze(buffer.data(), buffer.size(), settings, source, 0);
+	mao::AnalysisSnapshot snapshot = {};
+	// Stable note/chord expectations must pass the product's two-frame attack gate.
+	for (int frame = 0; frame < 2; ++frame)
+		snapshot = engine.analyze(buffer.data(), buffer.size(), settings, source, 0);
+	return snapshot;
 }
 
 mao::AnalysisSnapshot analyze_buffer_with_mode(const mao_test::Buffer &buffer, mao::AnalysisInputMode input_mode,
