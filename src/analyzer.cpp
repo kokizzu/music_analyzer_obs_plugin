@@ -13336,6 +13336,10 @@ void suppress_other_dominant_same_pitch_bass_shadows(NoteGrid &bass_grid, Instru
 			best_same_midi_row_debug(ownership, midi, InstrumentKind::Other);
 		if (!debug)
 			continue;
+		// This exact Other-owned overtone body has already passed the dedicated
+		// electric-bass recovery. Do not undo that measured recovery here.
+		if (full_mix_other_owned_electric_bass_body_supported(*debug))
+			continue;
 		const bool legacy_other_shadow =
 			debug->other_score >= kMinOtherScore &&
 			debug->bass_score <= debug->other_score * kMaxBassToOtherScoreRatio &&

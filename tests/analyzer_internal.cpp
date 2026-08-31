@@ -181,6 +181,26 @@ void check_other_owned_electric_bass_body_recovery(Runner &runner)
 	runner.expect(!note_grid_midi_level(grid, kBassMidi),
 		      "other-owned electric bass body: expected thin non-bass shape to remain absent");
 
+	NoteGrid bass_shadow_grid = {};
+	NoteGrid other_shadow_grid = {};
+	InstrumentState bass_shadow_state = {};
+	set_midi(bass_shadow_grid, kBassMidi, 0.80f);
+	set_midi(other_shadow_grid, kBassMidi, 1.00f);
+	suppress_other_dominant_same_pitch_bass_shadows(bass_shadow_grid, bass_shadow_state,
+								     other_shadow_grid, ownership, -1);
+	runner.expect(note_grid_midi_level(bass_shadow_grid, kBassMidi) > 0.0f,
+		      "other-owned electric bass body: expected recovered F2 to survive Other shadow cleanup");
+
+	FullMixOwnership generic_other_shadow = ownership;
+	generic_other_shadow.debug_candidates[0].harmonic_ratios[1] = 0.50f;
+	bass_shadow_grid = {};
+	bass_shadow_state = {};
+	set_midi(bass_shadow_grid, kBassMidi, 0.80f);
+	suppress_other_dominant_same_pitch_bass_shadows(bass_shadow_grid, bass_shadow_state,
+								     other_shadow_grid, generic_other_shadow, -1);
+	runner.expect(note_grid_midi_level(bass_shadow_grid, kBassMidi) <= 0.0f,
+		      "other-owned electric bass body: expected unqualified Other shadow to keep existing cleanup");
+
 	FullMixDebugCandidate ambiguous_choir = {};
 	ambiguous_choir.midi = 64;
 	ambiguous_choir.owner = InstrumentKind::Ambiguous;
