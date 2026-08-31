@@ -4677,7 +4677,6 @@ bool shared_vocal_pitch_display_supported(const FullMixDebugCandidate &debug)
 		 debug.owner == InstrumentKind::Other || debug.owner == InstrumentKind::Ambiguous) &&
 		!debug.vocal_rejected_for_polyphony && debug.midi >= kFullMixVocalMinMidi &&
 		debug.midi <= kVocalMaxMidi && debug.spectral_level >= 0.62f &&
-		debug.vocal_score >= 0.20f &&
 		debug.pitch_confidence >= 0.45f && debug.periodicity >= 0.64f &&
 		debug.harmonic_fit_error <= 0.48f && debug.local_noise_level <= 0.56f &&
 		debug.spectral_centroid <= 0.40f;
@@ -8822,7 +8821,6 @@ void add_full_mix_display_mirror(NoteCandidateList &candidates, const FullMixOwn
 		 debug.owner == InstrumentKind::Other || debug.owner == InstrumentKind::Ambiguous) &&
 		!debug.vocal_rejected_for_polyphony && debug.midi >= kFullMixVocalMinMidi &&
 		debug.midi <= kVocalMaxMidi && debug.spectral_level >= 0.62f &&
-		debug.vocal_score >= 0.20f &&
 		debug.pitch_confidence >= 0.45f && debug.periodicity >= 0.64f &&
 		debug.harmonic_fit_error <= 0.48f && debug.local_noise_level <= 0.56f &&
 		debug.spectral_centroid <= 0.40f;
