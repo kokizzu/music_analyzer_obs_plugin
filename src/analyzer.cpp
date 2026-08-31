@@ -10776,6 +10776,22 @@ bool measured_clean_guitar_vocal_confusion_supported(const NoteEvidence &evidenc
 	       evidence.spectral_slope <= 0.035f && fourth <= 0.008f;
 }
 
+bool measured_clean_guitar_piano_confusion_supported(const NoteEvidence &evidence, int midi, float second,
+						      float third, float fourth, float fifth)
+{
+	// Clean guitar decays can become an exact keyboard-template match. On the
+	// IDMT/MAPS comparison this lower-centroid, noisier, compact partial stack
+	// has no correctly routed piano controls, so retain its detected pitch in
+	// the guitar row before generic ownership weighting discards it.
+	return midi >= 52 && midi <= 76 && evidence.pitch_confidence >= 0.75f &&
+	       evidence.pitch_confidence <= 0.92f && evidence.periodicity >= 0.60f &&
+	       evidence.periodicity <= 0.75f && evidence.harmonic_fit_error >= 0.02f &&
+	       evidence.harmonic_fit_error <= 0.09f && evidence.local_noise_level >= 0.04f &&
+	       evidence.local_noise_level <= 0.20f && evidence.spectral_centroid <= 0.065f &&
+	       evidence.spectral_slope <= 0.025f && second <= 0.075f && third <= 0.025f &&
+	       fourth <= 0.010f && fifth <= 0.010f;
+}
+
 bool competing_full_mix_timbres(float keyboard_weight, float guitar_weight, float other_weight)
 {
 	const float total = keyboard_weight + guitar_weight + other_weight;
@@ -11228,6 +11244,9 @@ InstrumentKind choose_full_mix_owner(const std::array<float, kNoteProbeCount> &p
 	const bool supported_low_other_winner = best == 3 && low_other_profile_supported;
 	const bool clean_guitar_vocal_confusion =
 		best == 2 && measured_clean_guitar_vocal_confusion_supported(evidence, candidate.midi, fourth);
+	const bool clean_guitar_piano_confusion =
+		best == 0 && measured_clean_guitar_piano_confusion_supported(
+				       evidence, candidate.midi, second, third, fourth, fifth);
 	const bool blended_non_vocal = (competing_timbres || blended_partials) && !supported_vocal_winner;
 	const float probability_floor =
 		supported_measured_sustained_voice_winner ? 0.40f :
@@ -11260,6 +11279,10 @@ InstrumentKind choose_full_mix_owner(const std::array<float, kNoteProbeCount> &p
 	if (best_probability < probability_floor || best_probability - second_probability < margin_floor)
 		return InstrumentKind::Ambiguous;
 	if (clean_guitar_vocal_confusion) {
+		evidence.owner = InstrumentKind::Guitar;
+		return InstrumentKind::Guitar;
+	}
+	if (clean_guitar_piano_confusion) {
 		evidence.owner = InstrumentKind::Guitar;
 		return InstrumentKind::Guitar;
 	}

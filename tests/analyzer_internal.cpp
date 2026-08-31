@@ -228,6 +228,21 @@ void check_other_owned_electric_bass_body_recovery(Runner &runner)
 	runner.expect(!measured_clean_guitar_vocal_confusion_supported(clean_guitar_vocal_confusion, 64, 0.008f),
 		      "clean guitar vocal confusion: expected noisy vocal body to retain vocal eligibility");
 
+	NoteEvidence clean_guitar_piano_confusion = {};
+	clean_guitar_piano_confusion.pitch_confidence = 0.85f;
+	clean_guitar_piano_confusion.periodicity = 0.68f;
+	clean_guitar_piano_confusion.harmonic_fit_error = 0.05f;
+	clean_guitar_piano_confusion.local_noise_level = 0.11f;
+	clean_guitar_piano_confusion.spectral_centroid = 0.04f;
+	clean_guitar_piano_confusion.spectral_slope = 0.01f;
+	runner.expect(measured_clean_guitar_piano_confusion_supported(
+			      clean_guitar_piano_confusion, 64, 0.05f, 0.006f, 0.002f, 0.002f),
+		      "clean guitar piano confusion: expected measured clean guitar profile to route away from piano");
+	clean_guitar_piano_confusion.local_noise_level = 0.002f;
+	runner.expect(!measured_clean_guitar_piano_confusion_supported(
+			      clean_guitar_piano_confusion, 64, 0.05f, 0.006f, 0.002f, 0.002f),
+		      "clean guitar piano confusion: expected quiet piano body to retain piano eligibility");
+
 }
 
 void check_low_brass_suboctave_display(Runner &runner)
