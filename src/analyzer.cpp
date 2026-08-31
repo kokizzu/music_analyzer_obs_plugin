@@ -3272,7 +3272,7 @@ InstrumentKind strongest_named_owner_hint(const FullMixDebugCandidate &debug)
 	const float fourth = debug.harmonic_ratios[3];
 	const float fifth = debug.harmonic_ratios[4];
 	const bool guitar_shaped =
-		debug.midi >= 52 && debug.midi <= 76 &&
+		debug.midi >= 55 && debug.midi <= 76 &&
 		second >= 0.24f && second <= 0.52f &&
 		third >= 0.080f && third <= 0.28f &&
 		fourth <= 0.20f && fifth <= 0.14f &&
@@ -4574,7 +4574,7 @@ bool shared_vocal_pitch_display_supported(const FullMixDebugCandidate &debug)
 	const bool guitar_owned_measured_voice_lead_body =
 		debug.owner == InstrumentKind::Guitar &&
 		debug.guitar_score >= 0.78f &&
-		debug.midi >= 55 &&
+		debug.midi >= 52 &&
 		debug.midi <= 69 &&
 		debug.spectral_level >= 0.90f &&
 		debug.pitch_confidence >= 0.89f &&
@@ -36586,8 +36586,14 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 									       false);
 		bool mixed_bass_supported =
 			isolated_bass || full_mix_bass_supported(detection_note_powers, bass_note, broad_bass_note);
-		if (!isolated_bass && !mixed_bass_supported &&
-		    full_mix_upper_bass_supported(detection_note_powers, upper_bass_note, broad_bass_note)) {
+		const bool upper_bass_supported =
+			!isolated_bass &&
+			full_mix_upper_bass_supported(detection_note_powers, upper_bass_note, broad_bass_note);
+		const bool upper_replaces_boundary_candidate =
+			mixed_bass_supported && bass_note.midi == kDefaultBassMaxMidi &&
+			upper_bass_note.midi == bass_note.midi + 1 &&
+			upper_bass_note.score >= bass_note.score * 0.35f;
+		if (upper_bass_supported && (!mixed_bass_supported || upper_replaces_boundary_candidate)) {
 			bass_note = upper_bass_note;
 			mixed_bass_supported = true;
 		}
