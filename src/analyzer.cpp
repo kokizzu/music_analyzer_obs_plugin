@@ -32365,6 +32365,7 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 		 sustained_treble_idle_drum_suppressed);
 	bool tempo_event = false;
 	bool initial_crash_onset_detected = false;
+	bool initial_hihat_onset_detected = false;
 	for (std::size_t i = 0; i < kDrumCount; ++i) {
 		if (drum_average_[i] <= 0.0f)
 			drum_average_[i] = drum_bands[i];
@@ -32423,6 +32424,17 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 		const bool soft_cymbal_transient =
 			!tonal_soft_drum_suppressed && had_previous_audio && cymbal &&
 			cymbal_family_evidence && soft_cymbal_separable && transient_ratio >= 0.65f;
+		// A compact, very bright first-window hat has no prior RMS baseline, so
+		// it cannot use the normal soft-cymbal path. Keep this deliberately
+		// narrower than the generic broadband rules; the low/mid floor and local
+		// segment requirement separate it from sustained pitched treble.
+		const bool initial_hihat_onset_shape =
+			!had_previous_audio && i == HiHat && hihat_family_shape &&
+			!tonal_soft_drum_suppressed && drum_transient_ratio >= 2.45f &&
+			snapshot.high_energy >= 0.90f && snapshot.low_energy <= 0.06f &&
+			snapshot.mid_energy <= 0.04f && drum_segment_bands[HiHat] >= 3.0f;
+		if (initial_hihat_onset_shape)
+			initial_hihat_onset_detected = true;
 		// The first audible window has a synthetic onset value of 2.0, so a
 		// sustained snare-shaped event cannot reach the normal prior-audio path.
 		// Require the independently measured snare crack shape and local mid-band
@@ -32491,7 +32503,7 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 		const bool generated_gm_hihat_tail =
 			generated_gm_drum_source && hihat && hihat_family_shape;
 		const bool hihat_event_evidence =
-			!hihat || drum_transient || embedded_hihat_transient || labelled_one_shot_hihat_tail ||
+			!hihat || drum_transient || initial_hihat_onset_shape || embedded_hihat_transient || labelled_one_shot_hihat_tail ||
 			generated_gm_hihat_tail;
 		const bool soft_kick_transient =
 			kick && !tonal_soft_drum_suppressed &&
@@ -32536,13 +32548,13 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 		const bool soft_body_transient =
 			soft_kick_transient || soft_snare_transient || soft_rim_transient || soft_tom_transient;
 		const bool base_shape_supported = drum_shape_supported[i];
-		const bool shape_supported = base_shape_supported || initial_snare_onset_shape ||
+		const bool shape_supported = base_shape_supported || initial_hihat_onset_shape || initial_snare_onset_shape ||
 					     soft_cymbal_transient ||
 					     embedded_hihat_transient;
 		const bool quiet_cymbal_shape =
 			!tonal_soft_drum_suppressed && had_previous_audio && cymbal && base_shape_supported &&
 			cymbal_family_evidence && strongest_cymbal_drum >= strongest_body_drum * 0.10f;
-		const float threshold_scale = (soft_cymbal_transient || quiet_cymbal_shape ||
+		const float threshold_scale = (initial_hihat_onset_shape || soft_cymbal_transient || quiet_cymbal_shape ||
 					       embedded_hihat_transient) ? 0.26f :
 					      soft_kick_transient ? 0.32f :
 					      (initial_snare_onset_shape || soft_snare_transient) ? 0.30f :
@@ -32565,7 +32577,7 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 		}
 		if (drum_detection_enabled && rms > kSilenceRms && shape_supported && hihat_event_evidence &&
 		    (!kick || kick_click_transient) &&
-		    (drum_transient || initial_snare_onset_shape || soft_cymbal_transient ||
+		    (drum_transient || initial_hihat_onset_shape || initial_snare_onset_shape || soft_cymbal_transient ||
 		     quiet_cymbal_shape ||
 		     embedded_hihat_transient || soft_body_transient) &&
 		    score > effective_threshold) {
@@ -33197,7 +33209,8 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 	// drum source, where the normal classifier remains unchanged.
 	const bool generic_tonal_short_onset_hihat_bleed =
 		drum_detection_enabled && !named_drum_source && drum_level_[HiHat] > 0.30f &&
-		drum_transient && onset <= 2.00f && snapshot.high_energy >= 0.20f;
+		drum_transient && onset <= 2.00f && snapshot.high_energy >= 0.20f &&
+		!initial_hihat_onset_detected;
 	const float generic_hihat_trigger_ratio = snapshot.drum_debug_trigger_scores[HiHat] /
 		(trigger_threshold + 1.0e-6f);
 	const bool compact_generic_hihat_hit =
@@ -36409,7 +36422,7 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 	// One-shot calibration deliberately bypasses this live full-mix guard.
 	const bool full_mix_idle_hihat_floor =
 		drum_detection_enabled && !one_shot_drum_source && input_mode == AnalysisInputMode::FullMix &&
-		drum_level_[HiHat] > 0.30f && !drum_transient;
+		drum_level_[HiHat] > 0.30f && !drum_transient && !initial_hihat_onset_detected;
 	if (full_mix_idle_hihat_floor)
 		cap_drum_level(HiHat, 0.28f);
 	// Some real multitrack hats have a short local onset but are masked enough

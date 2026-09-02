@@ -8060,7 +8060,13 @@ void check_obs_hihat_decays_into_steady_treble_floor(Runner &runner)
 	const auto excited = engine.analyze(hihat.data(), hihat.size(), settings, "OBS MIX", 0);
 	runner.expect(excited.drums[mao::HiHat].active,
 		      "OBS hihat decay guard: expected initial hihat active, level " +
-			      std::to_string(excited.drums[mao::HiHat].level));
+			      std::to_string(excited.drums[mao::HiHat].level) + " energy " +
+			      std::to_string(excited.low_energy) + "/" + std::to_string(excited.mid_energy) + "/" +
+			      std::to_string(excited.high_energy) + " transient " +
+			      std::to_string(excited.drum_debug_transient_ratio) + " hihat " +
+			      std::to_string(excited.drum_debug_bands[mao::HiHat]) + "/" +
+			      std::to_string(excited.drum_debug_segment_bands[mao::HiHat]) + " cymbal " +
+			      std::to_string(excited.drum_debug_cymbal_shape));
 
 	mao_test::Buffer steady_high = {};
 	mao_test::add_sine(steady_high, 4800.0f, 0.020f);
