@@ -7929,11 +7929,13 @@ void check_bass_pluck_does_not_trigger_kick(Runner &runner)
 	settings.analysis_interval_seconds = 0.05f;
 	const std::vector<float> bass_profile = {1.0f, 0.42f, 0.22f, 0.10f};
 	mao::AnalysisSnapshot snapshot = {};
+	float sustain_kick_level = 0.0f;
 
 	for (int frame = 0; frame < 8; ++frame) {
 		mao_test::Buffer sustain = {};
 		add_harmonic_note_at_offset(sustain, 36, 0.15f, bass_profile, static_cast<uint64_t>(frame) * 2400);
 		snapshot = engine.analyze(sustain.data(), sustain.size(), settings, "Mic/Aux", 0);
+		sustain_kick_level = snapshot.drums[mao::Kick].level;
 	}
 
 	mao_test::Buffer pluck = {};
@@ -7944,7 +7946,20 @@ void check_bass_pluck_does_not_trigger_kick(Runner &runner)
 	expect_label(runner, snapshot.bass.label, "C2", "bass pluck no kick bass note");
 	runner.expect(!snapshot.drums[mao::Kick].active,
 		      "bass pluck no kick: expected kick inactive, level " +
-			      std::to_string(snapshot.drums[mao::Kick].level));
+			      std::to_string(snapshot.drums[mao::Kick].level) + " score " +
+			      std::to_string(snapshot.drum_debug_trigger_scores[mao::Kick]) +
+			      " threshold " + std::to_string(snapshot.drum_debug_trigger_thresholds[mao::Kick]) +
+			      " transient " + std::to_string(snapshot.drum_debug_transient_ratio) +
+			      " onset " + std::to_string(snapshot.drum_debug_onset) + " kick-body " +
+			      std::to_string(snapshot.drum_debug_kick_body) + " sustain-kick " +
+			      std::to_string(sustain_kick_level) + " flags " +
+			      std::to_string(snapshot.drum_debug_rule_flags) + " bands " +
+			      std::to_string(snapshot.drum_debug_bands[mao::Kick]) + "/" +
+			      std::to_string(snapshot.drum_debug_segment_bands[mao::Kick]) + " shape " +
+			      std::to_string(snapshot.drum_debug_shape_scores[mao::Kick]) + " energy " +
+			      std::to_string(snapshot.low_energy) + "/" + std::to_string(snapshot.mid_energy) + "/" +
+			      std::to_string(snapshot.high_energy) + " bass-conf " +
+			      std::to_string(snapshot.bass.confidence) + " bass " + snapshot.bass.label);
 
 	mao::AnalysisEngine drum_engine;
 	mao::AnalysisSnapshot drum_snapshot = {};
@@ -8968,6 +8983,16 @@ int main()
 			return 1;
 		}
 		std::printf("analyzer_cases bass-display-routing: %d checks passed\n", runner.checks);
+		return 0;
+	}
+	if (case_group && std::strcmp(case_group, "bass-drum-separation") == 0) {
+		check_bass_pluck_does_not_trigger_kick(runner);
+		if (runner.failures != 0) {
+			std::fprintf(stderr, "analyzer_cases bass-drum-separation: %d/%d checks failed\n",
+			             runner.failures, runner.checks);
+			return 1;
+		}
+		std::printf("analyzer_cases bass-drum-separation: %d checks passed\n", runner.checks);
 		return 0;
 	}
 	if (case_group && std::strcmp(case_group, "synthetic-drums") == 0) {

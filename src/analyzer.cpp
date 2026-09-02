@@ -36518,7 +36518,7 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 	const bool final_real_mix_high_body_kick_recovery =
 		drum_detection_enabled && !one_shot_drum_source &&
 		input_mode == AnalysisInputMode::FullMix && drum_level_[Kick] <= 0.30f &&
-		kick_body >= 96.85f;
+		!(tonal_soft_drum_suppressed && had_previous_audio) && kick_body >= 96.85f;
 	if (final_real_mix_high_body_kick_recovery)
 		boost_drum_level(Kick, 0.34f);
 	// In quiet, sparse mixes a compact hi-hat can have a strong local trigger
