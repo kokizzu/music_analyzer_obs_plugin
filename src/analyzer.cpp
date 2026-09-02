@@ -23697,8 +23697,14 @@ void append_supported_guitar_diminished_triad_display_aliases(InstrumentState &s
 		return;
 
 	for (int root = 0; root < 12; ++root) {
-		if (!chord_label_supports_diminished_triad_alias(state.label, root) &&
-		    !analysis_complete_guitar_diminished_triad_alias(root, display_grid, analysis_grid))
+		const bool label_supports_alias = chord_label_supports_diminished_triad_alias(state.label, root);
+		const bool analysis_supports_alias =
+			analysis_complete_guitar_diminished_triad_alias(root, display_grid, analysis_grid);
+		// An analysis-only diminished subset is often just a harmonic fragment of
+		// a visible major or seventh chord. Rootless aliases have a stricter,
+		// dedicated recovery path below, so keep this display path root-anchored.
+		if (!label_supports_alias &&
+		    (!analysis_supports_alias || !note_grid_pitch_active(display_grid, root)))
 			continue;
 		if (!supported_guitar_diminished_triad_alias(root, display_grid, analysis_grid))
 			continue;
@@ -28929,6 +28935,23 @@ void append_source_supported_plain_guitar_aliases_after_prune(InstrumentState &s
 	    longest_chromatic_run(analysis_chroma) >= 8)
 		return;
 
+	ParsedRootChord display_primary;
+	const bool display_primary_is_clean_plain = [&]() {
+		if (!has_display_label ||
+		    !parse_plain_major_minor_component(state.label, std::strcspn(state.label, "="),
+						       display_primary))
+			return false;
+		const ChordResult primary =
+			make_guitar_plain_triad(display_primary.root,
+						 display_primary.quality == RootChordQuality::Minor,
+						 std::max(state.confidence, kChordConfidenceFloor));
+		return display_pitch_classes <= 3 &&
+		       note_grid_chord_tone_count(display_grid, primary) >= 3 &&
+		       note_grid_chord_tone_count(analysis_grid, primary) >= 3 &&
+		       note_grid_pitch_level(display_grid, display_primary.root) >= 0.30f &&
+		       note_grid_pitch_level(display_grid, display_primary.root + 7) >= 0.30f;
+	}();
+
 	char merged[sizeof(state.label)] = {};
 	if (has_display_label)
 		copy_text(merged, sizeof(merged), state.label);
@@ -28953,17 +28976,25 @@ void append_source_supported_plain_guitar_aliases_after_prune(InstrumentState &s
 				const int fifth = component.root + 7;
 				const float visible_root =
 					note_grid_pitch_level(display_grid, component.root);
+				const bool distinct_plain_alias_needs_visible_triad =
+					display_primary_is_clean_plain && component.root != display_primary.root;
 				const float visible_third = note_grid_pitch_level(display_grid, third);
 				const bool full_analysis =
 					note_grid_pitch_active(analysis_grid, component.root) &&
 					note_grid_pitch_active(analysis_grid, third) &&
 					note_grid_pitch_active(analysis_grid, fifth) &&
 					note_grid_chord_tone_count(analysis_grid, plain) >= 3;
-				bool supported = visible_root >= 0.08f && visible_third >= 0.08f &&
+				// Do not turn two tones shared with a clean primary triad into a
+				// second plain chord just because its third is a harmonic residue.
+				bool supported =
+					(!distinct_plain_alias_needs_visible_triad ||
+					 note_grid_chord_tone_count(display_grid, plain) >= 3) &&
+					visible_root >= 0.08f && visible_third >= 0.08f &&
 						 note_grid_pitch_active(display_grid, component.root) &&
 						 note_grid_pitch_active(display_grid, third) &&
 						 full_analysis;
-				if (!supported && has_display_label && display_label_components <= 4 &&
+				if (!supported && !distinct_plain_alias_needs_visible_triad &&
+				    has_display_label && display_label_components <= 4 &&
 				    display_pitch_classes <= 4 && analysis_pitch_classes <= 4 &&
 				    source.confidence >= 0.40f && visible_root >= 0.08f &&
 				    visible_third >= 0.08f &&
