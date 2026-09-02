@@ -7679,9 +7679,31 @@ void check_bass_pure_tone_stays_out_of_harmonic_rows(Runner &runner)
 	mao_test::add_midi_note(buffer, 40, 0.70f);
 	const auto snapshot = analyze_buffer(buffer, "mix");
 	expect_label(runner, snapshot.bass.label, "E2", "bass pure tone");
+	std::string keyboard_provenance;
+	for (std::size_t i = 0; i < snapshot.full_mix_keyboard_display_provenance_count; ++i) {
+		const auto &provenance = snapshot.full_mix_keyboard_display_provenance[i];
+		if (provenance.display_midi != 40)
+			continue;
+		keyboard_provenance += "display=" + std::to_string(provenance.display_midi) +
+				      " source=" + std::to_string(provenance.source_midi) +
+				      " mirrored=" + (provenance.mirrored ? "1" : "0") + " ";
+	}
+	std::string debug_profile;
+	for (std::size_t i = 0; i < snapshot.full_mix_debug_candidate_count; ++i) {
+		const auto &debug = snapshot.full_mix_debug_candidates[i];
+		if (debug.midi != 40)
+			continue;
+		debug_profile = "owner=" + std::to_string(static_cast<int>(debug.owner)) +
+				" h1=" + std::to_string(debug.harmonic_ratios[1]) +
+				" h2=" + std::to_string(debug.harmonic_ratios[2]) +
+				" h3=" + std::to_string(debug.harmonic_ratios[3]) +
+				" h4=" + std::to_string(debug.harmonic_ratios[4]);
+	}
 	runner.expect(!grid_pitch_active(snapshot.keyboard_notes, 4),
 		      std::string("bass pure tone: expected keyboard E column inactive, got `") +
-			      snapshot.keyboard.label + "`");
+			      snapshot.keyboard.label + "`, bass `" + snapshot.bass.label + "`, debug `" +
+			      full_mix_debug_summary_for_midi(snapshot, 40) + "`, profile `" + debug_profile +
+			      "`, provenance `" + keyboard_provenance + "`");
 	runner.expect(!grid_pitch_active(snapshot.guitar_notes, 4),
 		      std::string("bass pure tone: expected guitar E column inactive, got `") + snapshot.guitar.label +
 			      "`");
@@ -8938,6 +8960,16 @@ int main()
 {
 	Runner runner;
 	const char *case_group = std::getenv("MUSIC_ANALYZER_CASE_GROUP");
+	if (case_group && std::strcmp(case_group, "bass-display-routing") == 0) {
+		check_bass_pure_tone_stays_out_of_harmonic_rows(runner);
+		if (runner.failures != 0) {
+			std::fprintf(stderr, "analyzer_cases bass-display-routing: %d/%d checks failed\n",
+			             runner.failures, runner.checks);
+			return 1;
+		}
+		std::printf("analyzer_cases bass-display-routing: %d checks passed\n", runner.checks);
+		return 0;
+	}
 	if (case_group && std::strcmp(case_group, "synthetic-drums") == 0) {
 		check_soft_drum_transient_stream(runner);
 		check_embedded_rim_side_stick_transient(runner);

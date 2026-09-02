@@ -8937,12 +8937,26 @@ bool measured_high_clean_acoustic_guitar_display_floor_supported(const FullMixDe
 	       debug.harmonic_ratios[4] <= 0.012f;
 }
 
+bool ambiguous_pure_low_bass_keyboard_mirror(const FullMixDebugCandidate &debug,
+							     FullMixDisplayRow row, int display_midi)
+{
+	return row == FullMixDisplayRow::Keyboard && display_midi == debug.midi &&
+	       debug.owner == InstrumentKind::Ambiguous && debug.midi >= kBassMinMidi &&
+	       debug.midi < 48 && debug.spectral_level >= 0.80f &&
+	       debug.pitch_confidence >= 0.55f && debug.periodicity >= 0.40f &&
+	       debug.harmonic_fit_error <= 0.12f && debug.harmonic_ratios[1] <= 0.02f &&
+	       debug.harmonic_ratios[2] <= 0.02f && debug.harmonic_ratios[3] <= 0.02f &&
+	       debug.harmonic_ratios[4] <= 0.02f;
+}
+
 void add_full_mix_display_mirror(NoteCandidateList &candidates, const FullMixOwnership &ownership,
 				 const FullMixDebugCandidate &debug, FullMixDisplayRow row,
 				 const std::array<float, kNoteProbeCount> *raw_powers = nullptr)
 {
 	const int display_midi = full_mix_display_mirror_midi(row, debug, ownership);
 	if (display_midi < kFirstMidi || display_midi > kLastMidi)
+		return;
+	if (ambiguous_pure_low_bass_keyboard_mirror(debug, row, display_midi))
 		return;
 	const std::size_t index = static_cast<std::size_t>(display_midi - kFirstMidi);
 	const bool measured_other_profile_display =
