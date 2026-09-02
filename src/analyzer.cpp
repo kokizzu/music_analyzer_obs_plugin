@@ -27106,6 +27106,68 @@ bool chroma_is_not_too_crowded_for_chord(const std::array<float, 12> &chroma,
 	return extra_max <= std::max(0.55f, core_min * 1.20f) && extra_sum <= core_sum * 0.85f;
 }
 
+ChordResult prefer_mixed_display_plain_triad(const ChordResult &current,
+							     const std::array<float, 12> &chroma)
+{
+	ParsedRootChord current_primary;
+	const bool current_is_sus_or_rootless =
+		!valid_chord_result(current) ||
+		(chord_result_primary(current, current_primary) &&
+		 (current_primary.quality == RootChordQuality::NoThird ||
+		  std::strstr(current.label, "sus2") != nullptr ||
+		  std::strstr(current.label, "sus4") != nullptr ||
+		  std::strstr(current.label, "pow") != nullptr));
+	if (!current_is_sus_or_rootless)
+		return current;
+
+	float current_support = 0.0f;
+	if (valid_chord_result(current)) {
+		current_support = 1.0f;
+		for (int pitch_class = 0; pitch_class < 12; ++pitch_class) {
+			if (current.tones[pitch_class])
+				current_support = std::min(current_support, chroma[pitch_class]);
+		}
+	}
+
+	ChordResult best = current;
+	float best_support = 0.0f;
+	for (int root = 0; root < 12; ++root) {
+		std::array<float, 12> major_triad_chroma = {};
+		major_triad_chroma[root] = chroma[root];
+		major_triad_chroma[(root + 4) % 12] = chroma[(root + 4) % 12];
+		major_triad_chroma[(root + 7) % 12] = chroma[(root + 7) % 12];
+		ChordResult candidate = detect_chord(major_triad_chroma, root, false, true, true);
+		std::array<float, 12> minor_triad_chroma = {};
+		minor_triad_chroma[root] = chroma[root];
+		minor_triad_chroma[(root + 3) % 12] = chroma[(root + 3) % 12];
+		minor_triad_chroma[(root + 7) % 12] = chroma[(root + 7) % 12];
+		const ChordResult minor_candidate = detect_chord(minor_triad_chroma, root, false, true, true);
+		ParsedRootChord minor_primary = {};
+		if (valid_chord_result(minor_candidate) && minor_candidate.root == root &&
+		    chord_result_primary(minor_candidate, minor_primary) &&
+		    minor_primary.quality == RootChordQuality::Minor &&
+		    (!valid_chord_result(candidate) || minor_candidate.confidence > candidate.confidence))
+			candidate = minor_candidate;
+		ParsedRootChord candidate_primary = {};
+		const bool parsed_candidate = chord_result_primary(candidate, candidate_primary);
+		if (!valid_chord_result(candidate) || candidate.root != root || !parsed_candidate ||
+		    (candidate_primary.quality != RootChordQuality::Major &&
+		     candidate_primary.quality != RootChordQuality::Minor))
+			continue;
+
+		const int third = (root + (candidate_primary.quality == RootChordQuality::Minor ? 3 : 4)) % 12;
+		const float support = std::min({chroma[root], chroma[third], chroma[(root + 7) % 12]});
+		if (support < 0.60f || (valid_chord_result(current) && support < current_support * 0.70f))
+			continue;
+		if (support > best_support + 0.015f ||
+		    (support >= best_support - 0.015f && candidate.confidence > best.confidence)) {
+			best = candidate;
+			best_support = support;
+		}
+	}
+	return best;
+}
+
 ChordResult detect_mixed_display_global_chord(const std::array<float, 12> &chroma, int preferred_root)
 {
 	const std::array<float, 12> pruned = strongest_chord_chroma(chroma);
@@ -27114,8 +27176,23 @@ ChordResult detect_mixed_display_global_chord(const std::array<float, 12> &chrom
 	best = stronger_chord(best, detect_chord(pruned, preferred_root, false, true, true));
 	best = stronger_chord(best, detect_chord(pruned, -1, false, true, true));
 	best = prefer_strict_symmetric_dim7_global_chord(best, chroma);
-	if (!chroma_is_not_too_crowded_for_chord(chroma, best))
-		return ChordResult{};
+	const ChordResult before_plain_triad = best;
+	best = prefer_mixed_display_plain_triad(best, chroma);
+	const bool recovered_plain_triad =
+		std::strcmp(before_plain_triad.label, best.label) != 0 && valid_chord_result(best);
+	if (!chroma_is_not_too_crowded_for_chord(chroma, best)) {
+		ParsedRootChord plain_primary = {};
+		const bool strong_plain_triad =
+			valid_chord_result(best) && chord_result_primary(best, plain_primary) &&
+			(plain_primary.quality == RootChordQuality::Major ||
+			 plain_primary.quality == RootChordQuality::Minor) &&
+			std::min({chroma[plain_primary.root],
+			          chroma[(plain_primary.root +
+			                   (plain_primary.quality == RootChordQuality::Minor ? 3 : 4)) % 12],
+			          chroma[(plain_primary.root + 7) % 12]}) >= 0.60f;
+		if (!recovered_plain_triad || !strong_plain_triad)
+			return ChordResult{};
+	}
 	return best;
 }
 
@@ -27139,11 +27216,14 @@ ChordResult prefer_mixed_display_global_chord(const ChordResult &current, const 
 	ParsedRootChord current_primary;
 	if (!chord_result_primary(current, current_primary))
 		return current;
-	if (current_primary.quality == RootChordQuality::NoThird &&
-	    display.confidence + 0.12f >= current.confidence)
+	const bool current_is_weak_shape =
+		current_primary.quality == RootChordQuality::NoThird ||
+		std::strstr(current.label, "sus2") != nullptr ||
+		std::strstr(current.label, "sus4") != nullptr ||
+		std::strstr(current.label, "pow") != nullptr;
+	if (current_is_weak_shape && display.confidence + 0.12f >= current.confidence)
 		return display;
-	if (current_primary.root == display_primary.root &&
-	    current_primary.quality == RootChordQuality::NoThird)
+	if (current_primary.root == display_primary.root && current_is_weak_shape)
 		return display;
 	return current;
 }
@@ -37318,6 +37398,8 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 			prefer_strict_symmetric_dim7_global_chord(raw_global_chord,
 								  full_mix_ownership.global_chroma);
 		raw_global_chord =
+			prefer_mixed_display_plain_triad(raw_global_chord, full_mix_ownership.global_chroma);
+		raw_global_chord =
 			prefer_strict_weak_root_dominant_global_chord(raw_global_chord,
 								      full_mix_ownership.global_chroma);
 		prefer_keyboard_same_root_quality(raw_global_chord);
@@ -37401,6 +37483,9 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 								0.16f);
 			raw_keyboard_chord = detect_keyboard_chord_from_grid(keyboard_chord_grid, allow_extensions,
 									     keyboard_chord_root_hint);
+			if (!valid_chord_result(raw_keyboard_chord))
+				raw_keyboard_chord =
+					detect_mixed_display_global_chord(note_grid_chroma(snapshot.keyboard_notes), -1);
 			if (!valid_chord_result(raw_keyboard_chord))
 				raw_keyboard_chord =
 					detect_mixed_chord_from_grid(keyboard_chord_grid, keyboard_chord_root_hint,
