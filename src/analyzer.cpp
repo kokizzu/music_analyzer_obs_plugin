@@ -6843,6 +6843,25 @@ bool keyboard_owned_mid_acoustic_guitar_body_supported(const FullMixDebugCandida
 	       debug.guitar_score <= 0.22f;
 }
 
+bool keyboard_owned_low_confidence_acoustic_guitar_body_supported(
+	const FullMixDebugCandidate &debug)
+{
+	return debug.owner == InstrumentKind::Keyboard &&
+	       debug.midi >= 48 && debug.midi <= 58 &&
+	       debug.keyboard_score >= 0.70f && debug.keyboard_score <= 0.85f &&
+	       debug.guitar_score >= 0.15f && debug.guitar_score <= 0.30f &&
+	       debug.spectral_level >= 0.90f && debug.pitch_confidence >= 0.80f &&
+	       debug.periodicity >= 0.72f && debug.periodicity <= 0.86f &&
+	       debug.harmonic_fit_error <= 0.08f &&
+	       debug.local_noise_level >= 0.18f && debug.local_noise_level <= 0.35f &&
+	       debug.harmonic_ratios[1] >= 0.20f && debug.harmonic_ratios[1] <= 0.40f &&
+	       debug.harmonic_ratios[2] >= 0.10f && debug.harmonic_ratios[2] <= 0.28f &&
+	       debug.harmonic_ratios[3] >= 0.05f && debug.harmonic_ratios[3] <= 0.18f &&
+	       debug.harmonic_ratios[4] >= 0.04f && debug.harmonic_ratios[4] <= 0.12f &&
+	       debug.spectral_centroid >= 0.20f && debug.spectral_centroid <= 0.31f &&
+	       debug.spectral_slope >= 0.18f && debug.spectral_slope <= 0.36f;
+}
+
 bool guitar_owned_dark_electronic_keyboard_body_supported(const FullMixDebugCandidate &debug)
 {
 	if (debug.owner != InstrumentKind::Guitar)
@@ -7973,6 +7992,8 @@ bool full_mix_display_mirror_supported(FullMixDisplayRow row, const FullMixDebug
 			debug.spectral_slope <= 0.32f;
 		const bool mid_keyboard_owned_acoustic_body =
 			keyboard_owned_mid_acoustic_guitar_body_supported(debug);
+		const bool low_confidence_keyboard_owned_acoustic_body =
+			keyboard_owned_low_confidence_acoustic_guitar_body_supported(debug);
 		const bool high_plucked_acoustic_body =
 			debug.owner == InstrumentKind::Vocal &&
 			debug.midi >= 64 && debug.midi <= 76 &&
@@ -8352,6 +8373,7 @@ bool full_mix_display_mirror_supported(FullMixDisplayRow row, const FullMixDebug
 		       octave_dominant_acoustic_body ||
 		       low_noisy_acoustic_body ||
 		       mid_keyboard_owned_acoustic_body ||
+		       low_confidence_keyboard_owned_acoustic_body ||
 		       high_plucked_acoustic_body ||
 		       clean_high_acoustic_body ||
 		       mid_vocal_like_acoustic_body ||
@@ -9871,6 +9893,7 @@ NoteCandidateList prune_shadowed_full_mix_guitar_display_candidates(const FullMi
 		if (guitar_display_candidate_shadowed_by_non_guitar_pitch(ownership, candidate) &&
 		    !(debug && (partial_rich_misrouted_guitar_display_supported(*debug) ||
 			       other_owned_overdrive_guitar_body_supported(*debug) ||
+			       keyboard_owned_low_confidence_acoustic_guitar_body_supported(*debug) ||
 			       confident_guitar_owner_display_supported(*debug))))
 			continue;
 		pruned.push_back(candidate);
