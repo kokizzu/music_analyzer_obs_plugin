@@ -2160,6 +2160,29 @@ void check_temporal_chord_stability(Runner &runner)
 	expect_no_chord(runner, snapshot.keyboard_chord, "temporal chord silence clear");
 }
 
+void check_temporal_chord_grid_release_at_default_interval(Runner &runner)
+{
+	mao::AnalysisEngine engine;
+	mao::AnalysisSettings settings = mao_test::default_settings();
+	settings.analysis_interval_seconds = 0.10f;
+	const auto c_major = mao_test::make_midi_notes({60, 64, 67}, 0.34f);
+	mao_test::Buffer silence = {};
+
+	auto snapshot = engine.analyze(c_major.data(), c_major.size(), settings, "keyboard", 0);
+	expect_label(runner, snapshot.keyboard_chord.label, "C", "default interval chord release seed");
+	for (int i = 0; i < 3; ++i)
+		snapshot = engine.analyze(silence.data(), silence.size(), settings, "keyboard", 0);
+	runner.expect(grid_pitch_active(snapshot.keyboard_chord_smoothed_notes, 0) &&
+			      grid_pitch_active(snapshot.keyboard_chord_smoothed_notes, 4) &&
+			      grid_pitch_active(snapshot.keyboard_chord_smoothed_notes, 7),
+		      "default interval chord release: expected smoothed C major tones after three misses");
+	expect_label(runner, snapshot.keyboard_chord.label, "C", "default interval chord release hold");
+
+	for (int i = 0; i < 6; ++i)
+		snapshot = engine.analyze(silence.data(), silence.size(), settings, "keyboard", 0);
+	expect_no_chord(runner, snapshot.keyboard_chord, "default interval chord release clear");
+}
+
 void check_full_mix_global_chord_uses_analytical_tracking(Runner &runner)
 {
 	mao::AnalysisEngine engine;
@@ -9031,6 +9054,19 @@ int main()
 		std::printf("analyzer_cases extended-chords: %d checks passed\n", runner.checks);
 		return 0;
 	}
+	if (case_group && std::strcmp(case_group, "temporal-stability") == 0) {
+		check_temporal_note_stability(runner);
+		check_temporal_chord_stability(runner);
+		check_temporal_chord_grid_release_at_default_interval(runner);
+		check_full_mix_vocal_requires_temporal_confirmation(runner);
+		if (runner.failures != 0) {
+			std::fprintf(stderr, "analyzer_cases temporal-stability: %d/%d checks failed\n",
+			             runner.failures, runner.checks);
+			return 1;
+		}
+		std::printf("analyzer_cases temporal-stability: %d checks passed\n", runner.checks);
+		return 0;
+	}
 	if (case_group && std::strcmp(case_group, "public-multitrack-style") == 0) {
 		check_public_multitrack_dataset_style_regressions(runner);
 		if (runner.failures != 0) {
@@ -9061,6 +9097,7 @@ int main()
 	check_temporal_note_stability(runner);
 	check_full_mix_tuning_hysteresis_uses_global_tracking(runner);
 	check_temporal_chord_stability(runner);
+	check_temporal_chord_grid_release_at_default_interval(runner);
 	check_full_mix_global_chord_uses_analytical_tracking(runner);
 	check_required_chord_transitions(runner);
 	check_full_mix_global_chord_transitions(runner);

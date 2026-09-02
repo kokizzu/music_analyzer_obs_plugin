@@ -152,7 +152,9 @@ constexpr float kFullMixCandidateChromaFloor = 0.60f;
 // new-note floor still rejects sub-threshold noise.
 constexpr float kMonophonicOtherImmediateConfirmFloor = kNoteEnvelopeNewNoteFloor;
 constexpr float kMixedVocalConfirmedImmediateFloor = 0.18f;
-constexpr float kAnalyticalChordNoteReleaseSeconds = 0.22f;
+// Keep the smoothed chord grid through a few uncertain 100 ms hops without
+// retaining stale tones for multiple seconds.
+constexpr float kAnalyticalChordNoteReleaseSeconds = 0.55f;
 constexpr float kAnalyticalChordNoteVisibleFloor = 0.06f;
 constexpr int kNoteAttackConfirmFrames = 2;
 constexpr int kChordSwitchConfirmFrames = 2;
