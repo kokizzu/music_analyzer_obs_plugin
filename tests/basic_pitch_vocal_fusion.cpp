@@ -14,6 +14,14 @@ int main()
 		++failures;
 	}
 	candidate.vocal_tone_profile_supported = true;
+	candidate.midi = 62;
+	candidate.spectral_level = 1.0f;
+	candidate.pitch_confidence = 0.93f;
+	candidate.periodicity = 0.88f;
+	candidate.harmonic_fit_error = 0.05f;
+	candidate.spectral_centroid = 0.16f;
+	candidate.local_noise_level = 0.07f;
+	candidate.harmonic_ratios = {1.0f, 0.50f, 0.18f, 0.06f, 0.012f};
 	if (!mao::basic_pitch_vocal_fusion_supported(candidate,
 						 mao::kBasicPitchVocalFusionMinConfidence)) {
 		std::fprintf(stderr, "basic_pitch_vocal_fusion: rejected audited boundary\n");
@@ -72,6 +80,29 @@ int main()
 	if (mao::basic_pitch_vocal_fusion_supported(
 			candidate, mao::kBasicPitchVocalFusionOtherMinConfidence)) {
 		std::fprintf(stderr, "basic_pitch_vocal_fusion: accepted Other below score boundary\n");
+		++failures;
+	}
+
+	// A real electronic-piano A3 mirror has a valid native vocal profile flag,
+	// but its owner and measured body are still clearly guitar-like. Basic Pitch
+	// must not turn that native upper partial into a Vocal display note.
+	candidate = {};
+	candidate.owner = mao::InstrumentKind::Guitar;
+	candidate.midi = 57;
+	candidate.vocal_tone_profile_supported = true;
+	candidate.keyboard_score = 0.2835f;
+	candidate.guitar_score = 0.7165f;
+	candidate.spectral_level = 0.7355f;
+	candidate.pitch_confidence = 0.6615f;
+	candidate.periodicity = 0.7904f;
+	candidate.harmonic_fit_error = 0.0302f;
+	candidate.spectral_centroid = 0.1633f;
+	candidate.spectral_slope = 0.0962f;
+	candidate.local_noise_level = 0.1337f;
+	candidate.harmonic_ratios = {1.0f, 0.3400f, 0.0967f, 0.0256f, 0.0066f};
+	if (mao::basic_pitch_vocal_fusion_supported(candidate,
+								mao::kBasicPitchVocalFusionMinConfidence)) {
+		std::fprintf(stderr, "basic_pitch_vocal_fusion: accepted electronic-piano A3 mirror\n");
 		++failures;
 	}
 	if (failures)

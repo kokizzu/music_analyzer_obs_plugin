@@ -26,12 +26,29 @@ constexpr float kBasicPitchVocalFusionMinGuitarScore = 0.2059f;
 constexpr float kBasicPitchVocalFusionOtherMinConfidence = 0.87f;
 constexpr float kBasicPitchVocalFusionOtherMinScore = 0.75f;
 
+inline bool basic_pitch_strong_native_vocal_body(const FullMixDebugCandidate &native)
+{
+	const float second = native.harmonic_ratios[1];
+	const float third = native.harmonic_ratios[2];
+	return native.spectral_level >= 0.85f &&
+	       native.pitch_confidence >= 0.80f &&
+	       native.periodicity >= 0.75f &&
+	       native.harmonic_fit_error <= 0.16f &&
+	       native.local_noise_level <= 0.25f &&
+	       native.spectral_centroid <= 0.32f &&
+	       second >= 0.30f && second <= 0.80f &&
+	       third >= 0.12f && third <= 0.60f;
+}
+
 inline bool basic_pitch_vocal_fusion_supported(const FullMixDebugCandidate &native,
 						       float basic_pitch_confidence)
 {
 	if (basic_pitch_confidence < kBasicPitchVocalFusionMinConfidence)
 		return false;
 	if (!native.vocal_tone_profile_supported)
+		return false;
+	if ((native.owner == InstrumentKind::Guitar || native.owner == InstrumentKind::Keyboard) &&
+	    native.vocal_score < 0.30f && !basic_pitch_strong_native_vocal_body(native))
 		return false;
 	return (native.owner == InstrumentKind::Guitar &&
 		native.keyboard_score >= kBasicPitchVocalFusionMinKeyboardScore) ||

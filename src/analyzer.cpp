@@ -2212,6 +2212,17 @@ bool measured_adjacent_vocal_shape_supported(const FullMixDebugCandidate &debug)
 		return false;
 	if (debug.harmonic_fit_error > 0.38f || debug.local_noise_level > 0.55f)
 		return false;
+	// An adjacent semitone is common around a low guitar/piano partial.  When
+	// the native classifier has no Vocal evidence, keep this recovery path only
+	// for a strong, sustained voice-like body; otherwise a bass octave can leak
+	// into the Vocal row as a persistent pink mirror.
+	if ((debug.owner == InstrumentKind::Guitar || debug.owner == InstrumentKind::Other) &&
+	    debug.vocal_score < 0.30f &&
+	    (debug.spectral_level < 0.82f || debug.pitch_confidence < 0.76f ||
+	     debug.periodicity < 0.74f || debug.harmonic_fit_error > 0.18f ||
+	     debug.local_noise_level > 0.25f || debug.harmonic_ratios[1] < 0.30f ||
+	     debug.harmonic_ratios[2] < 0.10f))
+		return false;
 	if (debug.owner == InstrumentKind::Other && debug.midi <= 69)
 		return second >= 0.24f && second <= 0.85f && third >= 0.10f && third <= 0.90f;
 	if (debug.owner == InstrumentKind::Guitar)
