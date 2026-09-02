@@ -290,6 +290,50 @@ void check_other_owned_electric_bass_body_recovery(Runner &runner)
 
 }
 
+void check_direct_full_mix_bass_survives_alias_cleanup(Runner &runner)
+{
+	RangeResult displayed = {};
+	displayed.midi = 40;
+	displayed.confidence = 0.62f;
+	displayed.score = 0.22f;
+	RangeResult spectral = displayed;
+	FullMixOwnership ownership = {};
+
+	NoteGrid grid = {};
+	InstrumentState state = {};
+	runner.expect(restore_direct_full_mix_bass_after_alias_cleanup(
+			grid, state, ownership, displayed, spectral, 0.25f, 0.10f),
+		      "direct full-mix bass recovery: expected matching strong spectral note to restore");
+	runner.expect(note_grid_midi_visual_level(grid, displayed.midi) > 0.0f,
+		      "direct full-mix bass recovery: expected restored bass cell to be visible");
+
+	RangeResult weak_spectral = spectral;
+	weak_spectral.confidence = 0.27f;
+	grid = {};
+	state = {};
+	runner.expect(!restore_direct_full_mix_bass_after_alias_cleanup(
+			grid, state, ownership, displayed, weak_spectral, 0.25f, 0.10f),
+		      "direct full-mix bass recovery: expected weak spectral candidate to stay suppressed");
+
+	RangeResult competing_spectral = spectral;
+	competing_spectral.midi = displayed.midi + 1;
+	grid = {};
+	state = {};
+	runner.expect(!restore_direct_full_mix_bass_after_alias_cleanup(
+			grid, state, ownership, displayed, competing_spectral, 0.25f, 0.10f),
+		      "direct full-mix bass recovery: expected mismatched pitch to stay suppressed");
+
+	FullMixOwnership named_owner = {};
+	named_owner.debug_candidate_count = 1;
+	named_owner.debug_candidates[0].midi = displayed.midi;
+	named_owner.debug_candidates[0].owner = InstrumentKind::Guitar;
+	grid = {};
+	state = {};
+	runner.expect(!restore_direct_full_mix_bass_after_alias_cleanup(
+			grid, state, named_owner, displayed, spectral, 0.25f, 0.10f),
+		      "direct full-mix bass recovery: expected exact guitar owner to remain suppressed");
+}
+
 void check_low_brass_suboctave_display(Runner &runner)
 {
 	NoteGrid grid = {};
@@ -6407,6 +6451,7 @@ int run()
 	check_other_owned_same_pitch_vocal_shadow_uses_measured_threshold(runner);
 	check_vocal_owned_same_pitch_bass_shadow_uses_measured_ratio(runner);
 	check_other_owned_same_pitch_bass_shadow_uses_measured_ratio(runner);
+	check_direct_full_mix_bass_survives_alias_cleanup(runner);
 	check_keyboard_owned_same_pitch_bass_shadow_uses_weak_ceiling(runner);
 	check_keyboard_owned_same_pitch_bass_shadow_uses_dominant_ratio(runner);
 	check_other_owned_pitch_class_keyboard_shadow_is_attenuated(runner);

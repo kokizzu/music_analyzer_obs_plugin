@@ -23188,6 +23188,35 @@ void set_single_note_grid(NoteGrid &grid, InstrumentState &state, const RangeRes
 	grid.rows[0][pitch_class] = cell;
 }
 
+bool restore_direct_full_mix_bass_after_alias_cleanup(
+	NoteGrid &grid, InstrumentState &state, const FullMixOwnership &ownership,
+	const RangeResult &displayed_bass,
+	const RangeResult &spectral_bass, float energy, float rms)
+{
+	static constexpr float kMinSpectralConfidence = 0.28f;
+	static constexpr float kMinSpectralScore = 0.05f;
+	if (displayed_bass.midi < kBassMinMidi || displayed_bass.midi > kBassMaxMidi ||
+	    displayed_bass.midi != spectral_bass.midi ||
+	    spectral_bass.confidence < kMinSpectralConfidence ||
+	    spectral_bass.score < kMinSpectralScore ||
+	    note_grid_midi_visual_level(grid, displayed_bass.midi) > 0.0f)
+		return false;
+
+	const std::size_t debug_count =
+		std::min<std::size_t>(ownership.debug_candidate_count, ownership.debug_candidates.size());
+	for (std::size_t i = 0; i < debug_count; ++i) {
+		const FullMixDebugCandidate &debug = ownership.debug_candidates[i];
+		if (debug.midi != displayed_bass.midi)
+			continue;
+		if (debug.owner == InstrumentKind::Keyboard || debug.owner == InstrumentKind::Guitar ||
+		    debug.owner == InstrumentKind::Vocal)
+			return false;
+	}
+
+	set_single_note_grid(grid, state, displayed_bass, energy, rms);
+	return note_grid_midi_visual_level(grid, displayed_bass.midi) > 0.0f;
+}
+
 void set_instrument_note_set(NoteGrid &grid, InstrumentState &state, const std::array<float, kNoteProbeCount> &powers,
 			     int min_midi, int max_midi, int preferred_root, float energy, float rms, int max_notes,
 			     const std::array<bool, 12> *blocked_pitch_classes = nullptr,
@@ -39153,6 +39182,17 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 		suppress_vocal_owned_same_pitch_bass_shadows(snapshot.bass_notes, snapshot.bass,
 							     snapshot.vocal_notes, full_mix_ownership,
 							     -1);
+		RangeResult displayed_bass_after_cleanup;
+		displayed_bass_after_cleanup.midi = snapshot.bass_debug_displayed_midi;
+		displayed_bass_after_cleanup.confidence = snapshot.bass_debug_displayed_confidence;
+		displayed_bass_after_cleanup.score = snapshot.bass_debug_displayed_score;
+		RangeResult spectral_bass_for_cleanup;
+		spectral_bass_for_cleanup.midi = snapshot.bass_debug_spectral_midi;
+		spectral_bass_for_cleanup.confidence = snapshot.bass_debug_spectral_confidence;
+		spectral_bass_for_cleanup.score = snapshot.bass_debug_spectral_score;
+		restore_direct_full_mix_bass_after_alias_cleanup(
+			snapshot.bass_notes, snapshot.bass, full_mix_ownership, displayed_bass_after_cleanup,
+			spectral_bass_for_cleanup, bass_energy, rms);
 		suppress_vocal_owned_same_pitch_non_vocal_shadows(snapshot.keyboard_notes, snapshot.keyboard,
 								  snapshot.vocal_notes, full_mix_ownership,
 								  InstrumentKind::Keyboard, -1);
