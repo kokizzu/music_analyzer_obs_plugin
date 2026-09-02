@@ -37721,8 +37721,23 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 			std::strstr(display_guitar_chord.label, "pow") == nullptr;
 		const bool simple_guitar_chord_supported_for_prune =
 			simple_guitar_chord && display_simple_guitar_chord;
+		bool supported_diminished_guitar_alias = false;
+		if (allow_extensions) {
+			for (int root = 0; root < 12; ++root) {
+				const bool supported_alias = supported_guitar_diminished_triad_alias(
+					root, snapshot.guitar_notes, guitar_chord_detection_grid);
+				const bool strong_visible_root =
+					note_grid_pitch_level(snapshot.guitar_notes, root) >= 0.70f &&
+					note_grid_pitch_level(guitar_chord_detection_grid, root) >= 0.50f;
+				if (supported_alias && strong_visible_root) {
+					supported_diminished_guitar_alias = true;
+					break;
+				}
+			}
+		}
 		const bool prune_guitar_notes =
 			raw_guitar_chord.root >= 0 &&
+			!supported_diminished_guitar_alias &&
 			((simple_guitar_chord_supported_for_prune && guitar_root_adjacent_noise &&
 			  raw_guitar_chord.confidence >= kChordConfidenceFloor) ||
 			 (simple_guitar_chord_supported_for_prune && raw_guitar_chord.confidence >= 0.55f &&
