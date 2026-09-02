@@ -39543,13 +39543,21 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 		// Low piano fundamentals are recovered only in the final keyboard grid.
 		// Keeping them out of ownership masks prevents them from shadowing a real
 		// guitar or bass candidate during the established mixed-source cleanup.
-		NoteCandidateList low_keyboard_display_candidates;
-		append_full_mix_low_keyboard_candidates(low_keyboard_display_candidates, detection_note_powers, 12);
-		const float strongest_low_keyboard_candidate =
-			strongest_candidate_score(low_keyboard_display_candidates);
-		for (const NoteCandidate &candidate : low_keyboard_display_candidates)
-			write_note_grid_cell(snapshot.keyboard_notes, candidate, strongest_low_keyboard_candidate,
-					    note_visual_loudness(rms));
+		// A bass-dominant low band has no independent evidence for this recovery:
+		// its harmonic stack is otherwise reconstructed as several false keyboard
+		// fundamentals. Direct keyboard-owned candidates have already been kept.
+		const bool bass_dominates_low_band =
+			snapshot.bass.confidence > 0.0f && snapshot.bass_debug_displayed_midi >= kBassMinMidi &&
+			snapshot.low_energy >= std::max(0.02f, snapshot.mid_energy) * 1.25f;
+		if (!bass_dominates_low_band) {
+			NoteCandidateList low_keyboard_display_candidates;
+			append_full_mix_low_keyboard_candidates(low_keyboard_display_candidates, detection_note_powers, 12);
+			const float strongest_low_keyboard_candidate =
+				strongest_candidate_score(low_keyboard_display_candidates);
+			for (const NoteCandidate &candidate : low_keyboard_display_candidates)
+				write_note_grid_cell(snapshot.keyboard_notes, candidate, strongest_low_keyboard_candidate,
+						    note_visual_loudness(rms));
+		}
 	} else {
 		reset_chord_tracking(global_chord_tracking_, snapshot.global_chord);
 	}
