@@ -38933,7 +38933,10 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 		std::array<float, kNoteProbeCount> mixed_vocal_immediate_floors = {};
 		const std::array<float, kNoteProbeCount> *vocal_immediate_floors = nullptr;
 		if (mixed_source) {
-			mixed_vocal_immediate_floors.fill(kNoteEnvelopeImmediateConfirmFloor);
+			// Mixed vocal candidates must earn their first display with the normal
+			// two-frame attack confirmation. An already tracked vocal is restored
+			// below with its lower continuation floor.
+			mixed_vocal_immediate_floors.fill(1.10f);
 			for (std::size_t i = 0; i < mixed_vocal_requires_confirmation.size(); ++i) {
 				if (mixed_vocal_requires_confirmation[i])
 					mixed_vocal_immediate_floors[i] = 1.10f;
