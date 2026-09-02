@@ -32423,6 +32423,18 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 		const bool soft_cymbal_transient =
 			!tonal_soft_drum_suppressed && had_previous_audio && cymbal &&
 			cymbal_family_evidence && soft_cymbal_separable && transient_ratio >= 0.65f;
+		// The first audible window has a synthetic onset value of 2.0, so a
+		// sustained snare-shaped event cannot reach the normal prior-audio path.
+		// Require the independently measured snare crack shape and local mid-band
+		// evidence. Tonal suppression still excludes ordinary pitched material;
+		// only a distinctly crack-heavy snare can override it.
+		const bool initial_snare_onset_shape =
+			!had_previous_audio && snare && snare_crack_shape &&
+			transient_ratio >= 0.95f && score >= trigger_threshold * 0.98f &&
+			snapshot.mid_energy >= snapshot.low_energy * 0.55f &&
+			snare_body >= 12.0f && snare_crack >= 3.5f && snare_body >= tom_body * 0.65f &&
+			(!tonal_soft_drum_suppressed || snare_crack >= snare_body * 0.14f) &&
+			strongest_cymbal_drum <= strongest_body_drum * 0.55f;
 		// The first audible window has no prior audio state, so it cannot use
 		// the normal soft-cymbal path. Some real crash onsets have a long-ride
 		// or dense-hihat spectral centroid, but retain a bright, low-body crash
@@ -32496,9 +32508,10 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 			strongest_cymbal_drum <= strongest_body_drum * 0.14f;
 		const bool soft_snare_transient =
 			snare && snare_shape &&
-			((!tonal_soft_drum_suppressed && had_previous_audio &&
+			((initial_snare_onset_shape) ||
+			 ((!tonal_soft_drum_suppressed && had_previous_audio &&
 			  (transient_ratio >= 0.82f || soft_snare_onset_shape)) ||
-			 clear_initial_snare_onset);
+			  clear_initial_snare_onset));
 		const bool soft_rim_transient = !tonal_soft_drum_suppressed && had_previous_audio && rim &&
 						rim_shape && transient_ratio >= 0.62f;
 		const bool strong_tom_onset_shape =
@@ -32523,7 +32536,8 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 		const bool soft_body_transient =
 			soft_kick_transient || soft_snare_transient || soft_rim_transient || soft_tom_transient;
 		const bool base_shape_supported = drum_shape_supported[i];
-		const bool shape_supported = base_shape_supported || soft_cymbal_transient ||
+		const bool shape_supported = base_shape_supported || initial_snare_onset_shape ||
+					     soft_cymbal_transient ||
 					     embedded_hihat_transient;
 		const bool quiet_cymbal_shape =
 			!tonal_soft_drum_suppressed && had_previous_audio && cymbal && base_shape_supported &&
@@ -32531,7 +32545,7 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 		const float threshold_scale = (soft_cymbal_transient || quiet_cymbal_shape ||
 					       embedded_hihat_transient) ? 0.26f :
 					      soft_kick_transient ? 0.32f :
-					      soft_snare_transient ? 0.30f :
+					      (initial_snare_onset_shape || soft_snare_transient) ? 0.30f :
 					      soft_rim_transient ? 0.24f :
 					      (strong_tom_onset_shape || clear_initial_tom_onset) ? 0.30f :
 					      soft_tom_transient ? 0.44f :
@@ -32551,7 +32565,8 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 		}
 		if (drum_detection_enabled && rms > kSilenceRms && shape_supported && hihat_event_evidence &&
 		    (!kick || kick_click_transient) &&
-		    (drum_transient || soft_cymbal_transient || quiet_cymbal_shape ||
+		    (drum_transient || initial_snare_onset_shape || soft_cymbal_transient ||
+		     quiet_cymbal_shape ||
 		     embedded_hihat_transient || soft_body_transient) &&
 		    score > effective_threshold) {
 			const float threshold_excess = score / (effective_threshold + 1.0e-6f) - 1.0f;

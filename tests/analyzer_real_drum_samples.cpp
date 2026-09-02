@@ -336,7 +336,7 @@ int main()
 			} else if (verbose && reported_misses < 16) {
 				const std::size_t index = kDrumIndexes[category_index];
 				std::fprintf(stderr,
-					     "real-drums miss category=%s path=%s level=%.3f score=%.3f threshold=%.3f band=%.3f onset=%.3f transient=%.3f snare-body=%.3f crack=%.3f levels=k%.3f,s%.3f,h%.3f,c%.3f,t%.3f,r%.3f,m%.3f flags=%llu\n",
+					     "real-drums miss category=%s path=%s level=%.3f score=%.3f threshold=%.3f band=%.3f onset=%.3f transient=%.3f snare-body=%.3f crack=%.3f levels=k%.3f,s%.3f,h%.3f,c%.3f,t%.3f,r%.3f,m%.3f flags=%llu body=%d cymbal=%d shape=k%d,s%d,h%d,c%d,t%d,r%d,m%d\n",
 					     category, row.path.c_str(), last_snapshot.drums[index].level,
 					     last_snapshot.drum_debug_trigger_scores[index],
 					     last_snapshot.drum_debug_trigger_thresholds[index],
@@ -346,7 +346,15 @@ int main()
 					     last_snapshot.drums[1].level, last_snapshot.drums[2].level,
 					     last_snapshot.drums[3].level, last_snapshot.drums[4].level,
 					     last_snapshot.drums[5].level, last_snapshot.drums[6].level,
-					     static_cast<unsigned long long>(last_snapshot.drum_debug_rule_flags));
+					     static_cast<unsigned long long>(last_snapshot.drum_debug_rule_flags),
+					     last_snapshot.drum_debug_body_shape, last_snapshot.drum_debug_cymbal_shape,
+					     last_snapshot.drum_debug_shape_supported[0] ? 1 : 0,
+					     last_snapshot.drum_debug_shape_supported[1] ? 1 : 0,
+					     last_snapshot.drum_debug_shape_supported[2] ? 1 : 0,
+					     last_snapshot.drum_debug_shape_supported[3] ? 1 : 0,
+					     last_snapshot.drum_debug_shape_supported[4] ? 1 : 0,
+					     last_snapshot.drum_debug_shape_supported[5] ? 1 : 0,
+					     last_snapshot.drum_debug_shape_supported[6] ? 1 : 0);
 				++reported_misses;
 			}
 		}
