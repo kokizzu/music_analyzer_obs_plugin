@@ -1951,6 +1951,60 @@ NoteCandidateList note_peak_candidates(const std::array<float, kNoteProbeCount> 
 	return selected;
 }
 
+void append_full_mix_low_keyboard_candidates(NoteCandidateList &candidates,
+						      const std::array<float, kNoteProbeCount> &powers,
+						      int max_notes)
+{
+	if (max_notes <= 0 || candidates.size() >= static_cast<std::size_t>(max_notes))
+		return;
+
+	float strongest_note_level = 0.0f;
+	for (int midi = kFirstMidi; midi <= kLastMidi; ++midi)
+		strongest_note_level = std::max(strongest_note_level, probe_level(powers, midi));
+	if (strongest_note_level <= 1.0e-6f)
+		return;
+
+	std::array<float, 12> best_scores = {};
+	std::array<int, 12> best_midis = {};
+	best_midis.fill(-1);
+	for (int midi = kKeyboardMinMidi; midi < kGuitarMinMidi; ++midi) {
+		const float raw_note_level = probe_level(powers, midi);
+		const float adjacent_note_level =
+			std::max(probe_level(powers, midi - 1), probe_level(powers, midi + 1));
+		const bool local_peak =
+			adjacent_note_level <= 1.0e-6f || raw_note_level >= adjacent_note_level * 0.72f;
+		float harmonic_supported_level = raw_note_level;
+		int partial_count = 0;
+		for (const auto &[interval, weight] :
+		     std::array<std::pair<int, float>, 5>{{{12, 0.72f}, {19, 0.62f}, {24, 0.48f},
+								 {28, 0.34f}, {31, 0.26f}}}) {
+			const int partial_midi = midi + interval;
+			if (partial_midi > kLastMidi)
+				continue;
+			const float partial = probe_level(powers, partial_midi);
+			harmonic_supported_level += partial * weight;
+			if (partial >= strongest_note_level * 0.025f)
+				++partial_count;
+		}
+		const bool harmonic_supported_peak = harmonic_supported_level >= strongest_note_level * 0.18f;
+		if (partial_count < 2 || !harmonic_supported_peak || !local_peak)
+			continue;
+
+		const int pitch_class = midi_pitch_class(midi);
+		if (harmonic_supported_level > best_scores[pitch_class]) {
+			best_scores[pitch_class] = harmonic_supported_level;
+			best_midis[pitch_class] = midi;
+		}
+	}
+
+	for (int pitch_class = 0; pitch_class < 12; ++pitch_class) {
+		if (best_midis[pitch_class] < 0)
+			continue;
+		add_or_replace_candidate(candidates,
+						 NoteCandidate{best_midis[pitch_class], best_scores[pitch_class]}, max_notes);
+	}
+}
+
 // Full-mix chord/SATB material often leaves a real, quieter fundamental below
 // the ordinary global peak floor.  Recover it only after explaining the
 // partials of already selected notes: a residual peak must survive the
@@ -39353,6 +39407,16 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 		attenuate_ambiguous_note_grid_by_named_rows(snapshot.ambiguous_notes, snapshot.bass_notes,
 							    snapshot.keyboard_notes, snapshot.guitar_notes,
 							    snapshot.vocal_notes, snapshot.other_notes);
+		// Low piano fundamentals are recovered only in the final keyboard grid.
+		// Keeping them out of ownership masks prevents them from shadowing a real
+		// guitar or bass candidate during the established mixed-source cleanup.
+		NoteCandidateList low_keyboard_display_candidates;
+		append_full_mix_low_keyboard_candidates(low_keyboard_display_candidates, detection_note_powers, 12);
+		const float strongest_low_keyboard_candidate =
+			strongest_candidate_score(low_keyboard_display_candidates);
+		for (const NoteCandidate &candidate : low_keyboard_display_candidates)
+			write_note_grid_cell(snapshot.keyboard_notes, candidate, strongest_low_keyboard_candidate,
+					    note_visual_loudness(rms));
 	} else {
 		reset_chord_tracking(global_chord_tracking_, snapshot.global_chord);
 	}
