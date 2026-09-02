@@ -2213,10 +2213,11 @@ bool measured_adjacent_vocal_shape_supported(const FullMixDebugCandidate &debug)
 	if (debug.harmonic_fit_error > 0.38f || debug.local_noise_level > 0.55f)
 		return false;
 	// An adjacent semitone is common around a low guitar/piano partial.  When
-	// the native classifier has no Vocal evidence, keep this recovery path only
-	// for a strong, sustained voice-like body; otherwise a bass octave can leak
-	// into the Vocal row as a persistent pink mirror.
-	if ((debug.owner == InstrumentKind::Guitar || debug.owner == InstrumentKind::Other) &&
+	// the native classifier has no Vocal evidence, keep the guitar recovery path
+	// only for a strong, sustained voice-like body; otherwise a bass octave can
+	// leak into the Vocal row as a persistent pink mirror. Other-owned measured
+	// profiles have separate recovery rules below and must remain available.
+	if (debug.owner == InstrumentKind::Guitar &&
 	    debug.vocal_score < 0.30f &&
 	    (debug.spectral_level < 0.82f || debug.pitch_confidence < 0.76f ||
 	     debug.periodicity < 0.74f || debug.harmonic_fit_error > 0.18f ||
