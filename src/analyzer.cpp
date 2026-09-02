@@ -7494,6 +7494,25 @@ bool measured_midrange_muted_guitar_display_supported(const FullMixDebugCandidat
 	return muted_midrange_body || clean_low_string_body;
 }
 
+bool full_mix_shared_keyboard_pitch_display_supported(FullMixDisplayRow row,
+								      const FullMixDebugCandidate &debug,
+								      int display_midi)
+{
+	// A strong chromatic body can be indistinguishable between piano, synth, and
+	// clean guitar in a generic full mix. Preserve it in the keyboard row when
+	// ownership is uncertain, while keeping confirmed vocals and measured
+	// distorted-guitar spill out of this fallback.
+	const bool shared_pitched_owner = debug.owner == InstrumentKind::Guitar ||
+					 debug.owner == InstrumentKind::Other ||
+					 debug.owner == InstrumentKind::Ambiguous;
+	return row == FullMixDisplayRow::Keyboard && display_midi == debug.midi &&
+	       shared_pitched_owner &&
+	       display_midi >= 48 && display_midi <= 84 && debug.spectral_level >= 0.70f &&
+	       debug.pitch_confidence >= 0.72f && debug.periodicity >= 0.62f &&
+	       debug.harmonic_fit_error <= 0.34f && debug.local_noise_level <= 0.30f &&
+	       !noisy_other_owned_distorted_guitar_body(debug);
+}
+
 bool full_mix_display_mirror_supported(FullMixDisplayRow row, const FullMixDebugCandidate &debug,
 				       int display_midi)
 {
@@ -7538,6 +7557,8 @@ bool full_mix_display_mirror_supported(FullMixDisplayRow row, const FullMixDebug
 	    !measured_noisy_guitar_octave_up_alias)
 		return false;
 	if (ambiguous_shared_keyboard_guitar_display_supported(row, debug, display_midi))
+		return true;
+	if (full_mix_shared_keyboard_pitch_display_supported(row, debug, display_midi))
 		return true;
 	if (row == FullMixDisplayRow::Other && display_midi == debug.midi &&
 	    keyboard_owned_bright_alto_sax_other_supported(debug))
@@ -9046,6 +9067,8 @@ void add_full_mix_display_mirror(NoteCandidateList &candidates, const FullMixOwn
 	const int display_midi = full_mix_display_mirror_midi(row, debug, ownership);
 	if (display_midi < kFirstMidi || display_midi > kLastMidi)
 		return;
+	const bool shared_keyboard_pitch_display =
+		full_mix_shared_keyboard_pitch_display_supported(row, debug, display_midi);
 	if (ambiguous_pure_low_bass_keyboard_mirror(debug, row, display_midi))
 		return;
 	const std::size_t index = static_cast<std::size_t>(display_midi - kFirstMidi);
@@ -9060,13 +9083,14 @@ void add_full_mix_display_mirror(NoteCandidateList &candidates, const FullMixOwn
 		  (measured_low_bowed_string_other_octave_alias_supported(debug) ||
 		   measured_low_reed_other_octave_alias_supported(debug))));
 	if (full_mix_row_display_midi_suppressed(ownership, row, display_midi) &&
-	    !measured_other_profile_display)
+	    !measured_other_profile_display && !shared_keyboard_pitch_display)
 		return;
 	const bool sustained_acoustic_other_mirror =
 		row == FullMixDisplayRow::Other &&
 		keyboard_owned_sustained_acoustic_other_supported(debug);
 	if (clean_owned_chord_context_for_row(ownership, debug, row) &&
-	    !sustained_acoustic_other_mirror && !measured_other_profile_display)
+	    !sustained_acoustic_other_mirror && !measured_other_profile_display &&
+	    !shared_keyboard_pitch_display)
 		return;
 	const bool candidate_exists = candidate_list_has_midi(candidates, display_midi);
 	const bool noisy_other_owned_distorted_guitar_keyboard_projection =
@@ -9186,6 +9210,10 @@ void add_full_mix_display_mirror(NoteCandidateList &candidates, const FullMixOwn
 	float candidate_score = base_score * std::clamp(global_level, 0.18f, 1.0f) *
 				mirror_score_scale;
 	float candidate_confidence = row == FullMixDisplayRow::Other ? 0.21f : 0.20f;
+	if (shared_keyboard_pitch_display) {
+		candidate_score = std::max(candidate_score, base_score * 0.34f);
+		candidate_confidence = std::max(candidate_confidence, 0.28f);
+	}
 	const bool confirmed_exact_guitar_owner =
 		row == FullMixDisplayRow::Guitar && display_midi == debug.midi &&
 		debug.owner == InstrumentKind::Guitar &&

@@ -6316,6 +6316,43 @@ void check_keyboard_owned_clean_low_mid_guitar_display(Runner &runner)
 		      "clean low-mid guitar mirror: expected keyboard-owned C4 clean pluck to remain visible on guitar");
 }
 
+void check_shared_keyboard_display_recovers_strong_pitched_body(Runner &runner)
+{
+	FullMixDebugCandidate piano_like_guitar = {};
+	piano_like_guitar.midi = 71; // B4, a common keyboard/guitar overlap.
+	piano_like_guitar.owner = InstrumentKind::Guitar;
+	piano_like_guitar.ownership_confidence = 1.0f;
+	piano_like_guitar.guitar_score = 1.0f;
+	piano_like_guitar.spectral_level = 1.0f;
+	piano_like_guitar.pitch_confidence = 0.92f;
+	piano_like_guitar.periodicity = 0.85f;
+	piano_like_guitar.harmonic_fit_error = 0.12f;
+	piano_like_guitar.local_noise_level = 0.01f;
+	piano_like_guitar.harmonic_ratios = {1.0f, 0.60f, 0.036f, 0.004f, 0.008f};
+	runner.expect(full_mix_display_mirror_supported(FullMixDisplayRow::Keyboard,
+									 piano_like_guitar, piano_like_guitar.midi),
+				      "shared keyboard display: expected a strong pitched keyboard-range body to be retained");
+	FullMixOwnership ownership = {};
+	ownership.debug_candidate_count = 1;
+	ownership.debug_candidates[0] = piano_like_guitar;
+	ownership.keyboard_display_suppressed[static_cast<std::size_t>(piano_like_guitar.midi - kFirstMidi)] = true;
+	ownership.global_note_levels[static_cast<std::size_t>(piano_like_guitar.midi - kFirstMidi)] = 1.0f;
+	const NoteCandidateList keyboard_display =
+		full_mix_display_candidates(ownership, FullMixDisplayRow::Keyboard);
+	runner.expect(candidate_list_has_midi(keyboard_display, piano_like_guitar.midi),
+			      "shared keyboard display: expected a suppressed pitch to be recovered by the display builder");
+	runner.expect(candidate_score_for_midi(keyboard_display, piano_like_guitar.midi) >= 0.34f,
+			      "shared keyboard display: expected the recovery to retain its visual score floor");
+
+	FullMixDebugCandidate vocal_body = piano_like_guitar;
+	vocal_body.owner = InstrumentKind::Vocal;
+	vocal_body.vocal_score = 1.0f;
+	vocal_body.guitar_score = 0.0f;
+	runner.expect(!full_mix_display_mirror_supported(FullMixDisplayRow::Keyboard,
+								  vocal_body, vocal_body.midi),
+			      "shared keyboard display: expected a confirmed vocal body to stay out of keyboard");
+}
+
 void check_full_mix_direct_vocal_owner_requires_voice_evidence(Runner &runner)
 {
 	NoteEvidence guitar_like = {};
@@ -6404,6 +6441,7 @@ int run()
 		      "low other-owned guitar body: expected range guard");
 	check_other_owned_electric_bass_body_recovery(runner);
 	check_keyboard_owned_clean_low_mid_guitar_display(runner);
+	check_shared_keyboard_display_recovers_strong_pitched_body(runner);
 	check_full_mix_direct_vocal_owner_requires_voice_evidence(runner);
 	check_auto_source_mode_resolution(runner);
 	check_low_acoustic_bass_suboctave_display(runner);
