@@ -241,12 +241,23 @@ AnalysisInputMode infer_input_mode_from_source(const char *source_name)
 
 AnalysisInputMode single_family_hint_from_source(const char *source_name)
 {
-	const bool bass_hint = contains_case_insensitive(source_name, "bass");
+	// Keep the mixed-source hint vocabulary aligned with the Auto input-mode
+	// inference. In particular, bassoon and bass tuba must remain Other rather
+	// than being mistaken for bass guitar sources.
 	const bool other_hint =
 		contains_case_insensitive(source_name, "synth") || contains_case_insensitive(source_name, "brass") ||
-		contains_case_insensitive(source_name, "horn") || contains_case_insensitive(source_name, "violin") ||
+		contains_case_insensitive(source_name, "horn") || contains_case_insensitive(source_name, "trumpet") ||
+		contains_case_insensitive(source_name, "trombone") || contains_case_insensitive(source_name, "tuba") ||
+		contains_case_insensitive(source_name, "flute") || contains_case_insensitive(source_name, "clarinet") ||
+		contains_case_insensitive(source_name, "oboe") || contains_case_insensitive(source_name, "bassoon") ||
+		contains_case_insensitive(source_name, "sax") || contains_case_insensitive(source_name, "violin") ||
+		contains_case_insensitive(source_name, "viola") || contains_case_insensitive(source_name, "cello") ||
 		contains_case_insensitive(source_name, "string") || contains_case_insensitive(source_name, "wind") ||
-		contains_case_insensitive(source_name, "woodwind") || contains_case_insensitive(source_name, "other");
+		contains_case_insensitive(source_name, "woodwind") || contains_case_insensitive(source_name, "marimba") ||
+		contains_case_insensitive(source_name, "xylophone") || contains_case_insensitive(source_name, "vibraphone") ||
+		contains_case_insensitive(source_name, "bells") || contains_case_insensitive(source_name, "crotale") ||
+		contains_case_insensitive(source_name, "other");
+	const bool bass_hint = contains_case_insensitive(source_name, "bass") && !other_hint;
 	const bool keyboard_hint =
 		contains_case_insensitive(source_name, "key") || contains_case_insensitive(source_name, "piano") ||
 		contains_case_insensitive(source_name, "organ");
@@ -6329,6 +6340,99 @@ bool measured_other_weak_octave_alias_supported(const FullMixDebugCandidate &deb
 	       debug.periodicity <= 0.773f;
 }
 
+bool measured_other_low_wind_double_octave_alias_supported(const FullMixDebugCandidate &debug)
+{
+	// A few low bassoon samples have their strongest analyzed peak two octaves
+	// above the fundamental. Keep this recovery narrow enough to avoid turning
+	// ordinary midrange piano notes into low Other-row notes.
+	if (debug.midi < 66 || debug.midi > 69)
+		return false;
+	if (debug.owner != InstrumentKind::Ambiguous && debug.owner != InstrumentKind::Keyboard)
+		return false;
+	return debug.other_score <= 0.08f &&
+	       debug.spectral_level >= 0.40f &&
+	       debug.pitch_confidence >= 0.40f && debug.pitch_confidence <= 0.72f &&
+	       debug.periodicity >= 0.72f && debug.periodicity <= 0.86f &&
+	       debug.local_noise_level <= 0.06f &&
+	       debug.spectral_centroid <= 0.20f && debug.spectral_slope <= 0.22f &&
+	       debug.harmonic_ratios[1] >= 0.02f && debug.harmonic_ratios[1] <= 0.30f &&
+	       debug.harmonic_ratios[2] <= 0.20f &&
+	       debug.harmonic_ratios[3] <= 0.08f && debug.harmonic_ratios[4] <= 0.06f;
+}
+
+bool measured_low_bowed_string_other_octave_alias_supported(const FullMixDebugCandidate &debug)
+{
+	// Low cello samples can be analyzed one octave above the fundamental. The
+	// noisy, bowed profile is deliberately narrower than the normal Other-row
+	// octave recovery so low piano notes do not spill into Other.
+	if (debug.midi < 49 || debug.midi > 51)
+		return false;
+	if (debug.owner != InstrumentKind::Ambiguous && debug.owner != InstrumentKind::Keyboard)
+		return false;
+	return debug.spectral_level >= 0.90f &&
+	       debug.pitch_confidence >= 0.78f && debug.pitch_confidence <= 0.88f &&
+	       debug.periodicity >= 0.70f && debug.periodicity <= 0.84f &&
+	       debug.local_noise_level >= 0.20f && debug.local_noise_level <= 0.34f &&
+	       debug.spectral_centroid >= 0.21f && debug.spectral_centroid <= 0.29f &&
+	       debug.spectral_slope >= 0.20f && debug.spectral_slope <= 0.32f &&
+	       debug.harmonic_ratios[1] >= 0.18f && debug.harmonic_ratios[1] <= 0.36f &&
+	       debug.harmonic_ratios[2] <= 0.20f &&
+	       debug.harmonic_ratios[3] >= 0.13f && debug.harmonic_ratios[3] <= 0.27f &&
+	       debug.harmonic_ratios[4] <= 0.10f;
+}
+
+bool measured_low_reed_other_octave_alias_supported(const FullMixDebugCandidate &debug)
+{
+	// The quiet clarinet sample has a weak fundamental and is consistently
+	// reported one octave high by the mixed-source pitch probe.
+	if (debug.midi != 67 || debug.owner != InstrumentKind::Keyboard)
+		return false;
+	return debug.spectral_level >= 0.30f && debug.spectral_level <= 0.55f &&
+	       debug.pitch_confidence >= 0.30f && debug.pitch_confidence <= 0.48f &&
+	       debug.periodicity >= 0.76f && debug.periodicity <= 0.86f &&
+	       debug.local_noise_level <= 0.06f &&
+	       debug.spectral_centroid >= 0.18f && debug.spectral_centroid <= 0.25f &&
+	       debug.spectral_slope >= 0.24f && debug.spectral_slope <= 0.33f &&
+	       debug.harmonic_ratios[1] >= 0.08f && debug.harmonic_ratios[1] <= 0.17f &&
+	       debug.harmonic_ratios[2] >= 0.13f && debug.harmonic_ratios[2] <= 0.22f &&
+	       debug.harmonic_ratios[3] <= 0.07f &&
+	       debug.harmonic_ratios[4] >= 0.06f && debug.harmonic_ratios[4] <= 0.12f;
+}
+
+bool measured_clean_mid_other_display_supported(const FullMixDebugCandidate &debug)
+{
+	if (debug.owner != InstrumentKind::Keyboard && debug.owner != InstrumentKind::Guitar &&
+	    debug.owner != InstrumentKind::Vocal)
+		return false;
+	if (debug.spectral_level < 0.90f || debug.pitch_confidence < 0.90f ||
+	    debug.periodicity < 0.70f || debug.local_noise_level > 0.12f ||
+	    debug.spectral_centroid > 0.26f || debug.spectral_slope > 0.32f)
+		return false;
+
+	const float second = debug.harmonic_ratios[1];
+	const float third = debug.harmonic_ratios[2];
+	const float fourth = debug.harmonic_ratios[3];
+	const float fifth = debug.harmonic_ratios[4];
+	const bool flute_like =
+		debug.owner == InstrumentKind::Vocal && debug.midi >= 59 && debug.midi <= 63 &&
+		debug.periodicity <= 0.80f && debug.spectral_centroid <= 0.13f &&
+		debug.spectral_slope <= 0.11f && second >= 0.05f && second <= 0.27f &&
+		third >= 0.02f && third <= 0.08f && fourth <= 0.035f && fifth <= 0.008f;
+	const bool clean_reed_like =
+		debug.midi == 68 && debug.owner == InstrumentKind::Keyboard &&
+		debug.periodicity >= 0.80f && second >= 0.35f && second <= 0.55f &&
+		third <= 0.02f && fourth <= 0.02f && fifth <= 0.05f;
+	const bool bright_reed_like =
+		debug.midi == 71 && debug.owner == InstrumentKind::Guitar &&
+		debug.periodicity >= 0.85f && second >= 0.55f && second <= 0.70f &&
+		third >= 0.08f && third <= 0.18f && fourth <= 0.04f && fifth <= 0.01f;
+	const bool horn_like =
+		debug.midi == 70 && debug.owner == InstrumentKind::Guitar &&
+		debug.periodicity >= 0.70f && second >= 0.10f && second <= 0.20f &&
+		third <= 0.02f && fourth <= 0.01f && fifth <= 0.01f;
+	return flute_like || clean_reed_like || bright_reed_like || horn_like;
+}
+
 bool measured_ambiguous_smooth_violin_octave_supported(const FullMixDebugCandidate &debug)
 {
 	if (debug.midi - 12 < kOtherMinMidi || debug.midi - 12 > kOtherMaxMidi)
@@ -6408,6 +6512,21 @@ bool sustained_other_display_supported(const FullMixDebugCandidate &debug)
 		debug.spectral_slope <= 0.16f;
 	return wind_like_mid_harmonics || reed_like_odd_harmonics || pure_wind_like || bright_reed_like ||
 	       hollow_reed_like;
+}
+
+bool measured_high_clean_other_display_supported(const FullMixDebugCandidate &debug)
+{
+	// High flute, reed, and bowed-string fundamentals can be nearly sinusoidal
+	// and are otherwise confidently classified as keyboard or vocal. At this
+	// range the pitch evidence is reliable; retain the secondary Other mirror.
+	if (debug.midi < 84 || debug.midi > kOtherMaxMidi || debug.owner == InstrumentKind::Bass)
+		return false;
+	return debug.spectral_level >= 0.85f &&
+	       debug.pitch_confidence >= 0.90f && debug.periodicity >= 0.68f &&
+	       debug.local_noise_level <= 0.12f && debug.spectral_centroid <= 0.25f &&
+	       debug.spectral_slope <= 0.30f && debug.harmonic_ratios[1] <= 0.65f &&
+	       debug.harmonic_ratios[2] <= 0.35f && debug.harmonic_ratios[3] <= 0.18f &&
+	       debug.harmonic_ratios[4] <= 0.15f;
 }
 
 bool hollow_reed_other_display_supported(const FullMixDebugCandidate &debug)
@@ -6644,6 +6763,23 @@ int full_mix_display_mirror_midi(FullMixDisplayRow row, const FullMixDebugCandid
 	if (row == FullMixDisplayRow::Guitar &&
 	    other_owned_noisy_distorted_guitar_octave_up_supported(debug))
 		return debug.midi + 12;
+	if (row == FullMixDisplayRow::Other && measured_high_clean_other_display_supported(debug))
+		return debug.midi;
+	if (row == FullMixDisplayRow::Other && measured_clean_mid_other_display_supported(debug))
+		return debug.midi;
+	if (row == FullMixDisplayRow::Other &&
+	    measured_other_low_wind_double_octave_alias_supported(debug)) {
+		const int lowered = debug.midi - 24;
+		return lowered;
+	}
+	if (row == FullMixDisplayRow::Other &&
+	    measured_low_bowed_string_other_octave_alias_supported(debug)) {
+		return debug.midi - 12;
+	}
+	if (row == FullMixDisplayRow::Other &&
+	    measured_low_reed_other_octave_alias_supported(debug)) {
+		return debug.midi - 12;
+	}
 	if (row == FullMixDisplayRow::Other &&
 	    (measured_vocal_synth_other_octave_supported(debug) ||
 	     measured_guitar_synth_other_octave_supported(debug)))
@@ -8248,6 +8384,24 @@ bool full_mix_display_mirror_supported(FullMixDisplayRow row, const FullMixDebug
 		       measured_low_vocal_fundamental_alias_supported(debug);
 	case FullMixDisplayRow::Other:
 		const bool sustained_other = sustained_other_display_supported(debug);
+		const bool high_clean_other =
+			row == FullMixDisplayRow::Other && display_midi == debug.midi &&
+			measured_high_clean_other_display_supported(debug);
+		const bool clean_mid_other =
+			row == FullMixDisplayRow::Other && display_midi == debug.midi &&
+			measured_clean_mid_other_display_supported(debug);
+		const bool low_wind_double_octave_other =
+			row == FullMixDisplayRow::Other &&
+			display_midi == debug.midi - 24 &&
+			measured_other_low_wind_double_octave_alias_supported(debug);
+		const bool low_bowed_string_octave_other =
+			row == FullMixDisplayRow::Other &&
+			display_midi == debug.midi - 12 &&
+			measured_low_bowed_string_other_octave_alias_supported(debug);
+		const bool low_reed_octave_other =
+			row == FullMixDisplayRow::Other &&
+			display_midi == debug.midi - 12 &&
+			measured_low_reed_other_octave_alias_supported(debug);
 		const bool low_weak_upper_string_other =
 			debug.midi >= 39 && debug.midi <= 59 &&
 			debug.spectral_level >= 0.70f &&
@@ -8688,12 +8842,17 @@ bool full_mix_display_mirror_supported(FullMixDisplayRow row, const FullMixDebug
 		    !low_weak_upper_string_other && !low_bowed_string_display_other &&
 		    !octave_dominant_reed_display_other && !octave_rich_reed_display_other &&
 		    !smooth_bowed_string_display_other && !measured_string_other &&
-		    !measured_guitar_synth_other)
+		    !measured_guitar_synth_other && !clean_mid_other)
 			return false;
 		return debug.owner == InstrumentKind::Other ||
 		       debug.other_score >= 0.035f ||
 		       shared_other_pitch_display_supported(debug) ||
 		       sustained_other ||
+		       high_clean_other ||
+		       clean_mid_other ||
+		       low_wind_double_octave_other ||
+		       low_bowed_string_octave_other ||
+		       low_reed_octave_other ||
 		       measured_low_brass_fundamental_other_supported(debug) ||
 		       bright_high_brass_other ||
 		       low_weak_upper_string_other ||
@@ -8786,12 +8945,24 @@ void add_full_mix_display_mirror(NoteCandidateList &candidates, const FullMixOwn
 	if (display_midi < kFirstMidi || display_midi > kLastMidi)
 		return;
 	const std::size_t index = static_cast<std::size_t>(display_midi - kFirstMidi);
-	if (full_mix_row_display_midi_suppressed(ownership, row, display_midi))
+	const bool measured_other_profile_display =
+		row == FullMixDisplayRow::Other &&
+		((display_midi == debug.midi &&
+		  (measured_high_clean_other_display_supported(debug) ||
+		   measured_clean_mid_other_display_supported(debug))) ||
+		 (display_midi == debug.midi - 24 &&
+		  measured_other_low_wind_double_octave_alias_supported(debug)) ||
+		 (display_midi == debug.midi - 12 &&
+		  (measured_low_bowed_string_other_octave_alias_supported(debug) ||
+		   measured_low_reed_other_octave_alias_supported(debug))));
+	if (full_mix_row_display_midi_suppressed(ownership, row, display_midi) &&
+	    !measured_other_profile_display)
 		return;
 	const bool sustained_acoustic_other_mirror =
 		row == FullMixDisplayRow::Other &&
 		keyboard_owned_sustained_acoustic_other_supported(debug);
-	if (clean_owned_chord_context_for_row(ownership, debug, row) && !sustained_acoustic_other_mirror)
+	if (clean_owned_chord_context_for_row(ownership, debug, row) &&
+	    !sustained_acoustic_other_mirror && !measured_other_profile_display)
 		return;
 	const bool candidate_exists = candidate_list_has_midi(candidates, display_midi);
 	const bool noisy_other_owned_distorted_guitar_keyboard_projection =
@@ -8802,7 +8973,7 @@ void add_full_mix_display_mirror(NoteCandidateList &candidates, const FullMixOwn
 		return;
 	if (row == FullMixDisplayRow::Other &&
 	    keyboard_owned_other_mirror_blocked_in_chord_context(ownership, debug) &&
-	    !sustained_acoustic_other_mirror)
+	    !sustained_acoustic_other_mirror && !measured_other_profile_display)
 		return;
 	if (!full_mix_display_mirror_supported(row, debug, display_midi))
 		return;
@@ -8890,6 +9061,10 @@ void add_full_mix_display_mirror(NoteCandidateList &candidates, const FullMixOwn
 		global_level = std::max(global_level,
 					std::clamp(debug.spectral_level * debug.pitch_confidence * 0.78f,
 							   0.0f, 1.0f));
+	}
+	if (measured_other_profile_display) {
+		global_level = std::max(global_level,
+					std::clamp(debug.spectral_level * debug.pitch_confidence, 0.0f, 1.0f));
 	}
 	if (supported_misrouted_vocal_display) {
 		global_level = std::max(global_level,
@@ -9005,6 +9180,10 @@ void add_full_mix_display_mirror(NoteCandidateList &candidates, const FullMixOwn
 	    debug.ownership_confidence >= 0.82f) {
 		candidate_score = std::max(candidate_score, base_score * 1.24f);
 		candidate_confidence = std::max(candidate_confidence, 0.88f);
+	}
+	if (measured_other_profile_display) {
+		candidate_score = std::max(candidate_score, base_score * 0.72f);
+		candidate_confidence = std::max(candidate_confidence, 0.60f);
 	}
 	if (measured_ambiguous_smooth_violin_display) {
 		candidate_score = std::max(candidate_score, base_score * 0.82f);
@@ -13743,6 +13922,10 @@ void suppress_vocal_owned_same_pitch_non_vocal_shadows(NoteGrid &grid, Instrumen
 		if (row == InstrumentKind::Other && measured_mid_acoustic_other_body_supported(*debug))
 			continue;
 		if (row == InstrumentKind::Other && measured_low_acoustic_string_body_supported(*debug))
+			continue;
+		if (row == InstrumentKind::Other &&
+		    (measured_high_clean_other_display_supported(*debug) ||
+		     measured_clean_mid_other_display_supported(*debug)))
 			continue;
 
 		const float row_score = full_mix_debug_row_score(*debug, row);
