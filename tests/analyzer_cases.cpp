@@ -8194,8 +8194,42 @@ void check_soft_drum_transient_stream(Runner &runner)
 		       std::to_string(result.drum_debug_trigger_scores[mao::Snare]) + "/" +
 		       std::to_string(result.drum_debug_trigger_scores[mao::Tom]) + "/" +
 		       std::to_string(result.drum_debug_trigger_scores[mao::Kick]) + "/" +
-		       std::to_string(result.drum_debug_trigger_scores[mao::Rim]);
+		       std::to_string(result.drum_debug_trigger_scores[mao::Rim]) +
+		       " thresholds(s/h/t)=" + std::to_string(result.drum_debug_trigger_thresholds[mao::Snare]) +
+		       "/" + std::to_string(result.drum_debug_trigger_thresholds[mao::HiHat]) +
+		       "/" + std::to_string(result.drum_debug_trigger_thresholds[mao::Tom]) +
+		       " energy=" + std::to_string(result.low_energy) + "/" +
+		       std::to_string(result.mid_energy) + "/" + std::to_string(result.high_energy) +
+		       " shape(s/h/t)=" + (result.drum_debug_shape_supported[mao::Snare] ? "1" : "0") +
+		       "/" + (result.drum_debug_shape_supported[mao::HiHat] ? "1" : "0") +
+		       "/" + (result.drum_debug_shape_supported[mao::Tom] ? "1" : "0");
 	};
+
+	mao::AnalysisEngine initial_snare_engine;
+	mao_test::Buffer initial_snare = {};
+	add_decayed_sine(initial_snare, 160.0f, 0.070f, 1300);
+	add_decayed_sine(initial_snare, 220.0f, 0.085f, 1100);
+	add_decayed_sine(initial_snare, 650.0f, 0.045f, 720);
+	add_decayed_sine(initial_snare, 1100.0f, 0.090f, 520);
+	add_decayed_sine(initial_snare, 2200.0f, 0.040f, 430);
+	snapshot = initial_snare_engine.analyze(initial_snare.data(), initial_snare.size(), settings,
+						       "Mic/Aux", 0);
+	runner.expect(snapshot.drums[mao::Snare].active,
+		      "initial snare transient: expected first audible window to activate snare, snare " +
+				      std::to_string(snapshot.drums[mao::Snare].level) + snare_debug(snapshot));
+
+	mao::AnalysisEngine initial_sustained_snare_engine;
+	mao_test::Buffer initial_sustained_snare = {};
+	add_decayed_sine(initial_sustained_snare, 161.0f, 0.070f, 8192);
+	add_decayed_sine(initial_sustained_snare, 223.0f, 0.085f, 8192);
+	add_decayed_sine(initial_sustained_snare, 653.0f, 0.045f, 8192);
+	add_decayed_sine(initial_sustained_snare, 1103.0f, 0.090f, 8192);
+	add_decayed_sine(initial_sustained_snare, 2207.0f, 0.040f, 8192);
+	snapshot = initial_sustained_snare_engine.analyze(initial_sustained_snare.data(),
+								 initial_sustained_snare.size(), settings, "Mic/Aux", 0);
+	runner.expect(snapshot.drums[mao::Snare].active,
+		      "initial sustained snare: expected local snare shape without prior audio, snare " +
+				      std::to_string(snapshot.drums[mao::Snare].level) + snare_debug(snapshot));
 
 	for (int i = 0; i < 6; ++i)
 		snapshot = engine.analyze(background.data(), background.size(), settings, "Mic/Aux", 0);
