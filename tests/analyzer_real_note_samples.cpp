@@ -668,6 +668,37 @@ std::string full_mix_keyboard_display_provenance_line(const mao::AnalysisSnapsho
 	return line.str();
 }
 
+std::string full_mix_guitar_display_provenance_line(const mao::AnalysisSnapshot &snapshot,
+									 int expected_midi)
+{
+	if (expected_midi < mao::kFirstAnalyzedMidi || expected_midi > mao::kLastAnalyzedMidi)
+		return "";
+	std::ostringstream line;
+	const std::size_t count = std::min<std::size_t>(
+		snapshot.full_mix_guitar_display_provenance_count,
+		snapshot.full_mix_guitar_display_provenance.size());
+	for (std::size_t i = 0; i < count; ++i) {
+		const mao::FullMixDisplayProvenance &record =
+			snapshot.full_mix_guitar_display_provenance[i];
+		if (record.display_midi != expected_midi)
+			continue;
+		line << " guitarsrc=" << (record.mirrored ? "mirror" : "direct") << ":"
+		     << debug_note_label(record.display_midi) << "<-"
+		     << debug_note_label(record.source_midi) << "/"
+		     << instrument_kind_name(record.source_owner) << "/score=" << record.score;
+	}
+	return line.str();
+}
+
+std::string full_mix_guitar_display_final_line(const mao::AnalysisSnapshot &snapshot,
+									 int expected_midi)
+{
+	if (expected_midi < mao::kFirstAnalyzedMidi || expected_midi > mao::kLastAnalyzedMidi)
+		return "";
+	return snapshot.full_mix_guitar_display_active[static_cast<std::size_t>(
+			 expected_midi - mao::kFirstAnalyzedMidi)] ? " guitarfinal=yes" : " guitarfinal=no";
+}
+
 std::string grid_debug_label(const mao::NoteGrid &grid, bool visual = false)
 {
 	std::array<float, mao::kNoteProbeCount> levels = {};
@@ -1534,6 +1565,9 @@ int main()
 					    family_state(snapshot, row.family).confidence, grid_ok ? "yes" : "no",
 					    any_grid_ok ? "yes" : "no",
 					    snapshot_note_debug_line(snapshot, row.midi).c_str());
+				if (full_mix)
+					std::printf("%s%s", full_mix_guitar_display_provenance_line(snapshot, row.midi).c_str(),
+						       full_mix_guitar_display_final_line(snapshot, row.midi).c_str());
 				if (row.family == "bass") {
 					std::printf(" spectral=%s/%.3f/%.3f periodic=%s/%.3f/%.3f displayed=%s/%.3f/%.3f",
 						    debug_note_label(snapshot.bass_debug_spectral_midi).c_str(),
