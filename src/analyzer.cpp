@@ -10144,6 +10144,27 @@ bool full_mix_other_owned_electric_bass_body_supported(const FullMixDebugCandida
 	       debug.harmonic_ratios[3] >= 0.05f && debug.harmonic_ratios[4] <= 0.90f;
 }
 
+bool full_mix_other_owned_mid_bass_body_supported(const FullMixDebugCandidate &debug)
+{
+	// A measured group of electric-bass A2--B2 frames is routed to Other when
+	// its second and third partials dominate the low fundamental. Keep this
+	// recovery bounded to that low, noisy body instead of mirroring arbitrary
+	// Other-owned pitches into the Bass row.
+	return debug.owner == InstrumentKind::Other && debug.midi >= 42 && debug.midi <= 47 &&
+	       debug.ownership_confidence >= 0.84f && debug.other_score >= 0.82f &&
+	       debug.guitar_score <= 0.20f && debug.spectral_level >= 0.92f &&
+	       debug.pitch_confidence >= 0.72f && debug.pitch_confidence <= 0.80f &&
+	       debug.periodicity >= 0.74f && debug.periodicity <= 0.83f &&
+	       debug.harmonic_fit_error >= 0.08f && debug.harmonic_fit_error <= 0.20f &&
+	       debug.spectral_centroid >= 0.32f && debug.spectral_centroid <= 0.45f &&
+	       debug.spectral_slope >= 0.30f && debug.spectral_slope <= 0.68f &&
+	       debug.local_noise_level >= 0.28f && debug.local_noise_level <= 0.46f &&
+	       debug.harmonic_ratios[1] >= 0.72f && debug.harmonic_ratios[1] <= 1.05f &&
+	       debug.harmonic_ratios[2] >= 0.42f && debug.harmonic_ratios[2] <= 0.75f &&
+	       debug.harmonic_ratios[3] >= 0.18f && debug.harmonic_ratios[3] <= 0.48f &&
+	       debug.harmonic_ratios[4] >= 0.03f && debug.harmonic_ratios[4] <= 0.16f;
+}
+
 bool full_mix_other_owned_clean_contrabass_body_supported(const FullMixDebugCandidate &debug)
 {
 	// Tinysol contrabass bodies can be Other-owned in a full mix even with a
@@ -10175,6 +10196,7 @@ void restore_full_mix_other_owned_electric_bass_bodies(NoteGrid &grid, Instrumen
 	for (std::size_t i = 0; i < debug_count; ++i) {
 		const FullMixDebugCandidate &debug = ownership.debug_candidates[i];
 		if (!full_mix_other_owned_electric_bass_body_supported(debug) &&
+		    !full_mix_other_owned_mid_bass_body_supported(debug) &&
 		    !full_mix_other_owned_clean_contrabass_body_supported(debug) &&
 		    !full_mix_other_owned_textured_contrabass_body_supported(debug))
 			continue;
