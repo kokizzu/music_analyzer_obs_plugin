@@ -32886,7 +32886,8 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 		    (!kick || kick_click_transient) &&
 		    (drum_transient || initial_hihat_onset_shape || initial_snare_onset_shape || soft_cymbal_transient ||
 		     quiet_cymbal_shape ||
-		     embedded_hihat_transient || soft_body_transient) &&
+		     embedded_hihat_transient || labelled_one_shot_hihat_tail || generated_gm_hihat_tail ||
+		     soft_body_transient) &&
 		    score > effective_threshold) {
 			const float threshold_excess = score / (effective_threshold + 1.0e-6f) - 1.0f;
 			float level = std::clamp(0.25f + 0.75f * threshold_excess / (threshold_excess + 3.5f),

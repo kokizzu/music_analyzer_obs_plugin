@@ -21,6 +21,9 @@ show-active-goal: scripts/show_active_goal.sh
 list-make-targets: scripts/list_make_targets.py
 	$(PYTHON) scripts/list_make_targets.py Makefile "$(TERM)"
 
+test-drum-hihat-tail-regression: build/analyzer_drum_samples prepare-drum-samples-spread
+	MUSIC_ANALYZER_DRUM_SAMPLES_REQUIRED=1 MUSIC_ANALYZER_DRUM_SAMPLE_REQUIRED_CATEGORIES="hihat" MUSIC_ANALYZER_DRUM_SAMPLE_FILTER_CATEGORY="hihat" MUSIC_ANALYZER_DRUM_SAMPLE_MIN_RECALL_PERCENT=0 MUSIC_ANALYZER_DRUM_SAMPLE_MIN_HIHAT_RECALL_PERCENT=94 MUSIC_ANALYZER_DRUM_SAMPLE_MIN_PRIMARY_RECALL_PERCENT=0 MUSIC_ANALYZER_DRUM_SAMPLE_MIN_HIHAT_PRIMARY_RECALL_PERCENT=89 MUSIC_ANALYZER_DRUM_SAMPLES_DIR="build/drum_samples_spread" build/analyzer_drum_samples
+
 test-list-make-targets: scripts/list_make_targets.py
 	$(PYTHON) scripts/list_make_targets.py Makefile detection >/dev/null
 
