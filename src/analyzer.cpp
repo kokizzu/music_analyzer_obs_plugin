@@ -13734,6 +13734,29 @@ float note_grid_midi_level(const NoteGrid &grid, int midi);
 bool promote_note_grid_primary_midi(NoteGrid &grid, int midi, float level);
 bool full_mix_debug_other_fundamental_primary_supported(const FullMixOwnership &ownership, int midi);
 
+// A generic live source has no source-name hint and its first audible window has
+// no previous RMS baseline.  Admit only a corroborated snare-shaped profile so
+// the first window is useful without turning pitched or cymbal-heavy input into
+// a drum event.
+bool initial_generic_snare_onset_supported(
+	bool had_previous_audio, bool named_drum_source, bool one_shot_drum_source,
+	bool snare, bool snare_shape, bool tonal_soft_drum_suppressed,
+	bool cymbal_is_hihat, float transient_ratio, float score, float trigger_threshold,
+	float mid_energy, float low_energy, float snare_body, float tom_body,
+	float snare_crack, float kick_body)
+{
+	const bool suppressed_snare_crack_recovery =
+		tonal_soft_drum_suppressed &&
+		snare_crack >= std::max(0.20f, snare_body * 0.05f);
+	return !had_previous_audio && !named_drum_source && !one_shot_drum_source && snare &&
+	       snare_shape && (!tonal_soft_drum_suppressed || suppressed_snare_crack_recovery) &&
+	       !cymbal_is_hihat &&
+	       transient_ratio >= 0.95f && score >= trigger_threshold * 0.98f &&
+	       mid_energy >= low_energy * 0.55f && snare_body >= tom_body * 0.60f &&
+	       snare_body >= kick_body * 1.35f &&
+	       snare_crack >= std::max(0.20f, snare_body * 0.05f);
+}
+
 void clear_note_grid_midi(NoteGrid &grid, int midi)
 {
 	if (midi < kFirstMidi || midi > kLastMidi)
@@ -33070,6 +33093,17 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 			snare_body >= 12.0f && snare_crack >= 3.5f && snare_body >= tom_body * 0.65f &&
 			(!tonal_soft_drum_suppressed || snare_crack >= snare_body * 0.14f) &&
 			strongest_cymbal_drum <= strongest_body_drum * 0.55f;
+		// Some unlabelled live/OBS captures expose the snare body and trigger
+		// cleanly, but their short-window crack is below the stricter snare-shape
+		// gate.  Use the measured shell/body split as a bounded first-window
+		// recovery; named and one-shot sources retain their calibrated paths.
+		const bool initial_generic_snare_onset_shape =
+			initial_generic_snare_onset_supported(
+				had_previous_audio, named_drum_source, one_shot_drum_source,
+				snare, snare_shape, tonal_soft_drum_suppressed,
+				cymbal_shape == HiHat, transient_ratio, score, trigger_threshold,
+				snapshot.mid_energy, snapshot.low_energy, snare_body, tom_body,
+				snare_crack, kick_body);
 		// A named real-drum track can begin with a valid, quieter snare before
 		// the normal prior-audio transient path is available. Keep the relaxed
 		// body floor source-scoped and require the same independent crack, score,
@@ -33203,6 +33237,7 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 			initial_one_shot_crash_recovery_detected = true;
 		const bool base_shape_supported = drum_shape_supported[i];
 		const bool shape_supported = base_shape_supported || initial_hihat_onset_shape || initial_snare_onset_shape ||
+					     initial_generic_snare_onset_shape ||
 					     initial_real_drum_track_snare || initial_real_drum_track_kick ||
 					     soft_cymbal_transient ||
 					     embedded_hihat_transient;
@@ -33212,7 +33247,8 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 		const float threshold_scale = (initial_hihat_onset_shape || soft_cymbal_transient || quiet_cymbal_shape ||
 					       embedded_hihat_transient) ? 0.26f :
 					      soft_kick_transient ? 0.32f :
-					      (initial_snare_onset_shape || soft_snare_transient) ? 0.30f :
+				       (initial_snare_onset_shape || initial_generic_snare_onset_shape ||
+					soft_snare_transient) ? 0.30f :
 					      soft_rim_transient ? 0.24f :
 					      (strong_tom_onset_shape || clear_initial_tom_onset) ? 0.30f :
 					      soft_tom_transient ? 0.44f :
@@ -33233,6 +33269,7 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 		if (drum_detection_enabled && rms > kSilenceRms && shape_supported && hihat_event_evidence &&
 		    (!kick || kick_click_transient) &&
 		    (drum_transient || initial_hihat_onset_shape || initial_snare_onset_shape ||
+		     initial_generic_snare_onset_shape ||
 		     initial_real_drum_track_snare || initial_real_drum_track_kick || soft_cymbal_transient ||
 		     quiet_cymbal_shape ||
 		     embedded_hihat_transient || labelled_one_shot_hihat_tail || generated_gm_hihat_tail ||

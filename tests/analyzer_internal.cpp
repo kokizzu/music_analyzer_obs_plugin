@@ -235,6 +235,50 @@ void check_clean_acoustic_guitar_piano_confusion_recovery(Runner &runner)
 		      "clean acoustic guitar/piano confusion: expected piano control rejection");
 }
 
+void check_initial_generic_snare_onset_recovery(Runner &runner)
+{
+	runner.expect(initial_generic_snare_onset_supported(
+			false, false, false, true, true, false, false,
+			1.185f, 1.791f, 1.420f, 0.887f, 0.072f,
+			5.287f, 6.067f, 1.638f, 2.013f),
+		      "initial generic snare: expected measured acoustic snare profile");
+	runner.expect(initial_generic_snare_onset_supported(
+			false, false, false, true, true, true, false,
+			1.185f, 1.791f, 1.420f, 0.887f, 0.072f,
+			5.287f, 6.067f, 1.638f, 2.013f),
+		      "initial generic snare: accepts a suppressed but corroborated profile");
+	runner.expect(initial_generic_snare_onset_supported(
+			false, false, false, true, true, true, false,
+			1.319f, 1.725f, 1.420f, 0.773f, 0.074f,
+			3.837f, 5.430f, 0.413f, 2.103f),
+		      "initial generic snare: accepts a suppressed low-crack profile");
+	runner.expect(!initial_generic_snare_onset_supported(
+			false, false, false, true, true, true, false,
+			1.185f, 1.791f, 1.420f, 0.887f, 0.072f,
+			5.287f, 6.067f, 0.10f, 2.013f),
+		      "initial generic snare: rejects a suppressed sub-floor crack profile");
+	runner.expect(initial_generic_snare_onset_supported(
+			false, false, false, true, true, false, false,
+			1.134f, 1.821f, 1.420f, 0.939f, 0.035f,
+			4.267f, 6.531f, 0.534f, 2.373f),
+		      "initial generic snare: expected low-crack snare profile");
+	runner.expect(!initial_generic_snare_onset_supported(
+			false, false, false, true, true, false, true,
+			1.497f, 1.463f, 1.420f, 0.553f, 0.188f,
+			39.173f, 72.105f, 5.230f, 31.311f),
+		      "initial generic snare: expected hihat-shaped control rejection");
+	runner.expect(!initial_generic_snare_onset_supported(
+			false, false, false, true, true, false, false,
+			1.345f, 1.727f, 1.420f, 0.776f, 0.189f,
+			2.481f, 4.800f, 0.495f, 1.095f),
+		      "initial generic snare: expected weak shell-body control rejection");
+	runner.expect(!initial_generic_snare_onset_supported(
+			false, true, false, true, true, false, false,
+			1.185f, 1.791f, 1.420f, 0.887f, 0.072f,
+			5.287f, 6.067f, 1.638f, 2.013f),
+		      "initial generic snare: expected named drum source to use scoped path");
+}
+
 void check_low_wind_other_octave_alias_without_lower_level(Runner &runner)
 {
 	FullMixDebugCandidate candidate = {};
@@ -6936,6 +6980,7 @@ int run()
 	check_misrouted_vocal_mirror_requires_classifier_evidence(runner);
 	check_missing_low_acoustic_e1_keyboard_octave_alias(runner);
 	check_clean_acoustic_guitar_piano_confusion_recovery(runner);
+	check_initial_generic_snare_onset_recovery(runner);
 	check_low_wind_other_octave_alias_without_lower_level(runner);
 	check_mid_acoustic_guitar_display_floor(runner);
 	check_auto_source_mode_resolution(runner);
