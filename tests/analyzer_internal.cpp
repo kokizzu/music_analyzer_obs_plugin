@@ -69,6 +69,29 @@ void set_probe_level(std::array<float, kNoteProbeCount> &powers, int midi, float
 	powers[static_cast<std::size_t>(midi - kFirstMidi)] = level * level;
 }
 
+void check_misrouted_vocal_mirror_requires_classifier_evidence(Runner &runner)
+{
+	FullMixDebugCandidate candidate = {};
+	candidate.owner = InstrumentKind::Other;
+	candidate.midi = 60;
+	candidate.spectral_level = 0.90f;
+	candidate.pitch_confidence = 0.80f;
+	candidate.periodicity = 0.80f;
+	candidate.harmonic_fit_error = 0.05f;
+	candidate.local_noise_level = 0.10f;
+	candidate.spectral_centroid = 0.20f;
+	candidate.vocal_score = 0.0f;
+	runner.expect(!full_mix_supported_misrouted_vocal_display(candidate),
+		      "vocal mirror: expected generic Other pitch without Vocal evidence to stay out");
+
+	candidate.vocal_score = kMisroutedVocalDisplayScoreFloor;
+	runner.expect(full_mix_supported_misrouted_vocal_display(candidate),
+		      "vocal mirror: expected classifier-backed misrouted pitch to remain available");
+	candidate.vocal_rejected_for_polyphony = true;
+	runner.expect(!full_mix_supported_misrouted_vocal_display(candidate),
+		      "vocal mirror: expected polyphonic rejection to remain authoritative");
+}
+
 void check_auto_source_mode_resolution(Runner &runner)
 {
 	AnalysisSettings settings = {};
@@ -6560,6 +6583,7 @@ int run()
 	check_keyboard_owned_clean_low_mid_guitar_display(runner);
 	check_shared_keyboard_display_recovers_strong_pitched_body(runner);
 	check_full_mix_direct_vocal_owner_requires_voice_evidence(runner);
+	check_misrouted_vocal_mirror_requires_classifier_evidence(runner);
 	check_auto_source_mode_resolution(runner);
 	check_low_acoustic_bass_suboctave_display(runner);
 	check_low_brass_suboctave_display(runner);

@@ -5005,6 +5005,7 @@ bool measured_vocal_octave_alias_supported(const FullMixDebugCandidate &debug)
 		fifth <= 0.020f;
 	const bool keyboard_ooh_alias =
 		debug.owner == InstrumentKind::Keyboard &&
+		debug.vocal_score >= kMisroutedVocalDisplayScoreFloor &&
 		debug.guitar_score >= 0.21f &&
 		debug.spectral_level >= 0.65f &&
 		debug.pitch_confidence >= 0.62f &&
@@ -9130,6 +9131,18 @@ bool production_full_mix_vocal_mirror_candidate_allowed(const FullMixOwnership &
 	return full_mix_row_midi_active(ownership.vocal, display_midi);
 }
 
+bool full_mix_supported_misrouted_vocal_display(const FullMixDebugCandidate &debug)
+{
+	return (debug.owner == InstrumentKind::Keyboard || debug.owner == InstrumentKind::Guitar ||
+		 debug.owner == InstrumentKind::Other || debug.owner == InstrumentKind::Ambiguous) &&
+		!debug.vocal_rejected_for_polyphony &&
+		debug.vocal_score >= kMisroutedVocalDisplayScoreFloor &&
+		debug.midi >= kFullMixVocalMinMidi && debug.midi <= kVocalMaxMidi &&
+		debug.spectral_level >= 0.75f && debug.pitch_confidence >= 0.60f &&
+		debug.periodicity >= 0.70f && debug.harmonic_fit_error <= 0.15f &&
+		debug.local_noise_level <= 0.35f && debug.spectral_centroid <= 0.40f;
+}
+
 void add_full_mix_display_mirror(NoteCandidateList &candidates, const FullMixOwnership &ownership,
 				 const FullMixDebugCandidate &debug, FullMixDisplayRow row,
 				 const std::array<float, kNoteProbeCount> *raw_powers = nullptr)
@@ -9230,13 +9243,8 @@ void add_full_mix_display_mirror(NoteCandidateList &candidates, const FullMixOwn
 		measured_low_full_mix_vocal_display_supported(debug);
 	const bool supported_misrouted_vocal_display =
 		row == FullMixDisplayRow::Vocal && display_midi == debug.midi &&
-		(debug.owner == InstrumentKind::Keyboard || debug.owner == InstrumentKind::Guitar ||
-		 debug.owner == InstrumentKind::Other || debug.owner == InstrumentKind::Ambiguous) &&
-		!debug.vocal_rejected_for_polyphony &&
-		debug.midi >= kFullMixVocalMinMidi && debug.midi <= kVocalMaxMidi &&
-		debug.spectral_level >= 0.75f && debug.pitch_confidence >= 0.60f &&
-		debug.periodicity >= 0.70f && debug.harmonic_fit_error <= 0.15f &&
-		debug.local_noise_level <= 0.35f && debug.spectral_centroid <= 0.40f;
+		full_mix_supported_misrouted_vocal_display(debug);
+
 	const bool measured_low_acoustic_guitar_floor =
 		row == FullMixDisplayRow::Guitar &&
 		display_midi == debug.midi &&
