@@ -31961,7 +31961,17 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 		}
 	}
 	const float drum_transient_ratio = rms > 1.0e-6f ? strongest_segment_rms / rms : 0.0f;
-	const bool drum_transient = drum_transient_ratio >= kDrumTransientRatio;
+	// Generic OBS inputs do not carry the drum-source label used by the fixture
+	// calibrations.  Their real drum hits are often spread across the 100 ms
+	// window, so admit the lower crest-ratio family there while keeping named
+	// and one-shot drum sources on the stricter calibrated path.
+	const bool generic_full_mix_drum_transient =
+		input_mode == AnalysisInputMode::FullMix &&
+		!contains_case_insensitive(resolved_source_name, "drum") &&
+		!contains_case_insensitive(resolved_source_name, "percussion") &&
+		drum_transient_ratio >= 1.40f;
+	const bool drum_transient = drum_transient_ratio >= kDrumTransientRatio ||
+		generic_full_mix_drum_transient;
 	snapshot.drum_debug_transient_ratio = drum_transient_ratio;
 	snapshot.rms = rms;
 	snapshot.peak = peak;
