@@ -10041,6 +10041,10 @@ test-real-drum-samples: build/analyzer_real_drum_samples
 report-real-drum-samples-real-track: build/analyzer_real_drum_samples
 	sh ./scripts/run_real_drum_source_report.sh "Real Drum Track"
 
+.PHONY: test-real-drum-track-admission
+test-real-drum-track-admission: build/analyzer_real_drum_samples
+	sh ./scripts/test_real_drum_track_admission.sh
+
 .PHONY: report-real-drum-samples-drum-track
 report-real-drum-samples-drum-track: build/analyzer_real_drum_samples
 	sh ./scripts/run_real_drum_source_report.sh "IDMT Drum Track"

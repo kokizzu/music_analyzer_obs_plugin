@@ -32948,6 +32948,18 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 			snare_body >= 12.0f && snare_crack >= 3.5f && snare_body >= tom_body * 0.65f &&
 			(!tonal_soft_drum_suppressed || snare_crack >= snare_body * 0.14f) &&
 			strongest_cymbal_drum <= strongest_body_drum * 0.55f;
+		// A named real-drum track can begin with a valid, quieter snare before
+		// the normal prior-audio transient path is available. Keep the relaxed
+		// body floor source-scoped and require the same independent crack, score,
+		// mid-band, and cymbal-separation evidence as the full initial path.
+		const bool initial_real_drum_track_snare =
+			!had_previous_audio && real_drum_track_source &&
+			!contains_case_insensitive(resolved_source_name, "one shot") &&
+			snare && snare_shape && snare_crack_shape &&
+			transient_ratio >= 0.95f && score >= trigger_threshold * 0.98f &&
+			snapshot.mid_energy >= snapshot.low_energy * 0.55f &&
+			snare_body >= 3.5f && snare_crack >= 0.25f &&
+			strongest_cymbal_drum <= strongest_body_drum * 0.75f;
 		// The first audible window has no prior audio state, so it cannot use
 		// the normal soft-cymbal path. Some real crash onsets have a long-ride
 		// or dense-hihat spectral centroid, but retain a bright, low-body crash
@@ -33050,6 +33062,7 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 			soft_kick_transient || soft_snare_transient || soft_rim_transient || soft_tom_transient;
 		const bool base_shape_supported = drum_shape_supported[i];
 		const bool shape_supported = base_shape_supported || initial_hihat_onset_shape || initial_snare_onset_shape ||
+					     initial_real_drum_track_snare ||
 					     soft_cymbal_transient ||
 					     embedded_hihat_transient;
 		const bool quiet_cymbal_shape =
@@ -33078,7 +33091,8 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 		}
 		if (drum_detection_enabled && rms > kSilenceRms && shape_supported && hihat_event_evidence &&
 		    (!kick || kick_click_transient) &&
-		    (drum_transient || initial_hihat_onset_shape || initial_snare_onset_shape || soft_cymbal_transient ||
+		    (drum_transient || initial_hihat_onset_shape || initial_snare_onset_shape ||
+		     initial_real_drum_track_snare || soft_cymbal_transient ||
 		     quiet_cymbal_shape ||
 		     embedded_hihat_transient || labelled_one_shot_hihat_tail || generated_gm_hihat_tail ||
 		     soft_body_transient) &&
