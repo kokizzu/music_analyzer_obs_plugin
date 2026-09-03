@@ -6362,13 +6362,30 @@ void check_full_mix_direct_vocal_owner_requires_voice_evidence(Runner &runner)
 
 	NoteEvidence confident_voice = {};
 	confident_voice.ownership_scores[static_cast<std::size_t>(InstrumentKind::Vocal)] = 0.82f;
+	confident_voice.harmonic_product_score = 10.0f;
+	confident_voice.third_octave_ratio = 0.01f;
 	runner.expect(full_mix_direct_vocal_owner_supported(confident_voice),
 		      "direct vocal ownership: expected confident vocal score to remain accepted");
 
 	NoteEvidence profiled_voice = {};
 	profiled_voice.vocal_tone_profile_supported = true;
+	profiled_voice.ownership_scores[static_cast<std::size_t>(InstrumentKind::Vocal)] = 0.72f;
+	profiled_voice.harmonic_product_score = 10.0f;
+	profiled_voice.third_octave_ratio = 0.01f;
 	runner.expect(full_mix_direct_vocal_owner_supported(profiled_voice),
 		      "direct vocal ownership: expected supported vocal timbre to remain accepted");
+
+	NoteEvidence clean_keyboard_profile = {};
+	clean_keyboard_profile.vocal_tone_profile_supported = true;
+	clean_keyboard_profile.ownership_scores[static_cast<std::size_t>(InstrumentKind::Vocal)] = 0.80f;
+	clean_keyboard_profile.harmonic_product_score = 12.0f;
+	clean_keyboard_profile.third_octave_ratio = 0.001f;
+	clean_keyboard_profile.harmonic_ratios = {1.0f, 0.25f, 0.12f, 0.06f, 0.02f};
+	clean_keyboard_profile.spectral_centroid = 0.18f;
+	clean_keyboard_profile.spectral_slope = 0.12f;
+	clean_keyboard_profile.local_noise_level = 0.02f;
+	runner.expect(!full_mix_direct_vocal_owner_supported(clean_keyboard_profile, 69),
+		      "direct vocal ownership: expected ordinary clean keyboard profile to be rejected");
 
 	FullMixDebugCandidate guitar_without_voice = {};
 	guitar_without_voice.owner = InstrumentKind::Guitar;
@@ -6386,7 +6403,29 @@ void check_full_mix_direct_vocal_owner_requires_voice_evidence(Runner &runner)
 	guitar_without_voice.harmonic_ratios = {1.0f, 0.36f, 0.18f, 0.08f, 0.03f};
 	runner.expect(!full_mix_display_mirror_supported(FullMixDisplayRow::Vocal,
 							guitar_without_voice, guitar_without_voice.midi),
-		      "vocal mirror: expected stable guitar without vocal evidence to stay out of vocal row");
+			      "vocal mirror: expected stable guitar without vocal evidence to stay out of vocal row");
+
+	FullMixDebugCandidate clean_keyboard_fundamental = {};
+	clean_keyboard_fundamental.owner = InstrumentKind::Keyboard;
+	clean_keyboard_fundamental.midi = 69;
+	clean_keyboard_fundamental.ownership_confidence = 0.86f;
+	clean_keyboard_fundamental.keyboard_score = 0.86f;
+	clean_keyboard_fundamental.vocal_score = 0.31f;
+	clean_keyboard_fundamental.guitar_score = 0.04f;
+	clean_keyboard_fundamental.other_score = 0.04f;
+	clean_keyboard_fundamental.spectral_level = 0.95f;
+	clean_keyboard_fundamental.pitch_confidence = 0.95f;
+	clean_keyboard_fundamental.periodicity = 0.90f;
+	clean_keyboard_fundamental.harmonic_fit_error = 0.02f;
+	clean_keyboard_fundamental.local_noise_level = 0.02f;
+	clean_keyboard_fundamental.spectral_centroid = 0.18f;
+	clean_keyboard_fundamental.spectral_slope = 0.12f;
+	clean_keyboard_fundamental.harmonic_product_score = 12.0f;
+	clean_keyboard_fundamental.third_octave_ratio = 0.001f;
+	clean_keyboard_fundamental.harmonic_ratios = {1.0f, 0.25f, 0.12f, 0.06f, 0.02f};
+	runner.expect(!full_mix_display_mirror_supported(FullMixDisplayRow::Vocal,
+							clean_keyboard_fundamental, clean_keyboard_fundamental.midi),
+			      "vocal mirror: expected ordinary clean keyboard fundamental to stay out of vocal row");
 }
 
 int run()

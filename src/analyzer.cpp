@@ -152,6 +152,10 @@ constexpr float kFullMixCandidateChromaFloor = 0.60f;
 // new-note floor still rejects sub-threshold noise.
 constexpr float kMonophonicOtherImmediateConfirmFloor = kNoteEnvelopeNewNoteFloor;
 constexpr float kMixedVocalConfirmedImmediateFloor = 0.18f;
+// A non-vocal owner may only be mirrored into the Vocal display row when the
+// native vocal classifier contributes meaningful evidence. Pitch and generic
+// sustain alone are common in piano, guitar, and synth fixtures.
+constexpr float kMisroutedVocalDisplayScoreFloor = 0.18f;
 // Keep the smoothed chord grid through a few uncertain 100 ms hops without
 // retaining stale tones for multiple seconds.
 constexpr float kAnalyticalChordNoteReleaseSeconds = 0.55f;
@@ -1424,14 +1428,42 @@ NoteCandidate vocal_display_weighted_candidate(const NoteCandidate &candidate,
 	return weighted;
 }
 
-bool full_mix_direct_vocal_owner_supported(const NoteEvidence &evidence)
+bool full_mix_vocal_harmonic_shape_supported(int midi, float harmonic_product_score,
+									 float third_octave_ratio, float second, float third,
+									 float fourth, float fifth, float spectral_centroid,
+									 float spectral_slope, float local_noise_level)
 {
-	constexpr float kDirectVocalScoreFloor = 0.70f;
-	const float vocal_score =
-		evidence.ownership_scores[static_cast<std::size_t>(InstrumentKind::Vocal)];
-	return evidence.vocal_tone_profile_supported || vocal_score >= kDirectVocalScoreFloor;
+	// The generic vocal profile is intentionally permissive for mixed music. These
+	// measured harmonic bounds keep that profile from owning ordinary pitched
+	// instrument fundamentals while retaining clean and low-mid vocal variants.
+	const bool measured_partial_stack =
+		harmonic_product_score <= 20.0f && third_octave_ratio >= 0.005f;
+	const bool clean_upper_voice =
+		midi >= 68 && midi <= 70 && harmonic_product_score <= 20.0f &&
+		third_octave_ratio >= 0.0015f && second <= 0.060f && third <= 0.040f &&
+		fourth <= 0.030f && fifth <= 0.050f && spectral_centroid <= 0.110f &&
+		spectral_slope <= 0.120f && local_noise_level <= 0.080f;
+	const bool low_mid_voice =
+		midi >= 57 && midi <= 59 && harmonic_product_score <= 20.0f &&
+		third_octave_ratio >= 0.0015f && second >= 0.080f && second <= 0.170f &&
+		third >= 0.090f && third <= 0.130f && fourth <= 0.050f && fifth <= 0.150f &&
+		spectral_centroid >= 0.120f && spectral_centroid <= 0.230f &&
+		spectral_slope >= 0.100f && spectral_slope <= 0.270f && local_noise_level <= 0.080f;
+	return measured_partial_stack || clean_upper_voice || low_mid_voice;
 }
 
+bool full_mix_direct_vocal_owner_supported(const NoteEvidence &evidence, int midi = -1)
+{
+	constexpr float kDirectVocalScoreFloor = 0.55f;
+	const float vocal_score =
+		evidence.ownership_scores[static_cast<std::size_t>(InstrumentKind::Vocal)];
+	return vocal_score >= kDirectVocalScoreFloor &&
+	       full_mix_vocal_harmonic_shape_supported(
+		midi, evidence.harmonic_product_score, evidence.third_octave_ratio,
+		evidence.harmonic_ratios[1], evidence.harmonic_ratios[2], evidence.harmonic_ratios[3],
+		       evidence.harmonic_ratios[4], evidence.spectral_centroid, evidence.spectral_slope,
+		       evidence.local_noise_level);
+}
 enum class TimbreKind : std::size_t {
 	Keyboard = 0,
 	Guitar = 1,
@@ -4746,25 +4778,32 @@ bool shared_vocal_pitch_display_supported(const FullMixDebugCandidate &debug)
 
 	if (measured_owned_formant_vocal_partial_supported(debug))
 		return true;
+	const bool vocal_harmonic_shape = full_mix_vocal_harmonic_shape_supported(
+		debug.midi, debug.harmonic_product_score, debug.third_octave_ratio,
+		debug.harmonic_ratios[1], debug.harmonic_ratios[2], debug.harmonic_ratios[3],
+		debug.harmonic_ratios[4], debug.spectral_centroid, debug.spectral_slope,
+		debug.local_noise_level);
 	// Real vocal fundamentals often retain a clean period but are classified as
 	// keyboard, guitar, or other because their formants resemble an instrument.
-	// Mirror only strong, in-range fundamentals so this does not create a vocal
-	// octave alias from arbitrary upper partials.
+	// Mirror only strong, in-range fundamentals with the measured vocal harmonic
+	// shape so clean instrument fundamentals do not populate the Vocal row.
 	const bool strong_misrouted_vocal_fundamental =
 		(debug.owner == InstrumentKind::Keyboard || debug.owner == InstrumentKind::Guitar ||
 		 debug.owner == InstrumentKind::Other || debug.owner == InstrumentKind::Ambiguous) &&
 		debug.midi >= kFullMixVocalMinMidi && debug.midi <= kVocalMaxMidi &&
 		debug.spectral_level >= 0.90f && debug.pitch_confidence >= 0.74f &&
 		debug.periodicity >= 0.70f && debug.harmonic_fit_error <= 0.10f &&
-		debug.local_noise_level <= 0.35f;
+		debug.local_noise_level <= 0.35f && vocal_harmonic_shape;
 	const bool supported_misrouted_vocal_fundamental =
 		(debug.owner == InstrumentKind::Keyboard || debug.owner == InstrumentKind::Guitar ||
 		 debug.owner == InstrumentKind::Other || debug.owner == InstrumentKind::Ambiguous) &&
 		!debug.vocal_rejected_for_polyphony &&
+		debug.vocal_score >= kMisroutedVocalDisplayScoreFloor &&
 		debug.midi >= kFullMixVocalMinMidi && debug.midi <= kVocalMaxMidi &&
 		debug.spectral_level >= 0.75f && debug.pitch_confidence >= 0.60f &&
 		debug.periodicity >= 0.70f && debug.harmonic_fit_error <= 0.15f &&
-		debug.local_noise_level <= 0.35f && debug.spectral_centroid <= 0.40f;
+		debug.local_noise_level <= 0.35f && debug.spectral_centroid <= 0.40f &&
+		vocal_harmonic_shape;
 	if (strong_misrouted_vocal_fundamental || supported_misrouted_vocal_fundamental ||
 	    low_register_misrouted_vocal_fundamental)
 		return true;
@@ -11821,7 +11860,8 @@ FullMixOwnership build_full_mix_ownership(const std::array<float, kNoteProbeCoun
 			choose_full_mix_owner(powers, candidate, strongest_score, polyphonic_vocal_context, temporal,
 					      evidence);
 		apply_full_mix_source_hint_owner(source_hint, candidate, evidence, owner, candidates.size());
-		if (owner == InstrumentKind::Vocal && !full_mix_direct_vocal_owner_supported(evidence))
+		if (owner == InstrumentKind::Vocal &&
+		    !full_mix_direct_vocal_owner_supported(evidence, candidate.midi))
 			owner = InstrumentKind::Ambiguous;
 		append_full_mix_debug_candidate(ownership, candidate, evidence, owner);
 
