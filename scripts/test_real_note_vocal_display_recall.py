@@ -4,7 +4,7 @@
 from pathlib import Path
 
 
-MAX_EXPECTED_ROW_MISSES = 27
+MAX_EXPECTED_ROW_MISSES = 0
 
 
 def main() -> None:

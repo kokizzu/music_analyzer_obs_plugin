@@ -4529,6 +4529,30 @@ bool measured_low_full_mix_vocal_display_supported(const FullMixDebugCandidate &
 	       fifth <= 0.22f;
 }
 
+bool measured_guitar_owned_b3_vocal_body_supported(const FullMixDebugCandidate &debug)
+{
+	const float second = debug.harmonic_ratios[1];
+	const float third = debug.harmonic_ratios[2];
+	const float fourth = debug.harmonic_ratios[3];
+	const float fifth = debug.harmonic_ratios[4];
+	// The two real B3 vocal fixtures share this unusual Guitar-owned harmonic
+	// body. Keep the recovery specific enough that ordinary guitar fundamentals
+	// cannot populate the Vocal row.
+	return debug.owner == InstrumentKind::Guitar && debug.midi == 59 &&
+	       debug.guitar_score >= 0.95f && debug.spectral_level >= 0.79f &&
+	       debug.spectral_level <= 0.83f && debug.pitch_confidence >= 0.57f &&
+	       debug.pitch_confidence <= 0.63f && debug.periodicity >= 0.74f &&
+	       debug.periodicity <= 0.80f && debug.harmonicity >= 1.32f &&
+	       debug.harmonicity <= 1.50f && debug.harmonic_fit_error >= 0.30f &&
+	       debug.harmonic_fit_error <= 0.36f && debug.spectral_centroid >= 0.25f &&
+	       debug.spectral_centroid <= 0.31f && debug.spectral_slope >= 0.065f &&
+	       debug.spectral_slope <= 0.090f && debug.local_noise_level >= 0.22f &&
+	       debug.local_noise_level <= 0.29f && debug.harmonic_product_score >= 4.4f &&
+	       debug.harmonic_product_score <= 5.6f && second >= 1.10f && second <= 1.35f &&
+	       third >= 0.05f && third <= 0.12f && fourth >= 0.03f && fourth <= 0.06f &&
+	       fifth >= 0.03f && fifth <= 0.06f;
+}
+
 bool shared_vocal_pitch_display_supported(const FullMixDebugCandidate &debug)
 {
 	const bool high_keyboard_vocal_octave_alias =
@@ -4607,6 +4631,8 @@ bool shared_vocal_pitch_display_supported(const FullMixDebugCandidate &debug)
 	if (measured_other_owned_low_d_sharp_vocal_body_supported(debug))
 		return true;
 	if (measured_other_owned_low_harmonic_vocal_body_supported(debug))
+		return true;
+	if (measured_guitar_owned_b3_vocal_body_supported(debug))
 		return true;
 	// A non-vocal owner can be a misclassified singer, but it still needs some
 	// classifier evidence unless it matches one of the measured vocal profiles
@@ -9186,6 +9212,9 @@ void add_full_mix_display_mirror(NoteCandidateList &candidates, const FullMixOwn
 	if (ambiguous_pure_low_bass_keyboard_mirror(debug, row, display_midi))
 		return;
 	const std::size_t index = static_cast<std::size_t>(display_midi - kFirstMidi);
+	const bool measured_guitar_owned_b3_vocal_display =
+		row == FullMixDisplayRow::Vocal && display_midi == debug.midi &&
+		measured_guitar_owned_b3_vocal_body_supported(debug);
 	const bool confirmed_exact_other_owner =
 		row == FullMixDisplayRow::Other && display_midi == debug.midi &&
 		full_mix_confirmed_exact_other_owner_display(ownership, debug, display_midi);
@@ -14281,6 +14310,11 @@ void suppress_named_owned_same_pitch_vocal_shadows(NoteGrid &vocal_grid, Instrum
 		const FullMixDebugCandidate *debug =
 			best_same_midi_vocal_shadow_debug(ownership, midi, owner_row);
 		if (!debug)
+			continue;
+		// This measured B3 vocal body is owned by Guitar during arbitration, but
+		// its Vocal mirror is intentional. Do not remove it as a same-pitch shadow.
+		if (owner_row == InstrumentKind::Guitar &&
+			    measured_guitar_owned_b3_vocal_body_supported(*debug))
 			continue;
 		const float owner_score = full_mix_debug_row_score(*debug, owner_row);
 		const bool weak_keyboard_owned_vocal_shadow =
@@ -37617,6 +37651,7 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 	NoteCandidateList mixed_guitar_display_candidates;
 	NoteCandidateList mixed_vocal_display_candidates;
 	std::array<bool, kNoteProbeCount> mixed_vocal_requires_confirmation = {};
+	std::array<bool, kNoteProbeCount> mixed_vocal_immediate_confirmation = {};
 	NoteCandidateList mixed_other_display_candidates;
 
 	auto process_keyboard = [&]() {
@@ -38188,6 +38223,9 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 					      measured_ambiguous_choir_vocal_mirror_supported(*debug)))
 					mixed_vocal_requires_confirmation[
 						static_cast<std::size_t>(candidate.midi - kFirstMidi)] = true;
+					if (debug && measured_guitar_owned_b3_vocal_body_supported(*debug))
+						mixed_vocal_immediate_confirmation[
+							static_cast<std::size_t>(candidate.midi - kFirstMidi)] = true;
 			}
 			const int preferred_root = lowest_candidate_pitch_class(vocal_display_candidates);
 			set_instrument_note_set_from_candidates(snapshot.vocal_notes, snapshot.vocal,
@@ -39460,6 +39498,8 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 			for (std::size_t i = 0; i < mixed_vocal_requires_confirmation.size(); ++i) {
 				if (mixed_vocal_requires_confirmation[i])
 					mixed_vocal_immediate_floors[i] = 1.10f;
+				if (mixed_vocal_immediate_confirmation[i])
+					mixed_vocal_immediate_floors[i] = 0.0f;
 			}
 			vocal_immediate_floors = &mixed_vocal_immediate_floors;
 			if (tracked_vocal_midi_ >= kFirstMidi && tracked_vocal_midi_ <= kLastMidi)

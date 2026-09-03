@@ -6589,10 +6589,82 @@ void check_confirmed_exact_other_owner_display(Runner &runner)
 		      "Other display ownership: expected a clear exact owner without ambiguity");
 }
 
+void check_measured_guitar_owned_b3_vocal_display_recovery(Runner &runner)
+{
+	// Both real vocal B3 fixtures have this same full-mix profile after the
+	// Guitar owner wins arbitration. Keep the regression tied to that shape.
+	mao::FullMixDebugCandidate candidate = {};
+	candidate.owner = mao::InstrumentKind::Guitar;
+	candidate.midi = 59;
+	candidate.ownership_confidence = 1.0f;
+	candidate.guitar_score = 1.0f;
+	candidate.spectral_level = 0.810f;
+	candidate.pitch_confidence = 0.601f;
+	candidate.periodicity = 0.768f;
+	candidate.harmonicity = 1.407f;
+	candidate.harmonic_fit_error = 0.328f;
+	candidate.spectral_centroid = 0.278f;
+	candidate.spectral_slope = 0.077f;
+	candidate.local_noise_level = 0.257f;
+	candidate.harmonic_product_score = 5.002f;
+	candidate.harmonic_ratios = {1.0f, 1.235f, 0.082f, 0.043f, 0.047f};
+	runner.expect(mao::full_mix_display_mirror_supported(mao::FullMixDisplayRow::Vocal, candidate, 59),
+	              "B3 vocal display: expected measured guitar-owned vocal body recovery");
+	candidate.harmonic_ratios[1] = 0.95f;
+	runner.expect(!mao::full_mix_display_mirror_supported(mao::FullMixDisplayRow::Vocal, candidate, 59),
+	              "B3 vocal display: expected unrelated guitar partial shape to stay out");
+
+	candidate.harmonic_ratios[1] = 1.235f;
+	mao::FullMixOwnership ownership = {};
+	ownership.guitar[59 - mao::kFirstMidi] = true;
+	ownership.global_note_levels[59 - mao::kFirstMidi] = 1.0f;
+	ownership.debug_candidate_count = 1;
+	ownership.debug_candidates[0] = candidate;
+	mao::NoteCandidateList candidates;
+	mao::add_full_mix_display_mirror(candidates, ownership, candidate,
+	                                 mao::FullMixDisplayRow::Vocal);
+	bool mirrored = false;
+	for (const mao::NoteCandidate &mirrored_candidate : candidates) {
+		if (mirrored_candidate.midi == 59) {
+			mirrored = true;
+			break;
+		}
+	}
+	runner.expect(mirrored, "B3 vocal display: expected production mirror insertion");
+	const mao::NoteCandidateList assembled =
+		mao::full_mix_display_candidates(ownership, mao::FullMixDisplayRow::Vocal);
+	bool assembled_mirrored = false;
+	for (const mao::NoteCandidate &assembled_candidate : assembled) {
+		if (assembled_candidate.midi == 59) {
+			assembled_mirrored = true;
+			break;
+		}
+	}
+	runner.expect(assembled_mirrored,
+	              "B3 vocal display: expected full display-candidate assembly to retain the mirror");
+	mao::NoteGrid vocal_grid = {};
+	mao::NoteGrid guitar_grid = {};
+	mao::NoteCell &vocal_cell = vocal_grid.cells[59 % 12];
+	mao::NoteCell &guitar_cell = guitar_grid.cells[59 % 12];
+	vocal_cell.active = true;
+	vocal_cell.midi = 59;
+	vocal_cell.level = 1.0f;
+	vocal_cell.visual_level = 1.0f;
+	guitar_cell.active = true;
+	guitar_cell.midi = 59;
+	guitar_cell.level = 1.0f;
+	guitar_cell.visual_level = 1.0f;
+	mao::InstrumentState vocal_state = {};
+	mao::suppress_named_owned_same_pitch_vocal_shadows(
+		vocal_grid, vocal_state, guitar_grid, ownership, mao::InstrumentKind::Guitar, -1);
+	runner.expect(vocal_grid.cells[59 % 12].active,
+	              "B3 vocal display: expected Guitar-owned Vocal mirror to survive shadow cleanup");
+}
 int run()
 {
 	Runner runner;
 	check_confirmed_exact_other_owner_display(runner);
+	check_measured_guitar_owned_b3_vocal_display_recovery(runner);
 	mao::FullMixDebugCandidate sparse_vocal_octave_alias;
 	sparse_vocal_octave_alias.owner = mao::InstrumentKind::Vocal;
 	sparse_vocal_octave_alias.midi = 60;
