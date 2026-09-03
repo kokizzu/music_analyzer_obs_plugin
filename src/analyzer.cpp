@@ -32915,6 +32915,7 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 		 sustained_treble_idle_drum_suppressed);
 	bool tempo_event = false;
 	bool initial_crash_onset_detected = false;
+	bool initial_one_shot_crash_recovery_detected = false;
 	bool initial_hihat_onset_detected = false;
 	for (std::size_t i = 0; i < kDrumCount; ++i) {
 		if (drum_average_[i] <= 0.0f)
@@ -33118,6 +33119,16 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 					     strong_tom_onset_shape || clear_initial_tom_onset);
 		const bool soft_body_transient =
 			soft_kick_transient || soft_snare_transient || soft_rim_transient || soft_tom_transient;
+		// A one-shot crash has no prior RMS baseline. A very bright, low-body
+		// first window is enough to retain it as a low-confidence co-candidate,
+		// but not enough to let it replace a better-resolved hat or ride.
+		const bool initial_one_shot_crash_recovery =
+			drum_detection_enabled && one_shot_drum_source && !had_previous_audio &&
+			!tonal_soft_drum_suppressed && i == Crash && cymbal_family_evidence &&
+			soft_cymbal_separable && snapshot.mid_energy <= 0.21f &&
+			strongest_body_drum <= 21.5f && score >= trigger_threshold * 28.0f;
+		if (initial_one_shot_crash_recovery)
+			initial_one_shot_crash_recovery_detected = true;
 		const bool base_shape_supported = drum_shape_supported[i];
 		const bool shape_supported = base_shape_supported || initial_hihat_onset_shape || initial_snare_onset_shape ||
 					     initial_real_drum_track_snare || initial_real_drum_track_kick ||
@@ -33250,6 +33261,19 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 		drum_average_[i] = drum_average_[i] * 0.92f + drum_bands[i] * 0.08f;
 		snapshot.drums[i].level = drum_level_[i];
 		snapshot.drums[i].active = drum_level_[i] >= 0.25f;
+	}
+	if (initial_one_shot_crash_recovery_detected) {
+		float strongest_non_crash_level = 0.0f;
+		for (std::size_t i = 0; i < kDrumCount; ++i) {
+			if (i != Crash)
+				strongest_non_crash_level = std::max(strongest_non_crash_level, drum_level_[i]);
+		}
+		if (strongest_non_crash_level > 0.0f && strongest_non_crash_level < 0.34f) {
+			drum_level_[Crash] = 0.0f;
+			snapshot.drums[Crash].level = 0.0f;
+			snapshot.drums[Crash].active = false;
+			initial_one_shot_crash_recovery_detected = false;
+		}
 	}
 
 	auto cap_drum_level = [&](std::size_t index, float cap) {
@@ -36988,6 +37012,8 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 	// and ride decision with a transient crash co-candidate.
 	if (initial_crash_onset_detected)
 		boost_drum_level(Crash, 0.34f);
+	if (initial_one_shot_crash_recovery_detected)
+		cap_drum_level(Crash, 0.34f);
 
 	// A continuous treble floor (or a paused capture with residual interface
 	// noise) may still score as a cymbal shape.  It is not a HiHat hit unless
@@ -37146,6 +37172,11 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 		kick_trigger_ratio_after_detection <= 4.356f;
 	if (final_real_mix_compact_snare_recovery)
 		boost_drum_level(Snare, 0.34f);
+	// Re-assert the isolated first-window crash co-candidate after the final
+	// one-shot bleed caps. It remains deliberately below primary-arbitration
+	// strength, but must stay above the display-active floor.
+	if (initial_one_shot_crash_recovery_detected)
+		boost_drum_level(Crash, 0.34f);
 	const bool onset_tempo_event =
 		drum_detection_enabled && rms > kSilenceRms && drum_transient &&
 		(had_previous_audio ? onset >= 1.25f : true);
