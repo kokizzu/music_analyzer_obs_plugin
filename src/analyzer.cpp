@@ -9256,7 +9256,8 @@ void add_full_mix_display_mirror(NoteCandidateList &candidates, const FullMixOwn
 	const bool confirmed_exact_guitar_owner =
 		row == FullMixDisplayRow::Guitar && display_midi == debug.midi &&
 		debug.owner == InstrumentKind::Guitar &&
-		debug.ownership_confidence >= 0.80f;
+		debug.ownership_confidence >= 0.80f &&
+		debug.bass_score <= std::max(0.30f, debug.guitar_score * 0.50f);
 	if (confirmed_exact_guitar_owner) {
 		candidate_score = std::max(candidate_score, base_score * 0.82f);
 		candidate_confidence = 1.0f;
@@ -13045,9 +13046,10 @@ void write_note_grid_cell(NoteGrid &grid, const NoteCandidate &candidate, float 
 							  0.0f, 1.0f) :
 					       0.0f;
 	// The logical grid keeps a supported low-confidence candidate available to
-	// chord and expected-row detection. Its visual_level remains attenuated so
-	// a mirrored note does not dominate the rendered ownership row.
-	const float level = raw_visual_level;
+	// Keep low-confidence mirrors available to the logical grid, but scale their
+	// analytic level as well as their rendered level so they cannot dominate
+	// later ownership and chord arbitration.
+	const float level = raw_visual_level * ownership_scale;
 	if (level <= 1.0e-6f)
 		return;
 	cell.level = level;
@@ -29126,6 +29128,11 @@ void append_source_supported_plain_guitar_aliases_after_prune(InstrumentState &s
 					note_grid_pitch_level(display_grid, component.root);
 				const bool distinct_plain_alias_needs_visible_triad =
 					display_primary_is_clean_plain && component.root != display_primary.root;
+				// A source label with one existing extension has enough context to
+				// recover a transiently missed alias tone from the analysis grid.
+				const bool partial_plain_alias_has_extension_context =
+					distinct_plain_alias_needs_visible_triad && display_label_components == 2 &&
+					note_grid_chord_tone_count(display_grid, plain) >= 2;
 				const float visible_third = note_grid_pitch_level(display_grid, third);
 				const bool full_analysis =
 					note_grid_pitch_active(analysis_grid, component.root) &&
@@ -29136,6 +29143,7 @@ void append_source_supported_plain_guitar_aliases_after_prune(InstrumentState &s
 				// second plain chord just because its third is a harmonic residue.
 				bool supported =
 					(!distinct_plain_alias_needs_visible_triad ||
+					 partial_plain_alias_has_extension_context ||
 					 note_grid_chord_tone_count(display_grid, plain) >= 3) &&
 					visible_root >= 0.08f && visible_third >= 0.08f &&
 						 note_grid_pitch_active(display_grid, component.root) &&
