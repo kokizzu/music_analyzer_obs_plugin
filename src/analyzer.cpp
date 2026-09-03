@@ -9099,6 +9099,29 @@ bool ambiguous_pure_low_bass_keyboard_mirror(const FullMixDebugCandidate &debug,
 	       debug.harmonic_ratios[4] <= 0.02f;
 }
 
+bool full_mix_confirmed_exact_other_owner_display(const FullMixOwnership &ownership,
+								  const FullMixDebugCandidate &debug,
+								  int display_midi)
+{
+	if (display_midi != debug.midi || debug.owner != InstrumentKind::Other ||
+	    debug.ownership_confidence < 0.80f || display_midi < kFirstMidi ||
+	    display_midi > kLastMidi)
+		return false;
+
+	const std::size_t index = static_cast<std::size_t>(display_midi - kFirstMidi);
+	if (!ownership.ambiguous[index])
+		return true;
+
+	// A pitch can be globally ambiguous because another row can explain the same
+	// fundamental, while the Other timbre is still clearly dominant. Preserve
+	// that exact pitch without admitting unrelated ambiguous harmonics.
+	const float strongest_named_score =
+		std::max({debug.bass_score, debug.guitar_score, debug.keyboard_score,
+			  debug.vocal_score});
+	return debug.other_score >= 0.75f &&
+	       debug.other_score >= strongest_named_score * 3.0f;
+}
+
 void add_full_mix_display_mirror(NoteCandidateList &candidates, const FullMixOwnership &ownership,
 				 const FullMixDebugCandidate &debug, FullMixDisplayRow row,
 				 const std::array<float, kNoteProbeCount> *raw_powers = nullptr)
@@ -9111,6 +9134,9 @@ void add_full_mix_display_mirror(NoteCandidateList &candidates, const FullMixOwn
 	if (ambiguous_pure_low_bass_keyboard_mirror(debug, row, display_midi))
 		return;
 	const std::size_t index = static_cast<std::size_t>(display_midi - kFirstMidi);
+	const bool confirmed_exact_other_owner =
+		row == FullMixDisplayRow::Other && display_midi == debug.midi &&
+		full_mix_confirmed_exact_other_owner_display(ownership, debug, display_midi);
 	const bool measured_other_profile_display =
 		row == FullMixDisplayRow::Other &&
 		((display_midi == debug.midi &&
@@ -9122,14 +9148,15 @@ void add_full_mix_display_mirror(NoteCandidateList &candidates, const FullMixOwn
 		  (measured_low_bowed_string_other_octave_alias_supported(debug) ||
 		   measured_low_reed_other_octave_alias_supported(debug))));
 	if (full_mix_row_display_midi_suppressed(ownership, row, display_midi) &&
-	    !measured_other_profile_display && !shared_keyboard_pitch_display)
+	    !measured_other_profile_display && !shared_keyboard_pitch_display &&
+	    !confirmed_exact_other_owner)
 		return;
 	const bool sustained_acoustic_other_mirror =
 		row == FullMixDisplayRow::Other &&
 		keyboard_owned_sustained_acoustic_other_supported(debug);
 	if (clean_owned_chord_context_for_row(ownership, debug, row) &&
 	    !sustained_acoustic_other_mirror && !measured_other_profile_display &&
-	    !shared_keyboard_pitch_display)
+	    !shared_keyboard_pitch_display && !confirmed_exact_other_owner)
 		return;
 	const bool candidate_exists = candidate_list_has_midi(candidates, display_midi);
 	const bool noisy_other_owned_distorted_guitar_keyboard_projection =
@@ -9140,7 +9167,8 @@ void add_full_mix_display_mirror(NoteCandidateList &candidates, const FullMixOwn
 		return;
 	if (row == FullMixDisplayRow::Other &&
 	    keyboard_owned_other_mirror_blocked_in_chord_context(ownership, debug) &&
-	    !sustained_acoustic_other_mirror && !measured_other_profile_display)
+	    !sustained_acoustic_other_mirror && !measured_other_profile_display &&
+	    !confirmed_exact_other_owner)
 		return;
 	if (!full_mix_display_mirror_supported(row, debug, display_midi))
 		return;
@@ -9261,6 +9289,12 @@ void add_full_mix_display_mirror(NoteCandidateList &candidates, const FullMixOwn
 	if (confirmed_exact_guitar_owner) {
 		candidate_score = std::max(candidate_score, base_score * 0.82f);
 		candidate_confidence = 1.0f;
+	}
+	if (confirmed_exact_other_owner) {
+		// A high-confidence Other owner should lead a named-row mirror at the
+		// same pitch, while keeping the mirror available for mixed-source recall.
+		candidate_score = std::max(candidate_score, base_score * 1.04f);
+		candidate_confidence = std::max(candidate_confidence, 0.80f);
 	}
 	const bool confirmed_exact_vocal_owner =
 		row == FullMixDisplayRow::Vocal &&
@@ -38143,6 +38177,38 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 			other_display = full_mix_display_candidates(full_mix_ownership, FullMixDisplayRow::Other);
 			if (synthetic_other_source_hint)
 				other_display = prune_low_synthetic_other_harmonic_aliases(other_display);
+			// Preserve a high-confidence exact Other fundamental when a named-row
+			// mirror makes the candidate builder's relative floor prefer a distant
+			// harmonic. This is an exact-pitch recovery, not a new alias.
+			const float other_display_reference = strongest_candidate_score(other_display);
+			if (other_display_reference > 1.0e-6f) {
+				const std::size_t debug_count = std::min<std::size_t>(
+					full_mix_ownership.debug_candidate_count,
+					full_mix_ownership.debug_candidates.size());
+				for (std::size_t i = 0; i < debug_count; ++i) {
+					const FullMixDebugCandidate &debug = full_mix_ownership.debug_candidates[i];
+					if (debug.owner != InstrumentKind::Other ||
+					    debug.ownership_confidence < 0.80f ||
+					    debug.midi < kOtherMinMidi || debug.midi > kOtherMaxMidi)
+						continue;
+					if (!full_mix_confirmed_exact_other_owner_display(
+							full_mix_ownership, debug, debug.midi))
+						continue;
+					const float recovered_score = other_display_reference * 1.04f;
+					bool found = false;
+					for (NoteCandidate &candidate : other_display) {
+						if (candidate.midi != debug.midi)
+							continue;
+						candidate.score = std::max(candidate.score, recovered_score);
+						candidate.ownership_confidence =
+							std::max(candidate.ownership_confidence, 0.80f);
+						found = true;
+						break;
+					}
+					if (!found)
+						other_display.push_back(NoteCandidate{debug.midi, recovered_score, 0.80f});
+				}
+			}
 			const NoteCandidateList &other_analysis_candidates =
 				synthetic_other_source_hint ? other_display : full_mix_ownership.other_candidates;
 			chroma = candidate_chroma(other_analysis_candidates);

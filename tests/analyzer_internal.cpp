@@ -6428,9 +6428,39 @@ void check_full_mix_direct_vocal_owner_requires_voice_evidence(Runner &runner)
 			      "vocal mirror: expected ordinary clean keyboard fundamental to stay out of vocal row");
 }
 
+void check_confirmed_exact_other_owner_display(Runner &runner)
+{
+	mao::FullMixOwnership ownership = {};
+	ownership.ambiguous[77 - mao::kFirstMidi] = true;
+	mao::FullMixDebugCandidate &dominant = ownership.debug_candidates[0];
+	dominant.midi = 77; // F5
+	dominant.owner = mao::InstrumentKind::Other;
+	dominant.ownership_confidence = 0.84f;
+	dominant.other_score = 0.84f;
+	dominant.guitar_score = 0.14f;
+	dominant.keyboard_score = 0.04f;
+	runner.expect(mao::full_mix_confirmed_exact_other_owner_display(ownership, dominant, 77),
+		      "Other display ownership: expected dominant exact pitch to survive same-pitch ambiguity");
+
+	mao::FullMixDebugCandidate weak = dominant;
+	weak.other_score = 0.62f;
+	weak.guitar_score = 0.34f;
+	runner.expect(!mao::full_mix_confirmed_exact_other_owner_display(ownership, weak, 77),
+		      "Other display ownership: expected weak ambiguous ownership to stay suppressed");
+
+	mao::FullMixDebugCandidate shifted = dominant;
+	runner.expect(!mao::full_mix_confirmed_exact_other_owner_display(ownership, shifted, 78),
+		      "Other display ownership: expected a different display pitch to stay suppressed");
+
+	ownership.ambiguous[77 - mao::kFirstMidi] = false;
+	runner.expect(mao::full_mix_confirmed_exact_other_owner_display(ownership, weak, 77),
+		      "Other display ownership: expected a clear exact owner without ambiguity");
+}
+
 int run()
 {
 	Runner runner;
+	check_confirmed_exact_other_owner_display(runner);
 	mao::FullMixDebugCandidate sparse_vocal_octave_alias;
 	sparse_vocal_octave_alias.owner = mao::InstrumentKind::Vocal;
 	sparse_vocal_octave_alias.midi = 60;
