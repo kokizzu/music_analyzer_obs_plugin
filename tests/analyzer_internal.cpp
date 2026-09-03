@@ -4378,6 +4378,46 @@ void check_vocal_owned_same_pitch_bass_shadow_uses_measured_ratio(Runner &runner
 		      "same-pitch vocal bass shadow: expected stronger bass to stay visible");
 }
 
+void check_measured_vocal_survives_bass_duplicate_cleanup(Runner &runner)
+{
+	static constexpr int kVocalMidi = 50; // D3
+	FullMixOwnership ownership = {};
+	ownership.vocal[kVocalMidi - kFirstMidi] = true;
+	NoteCandidate vocal_candidate = {};
+	vocal_candidate.midi = kVocalMidi;
+	vocal_candidate.score = 1.0f;
+	vocal_candidate.ownership_confidence = 0.598f;
+	ownership.vocal_candidates.push_back(vocal_candidate);
+	ownership.debug_candidate_count = 1;
+	FullMixDebugCandidate &debug = ownership.debug_candidates[0];
+	debug.midi = kVocalMidi;
+	debug.owner = InstrumentKind::Vocal;
+	debug.ownership_confidence = 0.598f;
+	debug.vocal_score = 0.598f;
+	debug.spectral_level = 1.0f;
+	debug.pitch_confidence = 0.8205f;
+	debug.periodicity = 0.8406f;
+	debug.harmonic_fit_error = 0.0704f;
+	debug.spectral_centroid = 0.2809f;
+	debug.spectral_slope = 0.2877f;
+	debug.local_noise_level = 0.3001f;
+	debug.harmonic_product_score = 15.80f;
+	debug.third_octave_ratio = 0.00624f;
+	debug.harmonic_ratios = {1.0f, 0.556f, 0.358f, 0.055f, 0.034f};
+
+	suppress_full_mix_bass_duplicate_ownership(ownership, kVocalMidi);
+	runner.expect(ownership.vocal[kVocalMidi - kFirstMidi],
+		      "measured Vocal bass duplicate: expected direct D3 Vocal ownership to survive cleanup");
+	runner.expect(candidate_list_has_midi(ownership.vocal_candidates, kVocalMidi),
+		      "measured Vocal bass duplicate: expected direct D3 Vocal candidate to survive cleanup");
+
+	FullMixOwnership weak = ownership;
+	weak.debug_candidates[0].harmonic_ratios[4] = 0.001f;
+	suppress_full_mix_bass_duplicate_ownership(weak, kVocalMidi);
+	runner.expect(!weak.vocal[kVocalMidi - kFirstMidi],
+		      "measured Vocal bass duplicate: expected weak fifth-partial control to clear");
+}
+
 FullMixDebugCandidate make_other_bass_shadow_debug(int midi)
 {
 	FullMixDebugCandidate debug = {};
@@ -6708,6 +6748,7 @@ void check_full_mix_direct_vocal_owner_requires_voice_evidence(Runner &runner)
 	confident_voice.ownership_scores[static_cast<std::size_t>(InstrumentKind::Vocal)] = 0.82f;
 	confident_voice.harmonic_product_score = 10.0f;
 	confident_voice.third_octave_ratio = 0.01f;
+	confident_voice.harmonic_ratios = {1.0f, 0.18f, 0.08f, 0.03f, 0.02f};
 	runner.expect(full_mix_direct_vocal_owner_supported(confident_voice),
 		      "direct vocal ownership: expected confident vocal score to remain accepted");
 
@@ -6716,8 +6757,15 @@ void check_full_mix_direct_vocal_owner_requires_voice_evidence(Runner &runner)
 	profiled_voice.ownership_scores[static_cast<std::size_t>(InstrumentKind::Vocal)] = 0.72f;
 	profiled_voice.harmonic_product_score = 10.0f;
 	profiled_voice.third_octave_ratio = 0.01f;
+	profiled_voice.harmonic_ratios = {1.0f, 0.45f, 0.24f, 0.05f, 0.024f};
 	runner.expect(full_mix_direct_vocal_owner_supported(profiled_voice),
 		      "direct vocal ownership: expected supported vocal timbre to remain accepted");
+
+	NoteEvidence sparse_instrument = confident_voice;
+	sparse_instrument.ownership_scores[static_cast<std::size_t>(InstrumentKind::Vocal)] = 0.80f;
+	sparse_instrument.harmonic_ratios = {1.0f, 0.20f, 0.04f, 0.003f, 0.001f};
+	runner.expect(!full_mix_direct_vocal_owner_supported(sparse_instrument, 64),
+		      "direct vocal ownership: expected sparse instrument without fifth partial to stay out");
 
 	NoteEvidence clean_keyboard_profile = {};
 	clean_keyboard_profile.vocal_tone_profile_supported = true;
@@ -7028,6 +7076,7 @@ int run()
 	check_keyboard_owned_same_pitch_vocal_shadow_uses_weak_target_guard(runner);
 	check_other_owned_same_pitch_vocal_shadow_uses_measured_threshold(runner);
 	check_vocal_owned_same_pitch_bass_shadow_uses_measured_ratio(runner);
+	check_measured_vocal_survives_bass_duplicate_cleanup(runner);
 	check_other_owned_same_pitch_bass_shadow_uses_measured_ratio(runner);
 	check_direct_full_mix_bass_survives_alias_cleanup(runner);
 	check_keyboard_owned_same_pitch_bass_shadow_uses_weak_ceiling(runner);

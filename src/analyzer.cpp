@@ -1437,7 +1437,7 @@ bool full_mix_vocal_harmonic_shape_supported(int midi, float harmonic_product_sc
 	// measured harmonic bounds keep that profile from owning ordinary pitched
 	// instrument fundamentals while retaining clean and low-mid vocal variants.
 	const bool measured_partial_stack =
-		harmonic_product_score <= 20.0f && third_octave_ratio >= 0.005f;
+		harmonic_product_score <= 20.0f && third_octave_ratio >= 0.005f && fifth >= 0.007f;
 	const bool clean_upper_voice =
 		midi >= 68 && midi <= 70 && harmonic_product_score <= 20.0f &&
 		third_octave_ratio >= 0.0015f && second <= 0.060f && third <= 0.040f &&
@@ -2601,6 +2601,18 @@ bool full_mix_guitar_duplicate_supported(const FullMixOwnership &ownership, int 
 		shared_guitar_pitch_display_supported(*debug));
 }
 
+bool full_mix_vocal_bass_duplicate_supported(const FullMixOwnership &ownership, int midi)
+{
+	const FullMixDebugCandidate *debug = full_mix_debug_for_midi(ownership, midi);
+	if (!debug || debug->owner != InstrumentKind::Vocal || debug->ownership_confidence < 0.55f)
+		return false;
+	return full_mix_vocal_harmonic_shape_supported(
+		midi, debug->harmonic_product_score, debug->third_octave_ratio,
+		debug->harmonic_ratios[1], debug->harmonic_ratios[2], debug->harmonic_ratios[3],
+		debug->harmonic_ratios[4], debug->spectral_centroid, debug->spectral_slope,
+		debug->local_noise_level);
+}
+
 void suppress_full_mix_bass_duplicate_ownership(FullMixOwnership &ownership, int bass_midi)
 {
 	static constexpr float kPreserveConfidentOwner = 0.78f;
@@ -2609,11 +2621,14 @@ void suppress_full_mix_bass_duplicate_ownership(FullMixOwnership &ownership, int
 	static constexpr int kPreserveConfidentOwnerMinMidi = 48;
 	const bool preserve_measured_guitar_duplicate =
 		full_mix_guitar_duplicate_supported(ownership, bass_midi);
+	const bool preserve_measured_vocal_duplicate =
+		full_mix_vocal_bass_duplicate_supported(ownership, bass_midi);
 	if (bass_midi < kPreserveConfidentOwnerMinMidi) {
 		remove_full_mix_row_midi(ownership.keyboard, ownership.keyboard_candidates, bass_midi);
 		if (!preserve_measured_guitar_duplicate)
 			remove_full_mix_row_midi(ownership.guitar, ownership.guitar_candidates, bass_midi);
-		remove_full_mix_row_midi(ownership.vocal, ownership.vocal_candidates, bass_midi);
+		if (!preserve_measured_vocal_duplicate)
+			remove_full_mix_row_midi(ownership.vocal, ownership.vocal_candidates, bass_midi);
 		remove_full_mix_row_midi(ownership.other, ownership.other_candidates, bass_midi);
 		return;
 	}
@@ -2623,8 +2638,9 @@ void suppress_full_mix_bass_duplicate_ownership(FullMixOwnership &ownership, int
 	if (!confident_full_mix_row_midi(ownership.guitar, ownership.guitar_candidates, bass_midi,
 					 preserve_measured_guitar_duplicate ? 0.20f : kPreserveConfidentGuitarOwner))
 		remove_full_mix_row_midi(ownership.guitar, ownership.guitar_candidates, bass_midi);
-	if (!confident_full_mix_row_midi(ownership.vocal, ownership.vocal_candidates, bass_midi,
-					 kPreserveConfidentOwner))
+	if (!preserve_measured_vocal_duplicate &&
+	    !confident_full_mix_row_midi(ownership.vocal, ownership.vocal_candidates, bass_midi,
+					  kPreserveConfidentOwner))
 		remove_full_mix_row_midi(ownership.vocal, ownership.vocal_candidates, bass_midi);
 	if (!confident_full_mix_row_midi(ownership.other, ownership.other_candidates, bass_midi,
 					 kPreserveSupportedOtherOwner))
