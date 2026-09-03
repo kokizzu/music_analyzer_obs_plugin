@@ -92,6 +92,67 @@ void check_misrouted_vocal_mirror_requires_classifier_evidence(Runner &runner)
 		      "vocal mirror: expected polyphonic rejection to remain authoritative");
 }
 
+void check_mid_acoustic_guitar_display_floor(Runner &runner)
+{
+	FullMixDebugCandidate candidate = {};
+	candidate.owner = InstrumentKind::Ambiguous;
+	candidate.midi = 50;
+	candidate.spectral_level = 1.0f;
+	candidate.pitch_confidence = 0.839f;
+	candidate.periodicity = 0.717f;
+	candidate.harmonic_fit_error = 0.044f;
+	candidate.local_noise_level = 0.241f;
+	candidate.spectral_centroid = 0.185f;
+	candidate.spectral_slope = 0.201f;
+	candidate.guitar_score = 0.066f;
+	candidate.keyboard_score = 0.147f;
+	candidate.vocal_score = 0.787f;
+	candidate.harmonic_ratios[1] = 0.126f;
+	candidate.harmonic_ratios[2] = 0.044f;
+	candidate.harmonic_ratios[3] = 0.116f;
+	candidate.harmonic_ratios[4] = 0.067f;
+	runner.expect(measured_mid_acoustic_guitar_display_floor_supported(candidate),
+				  "mid acoustic guitar floor: expected measured D3 shape");
+	const FullMixOwnership empty_ownership = {};
+	runner.expect(full_mix_display_mirror_midi(FullMixDisplayRow::Guitar, candidate, empty_ownership) == 50,
+				  "mid acoustic guitar floor: expected native mirror pitch");
+	runner.expect(!ambiguous_pure_low_bass_keyboard_mirror(candidate, FullMixDisplayRow::Guitar, 50),
+				  "mid acoustic guitar floor: unexpected low-bass keyboard rejection");
+	runner.expect(full_mix_display_mirror_supported(FullMixDisplayRow::Guitar, candidate, 50),
+				  "mid acoustic guitar floor: expected Guitar mirror support");
+	FullMixOwnership measured_ownership = {};
+	measured_ownership.global_note_levels[static_cast<std::size_t>(50 - kFirstMidi)] = 1.0f;
+	runner.expect(full_mix_display_mirror_midi(FullMixDisplayRow::Guitar, candidate,
+								 measured_ownership) == 50,
+				  "mid acoustic guitar floor: ownership changed mirror pitch");
+	NoteCandidateList measured_candidates;
+	add_full_mix_display_mirror(measured_candidates, measured_ownership, candidate,
+						FullMixDisplayRow::Guitar);
+	runner.expect(candidate_list_has_midi(measured_candidates, 50),
+				  "mid acoustic guitar floor: expected mirror candidate");
+	const NoteCandidateList pruned_candidates =
+		prune_shadowed_full_mix_guitar_display_candidates(measured_ownership, measured_candidates);
+	runner.expect(candidate_list_has_midi(pruned_candidates, 50),
+				  "mid acoustic guitar floor: expected candidate after shadow prune");
+	FullMixOwnership low_level_ownership = {};
+	NoteCandidateList low_level_candidates;
+	add_full_mix_display_mirror(low_level_candidates, low_level_ownership, candidate,
+						FullMixDisplayRow::Guitar);
+	runner.expect(candidate_list_has_midi(low_level_candidates, 50),
+				  "mid acoustic guitar floor: expected recovery below global level floor");
+	FullMixOwnership pipeline_ownership = {};
+	pipeline_ownership.debug_candidate_count = 1;
+	pipeline_ownership.debug_candidates[0] = candidate;
+	const NoteCandidateList pipeline_candidates = full_mix_display_candidates(
+		pipeline_ownership, FullMixDisplayRow::Guitar, nullptr, nullptr);
+	runner.expect(candidate_list_has_midi(pipeline_candidates, 50),
+				  "mid acoustic guitar floor: expected full ownership pipeline candidate");
+
+	candidate.guitar_score = 0.0f;
+	runner.expect(!measured_mid_acoustic_guitar_display_floor_supported(candidate),
+		      "mid acoustic guitar floor: expected weak guitar evidence to stay out");
+}
+
 void check_auto_source_mode_resolution(Runner &runner)
 {
 	AnalysisSettings settings = {};
@@ -6584,6 +6645,7 @@ int run()
 	check_shared_keyboard_display_recovers_strong_pitched_body(runner);
 	check_full_mix_direct_vocal_owner_requires_voice_evidence(runner);
 	check_misrouted_vocal_mirror_requires_classifier_evidence(runner);
+	check_mid_acoustic_guitar_display_floor(runner);
 	check_auto_source_mode_resolution(runner);
 	check_low_acoustic_bass_suboctave_display(runner);
 	check_low_brass_suboctave_display(runner);

@@ -2586,6 +2586,7 @@ bool full_mix_named_row_midi_active(const FullMixOwnership &ownership, int midi)
 const FullMixDebugCandidate *full_mix_debug_for_midi(const FullMixOwnership &ownership, int midi);
 bool measured_midrange_muted_guitar_display_supported(const FullMixDebugCandidate &debug);
 bool other_owned_low_acoustic_guitar_body_supported(const FullMixDebugCandidate &debug);
+bool measured_mid_acoustic_guitar_display_floor_supported(const FullMixDebugCandidate &debug);
 bool shared_guitar_pitch_display_supported(const FullMixDebugCandidate &debug);
 
 bool full_mix_guitar_duplicate_supported(const FullMixOwnership &ownership, int midi)
@@ -2596,6 +2597,7 @@ bool full_mix_guitar_duplicate_supported(const FullMixOwnership &ownership, int 
 		 debug->ownership_confidence >= 0.62f) ||
 		measured_midrange_muted_guitar_display_supported(*debug) ||
 		other_owned_low_acoustic_guitar_body_supported(*debug) ||
+		measured_mid_acoustic_guitar_display_floor_supported(*debug) ||
 		shared_guitar_pitch_display_supported(*debug));
 }
 
@@ -6770,6 +6772,9 @@ bool sparse_vocal_owned_guitar_octave_alias_supported(const FullMixDebugCandidat
 int full_mix_display_mirror_midi(FullMixDisplayRow row, const FullMixDebugCandidate &debug,
 				 const FullMixOwnership &ownership)
 {
+	if (row == FullMixDisplayRow::Guitar &&
+	    measured_mid_acoustic_guitar_display_floor_supported(debug))
+		return debug.midi;
 	if (row == FullMixDisplayRow::Vocal && debug.midi > kVocalMaxMidi &&
 	    shared_vocal_pitch_display_supported(debug)) {
 		const int lowered = debug.midi - 12;
@@ -8512,6 +8517,7 @@ bool full_mix_display_mirror_supported(FullMixDisplayRow row, const FullMixDebug
 		       other_owned_clean_guitar_body ||
 		       other_owned_bright_guitar_body ||
 		       measured_low_acoustic_guitar_ownership_mirror ||
+		       measured_mid_acoustic_guitar_display_floor_supported(debug) ||
 		       ambiguous_low_acoustic_guitar_body ||
 		       other_owned_overdrive_guitar_body ||
 		       other_owned_distorted_guitar_octave_body ||
@@ -9029,6 +9035,31 @@ bool full_mix_display_mirror_supported(FullMixDisplayRow row, const FullMixDebug
 	return false;
 }
 
+bool measured_mid_acoustic_guitar_display_floor_supported(const FullMixDebugCandidate &debug)
+{
+	if (debug.owner != InstrumentKind::Ambiguous || debug.midi < 50 || debug.midi > 54)
+		return false;
+
+	const float second = debug.harmonic_ratios[1];
+	const float third = debug.harmonic_ratios[2];
+	const float fourth = debug.harmonic_ratios[3];
+	const float fifth = debug.harmonic_ratios[4];
+	return debug.spectral_level >= 0.90f &&
+	       debug.pitch_confidence >= 0.80f &&
+	       debug.periodicity >= 0.70f &&
+	       debug.harmonic_fit_error <= 0.065f &&
+	       debug.local_noise_level >= 0.14f && debug.local_noise_level <= 0.25f &&
+	       debug.spectral_centroid >= 0.17f && debug.spectral_centroid <= 0.22f &&
+	       debug.spectral_slope >= 0.18f && debug.spectral_slope <= 0.23f &&
+	       debug.guitar_score >= 0.060f && debug.guitar_score <= 0.080f &&
+	       debug.keyboard_score <= 0.18f && debug.other_score <= 0.01f &&
+	       debug.bass_score <= 0.01f &&
+	       second >= 0.12f && second <= 0.17f &&
+	       third >= 0.040f && third <= 0.055f &&
+	       fourth >= 0.10f && fourth <= 0.16f &&
+	       fifth >= 0.04f && fifth <= 0.075f;
+}
+
 bool measured_low_acoustic_guitar_display_floor_supported(const FullMixDebugCandidate &debug)
 {
 	if (debug.midi < 40 || debug.midi > 46)
@@ -9168,16 +9199,21 @@ void add_full_mix_display_mirror(NoteCandidateList &candidates, const FullMixOwn
 		 (display_midi == debug.midi - 12 &&
 		  (measured_low_bowed_string_other_octave_alias_supported(debug) ||
 		   measured_low_reed_other_octave_alias_supported(debug))));
+	const bool measured_mid_acoustic_guitar_floor =
+		row == FullMixDisplayRow::Guitar &&
+		display_midi == debug.midi &&
+		measured_mid_acoustic_guitar_display_floor_supported(debug);
 	if (full_mix_row_display_midi_suppressed(ownership, row, display_midi) &&
 	    !measured_other_profile_display && !shared_keyboard_pitch_display &&
-	    !confirmed_exact_other_owner)
+	    !confirmed_exact_other_owner && !measured_mid_acoustic_guitar_floor)
 		return;
 	const bool sustained_acoustic_other_mirror =
 		row == FullMixDisplayRow::Other &&
 		keyboard_owned_sustained_acoustic_other_supported(debug);
 	if (clean_owned_chord_context_for_row(ownership, debug, row) &&
 	    !sustained_acoustic_other_mirror && !measured_other_profile_display &&
-	    !shared_keyboard_pitch_display && !confirmed_exact_other_owner)
+	    !shared_keyboard_pitch_display && !confirmed_exact_other_owner &&
+	    !measured_mid_acoustic_guitar_floor)
 		return;
 	const bool candidate_exists = candidate_list_has_midi(candidates, display_midi);
 	const bool noisy_other_owned_distorted_guitar_keyboard_projection =
@@ -9282,6 +9318,13 @@ void add_full_mix_display_mirror(NoteCandidateList &candidates, const FullMixOwn
 					std::clamp(debug.spectral_level * debug.pitch_confidence * 0.45f,
 							   0.0f, 1.0f));
 	}
+	if (measured_mid_acoustic_guitar_floor) {
+		// Ownership cleanup can zero the shared level even when this measured
+		// guitar profile still has a strong, pitch-aligned fundamental.
+		global_level = std::max(global_level,
+					std::clamp(debug.spectral_level * debug.pitch_confidence * 0.74f,
+							   0.0f, 1.0f));
+	}
 	if (global_level < 0.10f)
 		return;
 
@@ -9362,6 +9405,10 @@ void add_full_mix_display_mirror(NoteCandidateList &candidates, const FullMixOwn
 	    noisy_other_owned_low_acoustic_guitar_supported(debug))
 		candidate_score = std::max(candidate_score, base_score * 1.04f);
 	if (measured_low_acoustic_guitar_floor) {
+		candidate_score = std::max(candidate_score, base_score * 0.74f);
+		candidate_confidence = std::max(candidate_confidence, 0.74f);
+	}
+	if (measured_mid_acoustic_guitar_floor) {
 		candidate_score = std::max(candidate_score, base_score * 0.74f);
 		candidate_confidence = std::max(candidate_confidence, 0.74f);
 	}
@@ -10072,6 +10119,7 @@ NoteCandidateList prune_shadowed_full_mix_guitar_display_candidates(const FullMi
 		    !(debug && (partial_rich_misrouted_guitar_display_supported(*debug) ||
 			       other_owned_overdrive_guitar_body_supported(*debug) ||
 			       keyboard_owned_low_confidence_acoustic_guitar_body_supported(*debug) ||
+			       measured_mid_acoustic_guitar_display_floor_supported(*debug) ||
 			       confident_guitar_owner_display_supported(*debug))))
 			continue;
 		pruned.push_back(candidate);
