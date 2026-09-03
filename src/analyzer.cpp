@@ -32954,7 +32954,6 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 		// mid-band, and cymbal-separation evidence as the full initial path.
 		const bool initial_real_drum_track_snare =
 			!had_previous_audio && real_drum_track_source &&
-			!contains_case_insensitive(resolved_source_name, "one shot") &&
 			snare && snare_shape && snare_crack_shape &&
 			transient_ratio >= 0.95f && score >= trigger_threshold * 0.98f &&
 			snapshot.mid_energy >= snapshot.low_energy * 0.55f &&
