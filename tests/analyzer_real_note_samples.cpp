@@ -504,7 +504,8 @@ RawNoteAttributes measure_raw_note_attributes(const mao_test::Buffer &buffer, ui
 	return attributes;
 }
 
-int strongest_pitch_class_row(const mao::AnalysisSnapshot &snapshot, int midi)
+int strongest_pitch_class_row(const mao::AnalysisSnapshot &snapshot, int midi,
+				      int preferred_row = kObservedNone)
 {
 	std::array<float, kObservedRowCount> levels = {};
 	levels[kObservedBass] = grid_pitch_class_level(snapshot.bass_notes, midi);
@@ -522,10 +523,15 @@ int strongest_pitch_class_row(const mao::AnalysisSnapshot &snapshot, int midi)
 			best_level = levels[static_cast<std::size_t>(i)];
 		}
 	}
+	if (preferred_row >= 0 && preferred_row < kObservedNone &&
+	    levels[static_cast<std::size_t>(preferred_row)] > 0.0f &&
+	    levels[static_cast<std::size_t>(preferred_row)] >= best_level - 1.0e-6f)
+		return preferred_row;
 	return best;
 }
 
-int strongest_visual_pitch_class_row(const mao::AnalysisSnapshot &snapshot, int midi)
+int strongest_visual_pitch_class_row(const mao::AnalysisSnapshot &snapshot, int midi,
+					     int preferred_row = kObservedNone)
 {
 	std::array<float, kObservedRowCount> levels = {};
 	levels[kObservedBass] = grid_pitch_class_visual_level(snapshot.bass_notes, midi);
@@ -543,6 +549,10 @@ int strongest_visual_pitch_class_row(const mao::AnalysisSnapshot &snapshot, int 
 			best_level = levels[static_cast<std::size_t>(i)];
 		}
 	}
+	if (preferred_row >= 0 && preferred_row < kObservedNone &&
+	    levels[static_cast<std::size_t>(preferred_row)] > 0.0f &&
+	    levels[static_cast<std::size_t>(preferred_row)] >= best_level - 1.0e-6f)
+		return preferred_row;
 	return best;
 }
 
@@ -1013,6 +1023,9 @@ void print_attribute_header(std::ostream &out)
 	    << "\tbass_visual_notes\tguitar_visual_notes\tpiano_visual_notes\tvocal_visual_notes"
 	    << "\tother_visual_notes\tamb_visual_notes"
 	    << "\tglobal_chord\tkeyboard_chord\tguitar_chord\tother_chord"
+	    << "\tglobal_chroma_C\tglobal_chroma_Cs\tglobal_chroma_D\tglobal_chroma_Ds"
+	    << "\tglobal_chroma_E\tglobal_chroma_F\tglobal_chroma_Fs\tglobal_chroma_G"
+	    << "\tglobal_chroma_Gs\tglobal_chroma_A\tglobal_chroma_As\tglobal_chroma_B"
 	    << "\traw_expected_peak\traw_expected_ratio\traw_tuned_peak\traw_tuned_ratio"
 	    << "\traw_tuned_cent_offset\traw_tuned_abs_cent_offset"
 	    << "\traw_local_best_note\traw_local_best_midi\traw_local_best_peak\traw_expected_rank"
@@ -1110,8 +1123,10 @@ void append_attribute_row(std::vector<std::string> &lines, const SampleRow &row,
 	append_tsv(line, expected_state.confidence);
 	append_tsv(line, bool_cell(grid_ok));
 	append_tsv(line, bool_cell(any_grid_ok));
-	append_tsv(line, kObservedRowNames[strongest_pitch_class_row(snapshot, row.midi)]);
-	append_tsv(line, kObservedRowNames[strongest_visual_pitch_class_row(snapshot, row.midi)]);
+	append_tsv(line, kObservedRowNames[
+			strongest_pitch_class_row(snapshot, row.midi, family_index(row.family))]);
+	append_tsv(line, kObservedRowNames[
+			strongest_visual_pitch_class_row(snapshot, row.midi, family_index(row.family))]);
 	append_tsv(line, grid_pitch_class_level(snapshot.bass_notes, row.midi));
 	append_tsv(line, grid_pitch_class_level(snapshot.guitar_notes, row.midi));
 	append_tsv(line, grid_pitch_class_level(snapshot.keyboard_notes, row.midi));
@@ -1146,6 +1161,8 @@ void append_attribute_row(std::vector<std::string> &lines, const SampleRow &row,
 	append_tsv(line, snapshot.keyboard_chord.label);
 	append_tsv(line, snapshot.guitar_chord.label);
 	append_tsv(line, snapshot.other_chord.label);
+	for (float value : snapshot.global_chord_debug_chroma)
+		append_tsv(line, value);
 	append_tsv(line, raw.expected_peak);
 	append_tsv(line, raw.expected_ratio);
 	append_tsv(line, raw.tuned_peak);
@@ -1524,10 +1541,11 @@ int main()
 			if (any_grid_ok) {
 				detected_anywhere = true;
 				if (first_detected_row == kObservedNone)
-					first_detected_row = strongest_pitch_class_row(snapshot, row.midi);
-				if (first_visual_detected_row == kObservedNone)
-					first_visual_detected_row =
-						strongest_visual_pitch_class_row(snapshot, row.midi);
+					first_detected_row =
+						strongest_pitch_class_row(snapshot, row.midi, family_index(row.family));
+			if (first_visual_detected_row == kObservedNone)
+				first_visual_detected_row =
+					strongest_visual_pitch_class_row(snapshot, row.midi, family_index(row.family));
 			}
 			if ((!full_mix && (label_ok || grid_ok)) ||
 			    (full_mix && detected_expected_row)) {

@@ -177,6 +177,98 @@ void check_auto_source_mode_resolution(Runner &runner)
 		      "explicit source mode: expected configured full mix to override source name");
 }
 
+void check_missing_low_acoustic_e1_keyboard_octave_alias(Runner &runner)
+{
+	FullMixDebugCandidate candidate = {};
+	candidate.owner = InstrumentKind::Other;
+	candidate.midi = 40;
+	candidate.ownership_confidence = 0.758f;
+	candidate.other_score = 0.758f;
+	candidate.guitar_score = 0.242f;
+	candidate.spectral_level = 0.378f;
+	candidate.pitch_confidence = 0.248f;
+	candidate.periodicity = 0.689f;
+	candidate.harmonic_fit_error = 0.153f;
+	candidate.local_noise_level = 0.591f;
+	candidate.spectral_centroid = 0.379f;
+	candidate.spectral_slope = 0.468f;
+	candidate.harmonic_product_score = 9.84f;
+	candidate.lower_subharmonic_product_ratio = 2.90f;
+	const FullMixOwnership empty_ownership = {};
+	runner.expect(full_mix_display_mirror_midi(FullMixDisplayRow::Keyboard, candidate,
+								 empty_ownership) == 28,
+			      "low acoustic piano E1: expected E2 harmonic to project to E1");
+	runner.expect(full_mix_display_mirror_supported(FullMixDisplayRow::Keyboard, candidate, 28),
+			      "low acoustic piano E1: expected lower keyboard display support");
+
+	candidate.spectral_level = 0.90f;
+	candidate.pitch_confidence = 0.70f;
+	candidate.periodicity = 0.55f;
+	candidate.other_score = 0.0f;
+	candidate.guitar_score = 1.0f;
+	candidate.lower_subharmonic_product_ratio = 0.0f;
+	runner.expect(full_mix_display_mirror_midi(FullMixDisplayRow::Keyboard, candidate,
+								 empty_ownership) != 28,
+			      "low acoustic piano E1: expected bass-like high-energy control to avoid E1 projection");
+	runner.expect(!full_mix_display_mirror_supported(FullMixDisplayRow::Keyboard, candidate, 28),
+			      "low acoustic piano E1: expected bass-like high-energy control to stay out");
+}
+
+void check_clean_acoustic_guitar_piano_confusion_recovery(Runner &runner)
+{
+	NoteEvidence evidence = {};
+	evidence.pitch_confidence = 0.923f;
+	evidence.periodicity = 0.815f;
+	evidence.harmonic_fit_error = 0.077f;
+	evidence.local_noise_level = 0.044f;
+	evidence.spectral_centroid = 0.217f;
+	evidence.spectral_slope = 0.228f;
+	runner.expect(measured_clean_guitar_piano_confusion_supported(
+			evidence, 61, 0.217f, 0.046f, 0.224f, 0.007f),
+		      "clean acoustic guitar/piano confusion: expected measured guitar profile");
+
+	NoteEvidence piano = evidence;
+	piano.spectral_centroid = 0.061f;
+	piano.spectral_slope = 0.025f;
+	runner.expect(!measured_clean_guitar_piano_confusion_supported(
+			piano, 77, 0.116f, 0.026f, 0.002f, 0.001f),
+		      "clean acoustic guitar/piano confusion: expected piano control rejection");
+}
+
+void check_low_wind_other_octave_alias_without_lower_level(Runner &runner)
+{
+	FullMixDebugCandidate candidate = {};
+	candidate.owner = InstrumentKind::Other;
+	candidate.midi = 49;
+	candidate.ownership_confidence = 0.862f;
+	candidate.other_score = 0.862f;
+	candidate.spectral_level = 0.443f;
+	candidate.pitch_confidence = 0.273f;
+	candidate.periodicity = 0.651f;
+	candidate.harmonicity = 4.402f;
+	candidate.harmonic_fit_error = 0.596f;
+	candidate.local_noise_level = 0.324f;
+	candidate.spectral_centroid = 0.527f;
+	candidate.spectral_slope = 1.051f;
+	candidate.harmonic_ratios = {1.0f, 1.634f, 1.656f, 0.616f, 0.496f};
+
+	FullMixOwnership ownership = {};
+	runner.expect(full_mix_display_mirror_midi(FullMixDisplayRow::Other, candidate, ownership) == 37,
+			      "low-wind Other alias: expected lower octave without lower global level");
+	runner.expect(full_mix_display_mirror_supported(FullMixDisplayRow::Other, candidate, 37),
+			      "low-wind Other alias: expected lower octave display support");
+	ownership.debug_candidate_count = 1;
+	ownership.debug_candidates[0] = candidate;
+	const NoteCandidateList candidates =
+		full_mix_display_candidates(ownership, FullMixDisplayRow::Other);
+	runner.expect(candidate_list_has_midi(candidates, 37),
+			      "low-wind Other alias: expected full display assembly to retain lower octave");
+
+	candidate.harmonic_ratios[1] = 0.10f;
+	runner.expect(full_mix_display_mirror_midi(FullMixDisplayRow::Other, candidate, ownership) != 37,
+			      "low-wind Other alias: expected weak upper partial profile to stay out");
+}
+
 void check_low_acoustic_bass_suboctave_display(Runner &runner)
 {
 	NoteGrid grid = {};
@@ -4927,6 +5019,50 @@ void check_missing_low_g1_keyboard_octave_alias_mirrors_without_lower_note(Runne
 		      "missing low G1 keyboard alias: expected bass-like E2 not to mirror as E1");
 }
 
+void check_missing_low_ambiguous_g1_keyboard_octave_alias_mirrors(Runner &runner)
+{
+	static constexpr int kLowerMidi = 31;
+	static constexpr int kAliasMidi = kLowerMidi + 12;
+
+	FullMixOwnership ownership = {};
+	ownership.global_note_levels[static_cast<std::size_t>(kAliasMidi - kFirstMidi)] = 0.92f;
+	ownership.debug_candidate_count = 1;
+	FullMixDebugCandidate &debug = ownership.debug_candidates[0];
+	debug.midi = kAliasMidi;
+	debug.owner = InstrumentKind::Ambiguous;
+	debug.spectral_level = 0.95f;
+	debug.pitch_confidence = 0.74f;
+	debug.periodicity = 0.67f;
+	debug.harmonic_fit_error = 0.07f;
+	debug.local_noise_level = 0.45f;
+	debug.spectral_centroid = 0.18f;
+	debug.spectral_slope = 0.08f;
+	debug.harmonic_ratios = {1.0f, 0.40f, 0.03f, 0.03f, 0.02f};
+
+	runner.expect(full_mix_display_mirror_midi(FullMixDisplayRow::Keyboard, debug, ownership) ==
+			      kLowerMidi,
+		      "missing ambiguous low G1 keyboard alias: expected lower fundamental display pitch");
+	runner.expect(full_mix_display_mirror_supported(FullMixDisplayRow::Keyboard, debug, kLowerMidi),
+		      "missing ambiguous low G1 keyboard alias: expected measured mirror admission");
+	const NoteCandidateList candidates =
+		full_mix_display_candidates(ownership, FullMixDisplayRow::Keyboard);
+	runner.expect(candidate_list_has_midi(candidates, kLowerMidi),
+		      "missing ambiguous low G1 keyboard alias: expected lower candidate");
+	runner.expect(!candidate_list_has_midi(candidates, kAliasMidi),
+		      "missing ambiguous low G1 keyboard alias: expected upper harmonic hidden");
+
+	FullMixDebugCandidate bass_like = debug;
+	bass_like.midi = 40;
+	bass_like.periodicity = 0.56f;
+	bass_like.harmonic_fit_error = 0.03f;
+	bass_like.spectral_centroid = 0.04f;
+	bass_like.spectral_slope = 0.02f;
+	bass_like.harmonic_ratios = {1.0f, 0.06f, 0.01f, 0.01f, 0.01f};
+	runner.expect(full_mix_display_mirror_midi(FullMixDisplayRow::Keyboard, bass_like, ownership) !=
+			      28,
+                  "missing ambiguous low G1 keyboard alias: expected bass-like E2 not to mirror as E1");
+}
+
 void check_missing_low_ambiguous_e1_f1_keyboard_octave_aliases(Runner &runner)
 {
     for (const int alias_midi : {40, 41}) {
@@ -6666,7 +6802,7 @@ void check_confirmed_exact_other_owner_display(Runner &runner)
 
 	ownership.ambiguous[77 - mao::kFirstMidi] = false;
 	runner.expect(mao::full_mix_confirmed_exact_other_owner_display(ownership, weak, 77),
-		      "Other display ownership: expected a clear exact owner without ambiguity");
+			      "Other display ownership: expected a clear exact owner without ambiguity");
 }
 
 void check_measured_guitar_owned_b3_vocal_display_recovery(Runner &runner)
@@ -6689,10 +6825,10 @@ void check_measured_guitar_owned_b3_vocal_display_recovery(Runner &runner)
 	candidate.harmonic_product_score = 5.002f;
 	candidate.harmonic_ratios = {1.0f, 1.235f, 0.082f, 0.043f, 0.047f};
 	runner.expect(mao::full_mix_display_mirror_supported(mao::FullMixDisplayRow::Vocal, candidate, 59),
-	              "B3 vocal display: expected measured guitar-owned vocal body recovery");
+			      "B3 vocal display: expected measured guitar-owned vocal body recovery");
 	candidate.harmonic_ratios[1] = 0.95f;
 	runner.expect(!mao::full_mix_display_mirror_supported(mao::FullMixDisplayRow::Vocal, candidate, 59),
-	              "B3 vocal display: expected unrelated guitar partial shape to stay out");
+			      "B3 vocal display: expected unrelated guitar partial shape to stay out");
 
 	candidate.harmonic_ratios[1] = 1.235f;
 	mao::FullMixOwnership ownership = {};
@@ -6702,7 +6838,7 @@ void check_measured_guitar_owned_b3_vocal_display_recovery(Runner &runner)
 	ownership.debug_candidates[0] = candidate;
 	mao::NoteCandidateList candidates;
 	mao::add_full_mix_display_mirror(candidates, ownership, candidate,
-	                                 mao::FullMixDisplayRow::Vocal);
+						 mao::FullMixDisplayRow::Vocal);
 	bool mirrored = false;
 	for (const mao::NoteCandidate &mirrored_candidate : candidates) {
 		if (mirrored_candidate.midi == 59) {
@@ -6721,7 +6857,7 @@ void check_measured_guitar_owned_b3_vocal_display_recovery(Runner &runner)
 		}
 	}
 	runner.expect(assembled_mirrored,
-	              "B3 vocal display: expected full display-candidate assembly to retain the mirror");
+	      "B3 vocal display: expected full display-candidate assembly to retain the mirror");
 	mao::NoteGrid vocal_grid = {};
 	mao::NoteGrid guitar_grid = {};
 	mao::NoteCell &vocal_cell = vocal_grid.cells[59 % 12];
@@ -6738,12 +6874,13 @@ void check_measured_guitar_owned_b3_vocal_display_recovery(Runner &runner)
 	mao::suppress_named_owned_same_pitch_vocal_shadows(
 		vocal_grid, vocal_state, guitar_grid, ownership, mao::InstrumentKind::Guitar, -1);
 	runner.expect(vocal_grid.cells[59 % 12].active,
-	              "B3 vocal display: expected Guitar-owned Vocal mirror to survive shadow cleanup");
+		      "B3 vocal display: expected Guitar-owned Vocal mirror to survive shadow cleanup");
 }
+
 int run()
 {
-	Runner runner;
-	check_confirmed_exact_other_owner_display(runner);
+    Runner runner;
+    check_confirmed_exact_other_owner_display(runner);
 	check_measured_guitar_owned_b3_vocal_display_recovery(runner);
 	mao::FullMixDebugCandidate sparse_vocal_octave_alias;
 	sparse_vocal_octave_alias.owner = mao::InstrumentKind::Vocal;
@@ -6797,6 +6934,9 @@ int run()
 	check_shared_keyboard_display_recovers_strong_pitched_body(runner);
 	check_full_mix_direct_vocal_owner_requires_voice_evidence(runner);
 	check_misrouted_vocal_mirror_requires_classifier_evidence(runner);
+	check_missing_low_acoustic_e1_keyboard_octave_alias(runner);
+	check_clean_acoustic_guitar_piano_confusion_recovery(runner);
+	check_low_wind_other_octave_alias_without_lower_level(runner);
 	check_mid_acoustic_guitar_display_floor(runner);
 	check_auto_source_mode_resolution(runner);
 	check_low_acoustic_bass_suboctave_display(runner);
@@ -6851,10 +6991,11 @@ int run()
 	check_measured_other_fundamental_display_level_boost(runner);
 	check_electronic_keyboard_other_shadow_is_attenuated(runner);
 	check_lower_other_pitch_class_keyboard_octave_shadow_is_attenuated(runner);
-	check_low_electronic_keyboard_octave_alias_mirrors_lower_note(runner);
-	check_missing_low_g1_keyboard_octave_alias_mirrors_without_lower_note(runner);
+    check_low_electronic_keyboard_octave_alias_mirrors_lower_note(runner);
+    check_missing_low_g1_keyboard_octave_alias_mirrors_without_lower_note(runner);
+    check_missing_low_ambiguous_g1_keyboard_octave_alias_mirrors(runner);
     check_missing_low_ambiguous_e1_f1_keyboard_octave_aliases(runner);
-	check_other_owned_electronic_keyboard_alias_mirrors_upper_note(runner);
+    check_other_owned_electronic_keyboard_alias_mirrors_upper_note(runner);
 	check_clean_organ_keyboard_alias_mirrors_supported_upper_note(runner);
 	check_low_electronic_bass_alias_promotes_fundamental_display(runner);
 	check_ambiguous_electronic_keyboard_promotes_exact_lower_octave(runner);
