@@ -4927,6 +4927,45 @@ void check_missing_low_g1_keyboard_octave_alias_mirrors_without_lower_note(Runne
 		      "missing low G1 keyboard alias: expected bass-like E2 not to mirror as E1");
 }
 
+void check_missing_low_ambiguous_e1_f1_keyboard_octave_aliases(Runner &runner)
+{
+    for (const int alias_midi : {40, 41}) {
+        const int lower_midi = alias_midi - 12;
+        FullMixOwnership ownership = {};
+        ownership.global_note_levels[static_cast<std::size_t>(alias_midi - kFirstMidi)] = 0.92f;
+        ownership.debug_candidate_count = 1;
+        FullMixDebugCandidate &debug = ownership.debug_candidates[0];
+        debug.midi = alias_midi;
+        debug.owner = InstrumentKind::Ambiguous;
+        debug.spectral_level = 0.99f;
+        debug.pitch_confidence = 0.72f;
+        debug.periodicity = 0.56f;
+        debug.harmonic_fit_error = 0.04f;
+        debug.local_noise_level = 0.53f;
+        debug.spectral_centroid = 0.03f;
+        debug.spectral_slope = 0.02f;
+        debug.harmonic_product_score = 7.5f;
+        debug.harmonic_ratios = {1.0f, 0.06f, 0.01f, 0.01f, 0.01f};
+
+        runner.expect(full_mix_display_mirror_midi(FullMixDisplayRow::Keyboard, debug, ownership) ==
+                          lower_midi,
+                      "missing ambiguous low keyboard alias: expected lower fundamental display pitch");
+        runner.expect(full_mix_display_mirror_supported(FullMixDisplayRow::Keyboard, debug, lower_midi),
+                      "missing ambiguous low keyboard alias: expected measured mirror admission");
+        const NoteCandidateList candidates =
+            full_mix_display_candidates(ownership, FullMixDisplayRow::Keyboard);
+        runner.expect(candidate_list_has_midi(candidates, lower_midi),
+                      "missing ambiguous low keyboard alias: expected lower candidate");
+        runner.expect(!candidate_list_has_midi(candidates, alias_midi),
+                      "missing ambiguous low keyboard alias: expected upper harmonic hidden");
+
+        debug.harmonic_product_score = 6.9f;
+        runner.expect(full_mix_display_mirror_midi(FullMixDisplayRow::Keyboard, debug, ownership) ==
+                          alias_midi,
+                      "missing ambiguous low keyboard alias: expected weak harmonic-product control not to mirror");
+    }
+}
+
 void check_other_owned_electronic_keyboard_alias_mirrors_upper_note(Runner &runner)
 {
 	static constexpr int kAliasMidi = 52;
@@ -6814,6 +6853,7 @@ int run()
 	check_lower_other_pitch_class_keyboard_octave_shadow_is_attenuated(runner);
 	check_low_electronic_keyboard_octave_alias_mirrors_lower_note(runner);
 	check_missing_low_g1_keyboard_octave_alias_mirrors_without_lower_note(runner);
+    check_missing_low_ambiguous_e1_f1_keyboard_octave_aliases(runner);
 	check_other_owned_electronic_keyboard_alias_mirrors_upper_note(runner);
 	check_clean_organ_keyboard_alias_mirrors_supported_upper_note(runner);
 	check_low_electronic_bass_alias_promotes_fundamental_display(runner);

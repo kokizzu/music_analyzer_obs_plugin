@@ -5354,6 +5354,25 @@ bool measured_low_electronic_keyboard_octave_alias_supported(const FullMixDebugC
 
 bool measured_missing_low_keyboard_octave_alias_supported(const FullMixDebugCandidate &debug)
 {
+    // Measured electronic keyboard E1/F1 samples have the same clean low
+    // spectrum but a stronger harmonic-product score than the matching bass
+    // controls. Require that extra evidence before recovering their octave.
+    if (debug.owner == InstrumentKind::Ambiguous && (debug.midi == 40 || debug.midi == 41)) {
+        return debug.keyboard_score <= 0.01f &&
+               debug.guitar_score <= 0.01f &&
+               debug.other_score <= 0.01f &&
+               debug.vocal_score <= 0.01f &&
+               debug.spectral_level >= 0.98f &&
+               debug.pitch_confidence >= 0.69f &&
+               debug.periodicity >= 0.53f && debug.periodicity <= 0.59f &&
+               debug.harmonic_fit_error <= 0.06f &&
+               debug.local_noise_level >= 0.48f && debug.local_noise_level <= 0.56f &&
+               debug.spectral_centroid <= 0.06f && debug.spectral_slope <= 0.04f &&
+               debug.harmonic_product_score >= 7.0f &&
+               debug.harmonic_ratios[1] <= 0.08f &&
+               debug.harmonic_ratios[2] <= 0.02f;
+    }
+
 	// The full-mix corpus contains a narrow G1/G#1 piano profile whose octave
 	// harmonic is selected at MIDI 43/44. Keep this recovery separate from the
 	// broader low-electronic alias rule because it has no lower global support.
