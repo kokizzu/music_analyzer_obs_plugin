@@ -9122,6 +9122,14 @@ bool full_mix_confirmed_exact_other_owner_display(const FullMixOwnership &owners
 	       debug.other_score >= strongest_named_score * 3.0f;
 }
 
+bool production_full_mix_vocal_mirror_candidate_allowed(const FullMixOwnership &ownership,
+									 int display_midi, float confidence)
+{
+	if (confidence >= 0.24f)
+		return true;
+	return full_mix_row_midi_active(ownership.vocal, display_midi);
+}
+
 void add_full_mix_display_mirror(NoteCandidateList &candidates, const FullMixOwnership &ownership,
 				 const FullMixDebugCandidate &debug, FullMixDisplayRow row,
 				 const std::array<float, kNoteProbeCount> *raw_powers = nullptr)
@@ -9417,6 +9425,10 @@ void add_full_mix_display_mirror(NoteCandidateList &candidates, const FullMixOwn
 		candidate_score = std::max(candidate_score, base_score * 0.72f);
 		candidate_confidence = std::max(candidate_confidence, 0.58f);
 	}
+	if (row == FullMixDisplayRow::Vocal &&
+	    !production_full_mix_vocal_mirror_candidate_allowed(ownership, display_midi,
+										 candidate_confidence))
+		return;
 	if (candidate_exists) {
 		for (NoteCandidate &candidate : candidates) {
 			if (candidate.midi == display_midi) {

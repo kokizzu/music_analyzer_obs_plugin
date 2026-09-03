@@ -6424,8 +6424,56 @@ void check_full_mix_direct_vocal_owner_requires_voice_evidence(Runner &runner)
 	clean_keyboard_fundamental.third_octave_ratio = 0.001f;
 	clean_keyboard_fundamental.harmonic_ratios = {1.0f, 0.25f, 0.12f, 0.06f, 0.02f};
 	runner.expect(!full_mix_display_mirror_supported(FullMixDisplayRow::Vocal,
-							clean_keyboard_fundamental, clean_keyboard_fundamental.midi),
+							 clean_keyboard_fundamental, clean_keyboard_fundamental.midi),
 			      "vocal mirror: expected ordinary clean keyboard fundamental to stay out of vocal row");
+
+	FullMixDebugCandidate clean_keyboard_ooh = {};
+	clean_keyboard_ooh.owner = InstrumentKind::Keyboard;
+	clean_keyboard_ooh.midi = 64;
+	clean_keyboard_ooh.ownership_confidence = 0.86f;
+	clean_keyboard_ooh.keyboard_score = 0.86f;
+	clean_keyboard_ooh.vocal_score = 0.0f;
+	clean_keyboard_ooh.spectral_level = 0.95f;
+	clean_keyboard_ooh.pitch_confidence = 0.95f;
+	clean_keyboard_ooh.periodicity = 0.90f;
+	clean_keyboard_ooh.harmonic_fit_error = 0.02f;
+	clean_keyboard_ooh.harmonic_ratios = {1.0f, 0.30f, 0.05f, 0.075f, 0.05f};
+	runner.expect(!full_mix_display_mirror_supported(FullMixDisplayRow::Vocal,
+							 clean_keyboard_ooh, clean_keyboard_ooh.midi),
+			      "vocal mirror: expected clean keyboard Ooh-shaped pitch without vocal evidence to stay out");
+
+	FullMixDebugCandidate keyboard_ooh_alias = {};
+	keyboard_ooh_alias.owner = InstrumentKind::Keyboard;
+	keyboard_ooh_alias.midi = 76;
+	keyboard_ooh_alias.ownership_confidence = 0.72f;
+	keyboard_ooh_alias.keyboard_score = 0.72f;
+	keyboard_ooh_alias.guitar_score = 0.21f;
+	keyboard_ooh_alias.vocal_score = 0.0f;
+	keyboard_ooh_alias.spectral_level = 0.70f;
+	keyboard_ooh_alias.pitch_confidence = 0.65f;
+	keyboard_ooh_alias.periodicity = 0.92f;
+	keyboard_ooh_alias.harmonic_fit_error = 0.05f;
+	keyboard_ooh_alias.harmonicity = 0.50f;
+	keyboard_ooh_alias.harmonic_ratios = {1.0f, 0.22f, 0.31f, 0.13f, 0.19f};
+	runner.expect(!full_mix_display_mirror_supported(FullMixDisplayRow::Vocal,
+							 keyboard_ooh_alias, keyboard_ooh_alias.midi - 12),
+			      "vocal mirror: expected clean keyboard octave alias without vocal evidence to stay out");
+
+	FullMixOwnership vocal_mirror_ownership = {};
+	runner.expect(!mao::production_full_mix_vocal_mirror_candidate_allowed(vocal_mirror_ownership, 64,
+													0.20f),
+			      "vocal mirror: expected an unowned low-confidence mirror to stay hidden");
+	vocal_mirror_ownership.vocal[64 - kFirstMidi] = true;
+	runner.expect(mao::production_full_mix_vocal_mirror_candidate_allowed(vocal_mirror_ownership, 64,
+													0.20f),
+			      "vocal mirror: expected a direct vocal owner to keep its low-confidence candidate");
+	vocal_mirror_ownership.vocal[64 - kFirstMidi] = false;
+	runner.expect(mao::production_full_mix_vocal_mirror_candidate_allowed(vocal_mirror_ownership, 64,
+													0.24f),
+			      "vocal mirror: expected the measured boundary confidence to remain available");
+	runner.expect(mao::production_full_mix_vocal_mirror_candidate_allowed(vocal_mirror_ownership, 64,
+													0.25f),
+			      "vocal mirror: expected a measured higher-confidence mirror to remain available");
 }
 
 void check_confirmed_exact_other_owner_display(Runner &runner)
