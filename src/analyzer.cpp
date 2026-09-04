@@ -280,6 +280,7 @@ bool one_shot_measured_ride_level_ratio_primary_recovery_supported(
         ride_level / std::max(hihat_level, 0.001f) <= 0.80f;
 }
 
+
 bool contains_case_insensitive(const char *text, const char *needle)
 {
 	if (!text || !needle || !*needle)
@@ -13027,13 +13028,19 @@ void boost_note_grid_midi_visual_level(NoteGrid &grid, int midi, float floor)
 
 bool upper_clean_existing_guitar_visual_boost_supported(const FullMixDebugCandidate &debug)
 {
-	if (debug.midi < 80 || debug.midi > 88)
+	if (debug.midi < 77 || debug.midi > 88)
 		return false;
 
-	const bool measured_owner =
+	const bool measured_named_owner =
 		(debug.owner == InstrumentKind::Keyboard && debug.keyboard_score >= 0.78f) ||
 		(debug.owner == InstrumentKind::Vocal && debug.vocal_score >= 0.78f);
-	if (!measured_owner)
+	const bool measured_ambiguous_owner =
+		debug.owner == InstrumentKind::Ambiguous &&
+		debug.ownership_confidence >= 0.55f && debug.ownership_confidence <= 0.66f &&
+		debug.keyboard_score >= 0.50f && debug.keyboard_score <= 0.66f &&
+		debug.vocal_score >= 0.34f && debug.vocal_score <= 0.50f &&
+		debug.guitar_score <= 0.05f && debug.other_score <= 0.05f;
+	if (!measured_named_owner && !measured_ambiguous_owner)
 		return false;
 
 	return debug.spectral_level >= 0.90f &&
@@ -40024,9 +40031,6 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 		attenuate_note_grid_display_by_candidates(snapshot.guitar_notes, mixed_guitar_display_candidates);
 		attenuate_note_grid_display_by_candidates(snapshot.vocal_notes, mixed_vocal_display_candidates);
 		attenuate_note_grid_display_by_candidates(snapshot.other_notes, mixed_other_display_candidates);
-		boost_existing_upper_clean_guitar_visual_notes(snapshot.guitar_notes,
-							      snapshot.keyboard_notes,
-							      full_mix_ownership);
 		attenuate_lower_non_guitar_pitch_class_guitar_octave_shadows(
 			snapshot.guitar_notes, snapshot.guitar, snapshot.keyboard_notes, snapshot.other_notes,
 			full_mix_ownership, -1);
@@ -40177,6 +40181,9 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 				write_note_grid_cell(snapshot.keyboard_notes, candidate, strongest_low_keyboard_candidate,
 						    note_visual_loudness(rms));
 		}
+		boost_existing_upper_clean_guitar_visual_notes(snapshot.guitar_notes,
+							      snapshot.keyboard_notes,
+							      full_mix_ownership);
 	} else {
 		reset_chord_tracking(global_chord_tracking_, snapshot.global_chord);
 	}

@@ -6304,6 +6304,51 @@ void check_existing_upper_clean_guitar_visual_note_is_brightened(Runner &runner)
 		      "existing upper clean guitar visual: expected weak guitar cell to stay dim");
 }
 
+void check_existing_ambiguous_upper_guitar_visual_note_is_brightened(Runner &runner)
+{
+	static constexpr int kMidi = 79;
+
+	NoteGrid guitar_grid = {};
+	set_midi(guitar_grid, kMidi, 1.0f);
+	guitar_grid.cells[static_cast<std::size_t>(midi_pitch_class(kMidi))].visual_level = 0.36f;
+	NoteGrid keyboard_grid = {};
+	set_midi(keyboard_grid, kMidi, 1.0f);
+
+	FullMixOwnership ownership = {};
+	ownership.debug_candidate_count = 1;
+	FullMixDebugCandidate &debug = ownership.debug_candidates[0];
+	debug.midi = kMidi;
+	debug.owner = InstrumentKind::Ambiguous;
+	debug.ownership_confidence = 0.60f;
+	debug.keyboard_score = 0.60f;
+	debug.vocal_score = 0.40f;
+	debug.spectral_level = 1.0f;
+	debug.pitch_confidence = 0.937f;
+	debug.periodicity = 0.72f;
+	debug.harmonic_fit_error = 0.053f;
+	debug.local_noise_level = 0.004f;
+	debug.spectral_slope = 0.040f;
+	debug.adjacent_lower_ratio = 0.004f;
+	debug.adjacent_upper_ratio = 0.004f;
+	debug.harmonic_ratios[1] = 0.030f;
+	debug.harmonic_ratios[2] = 0.010f;
+	debug.harmonic_ratios[3] = 0.001f;
+	debug.harmonic_ratios[4] = 0.001f;
+
+	boost_existing_upper_clean_guitar_visual_notes(guitar_grid, keyboard_grid, ownership);
+	runner.expect(note_grid_midi_visual_level(guitar_grid, kMidi) >= 0.739f,
+		      "existing ambiguous upper guitar visual: expected G5 visual level to be brightened");
+
+	NoteGrid noisy_guitar_grid = {};
+	set_midi(noisy_guitar_grid, kMidi, 1.0f);
+	noisy_guitar_grid.cells[static_cast<std::size_t>(midi_pitch_class(kMidi))].visual_level = 0.36f;
+	FullMixOwnership noisy_ownership = ownership;
+	noisy_ownership.debug_candidates[0].local_noise_level = 0.020f;
+	boost_existing_upper_clean_guitar_visual_notes(noisy_guitar_grid, keyboard_grid, noisy_ownership);
+	runner.expect(note_grid_midi_visual_level(noisy_guitar_grid, kMidi) < 0.37f,
+		      "existing ambiguous upper guitar visual: expected noisy G5 to stay dim");
+}
+
 void check_existing_reed_brass_other_visual_note_is_brightened(Runner &runner)
 {
 	static constexpr int kMidi = 67;
@@ -7263,6 +7308,7 @@ int run()
 	check_low_acoustic_guitar_display_mirror_gets_bright_score_floor(runner);
 	check_high_clean_acoustic_guitar_display_mirror_gets_bright_score_floor(runner);
 	check_existing_upper_clean_guitar_visual_note_is_brightened(runner);
+	check_existing_ambiguous_upper_guitar_visual_note_is_brightened(runner);
 	check_existing_reed_brass_other_visual_note_is_brightened(runner);
 	check_other_owned_low_wind_alias_maps_to_lower_octave(runner);
 	check_ambiguous_smooth_violin_alias_maps_to_lower_octave(runner);
