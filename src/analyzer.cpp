@@ -13847,6 +13847,44 @@ void merge_note_grid_chroma(std::array<float, 12> &chroma, const NoteGrid &grid,
 	}
 }
 
+bool mixed_source_plain_major_minor_chord(const ChordResult &chord)
+{
+	if (!valid_chord_result(chord))
+		return false;
+
+	const char *end = std::strchr(chord.label, '=');
+	const std::size_t length = end ? static_cast<std::size_t>(end - chord.label) :
+								 std::strlen(chord.label);
+	const std::size_t root_length =
+		length > 1 && chord.label[1] == '#' ? 2 : 1;
+	if (length == root_length)
+		return true;
+	return length == root_length + 1 && chord.label[root_length] == 'm';
+}
+
+void prefer_mixed_source_plain_chord(ChordResult &current, const ChordResult &keyboard,
+							     const ChordResult &guitar, const ChordResult &other)
+{
+	const bool current_valid = valid_chord_result(current);
+	if (current_valid && !std::strstr(current.label, "sus") &&
+	    !std::strstr(current.label, "pow"))
+		return;
+
+	const ChordResult *best = nullptr;
+	for (const ChordResult *candidate : {&keyboard, &guitar, &other}) {
+		if (!mixed_source_plain_major_minor_chord(*candidate) || candidate->confidence < 0.48f)
+			continue;
+		if (!best || candidate->confidence > best->confidence)
+			best = candidate;
+	}
+	if (!best)
+		return;
+
+	if (!current_valid || best->root == current.root ||
+	    best->confidence >= current.confidence + 0.08f)
+		current = *best;
+}
+
 std::array<float, 12> mixed_global_display_chroma(const NoteGrid &bass, const NoteGrid &keyboard,
 						  const NoteGrid &guitar, const NoteGrid &vocal,
 						  const NoteGrid &other, const NoteGrid &ambiguous)
@@ -40039,6 +40077,8 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 		const ChordResult display_global_chord =
 			detect_mixed_display_global_chord(display_global_chroma, mixed_bass_pitch_class);
 		raw_global_chord = prefer_mixed_display_global_chord(raw_global_chord, display_global_chord);
+		prefer_mixed_source_plain_chord(raw_global_chord, raw_keyboard_chord, raw_guitar_chord,
+						       raw_other_chord);
 		smoothed_global_chord =
 			prefer_mixed_display_global_chord(smoothed_global_chord, display_global_chord);
 		stabilize_chord(snapshot.global_chord, global_chord_tracking_, raw_global_chord, smoothed_global_chord,

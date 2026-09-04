@@ -6304,6 +6304,52 @@ void check_existing_upper_clean_guitar_visual_note_is_brightened(Runner &runner)
 		      "existing upper clean guitar visual: expected weak guitar cell to stay dim");
 }
 
+void check_mixed_source_plain_chord_fallback(Runner &runner)
+{
+	auto make_chord = [](int root, const char *label, float confidence) {
+		ChordResult chord = {};
+		chord.root = root;
+		chord.confidence = confidence;
+		chord.uncertain = false;
+		std::snprintf(chord.label, sizeof(chord.label), "%s", label);
+		return chord;
+	};
+
+	const ChordResult major = make_chord(0, "C", 0.80f);
+	const ChordResult minor = make_chord(6, "F#m", 0.80f);
+	const ChordResult sus = make_chord(6, "F#sus2", 0.80f);
+	const ChordResult seventh = make_chord(0, "C7", 0.80f);
+	runner.expect(mixed_source_plain_major_minor_chord(major),
+		      "mixed source chord fallback: expected major chord to be plain");
+	runner.expect(mixed_source_plain_major_minor_chord(minor),
+		      "mixed source chord fallback: expected minor chord to be plain");
+	runner.expect(!mixed_source_plain_major_minor_chord(sus),
+		      "mixed source chord fallback: expected sus chord to stay out");
+	runner.expect(!mixed_source_plain_major_minor_chord(seventh),
+		      "mixed source chord fallback: expected seventh chord to stay out");
+
+	ChordResult current = {};
+	prefer_mixed_source_plain_chord(current, {}, {}, minor);
+	runner.expect(std::strcmp(current.label, "F#m") == 0,
+		      "mixed source chord fallback: expected source minor to recover empty global chord");
+
+	current = sus;
+	prefer_mixed_source_plain_chord(current, {}, {}, minor);
+	runner.expect(std::strcmp(current.label, "F#m") == 0,
+		      "mixed source chord fallback: expected same-root minor to replace sus chord");
+
+	current = major;
+	prefer_mixed_source_plain_chord(current, {}, {}, minor);
+	runner.expect(std::strcmp(current.label, "C") == 0,
+		      "mixed source chord fallback: expected strong global major to remain");
+
+	current = make_chord(0, "Cpow", 0.80f);
+	const ChordResult stronger_minor = make_chord(6, "F#m", 0.90f);
+	prefer_mixed_source_plain_chord(current, {}, {}, stronger_minor);
+	runner.expect(std::strcmp(current.label, "F#m") == 0,
+		      "mixed source chord fallback: expected stronger source chord to replace power chord");
+}
+
 void check_existing_ambiguous_upper_guitar_visual_note_is_brightened(Runner &runner)
 {
 	static constexpr int kMidi = 79;
@@ -7362,6 +7408,7 @@ int run()
 	check_high_clean_acoustic_guitar_display_mirror_gets_bright_score_floor(runner);
 	check_existing_upper_clean_guitar_visual_note_is_brightened(runner);
 	check_existing_upper_keyboard_visual_note_profile(runner);
+	check_mixed_source_plain_chord_fallback(runner);
 	check_existing_ambiguous_upper_guitar_visual_note_is_brightened(runner);
 	check_existing_reed_brass_other_visual_note_is_brightened(runner);
 	check_other_owned_low_wind_alias_maps_to_lower_octave(runner);
