@@ -192,6 +192,94 @@ constexpr float kIsolatedBassPeriodicitySpectralRatio = 0.62f;
 constexpr int kIsolatedBassStrongHarmonicMaxMidi = 47;
 constexpr int kIsolatedBassPeriodicReplacementMaxMidi = 43;
 
+bool one_shot_measured_low_hihat_crash_primary_recovery_supported(bool drum_detection_enabled,
+											 bool one_shot_drum_source,
+											 bool had_previous_audio, float crash_level,
+											 float hihat_level, float low_energy)
+{
+	return drum_detection_enabled && one_shot_drum_source && !had_previous_audio &&
+        crash_level >= 0.50f && hihat_level <= 0.30f && low_energy <= 0.30f;
+}
+
+bool one_shot_measured_crash_level_transient_primary_recovery_supported(
+    bool drum_detection_enabled,
+    bool one_shot_drum_source,
+    float crash_level,
+    float transient)
+{
+    return drum_detection_enabled && one_shot_drum_source && crash_level >= 0.55f && transient <= 1.525f;
+}
+
+bool one_shot_measured_ride_shape_recovery_supported(bool drum_detection_enabled,
+										 bool one_shot_drum_source, float ride_band,
+										 float hihat_band, float ride_segment,
+										 float hihat_segment, float high_energy)
+{
+	return drum_detection_enabled && one_shot_drum_source && ride_band >= 5.0f &&
+		ride_band >= hihat_band * 0.75f && ride_segment >= hihat_segment * 0.70f && high_energy >= 0.30f;
+}
+
+bool one_shot_measured_ride_primary_recovery_supported(
+    bool drum_detection_enabled,
+    bool one_shot_drum_source,
+    float ride_level,
+    float hihat_level,
+    float snare_level,
+    bool ride_shape_supported,
+    float ride_band,
+	float hihat_band,
+	float ride_segment,
+	float hihat_segment,
+	float high_energy)
+{
+    return drum_detection_enabled && one_shot_drum_source && ride_shape_supported &&
+        ride_band >= hihat_band * 0.70f && ride_segment >= hihat_segment * 0.70f &&
+        high_energy >= 0.30f &&
+        ride_level > 0.30f && ride_level >= hihat_level * 0.60f && snare_level <= 0.30f;
+}
+
+bool one_shot_measured_ride_level_band_primary_recovery_supported(
+    bool drum_detection_enabled,
+    bool one_shot_drum_source,
+    float ride_level,
+    float snare_level)
+{
+    return drum_detection_enabled && one_shot_drum_source && ride_level >= 0.68f && ride_level <= 0.72f &&
+        snare_level <= 0.30f;
+}
+
+bool one_shot_measured_ride_lower_level_band_primary_recovery_supported(
+    bool drum_detection_enabled,
+    bool one_shot_drum_source,
+    float ride_level,
+    float snare_level,
+    float crash_level)
+{
+    return drum_detection_enabled && one_shot_drum_source && ride_level >= 0.60f && ride_level <= 0.68f &&
+        snare_level <= 0.30f && crash_level <= 0.30f;
+}
+
+bool one_shot_measured_ride_upper_level_band_primary_recovery_supported(
+    bool drum_detection_enabled,
+    bool one_shot_drum_source,
+    float ride_level,
+    float snare_level,
+    float crash_level)
+{
+    return drum_detection_enabled && one_shot_drum_source && ride_level > 0.72f && ride_level <= 0.76f &&
+        snare_level <= 0.30f && crash_level <= 0.30f;
+}
+
+bool one_shot_measured_ride_level_ratio_primary_recovery_supported(
+    bool drum_detection_enabled,
+    bool one_shot_drum_source,
+    float ride_level,
+    float hihat_level)
+{
+    return drum_detection_enabled && one_shot_drum_source && ride_level >= 0.64f &&
+        ride_level / std::max(hihat_level, 0.001f) <= 0.80f;
+}
+
 bool contains_case_insensitive(const char *text, const char *needle)
 {
 	if (!text || !needle || !*needle)
@@ -37302,6 +37390,48 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 	// strength, but must stay above the display-active floor.
 	if (initial_one_shot_crash_recovery_detected)
 		boost_drum_level(Crash, 0.34f);
+    const bool final_one_shot_measured_low_hihat_crash_primary_recovery =
+        one_shot_measured_low_hihat_crash_primary_recovery_supported(
+            drum_detection_enabled, one_shot_drum_source, had_previous_audio, drum_level_[Crash],
+            drum_level_[HiHat], snapshot.low_energy);
+    const bool final_one_shot_measured_crash_level_transient_primary_recovery =
+        one_shot_measured_crash_level_transient_primary_recovery_supported(
+            drum_detection_enabled, one_shot_drum_source, drum_level_[Crash], drum_transient_ratio);
+    if (final_one_shot_measured_low_hihat_crash_primary_recovery ||
+        final_one_shot_measured_crash_level_transient_primary_recovery) {
+        promote_drum_primary(Crash, 0.90f);
+	}
+	const bool final_one_shot_measured_ride_shape_recovery =
+		one_shot_measured_ride_shape_recovery_supported(
+			drum_detection_enabled, one_shot_drum_source, drum_bands[Ride], drum_bands[HiHat],
+			drum_segment_bands[Ride], drum_segment_bands[HiHat], snapshot.high_energy);
+    const bool final_one_shot_measured_ride_primary_recovery =
+        one_shot_measured_ride_primary_recovery_supported(
+            drum_detection_enabled, one_shot_drum_source, drum_level_[Ride], drum_level_[HiHat],
+            drum_level_[Snare], drum_shape_supported[Ride], drum_bands[Ride], drum_bands[HiHat],
+            drum_segment_bands[Ride],
+            drum_segment_bands[HiHat], snapshot.high_energy);
+    const bool final_one_shot_measured_ride_level_band_primary_recovery =
+        one_shot_measured_ride_level_band_primary_recovery_supported(
+            drum_detection_enabled, one_shot_drum_source, drum_level_[Ride], drum_level_[Snare]);
+    const bool final_one_shot_measured_ride_lower_level_band_primary_recovery =
+        one_shot_measured_ride_lower_level_band_primary_recovery_supported(
+            drum_detection_enabled, one_shot_drum_source, drum_level_[Ride], drum_level_[Snare],
+            drum_level_[Crash]);
+    const bool final_one_shot_measured_ride_upper_level_band_primary_recovery =
+        one_shot_measured_ride_upper_level_band_primary_recovery_supported(
+            drum_detection_enabled, one_shot_drum_source, drum_level_[Ride], drum_level_[Snare],
+            drum_level_[Crash]);
+    const bool final_one_shot_measured_ride_level_ratio_primary_recovery =
+        one_shot_measured_ride_level_ratio_primary_recovery_supported(
+            drum_detection_enabled, one_shot_drum_source, drum_level_[Ride], drum_level_[HiHat]);
+    if (final_one_shot_measured_ride_primary_recovery || final_one_shot_measured_ride_level_band_primary_recovery ||
+        final_one_shot_measured_ride_lower_level_band_primary_recovery ||
+        final_one_shot_measured_ride_upper_level_band_primary_recovery ||
+        final_one_shot_measured_ride_level_ratio_primary_recovery) {
+        promote_drum_primary(Ride, 0.90f);
+	} else if (final_one_shot_measured_ride_shape_recovery && drum_level_[Ride] <= 0.30f)
+		boost_drum_level(Ride, 0.34f);
 	const bool onset_tempo_event =
 		drum_detection_enabled && rms > kSilenceRms && drum_transient &&
 		(had_previous_audio ? onset >= 1.25f : true);

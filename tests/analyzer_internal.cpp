@@ -21,6 +21,160 @@ struct Runner {
 	}
 };
 
+void check_measured_low_hihat_crash_primary_recovery(Runner &runner)
+{
+	runner.expect(
+		one_shot_measured_low_hihat_crash_primary_recovery_supported(true, true, false, 0.50f, 0.30f,
+																0.30f),
+		"measured crash recovery: expected low-hihat crash boundary to pass");
+	runner.expect(
+		!one_shot_measured_low_hihat_crash_primary_recovery_supported(true, true, false, 0.49f, 0.30f,
+																0.30f),
+		"measured crash recovery: expected weak crash level to stay out");
+	runner.expect(
+		!one_shot_measured_low_hihat_crash_primary_recovery_supported(true, true, false, 0.50f, 0.31f,
+																0.30f),
+		"measured crash recovery: expected active hihat competitor to stay out");
+	runner.expect(
+		!one_shot_measured_low_hihat_crash_primary_recovery_supported(true, true, false, 0.50f, 0.30f,
+																0.31f),
+		"measured crash recovery: expected low-band-heavy control to stay out");
+	runner.expect(
+		!one_shot_measured_low_hihat_crash_primary_recovery_supported(false, true, false, 0.90f, 0.00f,
+																0.00f),
+		"measured crash recovery: expected non-drum mode to stay out");
+	runner.expect(
+		!one_shot_measured_low_hihat_crash_primary_recovery_supported(true, false, false, 0.90f, 0.00f,
+																0.00f),
+		"measured crash recovery: expected non-one-shot mode to stay out");
+	runner.expect(
+		!one_shot_measured_low_hihat_crash_primary_recovery_supported(true, true, true, 0.90f, 0.00f, 0.00f),
+		"measured crash recovery: expected later window to stay out");
+	runner.expect(
+		one_shot_measured_crash_level_transient_primary_recovery_supported(true, true, 0.55f, 1.525f),
+		"measured crash level/transient recovery: expected boundary to pass");
+	runner.expect(
+		!one_shot_measured_crash_level_transient_primary_recovery_supported(true, true, 0.549f, 1.20f),
+		"measured crash level/transient recovery: expected weak crash level to stay out");
+	runner.expect(
+		!one_shot_measured_crash_level_transient_primary_recovery_supported(true, true, 0.80f, 1.526f),
+		"measured crash level/transient recovery: expected high transient to stay out");
+	runner.expect(
+		!one_shot_measured_crash_level_transient_primary_recovery_supported(false, true, 0.90f, 1.20f),
+		"measured crash level/transient recovery: expected non-drum mode to stay out");
+	runner.expect(
+		!one_shot_measured_crash_level_transient_primary_recovery_supported(true, false, 0.90f, 1.20f),
+		"measured crash level/transient recovery: expected non-one-shot mode to stay out");
+}
+
+void check_measured_ride_shape_recovery(Runner &runner)
+{
+	runner.expect(
+		one_shot_measured_ride_shape_recovery_supported(true, true, 5.0f, 6.666f, 7.0f, 10.0f, 0.30f),
+		"measured ride recovery: expected bounded ride shape to pass");
+	runner.expect(
+		!one_shot_measured_ride_shape_recovery_supported(true, true, 4.99f, 6.0f, 7.0f, 10.0f, 0.30f),
+		"measured ride recovery: expected weak absolute ride band to stay out");
+	runner.expect(
+		!one_shot_measured_ride_shape_recovery_supported(true, true, 5.0f, 6.0f, 6.99f, 10.0f, 0.30f),
+		"measured ride recovery: expected weak ride segment to stay out");
+	runner.expect(
+		!one_shot_measured_ride_shape_recovery_supported(true, true, 5.0f, 6.0f, 7.0f, 10.0f, 0.29f),
+		"measured ride recovery: expected low high-band energy to stay out");
+	runner.expect(
+		!one_shot_measured_ride_shape_recovery_supported(true, true, 4.5f, 5.0f, 7.0f, 8.0f, 0.80f),
+		"measured ride recovery: expected weak ride-to-hat band ratio to stay out");
+	runner.expect(
+		!one_shot_measured_ride_shape_recovery_supported(true, true, 5.0f, 6.0f, 6.0f, 10.0f, 0.80f),
+		"measured ride recovery: expected weak ride-to-hat segment ratio to stay out");
+	runner.expect(
+		!one_shot_measured_ride_shape_recovery_supported(false, true, 8.0f, 8.0f, 8.0f, 8.0f, 0.80f),
+		"measured ride recovery: expected non-drum mode to stay out");
+	runner.expect(
+		!one_shot_measured_ride_shape_recovery_supported(true, false, 8.0f, 8.0f, 8.0f, 8.0f, 0.80f),
+		"measured ride recovery: expected non-one-shot mode to stay out");
+	runner.expect(
+		one_shot_measured_ride_primary_recovery_supported(true, true, 0.80f, 1.0f, 0.20f, true, 5.0f, 6.666f, 7.0f, 10.0f,
+												0.30f),
+		"measured ride primary recovery: expected strong active ride to pass");
+	runner.expect(
+		!one_shot_measured_ride_primary_recovery_supported(true, true, 0.59f, 1.0f, 0.20f, true, 5.0f, 6.666f, 7.0f,
+												10.0f, 0.30f),
+		"measured ride primary recovery: expected weak ride level ratio to stay out");
+	runner.expect(
+		!one_shot_measured_ride_primary_recovery_supported(true, true, 0.80f, 1.0f, 0.31f, true, 5.0f, 6.666f, 7.0f,
+												10.0f, 0.30f),
+		"measured ride primary recovery: expected strong snare competitor to stay out");
+	runner.expect(
+		!one_shot_measured_ride_primary_recovery_supported(true, true, 0.80f, 1.0f, 0.20f, false, 5.0f, 6.666f, 7.0f, 10.0f,
+												0.30f),
+		"measured ride primary recovery: expected unsupported ride shape to stay out");
+	runner.expect(
+		!one_shot_measured_ride_primary_recovery_supported(true, true, 0.80f, 1.0f, 0.20f, true, 6.9f, 10.0f, 7.0f, 10.0f,
+												0.30f),
+		"measured ride primary recovery: expected weak ride-to-hat band ratio to stay out");
+	runner.expect(
+		one_shot_measured_ride_level_band_primary_recovery_supported(true, true, 0.68f, 0.30f),
+		"measured ride level-band recovery: expected lower boundary to pass");
+	runner.expect(
+		one_shot_measured_ride_level_band_primary_recovery_supported(true, true, 0.72f, 0.00f),
+		"measured ride level-band recovery: expected upper boundary to pass");
+	runner.expect(
+		!one_shot_measured_ride_level_band_primary_recovery_supported(true, true, 0.679f, 0.00f),
+		"measured ride level-band recovery: expected weak level to stay out");
+	runner.expect(
+		!one_shot_measured_ride_level_band_primary_recovery_supported(true, true, 0.721f, 0.00f),
+		"measured ride level-band recovery: expected high level to stay out");
+	runner.expect(
+		!one_shot_measured_ride_level_band_primary_recovery_supported(true, true, 0.70f, 0.31f),
+		"measured ride level-band recovery: expected strong snare competitor to stay out");
+	runner.expect(
+		one_shot_measured_ride_lower_level_band_primary_recovery_supported(true, true, 0.60f, 0.30f, 0.30f),
+		"measured ride lower-level recovery: expected lower boundary to pass");
+	runner.expect(
+		one_shot_measured_ride_lower_level_band_primary_recovery_supported(true, true, 0.68f, 0.00f, 0.00f),
+		"measured ride lower-level recovery: expected upper boundary to pass");
+	runner.expect(
+		!one_shot_measured_ride_lower_level_band_primary_recovery_supported(true, true, 0.599f, 0.00f, 0.00f),
+		"measured ride lower-level recovery: expected weak level to stay out");
+	runner.expect(
+		!one_shot_measured_ride_lower_level_band_primary_recovery_supported(true, true, 0.64f, 0.31f, 0.00f),
+		"measured ride lower-level recovery: expected strong snare competitor to stay out");
+	runner.expect(
+		!one_shot_measured_ride_lower_level_band_primary_recovery_supported(true, true, 0.64f, 0.00f, 0.31f),
+		"measured ride lower-level recovery: expected strong crash competitor to stay out");
+	runner.expect(
+		one_shot_measured_ride_upper_level_band_primary_recovery_supported(true, true, 0.73f, 0.30f, 0.30f),
+		"measured ride upper-level recovery: expected lower boundary to pass");
+	runner.expect(
+		one_shot_measured_ride_upper_level_band_primary_recovery_supported(true, true, 0.76f, 0.00f, 0.00f),
+		"measured ride upper-level recovery: expected upper boundary to pass");
+	runner.expect(
+		!one_shot_measured_ride_upper_level_band_primary_recovery_supported(true, true, 0.72f, 0.00f, 0.00f),
+		"measured ride upper-level recovery: expected lower edge to stay out");
+	runner.expect(
+		!one_shot_measured_ride_upper_level_band_primary_recovery_supported(true, true, 0.761f, 0.00f, 0.00f),
+		"measured ride upper-level recovery: expected high level to stay out");
+	runner.expect(
+		one_shot_measured_ride_level_ratio_primary_recovery_supported(true, true, 0.64f, 0.80f),
+		"measured ride level-ratio recovery: expected lower ride boundary to pass");
+	runner.expect(
+		one_shot_measured_ride_level_ratio_primary_recovery_supported(true, true, 0.80f, 1.00f),
+		"measured ride level-ratio recovery: expected ratio boundary to pass");
+	runner.expect(
+		!one_shot_measured_ride_level_ratio_primary_recovery_supported(true, true, 0.639f, 0.70f),
+		"measured ride level-ratio recovery: expected weak ride level to stay out");
+	runner.expect(
+		!one_shot_measured_ride_level_ratio_primary_recovery_supported(true, true, 0.64f, 0.79f),
+		"measured ride level-ratio recovery: expected weak ride-to-hat ratio to stay out");
+	runner.expect(
+		!one_shot_measured_ride_level_ratio_primary_recovery_supported(false, true, 0.90f, 1.00f),
+		"measured ride level-ratio recovery: expected non-drum mode to stay out");
+	runner.expect(
+		!one_shot_measured_ride_level_ratio_primary_recovery_supported(true, false, 0.90f, 1.00f),
+		"measured ride level-ratio recovery: expected non-one-shot mode to stay out");
+}
+
 ChordResult make_crowded_chord(const char *label)
 {
 	ChordResult chord;
@@ -6971,7 +7125,9 @@ void check_measured_guitar_owned_b3_vocal_display_recovery(Runner &runner)
 
 int run()
 {
-    Runner runner;
+	Runner runner;
+	check_measured_low_hihat_crash_primary_recovery(runner);
+	check_measured_ride_shape_recovery(runner);
     check_confirmed_exact_other_owner_display(runner);
 	check_measured_guitar_owned_b3_vocal_display_recovery(runner);
 	mao::FullMixDebugCandidate sparse_vocal_octave_alias;
