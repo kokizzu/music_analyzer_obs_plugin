@@ -13060,6 +13060,39 @@ bool upper_clean_existing_guitar_visual_boost_supported(const FullMixDebugCandid
 
 float note_grid_midi_level(const NoteGrid &grid, int midi);
 
+bool upper_clean_existing_keyboard_visual_boost_supported(const FullMixDebugCandidate &debug)
+{
+	// The real-note corpus has a small, repeatable upper-keyboard profile whose
+	// confirmed keyboard cell is dimmed despite a strong Keyboard owner. Keep
+	// this display-only recovery bounded to the measured register and score.
+	return debug.owner == InstrumentKind::Keyboard && debug.midi >= 72 && debug.midi <= 92 &&
+	       debug.keyboard_score >= 0.80f;
+}
+
+void boost_existing_upper_clean_keyboard_visual_notes(NoteGrid &keyboard_grid,
+							      const NoteGrid &other_grid,
+							      const FullMixOwnership &ownership)
+{
+	static constexpr float kMinExistingKeyboardLevel = 0.18f;
+	static constexpr float kMinCompetingOtherVisualLevel = 0.25f;
+	static constexpr float kMaxExistingKeyboardVisualLevel = 0.36f;
+	static constexpr float kBrightVisualFloor = 0.74f;
+	const std::size_t debug_count =
+		std::min<std::size_t>(ownership.debug_candidate_count, ownership.debug_candidates.size());
+	for (std::size_t i = 0; i < debug_count; ++i) {
+		const FullMixDebugCandidate &debug = ownership.debug_candidates[i];
+		if (!upper_clean_existing_keyboard_visual_boost_supported(debug))
+			continue;
+		if (note_grid_midi_level(keyboard_grid, debug.midi) < kMinExistingKeyboardLevel)
+			continue;
+		if (note_grid_midi_visual_level(keyboard_grid, debug.midi) >= kMaxExistingKeyboardVisualLevel)
+			continue;
+		if (note_grid_pitch_class_visual_level(other_grid, debug.midi) < kMinCompetingOtherVisualLevel)
+			continue;
+		boost_note_grid_midi_visual_level(keyboard_grid, debug.midi, kBrightVisualFloor);
+	}
+}
+
 void boost_existing_upper_clean_guitar_visual_notes(NoteGrid &guitar_grid,
 						    const NoteGrid &keyboard_grid,
 						    const FullMixOwnership &ownership)
@@ -40184,6 +40217,9 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 		boost_existing_upper_clean_guitar_visual_notes(snapshot.guitar_notes,
 							      snapshot.keyboard_notes,
 							      full_mix_ownership);
+		boost_existing_upper_clean_keyboard_visual_notes(snapshot.keyboard_notes,
+							       snapshot.other_notes,
+							       full_mix_ownership);
 	} else {
 		reset_chord_tracking(global_chord_tracking_, snapshot.global_chord);
 	}

@@ -6715,6 +6715,59 @@ void check_harmonic_product_subharmonic_evidence(Runner &runner)
 		      "harmonic product: octave candidate should expose stronger lower subharmonic support");
 }
 
+void check_existing_upper_keyboard_visual_note_profile(Runner &runner)
+{
+	FullMixDebugCandidate candidate = {};
+	candidate.owner = InstrumentKind::Keyboard;
+	candidate.midi = 90;
+	candidate.keyboard_score = 0.80f;
+	runner.expect(upper_clean_existing_keyboard_visual_boost_supported(candidate),
+		      "upper keyboard visual profile: expected measured owner boundary to pass");
+	candidate.keyboard_score = 0.799f;
+	runner.expect(!upper_clean_existing_keyboard_visual_boost_supported(candidate),
+		      "upper keyboard visual profile: expected weak keyboard score to stay out");
+	candidate.keyboard_score = 0.90f;
+	candidate.midi = 71;
+	runner.expect(!upper_clean_existing_keyboard_visual_boost_supported(candidate),
+		      "upper keyboard visual profile: expected lower register to stay out");
+	candidate.midi = 90;
+	candidate.owner = InstrumentKind::Ambiguous;
+	runner.expect(!upper_clean_existing_keyboard_visual_boost_supported(candidate),
+		      "upper keyboard visual profile: expected ambiguous owner to stay out");
+
+	NoteGrid grid = {};
+	set_midi(grid, 90, 0.30f);
+	NoteGrid other_grid = {};
+	set_midi(other_grid, 90, 0.30f);
+	candidate.owner = InstrumentKind::Keyboard;
+	candidate.keyboard_score = 0.90f;
+	FullMixOwnership ownership = {};
+	ownership.debug_candidate_count = 1;
+	ownership.debug_candidates[0] = candidate;
+	const float before = note_grid_midi_visual_level(grid, 90);
+	boost_existing_upper_clean_keyboard_visual_notes(grid, other_grid, ownership);
+	runner.expect(note_grid_midi_visual_level(grid, 90) >= 0.739f,
+		      "upper keyboard visual profile: expected existing note to reach the visual floor");
+	runner.expect(note_grid_midi_visual_level(grid, 90) > before,
+		      "upper keyboard visual profile: expected existing note to be brightened");
+
+	NoteGrid lower_grid = {};
+	set_midi(lower_grid, 71, 0.30f);
+	candidate.midi = 71;
+	ownership.debug_candidates[0] = candidate;
+	boost_existing_upper_clean_keyboard_visual_notes(lower_grid, other_grid, ownership);
+	runner.expect(note_grid_midi_visual_level(lower_grid, 71) < 0.739f,
+		      "upper keyboard visual profile: expected lower register to remain unchanged");
+
+	NoteGrid without_other_grid = {};
+	set_midi(without_other_grid, 90, 0.30f);
+	candidate.midi = 90;
+	ownership.debug_candidates[0] = candidate;
+	boost_existing_upper_clean_keyboard_visual_notes(without_other_grid, NoteGrid{}, ownership);
+	runner.expect(note_grid_midi_visual_level(without_other_grid, 90) < 0.739f,
+		      "upper keyboard visual profile: expected unmatched keyboard alias to stay dim");
+}
+
 void check_residual_polyphonic_pitch_set_recovery(Runner &runner)
 {
 	std::array<float, kNoteProbeCount> powers = {};
@@ -7308,6 +7361,7 @@ int run()
 	check_low_acoustic_guitar_display_mirror_gets_bright_score_floor(runner);
 	check_high_clean_acoustic_guitar_display_mirror_gets_bright_score_floor(runner);
 	check_existing_upper_clean_guitar_visual_note_is_brightened(runner);
+	check_existing_upper_keyboard_visual_note_profile(runner);
 	check_existing_ambiguous_upper_guitar_visual_note_is_brightened(runner);
 	check_existing_reed_brass_other_visual_note_is_brightened(runner);
 	check_other_owned_low_wind_alias_maps_to_lower_octave(runner);
