@@ -246,6 +246,29 @@ void check_misrouted_vocal_mirror_requires_classifier_evidence(Runner &runner)
 		      "vocal mirror: expected polyphonic rejection to remain authoritative");
 }
 
+void check_low_vocal_alias_requires_classifier_evidence(Runner &runner)
+{
+	FullMixDebugCandidate candidate = {};
+	candidate.owner = InstrumentKind::Other;
+	candidate.midi = 45;
+	candidate.spectral_level = 0.90f;
+	candidate.pitch_confidence = 0.80f;
+	candidate.periodicity = 0.80f;
+	candidate.harmonic_fit_error = 0.05f;
+	candidate.spectral_centroid = 0.40f;
+	candidate.spectral_slope = 0.80f;
+	candidate.harmonic_ratios[1] = 0.55f;
+	candidate.harmonic_ratios[2] = 0.20f;
+	candidate.harmonic_ratios[3] = 0.10f;
+	candidate.harmonic_ratios[4] = 0.05f;
+	runner.expect(!measured_low_vocal_fundamental_alias_supported(candidate),
+		      "low vocal alias: expected unverified Other profile to stay out");
+
+	candidate.vocal_score = 0.10f;
+	runner.expect(measured_low_vocal_fundamental_alias_supported(candidate),
+		      "low vocal alias: expected classifier-backed Other profile to remain available");
+}
+
 void check_mid_acoustic_guitar_display_floor(Runner &runner)
 {
 	FullMixDebugCandidate candidate = {};
@@ -7326,6 +7349,7 @@ int run()
 	check_shared_keyboard_display_recovers_strong_pitched_body(runner);
 	check_full_mix_direct_vocal_owner_requires_voice_evidence(runner);
 	check_misrouted_vocal_mirror_requires_classifier_evidence(runner);
+	check_low_vocal_alias_requires_classifier_evidence(runner);
 	check_missing_low_acoustic_e1_keyboard_octave_alias(runner);
 	check_clean_acoustic_guitar_piano_confusion_recovery(runner);
 	check_initial_generic_snare_onset_recovery(runner);

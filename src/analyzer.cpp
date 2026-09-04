@@ -5280,7 +5280,18 @@ bool measured_low_vocal_fundamental_alias_supported(const FullMixDebugCandidate 
 {
 	if (debug.midi < kFullMixVocalMinMidi - 12 || debug.midi >= kFullMixVocalMinMidi)
 		return false;
-
+	const bool measured_vocal_harmonic_shape =
+		debug.pitch_confidence >= 0.50f && debug.periodicity >= 0.62f &&
+		debug.harmonic_fit_error <= 0.28f && debug.harmonic_ratios[1] >= 0.95f &&
+		debug.harmonic_ratios[2] >= 0.50f && debug.harmonic_ratios[3] >= 0.25f &&
+		debug.harmonic_ratios[4] >= 0.10f;
+	// Low formant-shaped instrument fundamentals can otherwise be mirrored into
+	// the Vocal row even when the classifier has no vocal evidence. Keep the
+	// measured low-vocal recovery available for classifier-backed candidates and
+	// exceptionally clear vocal harmonic profiles.
+	if (debug.owner != InstrumentKind::Vocal && debug.vocal_score < 0.10f &&
+	    !measured_vocal_harmonic_shape)
+		return false;
 	const float second = debug.harmonic_ratios[1];
 	const float third = debug.harmonic_ratios[2];
 	const float fourth = debug.harmonic_ratios[3];
