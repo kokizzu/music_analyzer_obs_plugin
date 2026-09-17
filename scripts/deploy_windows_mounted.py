@@ -117,6 +117,18 @@ def validate_source() -> None:
         raise SystemExit(f"Windows portable directory is empty: {SOURCE_DIR}")
 
 
+def ensure_signed_source() -> None:
+    """Sign both Windows executables before any deployment copy is attempted."""
+    signer = REPO_ROOT / "scripts" / "sign_windows_standalone.py"
+    result = subprocess.run(
+        [sys.executable, str(signer), "apply"],
+        cwd=REPO_ROOT,
+        check=False,
+    )
+    if result.returncode != 0:
+        raise SystemExit("Windows deployment refused: executable signing failed")
+
+
 def mount_available() -> bool:
     try:
         return MOUNTPOINT.is_dir() and os.path.ismount(MOUNTPOINT)
@@ -157,6 +169,7 @@ def print_plan() -> None:
 
 
 def copy_atomically() -> None:
+    ensure_signed_source()
     for source, destination in artifacts():
         temporary = destination.with_name(f".{destination.name}.deploying")
         try:
@@ -202,6 +215,7 @@ def smb_entry() -> tuple[str, dict[str, str]] | None:
 
 
 def smb_upload_atomically() -> bool:
+    ensure_signed_source()
     entry = smb_entry()
     if entry is None:
         return False

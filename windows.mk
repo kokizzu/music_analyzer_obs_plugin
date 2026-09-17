@@ -170,3 +170,6 @@ $(WINDOWS_MIDI_PROTOCOL_TEST_BIN): tests/windows_midi_protocol.cpp src/fret_cont
 
 test-windows-midi-protocol: $(WINDOWS_MIDI_PROTOCOL_TEST_BIN)
 	$(WINDOWS_MIDI_PROTOCOL_TEST_BIN)
+.PHONY: test-windows-deploy-signing-gate
+test-windows-deploy-signing-gate:
+	$(PYTHON) scripts/test_windows_deploy_signing_gate.py

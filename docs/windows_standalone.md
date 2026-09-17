@@ -123,5 +123,8 @@ uses a temporary output before replacing each file. The certificate chain and
 publisher reputation still have to be trusted by the target Windows policy;
 the repository cannot bypass Smart App Control without that trust.
 
+Mounted Windows deployment signs both executables before copying them and
+refuses to deploy when a trusted signing certificate is not configured.
+
 References: https://learn.microsoft.com/en-us/windows/win32/coreaudio/loopback-recording
 and https://github.com/libsdl-org/SDL/releases/tag/release-2.32.10
