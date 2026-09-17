@@ -289,3 +289,10 @@ test-windows-midi-protocol: $(WINDOWS_MIDI_PROTOCOL_TEST_BIN)
 .PHONY: test-windows-deploy-signing-gate
 test-windows-deploy-signing-gate:
 	$(PYTHON) scripts/test_windows_deploy_signing_gate.py
+.PHONY: check-windows-share-connectivity
+check-windows-share-connectivity:
+	python3 scripts/check_windows_share_connectivity.py
+
+.PHONY: commit-windows-share-connectivity
+commit-windows-share-connectivity:
+	python3 scripts/commit_windows_share_connectivity.py
