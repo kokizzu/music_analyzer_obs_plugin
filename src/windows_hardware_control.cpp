@@ -750,13 +750,13 @@ void WindowsHardwareController::print_midi_devices()
 {
 	const UINT count = midiOutGetNumDevs();
 	if (count == 0) {
-		std::puts("No Windows MIDI output devices");
+		std::fprintf(stderr, "No Windows MIDI output devices\n");
 		return;
 	}
 	for (UINT index = 0; index < count; ++index) {
 		MIDIOUTCAPSA caps = {};
 		if (midiOutGetDevCapsA(index, &caps, sizeof(caps)) == MMSYSERR_NOERROR)
-			std::printf("MIDI %u\t%s\n", index, caps.szPname);
+			std::fprintf(stderr, "MIDI %u\t%s\n", index, caps.szPname);
 	}
 }
 
@@ -773,7 +773,7 @@ void WindowsHardwareController::print_litejam_devices()
 		return true;
 	});
 	if (!found)
-		std::puts("No paired LiteJam BLE interfaces");
+		std::fprintf(stderr, "No paired LiteJam BLE interfaces\n");
 }
 
 void WindowsHardwareController::print_fret_zealot_devices()
@@ -789,7 +789,7 @@ void WindowsHardwareController::print_fret_zealot_devices()
 		return true;
 	});
 	if (!found)
-		std::puts("No paired Fret Zealot BLE interfaces");
+		std::fprintf(stderr, "No paired Fret Zealot BLE interfaces\n");
 }
 
 } // namespace mao

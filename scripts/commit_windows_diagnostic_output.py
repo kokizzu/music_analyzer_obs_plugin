@@ -8,6 +8,7 @@ import sys
 
 ROOT = Path(__file__).resolve().parents[1]
 SOURCE = "src/standalone.cpp"
+HARDWARE_SOURCE = "src/windows_hardware_control.cpp"
 TEST = "scripts/test_windows_diagnostic_output.py"
 COMMIT_SCRIPT = "scripts/commit_windows_diagnostic_output.py"
 WINDOWS_MK = "windows.mk"
@@ -54,10 +55,10 @@ def select_patch(path: str, markers: tuple[str, ...]) -> str | None:
 
 def plan() -> int:
     print(f"commit: {COMMIT_MESSAGE}")
-    print(f"stage: {SOURCE} selected stdout-redirection hunk only")
+    print(f"stage: {SOURCE} selected stream-fix hunk only")
+    print(f"stage: {HARDWARE_SOURCE} selected diagnostic-output hunks only")
     print(f"stage: {TEST}")
     print(f"stage: {COMMIT_SCRIPT}")
-    print(f"stage: {WINDOWS_MK} selected diagnostic-test target hunk only")
     print("unrelated worktree changes remain unstaged")
     return 0
 
@@ -74,12 +75,12 @@ def apply_commit() -> int:
 
     patches = [
         select_patch(SOURCE, ("output_stream", "setvbuf(stdout")),
-        select_patch(WINDOWS_MK, ("test-windows-diagnostic-output",)),
+        select_patch(HARDWARE_SOURCE, ("No Windows MIDI output devices", "No paired LiteJam", "No paired Fret Zealot", "MIDI %u")),
     ]
-    if any(patch is None for patch in patches):
+    if patches[0] is None or patches[1] is None:
         print("refusing to commit: expected diagnostic-output hunks are missing", file=sys.stderr)
         return 1
-    for patch in patches:
+    for patch in patches[:2]:
         applied = run("git", "apply", "--cached", "--unidiff-zero", input_text=patch)
         if applied.returncode != 0:
             print(applied.stdout, file=sys.stderr, end="")
@@ -90,7 +91,7 @@ def apply_commit() -> int:
         print(added.stdout, file=sys.stderr, end="")
         return added.returncode
 
-    expected = {SOURCE, TEST, COMMIT_SCRIPT, WINDOWS_MK}
+    expected = {SOURCE, HARDWARE_SOURCE, TEST, COMMIT_SCRIPT}
     after = run("git", "diff", "--cached", "--name-only")
     actual = {line for line in after.stdout.splitlines() if line}
     if after.returncode != 0 or actual != expected:

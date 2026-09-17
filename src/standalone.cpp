@@ -102,12 +102,6 @@ void open_windows_diagnostic_log()
 		return;
 	}
 	setvbuf(stderr, nullptr, _IONBF, 0);
-	FILE *output_stream = nullptr;
-	if (freopen_s(&output_stream, log_path.c_str(), "a", stdout) != 0 || !output_stream) {
-		std::fprintf(stderr, "Cannot redirect standard output to diagnostic log: %s\n", log_path.c_str());
-	} else {
-		setvbuf(stdout, nullptr, _IONBF, 0);
-	}
 
 	SYSTEMTIME now = {};
 	GetLocalTime(&now);
