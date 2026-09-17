@@ -9,6 +9,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 FILES = (
     ".gitignore",
+    "GNUmakefile",
     "docs/windows_standalone.md",
     "src/fret_control.cpp",
     "src/fret_control.hpp",
