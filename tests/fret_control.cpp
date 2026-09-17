@@ -1,4 +1,5 @@
 #include "fret_control.hpp"
+#include "windows_hardware_control.hpp"
 
 #include <cassert>
 #include <cstddef>
@@ -229,21 +230,32 @@ void test_auphy_pixels()
 	for (std::size_t offset = 0; offset < pixels.size(); offset += 4) {
 		const int index = pixels[offset];
 		const int fret = index / 6;
-		const int low_to_high_string = 5 - index % 6;
+		const int low_to_high_string = index % 6;
 		assert(fret <= 13);
 		const int note = (std::array<int, 6>{40, 45, 50, 55, 59, 64}[static_cast<std::size_t>(low_to_high_string)] + fret) % 12;
-		const int degree = mao::major_scale_degree(0, note);
-		assert(degree >= 0);
-		const auto color = mao::major_scale_colors()[static_cast<std::size_t>(degree)];
-		assert(pixels[offset + 1] == color.red && pixels[offset + 2] == color.green && pixels[offset + 3] == color.blue);
-		found_low_e_c = found_low_e_c || (index == 53 && color.red == 255 && color.green == 0 && color.blue == 0);
-		found_high_e_c = found_high_e_c || (index == 48 && color.red == 255 && color.green == 0 && color.blue == 0);
-		found_open_high_e = found_open_high_e || (index == 0 && color.red == 255 && color.green == 255 && color.blue == 0);
+		assert(note == 0);
+		assert(pixels[offset + 1] == 255 && pixels[offset + 2] == 0 && pixels[offset + 3] == 0);
+		found_low_e_c = found_low_e_c || index == 48;
+		found_high_e_c = found_high_e_c || index == 53;
+		found_open_high_e = found_open_high_e || index == 5;
 	}
 	assert(found_low_e_c);
 	assert(found_high_e_c);
-	assert(found_open_high_e);
+	assert(!found_open_high_e);
 	assert(mao::build_auphy_major_scale_pixels(0, 100).size() <= 6 * 42 * 4);
+}
+
+void test_windows_hardware_helpers()
+{
+	assert(mao::windows_midi_output_name_matches("APC mini mk2", ""));
+	assert(mao::windows_midi_output_name_matches("Akai MPC Live", ""));
+	assert(!mao::windows_midi_output_name_matches("Focusrite USB", ""));
+	assert(mao::windows_midi_output_name_matches("USB MIDI Controller", "midi controller"));
+	assert(!mao::windows_midi_output_name_matches("USB MIDI Controller", "akai"));
+	assert(mao::pack_windows_midi_short_message(0x96, 7, 76) == 0x004c0796u);
+	assert(mao::windows_litejam_name_matches("LiteJam RGB", {}));
+	assert(mao::windows_litejam_name_matches("LITE JAM RGB 1234", "rgb 1234"));
+	assert(!mao::windows_litejam_name_matches("Fret Zealot", {}));
 }
 
 } // namespace
@@ -256,6 +268,7 @@ int main()
 	test_litejam_packet();
 	test_fret_zealot_packet();
 	test_auphy_pixels();
+	test_windows_hardware_helpers();
 	std::cout << "fret_control: ok\n";
 	return 0;
 }

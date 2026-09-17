@@ -458,12 +458,13 @@ std::vector<uint8_t> build_auphy_major_scale_pixels(int root_pitch_class, int ma
 		for (int fret = 0; fret <= last_fret; ++fret) {
 			const int note = normalize_pitch_class(kStandardTuningLowToHigh[string] + fret);
 			const int degree = major_scale_degree(root_pitch_class, note);
-			if (degree < 0)
+			// SCT-86PRO currently renders one six-cell learning frame reliably.
+			// Keep this hardware-placement experiment unambiguous: roots only.
+			if (degree != 0)
 				continue;
 			const RgbColor color = kMajorColors[static_cast<std::size_t>(degree)];
-			// The native tuning table is low-E to high-E.  The official
-			// FretSpark SDK calls physical string zero high-E.
-			pixels.push_back(static_cast<uint8_t>(fret * 6 + 5 - static_cast<int>(string)));
+			// FretSpark SDK FretLED._encodeLedIndex(): fret * 6 + string.
+			pixels.push_back(static_cast<uint8_t>(fret * 6 + static_cast<int>(string)));
 			pixels.push_back(color.red);
 			pixels.push_back(color.green);
 			pixels.push_back(color.blue);

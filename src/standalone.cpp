@@ -41,6 +41,15 @@
 #include <cstdlib>
 #include <cstring>
 #include <fcntl.h>
+#if defined(_WIN32)
+#ifndef NOMINMAX
+#define NOMINMAX
+#endif
+#include <windows.h>
+#include <psapi.h>
+#include <io.h>
+#define STDIN_FILENO 0
+#else
 #include <poll.h>
 #include <csignal>
 #include <string>
@@ -48,7 +57,11 @@
 #include <sys/types.h>
 #include <sys/wait.h>
 #include <unistd.h>
+#endif
+#include <thread>
 #include <vector>
+#include "windows_hardware_control.hpp"
+#include "windows_loopback.hpp"
 
 namespace {
 
@@ -112,6 +125,17 @@ struct Options {
 	bool show_version = false;
 	bool prefer_output_monitor = true;
 	bool legacy_window = false;
+	bool enable_vocal_detection = false;
+	bool enable_other_detection = false;
+	bool show_vocal_row = false;
+	bool enable_hardware_control = true;
+	bool list_hardware = false;
+	bool hardware_only = false;
+	bool debug_audio = false;
+	int hardware_test_root = -1;
+	std::string midi_output;
+	std::string litejam_device;
+	std::string fret_zealot_device;
 	bool width_set = false;
 	bool height_set = false;
 };
@@ -122,6 +146,7 @@ struct ProcessMetrics {
 };
 
 enum class LiveAudioSourceKind {
+	WindowsLoopback,
 	FfmpegPulseMonitor,
 	SdlDefault,
 	SdlNamed,
@@ -211,8 +236,12 @@ void print_usage(const char *argv0)
 		     "Usage: %s [--input audio-file] [--raw-f32le file|-] [--device name]\n"
 		     "       [--source name] [--layout complete|bass-guitar] [--width px] [--height px]\n"
 		     "       [--update-ms ms] [--window-ms ms]\n"
-		     "       [--fps fps] [--sample-rate hz] [--sensitivity percent]\n"
-		     "       [--legacy-window] [--list-devices] [--default-input] [--hold] [--version] [--self-test]\n\n"
+			     "       [--fps fps] [--sample-rate hz] [--sensitivity percent]\n"
+			     "       [--legacy-window] [--enable-vocal-detection] [--enable-other-detection]\n"
+			     "       [--show-vocal-row] [--no-hardware] [--midi-output name]\n"
+			     "       [--litejam-device name] [--fret-zealot-device name] [--hardware-root note]\n"
+			     "       [--list-hardware] [--hardware-only]\n"
+			     "       [--list-devices] [--default-input] [--debug-audio] [--hold] [--version] [--self-test]\n\n"
 		     "No input option prefers an SDL output monitor/loopback device, then falls back to default input.\n",
 		     argv0);
 }
@@ -227,6 +256,30 @@ bool parse_uint(const char *text, uint32_t min_value, uint32_t max_value, uint32
 		return false;
 	*out = static_cast<uint32_t>(value);
 	return true;
+}
+
+int parse_hardware_root_pitch_class(const char *text)
+{
+	if (!text || !text[0] || std::strlen(text) > 2)
+		return -1;
+	int pitch_class = -1;
+	switch (text[0]) {
+	case 'C': case 'c': pitch_class = 0; break;
+	case 'D': case 'd': pitch_class = 2; break;
+	case 'E': case 'e': pitch_class = 4; break;
+	case 'F': case 'f': pitch_class = 5; break;
+	case 'G': case 'g': pitch_class = 7; break;
+	case 'A': case 'a': pitch_class = 9; break;
+	case 'B': case 'b': pitch_class = 11; break;
+	default: return -1;
+	}
+	if (text[1] == '#')
+		++pitch_class;
+	else if (text[1] == 'b')
+		--pitch_class;
+	else if (text[1] != '\0')
+		return -1;
+	return (pitch_class + 12) % 12;
 }
 
 bool parse_layout(const char *text, mao::VisualizerLayoutMode *out)
@@ -329,8 +382,45 @@ bool parse_options(int argc, char **argv, Options *options)
 			options->list_devices = true;
 		} else if (arg == "--default-input") {
 			options->prefer_output_monitor = false;
+		} else if (arg == "--debug-audio") {
+			options->debug_audio = true;
 		} else if (arg == "--legacy-window") {
 			options->legacy_window = true;
+		} else if (arg == "--enable-vocal-detection") {
+			options->enable_vocal_detection = true;
+		} else if (arg == "--enable-other-detection") {
+			options->enable_other_detection = true;
+		} else if (arg == "--show-vocal-row") {
+			options->show_vocal_row = true;
+		} else if (arg == "--no-hardware") {
+			options->enable_hardware_control = false;
+		} else if (arg == "--midi-output") {
+			const char *value = need_value("--midi-output");
+			if (!value)
+				return false;
+			options->midi_output = value;
+		} else if (arg == "--hardware-root") {
+			const char *value = need_value("--hardware-root");
+			if (!value)
+				return false;
+			const int root = parse_hardware_root_pitch_class(value);
+			if (root < 0)
+				return false;
+			options->hardware_test_root = root;
+		} else if (arg == "--litejam-device") {
+			const char *value = need_value("--litejam-device");
+			if (!value)
+				return false;
+			options->litejam_device = value;
+		} else if (arg == "--fret-zealot-device") {
+			const char *value = need_value("--fret-zealot-device");
+			if (!value)
+				return false;
+			options->fret_zealot_device = value;
+		} else if (arg == "--list-hardware") {
+			options->list_hardware = true;
+		} else if (arg == "--hardware-only") {
+			options->hardware_only = true;
 		} else if (arg == "--hold") {
 			options->hold_on_eof = true;
 		} else if (arg == "--self-test") {
@@ -354,6 +444,9 @@ bool parse_options(int argc, char **argv, Options *options)
 		options->width = default_width_for_layout(options->layout_mode);
 	if (!options->height_set)
 		options->height = default_height_for_layout(options->layout_mode);
+	if (!options->height_set && options->show_vocal_row &&
+	    options->layout_mode == mao::VisualizerLayoutMode::Complete)
+		options->height = mao::kVisualizerHeightWithVocalRow;
 
 	return true;
 }
@@ -370,6 +463,15 @@ bool key_requests_source_cycle(SDL_Keycode key)
 
 double process_cpu_seconds()
 {
+#if defined(_WIN32)
+	FILETIME created{}, exited{}, kernel{}, user{};
+	if (!GetProcessTimes(GetCurrentProcess(), &created, &exited, &kernel, &user))
+		return -1.0;
+	ULARGE_INTEGER k{}, u{};
+	k.LowPart = kernel.dwLowDateTime; k.HighPart = kernel.dwHighDateTime;
+	u.LowPart = user.dwLowDateTime; u.HighPart = user.dwHighDateTime;
+	return static_cast<double>(k.QuadPart + u.QuadPart) / 10000000.0;
+#else
 	rusage usage = {};
 	if (getrusage(RUSAGE_SELF, &usage) != 0)
 		return -1.0;
@@ -378,10 +480,17 @@ double process_cpu_seconds()
 	const double system = static_cast<double>(usage.ru_stime.tv_sec) +
 			      static_cast<double>(usage.ru_stime.tv_usec) / 1000000.0;
 	return user + system;
+#endif
 }
 
 float process_ram_mb()
 {
+#if defined(_WIN32)
+	PROCESS_MEMORY_COUNTERS counters{};
+	if (!GetProcessMemoryInfo(GetCurrentProcess(), &counters, sizeof(counters)))
+		return -1.0f;
+	return static_cast<float>(counters.WorkingSetSize / (1024.0 * 1024.0));
+#else
 #if defined(__linux__)
 	FILE *file = std::fopen("/proc/self/statm", "r");
 	if (file) {
@@ -403,6 +512,7 @@ float process_ram_mb()
 	return static_cast<float>(usage.ru_maxrss) / (1024.0f * 1024.0f);
 #else
 	return static_cast<float>(usage.ru_maxrss) / 1024.0f;
+#endif
 #endif
 }
 
@@ -496,6 +606,7 @@ std::vector<LiveAudioSource> build_live_audio_sources(const std::vector<std::str
 		return sources;
 	}
 
+#if !defined(_WIN32)
 	bool has_monitor = false;
 	for (const std::string &device : devices) {
 		if (looks_like_output_monitor_device(device)) {
@@ -503,9 +614,12 @@ std::vector<LiveAudioSource> build_live_audio_sources(const std::vector<std::str
 			break;
 		}
 	}
-
 	if (options.prefer_output_monitor && !has_monitor)
 		sources.push_back(LiveAudioSource{LiveAudioSourceKind::FfmpegPulseMonitor, "SPEAKER MONITOR"});
+#else
+	if (options.prefer_output_monitor)
+		sources.push_back(LiveAudioSource{LiveAudioSourceKind::WindowsLoopback, "SPEAKER LOOPBACK"});
+#endif
 	if (!options.prefer_output_monitor)
 		sources.push_back(LiveAudioSource{LiveAudioSourceKind::SdlDefault, "SDL CAPTURE DEFAULT"});
 	for (const std::string &device : devices)
@@ -526,6 +640,12 @@ std::size_t initial_live_audio_source_index(const std::vector<LiveAudioSource> &
 		}
 	}
 	if (options.prefer_output_monitor) {
+	#if defined(_WIN32)
+		for (std::size_t i = 0; i < sources.size(); ++i) {
+			if (sources[i].kind == LiveAudioSourceKind::WindowsLoopback)
+				return i;
+		}
+	#endif
 		for (std::size_t i = 0; i < sources.size(); ++i) {
 			if (sources[i].kind == LiveAudioSourceKind::SdlNamed &&
 			    looks_like_output_monitor_device(sources[i].name))
@@ -954,9 +1074,14 @@ bool run_self_test()
 	{
 		Options options;
 		const std::vector<std::string> devices = {"Built-in Microphone",
-							  "Monitor of Built-in Audio Analog Stereo"};
+								  "Monitor of Built-in Audio Analog Stereo"};
 		const std::vector<LiveAudioSource> sources = build_live_audio_sources(devices, options);
+	#if defined(_WIN32)
+		if (sources.size() != 3 || sources.front().kind != LiveAudioSourceKind::WindowsLoopback ||
+		    initial_live_audio_source_index(sources, options) != 0) {
+	#else
 		if (sources.size() != 2 || initial_live_audio_source_index(sources, options) != 1) {
+	#endif
 			std::fprintf(stderr, "standalone self-test: bad live source order for monitor preference\n");
 			return false;
 		}
@@ -976,6 +1101,15 @@ bool run_self_test()
 }
 
 struct ChildProcess {
+#if defined(_WIN32)
+	int read_fd = -1;
+	bool start(const std::vector<std::string> &)
+	{
+		std::fprintf(stderr, "Compressed-file input is not included in the portable Windows build; use live capture or --raw-f32le.\n");
+		return false;
+	}
+	void close_process() {}
+#else
 	pid_t pid = -1;
 	int read_fd = -1;
 
@@ -1064,6 +1198,7 @@ struct ChildProcess {
 			read_fd = -1;
 		}
 	}
+#endif
 };
 
 std::vector<std::string> ffmpeg_args(const Options &options)
@@ -1112,9 +1247,16 @@ struct FileAudioInput {
 		if (!options.raw_f32le_path.empty()) {
 			if (options.raw_f32le_path == "-") {
 				fd = STDIN_FILENO;
+#if defined(_WIN32)
+				_setmode(fd, _O_BINARY);
+#endif
 				return true;
 			}
+#if defined(_WIN32)
+			fd = open(options.raw_f32le_path.c_str(), O_RDONLY | _O_BINARY);
+#else
 			fd = open(options.raw_f32le_path.c_str(), O_RDONLY);
+#endif
 			if (fd < 0) {
 				std::fprintf(stderr, "open %s failed: %s\n", options.raw_f32le_path.c_str(),
 					     std::strerror(errno));
@@ -1172,6 +1314,8 @@ public:
 			options.legacy_window ? static_cast<uint32_t>(mao::kLegacyAnalysisWindow) : 0;
 		settings_.root_window_seconds = 15.0f;
 		settings_.input_mode = mao::AnalysisInputMode::Auto;
+		settings_.enable_vocal_detection = options.enable_vocal_detection;
+		settings_.enable_other_detection = options.enable_other_detection;
 		hop_samples_ = std::max<uint32_t>(1, options.sample_rate * options.update_ms / 1000);
 		samples_until_analysis_ = hop_samples_;
 		window_samples_ = mao::resolve_analysis_window_samples(settings_);
@@ -1588,6 +1732,29 @@ void present(SdlSession *session, const mao::VisualizerRenderer &visualizer)
 	SDL_RenderPresent(session->renderer);
 }
 
+int root_pitch_class_for_hardware(const mao::AnalysisSnapshot &snapshot)
+{
+	if (!snapshot.audio_seen || snapshot.root.confidence <= 0.0f)
+		return -1;
+
+	int pitch_class = -1;
+	switch (snapshot.root.label[0]) {
+	case 'C': pitch_class = 0; break;
+	case 'D': pitch_class = 2; break;
+	case 'E': pitch_class = 4; break;
+	case 'F': pitch_class = 5; break;
+	case 'G': pitch_class = 7; break;
+	case 'A': pitch_class = 9; break;
+	case 'B': pitch_class = 11; break;
+	default: return -1;
+	}
+	if (snapshot.root.label[1] == '#')
+		++pitch_class;
+	else if (snapshot.root.label[1] == 'b')
+		--pitch_class;
+	return (pitch_class + 12) % 12;
+}
+
 } // namespace
 
 int main(int argc, char **argv)
@@ -1603,6 +1770,35 @@ int main(int argc, char **argv)
 	}
 	if (options.self_test)
 		return run_self_test() ? 0 : 1;
+	if (options.list_hardware) {
+		mao::WindowsHardwareController::print_midi_devices();
+		mao::WindowsHardwareController::print_litejam_devices();
+		mao::WindowsHardwareController::print_fret_zealot_devices();
+		return 0;
+	}
+	if (options.hardware_only) {
+#if defined(_WIN32)
+		if (options.hardware_test_root < 0) {
+			std::fprintf(stderr, "--hardware-only requires --hardware-root note\n");
+			return 2;
+		}
+		mao::WindowsHardwareOptions hardware_options;
+		hardware_options.enabled = options.enable_hardware_control;
+		hardware_options.midi_output = options.midi_output;
+		hardware_options.litejam_device = options.litejam_device;
+		hardware_options.fret_zealot_device = options.fret_zealot_device;
+		mao::WindowsHardwareController hardware(hardware_options);
+		hardware.start();
+		hardware.update(options.hardware_test_root, mao::RootControlMode::Manual);
+		std::fprintf(stderr, "Windows hardware probe: root=%d, waiting 3 seconds\n", options.hardware_test_root);
+		std::this_thread::sleep_for(std::chrono::seconds(3));
+		hardware.stop();
+		return 0;
+#else
+		std::fprintf(stderr, "--hardware-only is available only in the Windows standalone build\n");
+		return 2;
+#endif
+	}
 
 	SDL_SetMainReady();
 	const uint32_t sdl_init_flags = options.list_devices ? SDL_INIT_AUDIO : (SDL_INIT_VIDEO | SDL_INIT_AUDIO | SDL_INIT_EVENTS);
@@ -1618,6 +1814,9 @@ int main(int argc, char **argv)
 	}
 
 	SdlSession session;
+#if defined(_WIN32)
+	WindowsLoopback loopback;
+#endif
 	FileAudioInput file_input;
 	SDL_AudioSpec capture_spec = {};
 	const bool file_mode = !options.input_path.empty() || !options.raw_f32le_path.empty();
@@ -1625,6 +1824,9 @@ int main(int argc, char **argv)
 	std::vector<LiveAudioSource> live_sources;
 	std::size_t live_source_index = 0;
 	auto close_live_source = [&]() {
+#if defined(_WIN32)
+		loopback.close();
+#endif
 		if (session.capture) {
 			SDL_CloseAudioDevice(session.capture);
 			session.capture = 0;
@@ -1640,6 +1842,12 @@ int main(int argc, char **argv)
 		stream_fd_mode = false;
 		const LiveAudioSource &source = live_sources[index];
 		std::string opened_name = source.name;
+#if defined(_WIN32)
+		if (source.kind == LiveAudioSourceKind::WindowsLoopback) {
+			if (!loopback.open(options.sample_rate)) return false;
+			loopback.set_diagnostics(options.debug_audio);
+		} else
+#endif
 		if (source.kind == LiveAudioSourceKind::FfmpegPulseMonitor) {
 			if (!file_input.open_pulse_monitor(options))
 				return false;
@@ -1681,8 +1889,19 @@ int main(int argc, char **argv)
 	if (!create_window(&session, options))
 		return 1;
 
+	mao::WindowsHardwareOptions hardware_options;
+	hardware_options.enabled = options.enable_hardware_control;
+	hardware_options.midi_output = options.midi_output;
+	hardware_options.litejam_device = options.litejam_device;
+	hardware_options.fret_zealot_device = options.fret_zealot_device;
+	mao::WindowsHardwareController hardware(hardware_options);
+	hardware.start();
+	if (options.hardware_test_root >= 0)
+		hardware.update(options.hardware_test_root, mao::RootControlMode::Manual);
+
 	mao::VisualizerRenderer visualizer;
 	visualizer.layout_mode = options.layout_mode;
+	visualizer.show_vocal_row = options.show_vocal_row;
 	mao::resize_visualizer(&visualizer, options.width, options.height);
 
 	StandaloneAnalyzer analyzer(options);
@@ -1709,6 +1928,7 @@ int main(int argc, char **argv)
 		analyzer.reset(options);
 		visualizer = mao::VisualizerRenderer();
 		visualizer.layout_mode = options.layout_mode;
+		visualizer.show_vocal_row = options.show_vocal_row;
 		mao::resize_visualizer(&visualizer, options.width, options.height);
 		mao::render_visualizer(&visualizer, analyzer.snapshot(), 0.0f);
 		rendered_sequence = analyzer.snapshot().sequence;
@@ -1719,6 +1939,12 @@ int main(int argc, char **argv)
 		present(&session, visualizer);
 		last_present = std::chrono::steady_clock::now();
 	};
+
+#if defined(_WIN32)
+	bool loopback_reconnect_pending = false;
+	uint32_t loopback_reconnect_attempt = 0;
+	auto next_loopback_retry = std::chrono::steady_clock::now();
+#endif
 
 	while (running) {
 		SDL_Event event;
@@ -1734,6 +1960,10 @@ int main(int argc, char **argv)
 					const std::size_t next_index = (live_source_index + attempt) % live_sources.size();
 					if (!open_live_source(next_index))
 						continue;
+#if defined(_WIN32)
+					loopback_reconnect_pending = false;
+					loopback_reconnect_attempt = 0;
+#endif
 					reset_visual_state();
 					window_changed = true;
 					break;
@@ -1776,7 +2006,51 @@ int main(int argc, char **argv)
 			analyzer.set_runtime_metrics(process_metrics.cpu_percent, process_metrics.ram_mb);
 
 		bool snapshot_changed = false;
+#if defined(_WIN32)
+		if (loopback_reconnect_pending && now >= next_loopback_retry) {
+			const bool current_source_is_loopback =
+				!file_mode && live_source_index < live_sources.size() &&
+				live_sources[live_source_index].kind == LiveAudioSourceKind::WindowsLoopback;
+			if (!current_source_is_loopback) {
+				loopback_reconnect_pending = false;
+				loopback_reconnect_attempt = 0;
+			} else if (open_live_source(live_source_index)) {
+				std::fprintf(stderr, "WASAPI speaker loopback reconnected\n");
+				loopback_reconnect_pending = false;
+				loopback_reconnect_attempt = 0;
+				reset_visual_state();
+				window_changed = true;
+			} else {
+				const uint32_t backoff_shift = std::min<uint32_t>(loopback_reconnect_attempt, 4);
+				const uint32_t delay_ms = 250u << backoff_shift;
+				++loopback_reconnect_attempt;
+				next_loopback_retry = now + std::chrono::milliseconds(delay_ms);
+				std::fprintf(stderr, "WASAPI speaker loopback retry in %u ms\n", delay_ms);
+			}
+		}
+		if (loopback.active()) {
+			if (loopback.endpoint_changed() || !loopback.pump([&](float sample) {
+				if (analyzer.process_sample(sample)) snapshot_changed = true;
+			})) {
+				if (!loopback_reconnect_pending) {
+					std::fprintf(stderr, "WASAPI speaker loopback lost; attempting automatic recovery\n");
+					loopback_reconnect_attempt = 0;
+					next_loopback_retry = now;
+				}
+				loopback_reconnect_pending = true;
+			}
+			loopback.maybe_log_diagnostics();
+		}
+#endif
 		if (stream_fd_mode && !eof) {
+#if defined(_WIN32)
+			std::array<uint8_t, 8192> bytes = {};
+			const int n = _read(file_input.fd, bytes.data(), static_cast<unsigned int>(bytes.size()));
+			if (n > 0)
+				feed_audio_bytes(&analyzer, &carry, bytes.data(), static_cast<std::size_t>(n), &snapshot_changed);
+			else
+				eof = true;
+#else
 			pollfd pfd = {file_input.fd, POLLIN, 0};
 			const int poll_result = poll(&pfd, 1, 4);
 			if (poll_result > 0 && (pfd.revents & POLLIN)) {
@@ -1794,6 +2068,7 @@ int main(int argc, char **argv)
 			} else if (poll_result > 0 && (pfd.revents & (POLLHUP | POLLERR | POLLNVAL))) {
 				eof = true;
 			}
+#endif
 		} else if (!stream_fd_mode && session.capture) {
 			const uint32_t queued = SDL_GetQueuedAudioSize(session.capture);
 			if (queued >= sizeof(float)) {
@@ -1813,6 +2088,10 @@ int main(int argc, char **argv)
 				snapshot_age = 0.0f;
 			mao::append_visualizer_drum_hits(&visualizer, analyzer.snapshot());
 			mao::render_visualizer(&visualizer, analyzer.snapshot(), snapshot_age);
+			const int hardware_root = options.hardware_test_root >= 0
+				? options.hardware_test_root : root_pitch_class_for_hardware(analyzer.snapshot());
+			hardware.update(hardware_root,
+				options.hardware_test_root >= 0 ? mao::RootControlMode::Manual : mao::RootControlMode::Auto);
 			rendered_sequence = analyzer.snapshot().sequence;
 			should_present = true;
 		} else if (should_present || std::chrono::steady_clock::now() - last_present >= present_interval) {
@@ -1830,5 +2109,6 @@ int main(int argc, char **argv)
 		SDL_Delay(2);
 	}
 
+	hardware.stop();
 	return 0;
 }
