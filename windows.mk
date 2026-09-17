@@ -156,3 +156,6 @@ inspect-windows-hardware-protocol:
 
 test-windows-hardware-protocol:
 	python3 scripts/test_windows_hardware_protocol.py
+
+push-windows-hardware:
+	python3 scripts/push_windows_hardware.py
