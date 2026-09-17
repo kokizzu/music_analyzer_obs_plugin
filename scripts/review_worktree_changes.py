@@ -53,6 +53,13 @@ def print_summary(entries: list[str]) -> None:
         if entry.startswith("?? ")
     ]
     print(f"\nuntracked files: {len(untracked)}")
+    generated_candidates = [
+        path
+        for path in untracked
+        if any(token in path.lower() for token in ("generate", "fixture", "cache", "sample"))
+    ]
+    print("generated/fixture/cache/sample candidates:")
+    print("\n".join(generated_candidates) or "(none)")
     for path in untracked:
         file_path = ROOT / path
         if file_path.is_file():

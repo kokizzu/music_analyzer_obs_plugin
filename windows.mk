@@ -138,11 +138,3 @@ package-signed-windows-standalone: sign-windows-standalone
 .PHONY: test-windows-signing
 test-windows-signing:
 	python3 scripts/test_windows_signing.py
-
-.PHONY: inspect-generated-fixture
-inspect-generated-fixture:
-	python3 scripts/inspect_generated_fixture.py
-
-.PHONY: inspect-windows-commit-helper
-inspect-windows-commit-helper:
-	python3 scripts/review_worktree_file.py scripts/commit_windows_hardware.py
