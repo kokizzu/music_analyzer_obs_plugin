@@ -149,6 +149,10 @@ inspect-windows-certificate:
 inspect-windows-self-sign:
 	python3 scripts/inspect_windows_self_sign.py
 
+.PHONY: inspect-windows-self-signed-deploy
+inspect-windows-self-signed-deploy:
+	python3 scripts/inspect_windows_self_signed_deploy.py
+
 .PHONY: plan-sign-windows-standalone sign-windows-standalone package-signed-windows-standalone
 plan-sign-windows-standalone:
 	python3 scripts/sign_windows_standalone.py plan
