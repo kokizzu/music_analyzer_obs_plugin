@@ -150,3 +150,9 @@ test-windows-hardware-status:
 .PHONY: test-windows-hardware-status-runtime
 test-windows-hardware-status-runtime:
 	python3 scripts/test_windows_hardware_status_runtime.py
+
+inspect-windows-hardware-protocol:
+	python3 scripts/inspect_windows_hardware_protocol.py
+
+test-windows-hardware-protocol:
+	python3 scripts/test_windows_hardware_protocol.py

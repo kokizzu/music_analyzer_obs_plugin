@@ -44,6 +44,8 @@ FILES = (
     "scripts/test_windows_audio_source_priority.py",
     "scripts/test_windows_deploy_marker.py",
     "scripts/test_windows_hardware_probe.py",
+    "scripts/inspect_windows_hardware_protocol.py",
+    "scripts/test_windows_hardware_protocol.py",
     "scripts/test_windows_hardware_reconnect.py",
     "scripts/test_windows_hardware_status.py",
     "scripts/test_windows_hardware_status_runtime.py",
