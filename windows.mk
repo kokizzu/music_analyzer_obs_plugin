@@ -2,6 +2,14 @@
 inspect-windows-standalone:
 	python3 scripts/windows_standalone.py inspect
 
+.PHONY: test-visualizer-parentheses
+test-visualizer-parentheses:
+	python3 scripts/test_visualizer_parentheses.py
+
+.PHONY: test-visualizer-glyph-coverage
+test-visualizer-glyph-coverage:
+	python3 scripts/test_visualizer_glyph_coverage.py
+
 .PHONY: prepare-windows-standalone windows-standalone
 prepare-windows-standalone:
 	python3 scripts/windows_standalone.py prepare
