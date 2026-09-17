@@ -253,6 +253,17 @@ commit-windows-protocol:
 
 push-windows-hardware:
 	python3 scripts/push_windows_hardware.py
+.PHONY: test-windows-gatt-interface
+test-windows-gatt-interface:
+	python3 scripts/test_windows_gatt_interface.py
+
+.PHONY: plan-commit-windows-gatt-interface commit-windows-gatt-interface
+plan-commit-windows-gatt-interface:
+	python3 scripts/commit_windows_gatt_interface.py plan
+
+commit-windows-gatt-interface:
+	python3 scripts/commit_windows_gatt_interface.py apply
+
 
 report-windows-share-inventory:
 	python3 scripts/report_windows_share_inventory.py

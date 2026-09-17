@@ -57,11 +57,13 @@ namespace windows_bluetooth {
 constexpr ULONG kGattFlagNone = 0x00000000;
 constexpr ULONG kGattFlagWriteWithoutResponse = 0x00000020;
 
-const GUID kBluetoothLeDeviceInterface = {
-	0x781aee18,
-	0x7733,
-	0x4ce4,
-	{0xad, 0xd0, 0x91, 0xf4, 0x1c, 0x67, 0xb5, 0x92},
+// SetupDi enumeration must use the GATT service interface. The generic LE
+// device interface does not yield handles accepted by BluetoothGATTGetServices.
+const GUID kBluetoothGattServiceInterface = {
+	0x6e3bb679,
+	0x4372,
+	0x40c8,
+	{0x9e, 0xaa, 0x45, 0x09, 0xdf, 0x26, 0x0c, 0xd8},
 };
 
 const GUID kFretZealotService = {

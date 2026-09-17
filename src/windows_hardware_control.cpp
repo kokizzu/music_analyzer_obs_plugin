@@ -91,16 +91,16 @@ std::wstring device_metadata(HDEVINFO device_set, PSP_DEVINFO_DATA device)
 template <typename Visitor>
 void enumerate_bluetooth_le_interfaces(Visitor visitor)
 {
-	const HDEVINFO device_set = SetupDiGetClassDevsW(&windows_bluetooth::kBluetoothLeDeviceInterface, nullptr,
-								 nullptr, kBluetoothDeviceEnumerationFlags);
+	const HDEVINFO device_set = SetupDiGetClassDevsW(&windows_bluetooth::kBluetoothGattServiceInterface, nullptr,
+									 nullptr, kBluetoothDeviceEnumerationFlags);
 	if (device_set == INVALID_HANDLE_VALUE)
 		return;
 
 	for (DWORD index = 0;; ++index) {
 		SP_DEVICE_INTERFACE_DATA interface_data = {};
 		interface_data.cbSize = sizeof(interface_data);
-		if (!SetupDiEnumDeviceInterfaces(device_set, nullptr, &windows_bluetooth::kBluetoothLeDeviceInterface,
-							 index, &interface_data)) {
+		if (!SetupDiEnumDeviceInterfaces(device_set, nullptr, &windows_bluetooth::kBluetoothGattServiceInterface,
+									 index, &interface_data)) {
 			if (GetLastError() == ERROR_NO_MORE_ITEMS)
 				break;
 			continue;
