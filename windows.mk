@@ -152,6 +152,17 @@ inspect-suspicious-worktree-artifacts:
 plan-cleanup-suspicious-empty-artifacts:
 	python3 scripts/cleanup_suspicious_empty_artifacts.py plan
 
+.PHONY: test-windows-self-signed-deploy-fallback
+test-windows-self-signed-deploy-fallback:
+	python3 scripts/test_windows_self_signed_deploy_fallback.py
+
+.PHONY: plan-commit-windows-signed-deploy-fallback commit-windows-signed-deploy-fallback
+plan-commit-windows-signed-deploy-fallback:
+	python3 scripts/commit_windows_signed_deploy_fallback.py plan
+
+commit-windows-signed-deploy-fallback:
+	python3 scripts/commit_windows_signed_deploy_fallback.py apply
+
 cleanup-suspicious-empty-artifacts:
 	python3 scripts/cleanup_suspicious_empty_artifacts.py apply
 

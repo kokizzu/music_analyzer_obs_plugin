@@ -43,6 +43,123 @@ def source_files() -> list[Path]:
         raise RuntimeError(f"signed portable build is missing: {SOURCE_ROOT}")
     files = sorted(path for path in SOURCE_ROOT.rglob("*") if path.is_file())
     if not files:
+def smb_entry() -> tuple[str, dict[str, str]] | None:
+    try:
+        lines = FSTAB.read_text(encoding="utf-8").splitlines()
+    except OSError:
+        return None
+    for line in lines:
+        if not line.strip() or line.lstrip().startswith("#"):
+            continue
+        try:
+            fields = shlex.split(line, comments=True)
+        except ValueError:
+            continue
+        if len(fields) < 4 or fields[1] != str(MOUNTPOINT) or fields[2] != "cifs":
+            continue
+        options: dict[str, str] = {}
+        for item in fields[3].split(","):
+            key, separator, value = item.partition("=")
+            if separator:
+                options[key] = value
+        if options.get("username") and options.get("password"):
+            return fields[0], options
+    return None
+
+
+def smb_credentials(options: dict[str, str]) -> Path:
+    credentials = tempfile.NamedTemporaryFile(
+        mode="w", prefix="music-analyzer-smb-", delete=False
+    )
+    try:
+        credentials.write(f"username = {options['username']}\n")
+        credentials.write(f"password = {options['password']}\n")
+        if options.get("domain"):
+            credentials.write(f"domain = {options['domain']}\n")
+    finally:
+        credentials.close()
+    os.chmod(credentials.name, 0o600)
+    return Path(credentials.name)
+
+
+def smb_command(share: str, credentials: Path, command: str) -> subprocess.CompletedProcess[str]:
+    return subprocess.run(
+        ["smbclient", share, "-A", str(credentials), "-c", command],
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+
+
+def smb_share() -> tuple[str, Path] | None:
+    entry = smb_entry()
+    if entry is None or shutil.which("smbclient") is None:
+        return None
+    share, options = entry
+    credentials = smb_credentials(options)
+    return share, credentials
+
+
+def smb_error(result: subprocess.CompletedProcess[str]) -> str:
+    return (result.stdout + result.stderr).strip() or f"smbclient exited with {result.returncode}"
+
+
+def smb_put(share: str, credentials: Path, source: Path, remote_name: str) -> None:
+    temporary_name = f".{remote_name}.music-analyzer-deploying"
+    uploaded = smb_command(
+        share,
+        credentials,
+        f'put "{source.resolve()}" "{temporary_name}"',
+    )
+    if uploaded.returncode != 0:
+        raise RuntimeError(f"SMB upload failed for {remote_name}: {smb_error(uploaded)}")
+    renamed = smb_command(share, credentials, f'rename "{temporary_name}" "{remote_name}"')
+    if renamed.returncode != 0:
+        raise RuntimeError(f"SMB rename failed for {remote_name}: {smb_error(renamed)}")
+
+
+def smb_get(share: str, credentials: Path, remote_name: str, local_path: Path) -> None:
+    result = smb_command(share, credentials, f'get "{remote_name}" "{local_path}"')
+    if result.returncode != 0:
+        raise RuntimeError(f"SMB download failed for {remote_name}: {smb_error(result)}")
+
+
+def accessible_mount_info() -> str | None:
+    try:
+        mount_info = run_findmnt()
+        if "192.168.1.132/shared" not in mount_info or "cifs" not in mount_info:
+            return None
+        probe = subprocess.run(
+            ["stat", "-c", "%F", str(MOUNTPOINT)],
+            check=False,
+            capture_output=True,
+            text=True,
+            timeout=5,
+        )
+        if probe.returncode != 0:
+            return None
+        return mount_info
+    except (OSError, subprocess.TimeoutExpired):
+        return None
+
+
+def deployment_files() -> list[Path]:
+    return source_files() + [CERTIFICATE, TRUST_SCRIPT]
+
+
+def compare_downloaded(source: Path, share: str, credentials: Path, temporary_directory: Path) -> str | None:
+    downloaded = temporary_directory / source.name
+    try:
+        smb_get(share, credentials, source.name, downloaded)
+    except RuntimeError as error:
+        return str(error)
+    if downloaded.stat().st_size != source.stat().st_size:
+        return f"size mismatch: {source.name}"
+    if sha256(downloaded) != sha256(source):
+        return f"hash mismatch: {source.name}"
+    return None
+
+
         raise RuntimeError(f"signed portable build is empty: {SOURCE_ROOT}")
     return files
 
@@ -140,6 +257,28 @@ def verify() -> None:
     print(f"verified {len(source)} portable files plus certificate and trust script")
     print(f"deployment: {target}")
 
+
+    mount_info = accessible_mount_info()
+    if not mount_info:
+        connection = smb_share()
+        if connection is None:
+            raise RuntimeError(f"{MOUNTPOINT} is inaccessible and no usable smbclient fallback was found")
+        share, credentials = connection
+        mismatches: list[str] = []
+        try:
+            with tempfile.TemporaryDirectory(prefix="music-analyzer-smb-verify-") as directory:
+                temporary_directory = Path(directory)
+                for source_path in deployment_files():
+                    mismatch = compare_downloaded(source_path, share, credentials, temporary_directory)
+                    if mismatch:
+                        mismatches.append(mismatch)
+        finally:
+            credentials.unlink(missing_ok=True)
+        if mismatches:
+            raise RuntimeError("SMB deployment verification failed:\n" + "\n".join(mismatches))
+        print(f"verified {len(source)} portable files plus certificate and trust script through SMB fallback")
+        print(f"deployment: {share}")
+        return
 
 def main() -> int:
     parser = argparse.ArgumentParser()
