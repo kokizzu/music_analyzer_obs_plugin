@@ -39,6 +39,17 @@ verify-windows-standalone:
 verify-windows-share-runtime:
 	python3 scripts/verify_windows_share_runtime.py
 
+.PHONY: verify-windows-signed-runtime
+verify-windows-signed-runtime:
+	python3 scripts/verify_windows_signed_runtime.py
+
+.PHONY: plan-commit-signed-runtime commit-signed-runtime
+plan-commit-signed-runtime:
+	python3 scripts/commit_signed_runtime_check.py plan
+
+commit-signed-runtime:
+	python3 scripts/commit_signed_runtime_check.py apply
+
 package-windows-standalone:
 	python3 scripts/windows_standalone.py package
 
