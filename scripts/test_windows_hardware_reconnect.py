@@ -16,9 +16,12 @@ def main() -> int:
         "bool still_present(const std::string &preferred)",
         "bool still_present()",
         "BluetoothGATTGetServices(handle_",
-        "midi_sent_revision != revision || !midi.still_present(options.midi_output)",
-        "litejam_sent_revision != revision || !litejam.still_present()",
-        "fret_zealot_sent_revision != revision || !fret_zealot.still_present()",
+		"const bool midi_present = midi.still_present(options.midi_output)",
+		"midi_sent_revision != revision || !midi_present",
+		"const bool litejam_present = litejam.still_present()",
+		"litejam_sent_revision != revision || !litejam_present",
+		"const bool fret_zealot_present = fret_zealot.still_present()",
+		"fret_zealot_sent_revision != revision || !fret_zealot_present",
     ):
         require(text, fragment)
     print("Windows hardware reconnect checks: ok")
