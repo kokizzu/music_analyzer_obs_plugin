@@ -13,3 +13,4 @@ __pycache__/
 docs/NLJ-LED Control-210425-052233.pdf
 docs/NLJ-LED Perform mode-210425-052308.pdf
 /:memory:.ses
+/third_party/beat_and_tempo_tracking/demos/offline/3_min_90_bpm.wav

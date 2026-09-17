@@ -80,6 +80,10 @@ test-usb-audio-routes:
 inspect-windows-share-artifact:
 	python3 scripts/inspect_windows_share_artifact.py
 
+.PHONY: inspect-windows-hardware-output
+inspect-windows-hardware-output:
+	python3 scripts/inspect_windows_hardware_output.py
+
 .PHONY: test-windows-deploy-marker
 test-windows-deploy-marker:
 	PYTHONPATH=scripts python3 scripts/test_windows_deploy_marker.py
@@ -101,3 +105,44 @@ plan-commit-windows-hardware:
 
 commit-windows-hardware:
 	python3 scripts/commit_windows_hardware.py apply
+.PHONY: review-worktree-changes
+review-worktree-changes:
+	python3 scripts/review_worktree_changes.py
+
+.PHONY: review-worktree-file
+review-worktree-file:
+	python3 scripts/review_worktree_file.py $(FILE)
+
+.PHONY: review-gnumakefile
+review-gnumakefile:
+	python3 scripts/review_worktree_file.py GNUmakefile
+
+.PHONY: review-main-makefile
+review-main-makefile:
+	python3 scripts/review_worktree_file.py Makefile
+
+.PHONY: inspect-windows-signing
+inspect-windows-signing:
+	python3 scripts/inspect_windows_signing.py
+
+.PHONY: plan-sign-windows-standalone sign-windows-standalone package-signed-windows-standalone
+plan-sign-windows-standalone:
+	python3 scripts/sign_windows_standalone.py plan
+
+sign-windows-standalone:
+	python3 scripts/sign_windows_standalone.py apply
+
+package-signed-windows-standalone: sign-windows-standalone
+	python3 scripts/windows_standalone.py package
+
+.PHONY: test-windows-signing
+test-windows-signing:
+	python3 scripts/test_windows_signing.py
+
+.PHONY: inspect-generated-fixture
+inspect-generated-fixture:
+	python3 scripts/inspect_generated_fixture.py
+
+.PHONY: inspect-windows-commit-helper
+inspect-windows-commit-helper:
+	python3 scripts/review_worktree_file.py scripts/commit_windows_hardware.py

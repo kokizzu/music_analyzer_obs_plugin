@@ -90,5 +90,26 @@ Verification checks x64 PE format, every imported DLL, and both executables'
 headless analyzer/renderer self-tests under Wine. Physical Windows 11 audio
 capture and actual laptop latency still require an on-device check.
 
+## Smart App Control and code signing
+
+The Linux-built portable executables are unsigned by default. Windows Smart App
+Control can therefore block them before they start; renaming the executable or
+copying more DLLs does not solve that policy decision. A trusted Authenticode
+certificate is required. Self-signed certificates are useful for local testing
+only and are not a Smart App Control release fix.
+
+Keep the certificate and password outside the repository. With a PKCS#12
+certificate available on the build machine, set `WINDOWS_SIGN_PFX`,
+`WINDOWS_SIGN_PASSWORD`, and preferably `WINDOWS_SIGN_TIMESTAMP_URL`, then run:
+
+    make plan-sign-windows-standalone
+    make sign-windows-standalone
+    make package-signed-windows-standalone
+
+The signing target signs both executables in `build/windows-x64/portable` and
+uses a temporary output before replacing each file. The certificate chain and
+publisher reputation still have to be trusted by the target Windows policy;
+the repository cannot bypass Smart App Control without that trust.
+
 References: https://learn.microsoft.com/en-us/windows/win32/coreaudio/loopback-recording
 and https://github.com/libsdl-org/SDL/releases/tag/release-2.32.10
