@@ -23,6 +23,11 @@ KEYWORDS = (
     "lite jam",
     "send_scale",
     "still_present",
+    "APC",
+    "MPC",
+    "MPD",
+    "Akai",
+    "pad",
 )
 
 
