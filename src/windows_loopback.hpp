@@ -15,6 +15,8 @@
 #include <vector>
 
 class WindowsLoopback {
+	static constexpr uint32_t kEndpointQueryGraceChecks = 4;
+	static constexpr uint32_t kCaptureErrorGraceChecks = 3;
 	IMMDeviceEnumerator *enumerator_ = nullptr;
 	IMMDevice *device_ = nullptr;
 	IAudioClient *client_ = nullptr;
@@ -26,6 +28,8 @@ class WindowsLoopback {
 	ERole endpoint_role_ = eMultimedia;
 	std::wstring device_id_;
 	std::chrono::steady_clock::time_point next_endpoint_check_{};
+	uint32_t endpoint_query_failures_ = 0;
+	uint32_t capture_error_failures_ = 0;
 	std::vector<float> samples_;
 	bool diagnostics_ = false;
 	uint64_t diagnostic_packets_ = 0;
@@ -51,6 +55,29 @@ class WindowsLoopback {
 		close();
 		return false;
 	}
+
+	bool endpoint_query_failed(const char *step, HRESULT result)
+	{
+		++endpoint_query_failures_;
+		if (endpoint_query_failures_ < kEndpointQueryGraceChecks)
+			return false;
+		std::fprintf(stderr, "WASAPI %s failed repeatedly: HRESULT 0x%08lx; reopening loopback\n", step,
+			     static_cast<unsigned long>(result));
+		close();
+		return true;
+	}
+
+	bool capture_result(HRESULT result, const char *step)
+	{
+		if (SUCCEEDED(result)) {
+			capture_error_failures_ = 0;
+			return true;
+		}
+		if (result == AUDCLNT_E_BUFFER_ERROR && ++capture_error_failures_ < kCaptureErrorGraceChecks)
+			return true;
+		capture_error_failures_ = 0;
+		return check(result, step);
+	}
 public:
 	~WindowsLoopback() { close(); }
 	void close()
@@ -66,6 +93,8 @@ public:
 		endpoint_role_ = eMultimedia;
 		device_id_.clear();
 		next_endpoint_check_ = {};
+		endpoint_query_failures_ = 0;
+		capture_error_failures_ = 0;
 		reset_diagnostics();
 		if (com_) CoUninitialize();
 		com_ = false;
@@ -165,14 +194,22 @@ public:
 			result = enumerator_->GetDefaultAudioEndpoint(eRender, eConsole, &current_device);
 		}
 		if (FAILED(result)) {
-			std::fprintf(stderr, "WASAPI default speaker query failed; reopening loopback\n");
-			close();
-			return true;
+			if (current_device)
+				current_device->Release();
+			return endpoint_query_failed("default speaker query", result);
 		}
 
 		LPWSTR current_id = nullptr;
 		result = current_device->GetId(&current_id);
-		const bool changed = FAILED(result) || !current_id || device_id_ != current_id;
+		if (FAILED(result) || !current_id) {
+			if (current_id)
+				CoTaskMemFree(current_id);
+			current_device->Release();
+			const HRESULT failure = FAILED(result) ? result : E_UNEXPECTED;
+			return endpoint_query_failed("speaker identity query", failure);
+		}
+		endpoint_query_failures_ = 0;
+		const bool changed = device_id_ != current_id;
 		if (current_id)
 			CoTaskMemFree(current_id);
 		current_device->Release();
@@ -188,10 +225,16 @@ public:
 		// Bound the work per UI iteration, without retaining an unbounded queue.
 		for (int packet = 0; packet < 32; ++packet) {
 			UINT32 pending = 0;
-			if (!check(capture_->GetNextPacketSize(&pending), "next packet")) return false;
+			const HRESULT next_result = capture_->GetNextPacketSize(&pending);
+			if (next_result == AUDCLNT_S_BUFFER_EMPTY)
+				return true;
+			if (!capture_result(next_result, "next packet")) return false;
 			if (!pending) return true;
 			BYTE *data = nullptr; UINT32 frames = 0; DWORD flags = 0;
-			if (!check(capture_->GetBuffer(&data, &frames, &flags, nullptr, nullptr), "read packet")) return false;
+			const HRESULT buffer_result = capture_->GetBuffer(&data, &frames, &flags, nullptr, nullptr);
+			if (buffer_result == AUDCLNT_S_BUFFER_EMPTY)
+				return true;
+			if (!capture_result(buffer_result, "read packet")) return false;
 			if (frames > samples_.size()) {
 				capture_->ReleaseBuffer(frames);
 				return check(E_UNEXPECTED, "packet larger than endpoint buffer");

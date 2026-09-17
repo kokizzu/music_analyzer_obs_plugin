@@ -2053,8 +2053,8 @@ int main(int argc, char **argv)
 				reset_visual_state();
 				window_changed = true;
 			} else {
-				const uint32_t backoff_shift = std::min<uint32_t>(loopback_reconnect_attempt, 4);
-				const uint32_t delay_ms = 250u << backoff_shift;
+				const uint32_t backoff_shift = std::min<uint32_t>(loopback_reconnect_attempt, 2);
+				const uint32_t delay_ms = std::min<uint32_t>(500u, 250u << backoff_shift);
 				++loopback_reconnect_attempt;
 				next_loopback_retry = now + std::chrono::milliseconds(delay_ms);
 				std::fprintf(stderr, "WASAPI speaker loopback retry in %u ms\n", delay_ms);

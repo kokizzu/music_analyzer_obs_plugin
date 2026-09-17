@@ -36,6 +36,10 @@ inspect-standalone-audio-source:
 inspect-windows-self-test-log:
 	python3 scripts/inspect_windows_self_test_log.py
 
+.PHONY: inspect-windows-build-log
+inspect-windows-build-log:
+	python3 scripts/inspect_windows_build_log.py
+
 .PHONY: inspect-standalone-self-test
 inspect-standalone-self-test:
 	python3 scripts/inspect_standalone_self_test.py
@@ -67,6 +71,10 @@ test-windows-audio-diagnostics:
 .PHONY: test-windows-audio-source-priority
 test-windows-audio-source-priority:
 	python3 scripts/test_windows_audio_source_priority.py
+
+.PHONY: test-windows-loopback-recovery
+test-windows-loopback-recovery:
+	python3 scripts/test_windows_loopback_recovery.py
 
 .PHONY: inspect-audio-capture-configuration
 inspect-audio-capture-configuration:
@@ -124,6 +132,18 @@ review-main-makefile:
 .PHONY: inspect-windows-signing
 inspect-windows-signing:
 	python3 scripts/inspect_windows_signing.py
+
+.PHONY: discover-windows-signing-certificate
+discover-windows-signing-certificate:
+	python3 scripts/discover_windows_signing_certificate.py
+
+.PHONY: inspect-windows-certificate
+inspect-windows-certificate:
+	python3 scripts/inspect_windows_certificate.py
+
+.PHONY: inspect-windows-self-sign
+inspect-windows-self-sign:
+	python3 scripts/inspect_windows_self_sign.py
 
 .PHONY: plan-sign-windows-standalone sign-windows-standalone package-signed-windows-standalone
 plan-sign-windows-standalone:
