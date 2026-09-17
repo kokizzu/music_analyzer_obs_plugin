@@ -13,6 +13,10 @@ windows-standalone:
 verify-windows-standalone:
 	python3 scripts/windows_standalone.py verify
 
+.PHONY: verify-windows-share-runtime
+verify-windows-share-runtime:
+	python3 scripts/verify_windows_share_runtime.py
+
 package-windows-standalone:
 	python3 scripts/windows_standalone.py package
 

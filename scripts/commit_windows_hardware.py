@@ -62,6 +62,7 @@ FILES = (
     "scripts/test_windows_hardware_reconnect.py",
     "scripts/test_windows_hardware_status.py",
     "scripts/test_windows_hardware_status_runtime.py",
+    "scripts/verify_windows_share_runtime.py",
     "scripts/test_windows_signing.py",
     "scripts/verify_windows_hardware_sources.py",
     "scripts/verify_windows_runtime_bundle.py",
