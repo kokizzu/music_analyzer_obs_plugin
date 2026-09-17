@@ -159,3 +159,6 @@ test-windows-hardware-protocol:
 
 push-windows-hardware:
 	python3 scripts/push_windows_hardware.py
+
+report-windows-share-inventory:
+	python3 scripts/report_windows_share_inventory.py

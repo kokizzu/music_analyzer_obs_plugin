@@ -46,6 +46,7 @@ FILES = (
     "scripts/test_windows_hardware_probe.py",
     "scripts/inspect_windows_hardware_protocol.py",
     "scripts/push_windows_hardware.py",
+    "scripts/report_windows_share_inventory.py",
     "scripts/test_windows_hardware_protocol.py",
     "scripts/test_windows_hardware_reconnect.py",
     "scripts/test_windows_hardware_status.py",
