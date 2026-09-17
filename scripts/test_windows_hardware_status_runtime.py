@@ -24,10 +24,16 @@ def main() -> int:
         }
     )
     for name in ("MusicAnalyzer", "HalfMusicAnalyzer"):
+        executable = PORTABLE / f"{name}.exe"
+        diagnostic_log = executable.with_suffix(".log")
+        try:
+            log_start = diagnostic_log.stat().st_size
+        except OSError:
+            log_start = 0
         result = subprocess.run(
             [
                 "wine",
-                str(PORTABLE / f"{name}.exe"),
+                str(executable),
                 "--hardware-only",
                 "--hardware-root",
                 "G",
@@ -41,11 +47,19 @@ def main() -> int:
             stderr=subprocess.STDOUT,
             timeout=30,
         )
+        diagnostic_output = ""
+        try:
+            with diagnostic_log.open("r", encoding="utf-8", errors="replace") as stream:
+                stream.seek(log_start)
+                diagnostic_output = stream.read()
+        except OSError:
+            pass
+        output = result.stdout + diagnostic_output
         if result.returncode != 1:
-            raise SystemExit(f"{name}: expected missing-required-device exit 1, got {result.returncode}\n{result.stdout}")
+            raise SystemExit(f"{name}: expected missing-required-device exit 1, got {result.returncode}\n{output}")
         expected_status = "Windows hardware probe: midi=not-found litejam=not-found fret-zealot=not-found"
         if expected_status not in result.stdout:
-            raise SystemExit(f"{name}: missing probe status\n{result.stdout}")
+            raise SystemExit(f"{name}: missing probe status\n{output}")
         print(f"{name}: required-device failure/status passed")
     return 0
 

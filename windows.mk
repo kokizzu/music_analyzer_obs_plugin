@@ -10,6 +10,20 @@ test-visualizer-parentheses:
 test-visualizer-glyph-coverage:
 	python3 scripts/test_visualizer_glyph_coverage.py
 
+.PHONY: plan-commit-share-runtime-verifier commit-share-runtime-verifier
+plan-commit-share-runtime-verifier:
+	python3 scripts/commit_share_runtime_verifier.py plan
+
+commit-share-runtime-verifier:
+	python3 scripts/commit_share_runtime_verifier.py apply
+
+.PHONY: plan-commit-windows-runtime-test commit-windows-runtime-test
+plan-commit-windows-runtime-test:
+	python3 scripts/commit_windows_runtime_test.py plan
+
+commit-windows-runtime-test:
+	python3 scripts/commit_windows_runtime_test.py apply
+
 .PHONY: prepare-windows-standalone windows-standalone
 prepare-windows-standalone:
 	python3 scripts/windows_standalone.py prepare
