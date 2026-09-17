@@ -185,6 +185,17 @@ inspect-windows-hardware-protocol:
 test-windows-hardware-protocol:
 	python3 scripts/test_windows_hardware_protocol.py
 
+.PHONY: test-windows-gatt-abi
+test-windows-gatt-abi:
+	python3 scripts/test_windows_gatt_abi.py
+
+.PHONY: plan-commit-windows-protocol commit-windows-protocol
+plan-commit-windows-protocol:
+	python3 scripts/commit_windows_protocol.py plan
+
+commit-windows-protocol:
+	python3 scripts/commit_windows_protocol.py apply
+
 push-windows-hardware:
 	python3 scripts/push_windows_hardware.py
 
