@@ -48,6 +48,7 @@ FILES = (
     "scripts/push_windows_hardware.py",
     "scripts/report_windows_share_inventory.py",
     "scripts/test_windows_hardware_protocol.py",
+    "tests/windows_midi_protocol.cpp",
     "scripts/test_windows_hardware_reconnect.py",
     "scripts/test_windows_hardware_status.py",
     "scripts/test_windows_hardware_status_runtime.py",

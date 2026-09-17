@@ -21,6 +21,10 @@ REQUIREMENTS = {
         "midiOutGetNumDevs",
         "midiOutOpen",
         "midiOutShortMsg",
+        "windows_midi_uses_pad_note_feedback",
+        "midi_protocol",
+        "build_mpc_pad_note_messages",
+        "protocol=",
     ),
     "Fret Zealot BLE output": (
         "fret_zealot_name_matches",

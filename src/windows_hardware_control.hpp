@@ -60,6 +60,20 @@ inline bool windows_midi_output_name_matches(const std::string &name, const std:
 				      windows_ascii_contains(name, "pad"));
 }
 
+inline bool windows_midi_uses_pad_note_feedback(const std::string &name, const std::string &protocol)
+{
+	if (windows_ascii_contains(protocol, "apc"))
+		return false;
+	if (windows_ascii_contains(protocol, "mpc") ||
+	    windows_ascii_contains(protocol, "mpd") ||
+	    windows_ascii_contains(protocol, "pad") ||
+	    windows_ascii_contains(protocol, "note"))
+		return true;
+	return windows_ascii_contains(name, "mpc") ||
+	       windows_ascii_contains(name, "mpd") ||
+	       windows_ascii_contains(name, "pad");
+}
+
 inline bool windows_litejam_name_matches(const std::string &name, const std::string &preferred)
 {
 	if (!preferred.empty())
@@ -78,6 +92,7 @@ inline std::uint32_t pack_windows_midi_short_message(std::uint8_t status, std::u
 struct WindowsHardwareOptions {
 	bool enabled = true;
 	std::string midi_output;
+	std::string midi_protocol = "auto";
 	std::string litejam_device;
 	std::string fret_zealot_device;
 };

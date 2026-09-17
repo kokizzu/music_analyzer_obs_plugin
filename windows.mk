@@ -162,3 +162,11 @@ push-windows-hardware:
 
 report-windows-share-inventory:
 	python3 scripts/report_windows_share_inventory.py
+
+WINDOWS_MIDI_PROTOCOL_TEST_BIN := $(BUILD_DIR)/windows_midi_protocol_tests
+
+$(WINDOWS_MIDI_PROTOCOL_TEST_BIN): tests/windows_midi_protocol.cpp src/fret_control.cpp src/fret_control.hpp | $(BUILD_DIR)
+	$(CXX) $(CXXFLAGS) -Isrc tests/windows_midi_protocol.cpp src/fret_control.cpp -o $@
+
+test-windows-midi-protocol: $(WINDOWS_MIDI_PROTOCOL_TEST_BIN)
+	$(WINDOWS_MIDI_PROTOCOL_TEST_BIN)

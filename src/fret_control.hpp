@@ -102,6 +102,9 @@ private:
 ControlAction apc_action_for_pad(uint8_t note);
 ControlAction mvave_action_for_switch(int switch_index, bool held);
 std::vector<uint8_t> build_apc_led_messages(int root_pitch_class, RootControlMode mode);
+// Standard MPC/MPD pad feedback: channel 10 note messages for the 16 classic
+// pad notes. Velocity zero turns a pad off; nonzero velocity turns it on.
+std::vector<uint8_t> build_mpc_pad_note_messages(int root_pitch_class);
 std::vector<uint8_t> build_litejam_major_scale_packet(int root_pitch_class);
 std::vector<uint8_t> build_fret_zealot_major_scale_packet(int root_pitch_class);
 // Four-byte cells: firmware LED index, red, green, blue. The FretSpark/AUPHY

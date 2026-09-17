@@ -391,6 +391,31 @@ std::vector<uint8_t> build_apc_led_messages(int root_pitch_class, RootControlMod
 	return messages;
 }
 
+std::vector<uint8_t> build_mpc_pad_note_messages(int root_pitch_class)
+{
+	constexpr uint8_t kMidiNoteOnChannel10 = 0x99;
+	constexpr int kClassicMpcPadBaseNote = 36;
+	constexpr int kClassicMpcPadCount = 16;
+	constexpr std::array<uint8_t, kScaleDegreeCount> kScaleVelocities = {
+		127, 96, 88, 80, 72, 64, 56,
+	};
+
+	std::vector<uint8_t> messages;
+	messages.reserve(static_cast<std::size_t>(kClassicMpcPadCount) * 3);
+	for (int pad = 0; pad < kClassicMpcPadCount; ++pad) {
+		const int midi_note = kClassicMpcPadBaseNote + pad;
+		const int pitch_class = normalize_pitch_class(midi_note);
+		const int degree = major_scale_degree(root_pitch_class, pitch_class);
+		const uint8_t velocity = degree < 0
+			? 0
+			: kScaleVelocities[static_cast<std::size_t>(degree)];
+		messages.push_back(kMidiNoteOnChannel10);
+		messages.push_back(static_cast<uint8_t>(midi_note));
+		messages.push_back(velocity);
+	}
+	return messages;
+}
+
 std::vector<uint8_t> build_litejam_major_scale_packet(int root_pitch_class)
 {
 	std::vector<uint8_t> packet;

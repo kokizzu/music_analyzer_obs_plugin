@@ -137,6 +137,7 @@ struct Options {
 	bool debug_audio = false;
 	int hardware_test_root = -1;
 	std::string midi_output;
+	std::string midi_protocol = "auto";
 	std::string litejam_device;
 	std::string fret_zealot_device;
 	bool width_set = false;
@@ -242,7 +243,8 @@ void print_usage(const char *argv0)
 			     "       [--fps fps] [--sample-rate hz] [--sensitivity percent]\n"
 			     "       [--legacy-window] [--enable-vocal-detection] [--enable-other-detection]\n"
 			     "       [--show-vocal-row] [--no-hardware] [--midi-output name]\n"
-			     "       [--litejam-device name] [--fret-zealot-device name] [--hardware-root note]\n"
+			     "       [--litejam-device name] [--fret-zealot-device name] [--midi-protocol auto|apc|mpc-notes]\n"
+			     "       [--hardware-root note]\n"
 			     "       [--list-hardware] [--hardware-only] [--require-midi]\n"
 			     "       [--require-litejam] [--require-fret-zealot]\n"
 			     "       [--list-devices] [--default-input] [--debug-audio] [--hold] [--version] [--self-test]\n\n"
@@ -403,6 +405,11 @@ bool parse_options(int argc, char **argv, Options *options)
 			if (!value)
 				return false;
 			options->midi_output = value;
+		} else if (arg == "--midi-protocol") {
+			const char *value = need_value("--midi-protocol");
+			if (!value)
+				return false;
+			options->midi_protocol = value;
 		} else if (arg == "--hardware-root") {
 			const char *value = need_value("--hardware-root");
 			if (!value)
@@ -1795,6 +1802,7 @@ int main(int argc, char **argv)
 		mao::WindowsHardwareOptions hardware_options;
 		hardware_options.enabled = options.enable_hardware_control;
 		hardware_options.midi_output = options.midi_output;
+		hardware_options.midi_protocol = options.midi_protocol;
 		hardware_options.litejam_device = options.litejam_device;
 		hardware_options.fret_zealot_device = options.fret_zealot_device;
 		mao::WindowsHardwareController hardware(hardware_options);
@@ -1915,6 +1923,7 @@ int main(int argc, char **argv)
 	mao::WindowsHardwareOptions hardware_options;
 	hardware_options.enabled = options.enable_hardware_control;
 	hardware_options.midi_output = options.midi_output;
+	hardware_options.midi_protocol = options.midi_protocol;
 	hardware_options.litejam_device = options.litejam_device;
 	hardware_options.fret_zealot_device = options.fret_zealot_device;
 	mao::WindowsHardwareController hardware(hardware_options);

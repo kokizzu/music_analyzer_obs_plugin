@@ -47,9 +47,16 @@ so hardware discovery and writes do not block audio analysis.
 Use `--list-hardware` to print available Windows MIDI outputs and paired
 LiteJam/Fret Zealot BLE interfaces. Use `--midi-output "device name"`,
 `--litejam-device "device name"`, or `--fret-zealot-device "device name"` to
-select a specific device. Use `--no-hardware` to disable all outputs. The MIDI pad colors use the shared
-APC-style 8x8 map; exact pad LED behavior is model-specific, so a non-APC
-Akai controller may require its own MIDI feedback mode or an explicit port.
+select a specific device. Use `--no-hardware` to disable all outputs. The
+`--midi-protocol` option accepts `auto`, `apc`, or `mpc-notes`. `auto` keeps the
+APC-style 8x8 color protocol for APC names and uses channel-10 note feedback
+for MPC/MPD/pad names. `mpc-notes` sends classic pad notes 36 through 51 with
+velocity zero for off-scale pads and nonzero velocity for scale pads; the
+controller must be configured to light LEDs from MIDI input. Exact LED behavior
+and note mapping remain model-specific, so use `--midi-protocol apc` only for
+APC-compatible devices and select the exact output name for other controllers.
+MPC note feedback can also trigger the selected MIDI program, depending on the
+hardware's MIDI-input settings.
 LiteJam and Fret Zealot must be paired in Windows Bluetooth settings before
 launching.
 

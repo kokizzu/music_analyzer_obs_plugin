@@ -28,6 +28,10 @@ KEYWORDS = (
     "MPD",
     "Akai",
     "pad",
+    "fret_control",
+    "standalone.cpp",
+    "windows_standalone",
+    "windows_midi_protocol",
 )
 
 
@@ -38,9 +42,19 @@ def main() -> int:
         for number, line in enumerate(lines, 1):
             if any(keyword.lower() in line.lower() for keyword in KEYWORDS):
                 print(f"{number}: {line}")
+        if source.name == "windows_hardware_control.cpp":
+            print("--- MIDI implementation ---")
+            for number in range(165, min(255, len(lines) + 1)):
+                print(f"{number}: {lines[number - 1]}")
+            print("--- worker output selection ---")
+            for number in range(625, min(685, len(lines) + 1)):
+                print(f"{number}: {lines[number - 1]}")
     print(f"=== {COMMIT_HELPER.relative_to(ROOT)} ===")
     for number, line in enumerate(COMMIT_HELPER.read_text(encoding="utf-8").splitlines(), 1):
-        if any(keyword in line for keyword in ("FILES", "inspect_windows", "test_windows")):
+        if any(keyword.lower() in line.lower() for keyword in (
+            "FILES", "inspect_windows", "test_windows", "fret_control",
+            "standalone.cpp", "windows_standalone", "windows_midi_protocol",
+        )):
             print(f"{number}: {line}")
     return 0
 

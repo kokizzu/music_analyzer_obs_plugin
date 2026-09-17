@@ -177,7 +177,7 @@ public:
 		return handle_ != nullptr;
 	}
 
-	bool open(const std::string &preferred)
+	bool open(const std::string &preferred, const std::string &protocol)
 	{
 		if (active())
 			return true;
@@ -195,7 +195,9 @@ public:
 				continue;
 			handle_ = handle;
 			name_ = name;
-			std::fprintf(stderr, "Windows MIDI pad output: %s\n", name_.c_str());
+			pad_note_feedback_ = windows_midi_uses_pad_note_feedback(name_, protocol);
+			std::fprintf(stderr, "Windows MIDI pad output: %s protocol=%s\n", name_.c_str(),
+				     pad_note_feedback_ ? "mpc-notes" : "apc-grid");
 			return true;
 		}
 		return false;
@@ -222,7 +224,9 @@ public:
 	{
 		if (!active())
 			return false;
-		const std::vector<std::uint8_t> messages = build_apc_led_messages(root_pitch_class, mode);
+		const std::vector<std::uint8_t> messages = pad_note_feedback_
+			? build_mpc_pad_note_messages(root_pitch_class)
+			: build_apc_led_messages(root_pitch_class, mode);
 		for (std::size_t offset = 0; offset + 2 < messages.size(); offset += 3) {
 			const DWORD message = pack_windows_midi_short_message(messages[offset], messages[offset + 1],
 									      messages[offset + 2]);
@@ -240,11 +244,13 @@ public:
 			handle_ = nullptr;
 		}
 		name_.clear();
+		pad_note_feedback_ = false;
 	}
 
 private:
 	HMIDIOUT handle_ = nullptr;
 	std::string name_;
+	bool pad_note_feedback_ = false;
 };
 
 class FretZealotGatt {
@@ -639,7 +645,7 @@ struct WindowsHardwareController::Impl {
 				midi_connected.store(false, std::memory_order_release);
 			if (midi_sent_revision != revision || !midi_present) {
 				if (!midi.active())
-					(void)midi.open(options.midi_output);
+					(void)midi.open(options.midi_output, options.midi_protocol);
 				if (midi.active() && midi.send_scale(root, mode)) {
 					midi_sent_revision = revision;
 					midi_connected.store(true, std::memory_order_release);
