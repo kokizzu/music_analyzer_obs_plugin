@@ -25,6 +25,11 @@ def run(wine: str, executable: Path, *arguments: str) -> str:
             "SDL_AUDIODRIVER": "dummy",
         }
     )
+    diagnostic_log = executable.with_suffix(".log")
+    try:
+        log_start = diagnostic_log.stat().st_size
+    except OSError:
+        log_start = 0
     result = subprocess.run(
         [wine, str(executable), *arguments],
         check=False,
@@ -34,11 +39,19 @@ def run(wine: str, executable: Path, *arguments: str) -> str:
         env=environment,
         timeout=30,
     )
+    diagnostic_output = ""
+    try:
+        with diagnostic_log.open("r", encoding="utf-8", errors="replace") as stream:
+            stream.seek(log_start)
+            diagnostic_output = stream.read()
+    except OSError:
+        pass
     if result.returncode != 0:
         raise SystemExit(
-            f"{executable.name} {' '.join(arguments)} failed with {result.returncode}:\n{result.stdout}"
+            f"{executable.name} {' '.join(arguments)} failed with {result.returncode}:\n"
+            f"{result.stdout}{diagnostic_output}"
         )
-    return result.stdout
+    return result.stdout + diagnostic_output
 
 
 def main() -> None:
