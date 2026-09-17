@@ -28,7 +28,12 @@ hardware outputs.
 For a direct device-only check without opening the analyzer or requiring an
 audio source, use `--hardware-only --hardware-root G`. It initializes every
 selected Windows MIDI/BLE output, sends the scale, waits three seconds for
-BLE writes to settle, and exits.
+BLE writes to settle, prints `midi/litejam/fret-zealot` connection results, and
+exits. Add `--require-midi`, `--require-litejam`, or `--require-fret-zealot`
+to make the check return failure when that output is not connected. For
+example, `--hardware-only --hardware-root G --require-fret-zealot
+--fret-zealot-device "Fret Zealot"` is a real Fret Zealot probe, while
+`--require-midi --midi-output "MPC"` checks an Akai/MPC MIDI output.
 
 ## Hardware control
 

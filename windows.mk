@@ -138,3 +138,15 @@ package-signed-windows-standalone: sign-windows-standalone
 .PHONY: test-windows-signing
 test-windows-signing:
 	python3 scripts/test_windows_signing.py
+
+.PHONY: inspect-standalone-hardware-only
+inspect-standalone-hardware-only:
+	python3 scripts/inspect_standalone_hardware_only.py
+
+.PHONY: test-windows-hardware-status
+test-windows-hardware-status:
+	python3 scripts/test_windows_hardware_status.py
+
+.PHONY: test-windows-hardware-status-runtime
+test-windows-hardware-status-runtime:
+	python3 scripts/test_windows_hardware_status_runtime.py

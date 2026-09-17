@@ -2,6 +2,7 @@
 
 #include "fret_control.hpp"
 
+#include <atomic>
 #include <cstdint>
 #include <cstdio>
 #include <memory>
@@ -81,6 +82,12 @@ struct WindowsHardwareOptions {
 	std::string fret_zealot_device;
 };
 
+struct WindowsHardwareStatus {
+	bool midi_connected = false;
+	bool litejam_connected = false;
+	bool fret_zealot_connected = false;
+};
+
 class WindowsHardwareController {
 public:
 	explicit WindowsHardwareController(const WindowsHardwareOptions &options);
@@ -93,6 +100,7 @@ public:
 	void start();
 	void update(int root_pitch_class, RootControlMode mode);
 	void stop();
+	WindowsHardwareStatus status() const;
 
 	static void print_midi_devices();
 	static void print_litejam_devices();
@@ -120,6 +128,11 @@ inline void WindowsHardwareController::update(int, RootControlMode)
 
 inline void WindowsHardwareController::stop()
 {
+}
+
+inline WindowsHardwareStatus WindowsHardwareController::status() const
+{
+	return {};
 }
 
 inline void WindowsHardwareController::print_midi_devices()

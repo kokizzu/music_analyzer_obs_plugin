@@ -10,6 +10,7 @@
 
 #include <algorithm>
 #include <array>
+#include <atomic>
 #include <chrono>
 #include <condition_variable>
 #include <cstdint>
@@ -633,34 +634,54 @@ struct WindowsHardwareController::Impl {
 			if (root < 0)
 				continue;
 
-			if (midi_sent_revision != revision || !midi.still_present(options.midi_output)) {
+			const bool midi_present = midi.still_present(options.midi_output);
+			if (!midi_present)
+				midi_connected.store(false, std::memory_order_release);
+			if (midi_sent_revision != revision || !midi_present) {
 				if (!midi.active())
 					(void)midi.open(options.midi_output);
-				if (midi.active() && midi.send_scale(root, mode))
+				if (midi.active() && midi.send_scale(root, mode)) {
 					midi_sent_revision = revision;
-				else {
+					midi_connected.store(true, std::memory_order_release);
+				} else {
 					midi.close();
 					midi_sent_revision = 0;
+					midi_connected.store(false, std::memory_order_release);
 				}
 			}
 
-			if (litejam_sent_revision != revision || !litejam.still_present()) {
-				if (litejam.send_scale(root, options.litejam_device))
+			const bool litejam_present = litejam.still_present();
+			if (!litejam_present)
+				litejam_connected.store(false, std::memory_order_release);
+			if (litejam_sent_revision != revision || !litejam_present) {
+				if (litejam.send_scale(root, options.litejam_device)) {
 					litejam_sent_revision = revision;
-				else
+					litejam_connected.store(true, std::memory_order_release);
+				} else {
 					litejam_sent_revision = 0;
+					litejam_connected.store(false, std::memory_order_release);
+				}
 			}
 
-			if (fret_zealot_sent_revision != revision || !fret_zealot.still_present()) {
-				if (fret_zealot.send_scale(root, options.fret_zealot_device))
+			const bool fret_zealot_present = fret_zealot.still_present();
+			if (!fret_zealot_present)
+				fret_zealot_connected.store(false, std::memory_order_release);
+			if (fret_zealot_sent_revision != revision || !fret_zealot_present) {
+				if (fret_zealot.send_scale(root, options.fret_zealot_device)) {
 					fret_zealot_sent_revision = revision;
-				else
+					fret_zealot_connected.store(true, std::memory_order_release);
+				} else {
 					fret_zealot_sent_revision = 0;
+					fret_zealot_connected.store(false, std::memory_order_release);
+				}
 			}
 		}
 		midi.close();
 		litejam.close();
 		fret_zealot.close();
+		midi_connected.store(false, std::memory_order_release);
+		litejam_connected.store(false, std::memory_order_release);
+		fret_zealot_connected.store(false, std::memory_order_release);
 	}
 
 	WindowsHardwareOptions options;
@@ -675,6 +696,9 @@ struct WindowsHardwareController::Impl {
 	int desired_root = -1;
 	RootControlMode desired_mode = RootControlMode::Auto;
 	std::uint64_t desired_revision = 0;
+	std::atomic<bool> midi_connected{false};
+	std::atomic<bool> litejam_connected{false};
+	std::atomic<bool> fret_zealot_connected{false};
 };
 
 WindowsHardwareController::WindowsHardwareController(const WindowsHardwareOptions &options)
@@ -703,6 +727,17 @@ void WindowsHardwareController::stop()
 {
 	if (impl_)
 		impl_->stop();
+}
+
+WindowsHardwareStatus WindowsHardwareController::status() const
+{
+	if (!impl_)
+		return {};
+	return WindowsHardwareStatus{
+		impl_->midi_connected.load(std::memory_order_acquire),
+		impl_->litejam_connected.load(std::memory_order_acquire),
+		impl_->fret_zealot_connected.load(std::memory_order_acquire),
+	};
 }
 
 void WindowsHardwareController::print_midi_devices()

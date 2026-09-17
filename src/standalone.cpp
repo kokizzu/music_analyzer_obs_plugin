@@ -131,6 +131,9 @@ struct Options {
 	bool enable_hardware_control = true;
 	bool list_hardware = false;
 	bool hardware_only = false;
+	bool require_midi = false;
+	bool require_litejam = false;
+	bool require_fret_zealot = false;
 	bool debug_audio = false;
 	int hardware_test_root = -1;
 	std::string midi_output;
@@ -240,7 +243,8 @@ void print_usage(const char *argv0)
 			     "       [--legacy-window] [--enable-vocal-detection] [--enable-other-detection]\n"
 			     "       [--show-vocal-row] [--no-hardware] [--midi-output name]\n"
 			     "       [--litejam-device name] [--fret-zealot-device name] [--hardware-root note]\n"
-			     "       [--list-hardware] [--hardware-only]\n"
+			     "       [--list-hardware] [--hardware-only] [--require-midi]\n"
+			     "       [--require-litejam] [--require-fret-zealot]\n"
 			     "       [--list-devices] [--default-input] [--debug-audio] [--hold] [--version] [--self-test]\n\n"
 		     "No input option prefers an SDL output monitor/loopback device, then falls back to default input.\n",
 		     argv0);
@@ -421,6 +425,12 @@ bool parse_options(int argc, char **argv, Options *options)
 			options->list_hardware = true;
 		} else if (arg == "--hardware-only") {
 			options->hardware_only = true;
+		} else if (arg == "--require-midi") {
+			options->require_midi = true;
+		} else if (arg == "--require-litejam") {
+			options->require_litejam = true;
+		} else if (arg == "--require-fret-zealot") {
+			options->require_fret_zealot = true;
 		} else if (arg == "--hold") {
 			options->hold_on_eof = true;
 		} else if (arg == "--self-test") {
@@ -1792,7 +1802,20 @@ int main(int argc, char **argv)
 		hardware.update(options.hardware_test_root, mao::RootControlMode::Manual);
 		std::fprintf(stderr, "Windows hardware probe: root=%d, waiting 3 seconds\n", options.hardware_test_root);
 		std::this_thread::sleep_for(std::chrono::seconds(3));
+		const mao::WindowsHardwareStatus status = hardware.status();
+		std::fprintf(stderr, "Windows hardware probe: midi=%s litejam=%s fret-zealot=%s\n",
+			     status.midi_connected ? "connected" : "not-found",
+			     status.litejam_connected ? "connected" : "not-found",
+			     status.fret_zealot_connected ? "connected" : "not-found");
+		const bool missing_required =
+			(options.require_midi && !status.midi_connected) ||
+			(options.require_litejam && !status.litejam_connected) ||
+			(options.require_fret_zealot && !status.fret_zealot_connected);
 		hardware.stop();
+		if (missing_required) {
+			std::fprintf(stderr, "Windows hardware probe failed: a required device was not connected\n");
+			return 1;
+		}
 		return 0;
 #else
 		std::fprintf(stderr, "--hardware-only is available only in the Windows standalone build\n");
