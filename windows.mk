@@ -10,6 +10,17 @@ test-visualizer-parentheses:
 test-visualizer-glyph-coverage:
 	python3 scripts/test_visualizer_glyph_coverage.py
 
+.PHONY: test-visualizer-label-glyphs
+test-visualizer-label-glyphs:
+	python3 scripts/test_visualizer_label_glyphs.py
+
+.PHONY: plan-commit-visualizer-label-glyphs commit-visualizer-label-glyphs
+plan-commit-visualizer-label-glyphs:
+	python3 scripts/commit_visualizer_label_glyphs.py plan
+
+commit-visualizer-label-glyphs:
+	python3 scripts/commit_visualizer_label_glyphs.py apply
+
 .PHONY: plan-commit-share-runtime-verifier commit-share-runtime-verifier
 plan-commit-share-runtime-verifier:
 	python3 scripts/commit_share_runtime_verifier.py plan
