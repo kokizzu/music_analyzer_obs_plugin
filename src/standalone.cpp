@@ -75,6 +75,52 @@ constexpr float kRuntimeMetricsIntervalSeconds = 1.0f;
 
 #ifndef MAO_STANDALONE_BASS_GUITAR
 #define MAO_STANDALONE_BASS_GUITAR 0
+#if defined(_WIN32)
+void open_windows_diagnostic_log()
+{
+	char module_path[32768] = {};
+	const DWORD length = GetModuleFileNameA(nullptr, module_path, static_cast<DWORD>(sizeof(module_path)));
+	std::string log_path;
+	if (length > 0 && length < sizeof(module_path)) {
+		const std::string module(module_path, length);
+		const std::size_t slash = module.find_last_of("\\/");
+		const std::size_t filename_start = slash == std::string::npos ? 0 : slash + 1;
+		std::string stem = module.substr(filename_start);
+		const std::size_t dot = stem.find_last_of('.');
+		if (dot != std::string::npos)
+			stem.resize(dot);
+		log_path = module.substr(0, filename_start) + stem + ".log";
+	}
+	if (log_path.empty())
+		log_path = "music-analyzer-windows.log";
+
+	FILE *stream = nullptr;
+	if (freopen_s(&stream, log_path.c_str(), "a", stderr) != 0 || !stream) {
+		const std::string message = "Cannot open diagnostic log: " + log_path +
+			"\nPlease move the application to a writable folder. Diagnostics cannot be saved.";
+		MessageBoxA(nullptr, message.c_str(), "Music Analyzer logging error", MB_OK | MB_ICONERROR);
+		return;
+	}
+	setvbuf(stderr, nullptr, _IONBF, 0);
+	FILE *output_stream = nullptr;
+	if (freopen_s(&output_stream, log_path.c_str(), "a", stdout) != 0 || !output_stream) {
+		std::fprintf(stderr, "Cannot redirect standard output to diagnostic log: %s\n", log_path.c_str());
+	} else {
+		setvbuf(stdout, nullptr, _IONBF, 0);
+	}
+
+	SYSTEMTIME now = {};
+	GetLocalTime(&now);
+	std::fprintf(stderr,
+			"\n=== Windows diagnostic run %04u-%02u-%02u %02u:%02u:%02u.%03u pid=%lu version=%s ===\n",
+			static_cast<unsigned>(now.wYear), static_cast<unsigned>(now.wMonth),
+			static_cast<unsigned>(now.wDay), static_cast<unsigned>(now.wHour),
+			static_cast<unsigned>(now.wMinute), static_cast<unsigned>(now.wSecond),
+			static_cast<unsigned>(now.wMilliseconds), static_cast<unsigned long>(GetCurrentProcessId()),
+			MAO_STANDALONE_VERSION);
+}
+#endif
+
 #endif
 
 #if MAO_STANDALONE_BASS_GUITAR

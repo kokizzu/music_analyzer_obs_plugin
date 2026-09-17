@@ -257,6 +257,17 @@ push-windows-hardware:
 test-windows-gatt-interface:
 	python3 scripts/test_windows_gatt_interface.py
 
+.PHONY: test-windows-diagnostic-output
+test-windows-diagnostic-output:
+	python3 scripts/test_windows_diagnostic_output.py
+
+.PHONY: plan-commit-windows-diagnostic-output commit-windows-diagnostic-output
+plan-commit-windows-diagnostic-output:
+	python3 scripts/commit_windows_diagnostic_output.py plan
+
+commit-windows-diagnostic-output:
+	python3 scripts/commit_windows_diagnostic_output.py apply
+
 .PHONY: plan-commit-windows-gatt-interface commit-windows-gatt-interface
 plan-commit-windows-gatt-interface:
 	python3 scripts/commit_windows_gatt_interface.py plan
