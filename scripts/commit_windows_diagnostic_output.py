@@ -7,7 +7,6 @@ import sys
 
 
 ROOT = Path(__file__).resolve().parents[1]
-SOURCE = "src/standalone.cpp"
 HARDWARE_SOURCE = "src/windows_hardware_control.cpp"
 TEST = "scripts/test_windows_diagnostic_output.py"
 COMMIT_SCRIPT = "scripts/commit_windows_diagnostic_output.py"
@@ -55,7 +54,6 @@ def select_patch(path: str, markers: tuple[str, ...]) -> str | None:
 
 def plan() -> int:
     print(f"commit: {COMMIT_MESSAGE}")
-    print(f"stage: {SOURCE} selected stream-fix hunk only")
     print(f"stage: {HARDWARE_SOURCE} selected diagnostic-output hunks only")
     print(f"stage: {TEST}")
     print(f"stage: {COMMIT_SCRIPT}")
@@ -74,13 +72,12 @@ def apply_commit() -> int:
         return 1
 
     patches = [
-        select_patch(SOURCE, ("output_stream", "setvbuf(stdout")),
-        select_patch(HARDWARE_SOURCE, ("No Windows MIDI output devices", "No paired LiteJam", "No paired Fret Zealot", "MIDI %u")),
+        select_patch(HARDWARE_SOURCE, ("LiteJam\\t%s", "Fret Zealot\\t%s")),
     ]
-    if patches[0] is None or patches[1] is None:
+    if patches[0] is None:
         print("refusing to commit: expected diagnostic-output hunks are missing", file=sys.stderr)
         return 1
-    for patch in patches[:2]:
+    for patch in patches:
         applied = run("git", "apply", "--cached", "--unidiff-zero", input_text=patch)
         if applied.returncode != 0:
             print(applied.stdout, file=sys.stderr, end="")
@@ -91,7 +88,7 @@ def apply_commit() -> int:
         print(added.stdout, file=sys.stderr, end="")
         return added.returncode
 
-    expected = {SOURCE, HARDWARE_SOURCE, TEST, COMMIT_SCRIPT}
+    expected = {HARDWARE_SOURCE, TEST, COMMIT_SCRIPT}
     after = run("git", "diff", "--cached", "--name-only")
     actual = {line for line in after.stdout.splitlines() if line}
     if after.returncode != 0 or actual != expected:

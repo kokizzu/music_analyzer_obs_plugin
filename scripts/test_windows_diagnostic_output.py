@@ -20,12 +20,19 @@ def main() -> int:
         "No paired LiteJam BLE interfaces",
         "No paired Fret Zealot BLE interfaces",
         "MIDI %u\\t%s\\n",
+        "LiteJam\\t%s\\n",
+        "Fret Zealot\\t%s\\n",
     )
     for message in expected_messages:
         if message not in hardware_source:
             print(f"hardware diagnostic message is missing: {message}", file=sys.stderr)
             return 1
-    if 'std::printf("MIDI ' in hardware_source or 'std::puts("No ' in hardware_source:
+    if (
+        'std::printf("MIDI ' in hardware_source
+        or 'std::printf("LiteJam' in hardware_source
+        or 'std::printf("Fret Zealot' in hardware_source
+        or 'std::puts("No ' in hardware_source
+    ):
         print("hardware enumeration still writes only to stdout", file=sys.stderr)
         return 1
     if "Windows hardware probe:" not in source:

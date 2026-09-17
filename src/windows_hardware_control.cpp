@@ -768,7 +768,7 @@ void WindowsHardwareController::print_litejam_devices()
 			return true;
 		std::string name = narrow_utf8(metadata);
 		std::replace(name.begin(), name.end(), '\n', ' ');
-		std::printf("LiteJam\t%s\n", name.c_str());
+		std::fprintf(stderr, "LiteJam\t%s\n", name.c_str());
 		found = true;
 		return true;
 	});
@@ -784,7 +784,7 @@ void WindowsHardwareController::print_fret_zealot_devices()
 			return true;
 		std::string name = narrow_utf8(metadata);
 		std::replace(name.begin(), name.end(), '\n', ' ');
-		std::printf("Fret Zealot\t%s\n", name.c_str());
+		std::fprintf(stderr, "Fret Zealot\t%s\n", name.c_str());
 		found = true;
 		return true;
 	});
