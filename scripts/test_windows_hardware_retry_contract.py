@@ -32,6 +32,8 @@ def main() -> int:
         raise SystemExit("missing Windows hardware retry contract: " + "; ".join(missing))
     if "std::vector<uint8_t> packet = {0x40, 0x00, 0x00, 0x00};" not in fret_source:
         raise SystemExit("missing Fret Zealot clear packet prefix")
+    if "const int fret_zealot_pixel = 5 - static_cast<int>(string);" not in fret_source:
+        raise SystemExit("missing Fret Zealot high-E-to-low-E pixel mapping")
 
     for device in ("midi", "litejam", "fret-zealot"):
         if source.count(f'publish_hardware_status("{device}"') < 2:

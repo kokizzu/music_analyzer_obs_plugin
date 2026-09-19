@@ -287,6 +287,45 @@ report-windows-hardware-source:
 report-fret-zealot-sdk:
 	python3 scripts/report_fret_zealot_sdk.py
 
+.PHONY: report-fret-zealot-sdk-usage
+report-fret-zealot-sdk-usage:
+	python3 scripts/report_fret_zealot_sdk_usage.py
+
+.PHONY: report-windows-litejam-source
+report-windows-litejam-source:
+	python3 scripts/report_windows_source_range.py
+
+.PHONY: test-windows-hardware-retry-contract
+test-windows-hardware-retry-contract:
+	python3 scripts/test_windows_hardware_retry_contract.py
+
+.PHONY: report-windows-deploy-source
+report-windows-deploy-source:
+	python3 scripts/report_windows_deploy_source.py
+
+.PHONY: inspect-scoped-windows-hardware-diff
+inspect-scoped-windows-hardware-diff:
+	python3 scripts/inspect_scoped_windows_hardware_diff.py
+
+.PHONY: verify-windows-hardware-checklist
+verify-windows-hardware-checklist: test-windows-hardware-retry-contract test-windows-hardware-reconnect test-windows-hardware-status test-windows-hardware-status-runtime test-windows-diagnostic-output test-windows-midi-protocol verify-windows-standalone verify-windows-runtime-bundle
+	python3 scripts/windows_hardware_checklist.py
+
+.PHONY: plan-commit-windows-hardware-reliability commit-windows-hardware-reliability
+plan-commit-windows-hardware-reliability:
+	python3 scripts/commit_windows_hardware_reliability.py plan
+
+commit-windows-hardware-reliability:
+	python3 scripts/commit_windows_hardware_reliability.py apply
+
+.PHONY: report-windows-hardware-source
+report-windows-hardware-source:
+	python3 scripts/report_windows_hardware_source.py
+
+.PHONY: report-fret-zealot-sdk
+report-fret-zealot-sdk:
+	python3 scripts/report_fret_zealot_sdk.py
+
 .PHONY: report-windows-litejam-source
 report-windows-litejam-source:
 	python3 scripts/report_windows_source_range.py

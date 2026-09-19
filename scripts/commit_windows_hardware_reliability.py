@@ -10,8 +10,10 @@ from pathlib import Path
 
 
 FILES = (
+    "src/fret_control.cpp",
     "src/windows_hardware_control.cpp",
     "scripts/report_fret_zealot_sdk.py",
+    "scripts/report_fret_zealot_sdk_usage.py",
     "scripts/report_windows_deploy_source.py",
     "scripts/report_windows_hardware_source.py",
     "scripts/report_windows_source_range.py",
@@ -29,6 +31,10 @@ report-windows-hardware-source:
 .PHONY: report-fret-zealot-sdk
 report-fret-zealot-sdk:
 \tpython3 scripts/report_fret_zealot_sdk.py
+
+.PHONY: report-fret-zealot-sdk-usage
+report-fret-zealot-sdk-usage:
+\tpython3 scripts/report_fret_zealot_sdk_usage.py
 
 .PHONY: report-windows-litejam-source
 report-windows-litejam-source:
@@ -94,7 +100,7 @@ def apply() -> None:
     run(["git", "apply", "--cached", "--whitespace=nowarn"], input_text=staged_makefile_patch())
     run(["git", "add", "--", *FILES])
     run(["git", "diff", "--cached", "--check"])
-    run(["git", "commit", "-m", "Harden Windows hardware reconnect diagnostics"])
+    run(["git", "commit", "-m", "Fix Fret Zealot Windows string mapping"])
 
 
 def main() -> int:

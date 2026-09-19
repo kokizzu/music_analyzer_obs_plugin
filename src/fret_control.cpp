@@ -466,7 +466,10 @@ std::vector<uint8_t> build_fret_zealot_major_scale_packet(int root_pitch_class)
 			const int led_index = musical_fret - 1;
 			packet.push_back(static_cast<uint8_t>((led_index << 4) | scale_nibble(color.red)));
 			packet.push_back(static_cast<uint8_t>((scale_nibble(color.green) << 4) | scale_nibble(color.blue)));
-			packet.push_back(static_cast<uint8_t>(1u << (static_cast<int>(string) + 1)));
+			// The Fret Zealot SDK numbers physical pixels high-E to low-E,
+			// while analyzer tuning is stored low-E to high-E.
+			const int fret_zealot_pixel = 5 - static_cast<int>(string);
+			packet.push_back(static_cast<uint8_t>(1u << (fret_zealot_pixel + 1)));
 		}
 	}
 	return packet;
