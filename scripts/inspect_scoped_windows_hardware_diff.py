@@ -2,6 +2,7 @@
 """Show status and diff statistics for the Windows hardware change set."""
 
 import subprocess
+from pathlib import Path
 
 
 FILES = (
@@ -29,6 +30,17 @@ def print_diff(path: str) -> None:
         raise SystemExit(result.returncode)
 
 
+def print_makefile_anchor() -> None:
+    lines = Path("windows.mk").read_text(encoding="utf-8").splitlines()
+    for index, line in enumerate(lines):
+        if "MIDI_PROTOCOL" not in line:
+            continue
+        print("=== windows.mk MIDI test anchor ===")
+        for number in range(max(0, index - 2), min(len(lines), index + 10)):
+            print(f"{number + 1}: {lines[number]}")
+        return
+
+
 def main() -> int:
     print("=== status ===")
     run_git("status", "--short")
@@ -36,6 +48,7 @@ def main() -> int:
     run_git("diff", "--stat")
     print("=== staged stat ===")
     run_git("diff", "--cached", "--stat")
+    print_makefile_anchor()
     print_diff("windows.mk")
     print_diff("scripts/deploy_windows_self_signed.py")
     return 0

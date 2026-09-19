@@ -12,6 +12,7 @@ from pathlib import Path
 FILES = (
     "src/fret_control.cpp",
     "src/windows_hardware_control.cpp",
+    "tests/fret_zealot_protocol.cpp",
     "scripts/report_fret_zealot_sdk.py",
     "scripts/report_fret_zealot_sdk_usage.py",
     "scripts/report_windows_deploy_source.py",
@@ -35,6 +36,15 @@ report-fret-zealot-sdk:
 .PHONY: report-fret-zealot-sdk-usage
 report-fret-zealot-sdk-usage:
 \tpython3 scripts/report_fret_zealot_sdk_usage.py
+
+WINDOWS_FRET_ZEALOT_PROTOCOL_TEST_BIN := $(BUILD_DIR)/fret_zealot_protocol_tests
+
+$(WINDOWS_FRET_ZEALOT_PROTOCOL_TEST_BIN): tests/fret_zealot_protocol.cpp src/fret_control.cpp src/fret_control.hpp | $(BUILD_DIR)
+\t$(CXX) $(CXXFLAGS) -Isrc tests/fret_zealot_protocol.cpp src/fret_control.cpp -o $@
+
+.PHONY: test-fret-zealot-protocol
+test-fret-zealot-protocol: $(WINDOWS_FRET_ZEALOT_PROTOCOL_TEST_BIN)
+\t$(WINDOWS_FRET_ZEALOT_PROTOCOL_TEST_BIN)
 
 .PHONY: report-windows-litejam-source
 report-windows-litejam-source:
@@ -100,7 +110,7 @@ def apply() -> None:
     run(["git", "apply", "--cached", "--whitespace=nowarn"], input_text=staged_makefile_patch())
     run(["git", "add", "--", *FILES])
     run(["git", "diff", "--cached", "--check"])
-    run(["git", "commit", "-m", "Fix Fret Zealot Windows string mapping"])
+    run(["git", "commit", "-m", "Add Fret Zealot packet regression test"])
 
 
 def main() -> int:
