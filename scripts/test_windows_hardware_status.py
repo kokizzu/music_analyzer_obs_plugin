@@ -25,9 +25,9 @@ def main() -> int:
     require(
         "src/windows_hardware_control.cpp",
         (
-            "midi_connected.store(true",
-            "litejam_connected.store(true",
-            "fret_zealot_connected.store(true",
+            'publish_hardware_status("midi", midi_connected, true)',
+            'publish_hardware_status("litejam", litejam_connected, true)',
+            'publish_hardware_status("fret-zealot", fret_zealot_connected, true)',
             "WindowsHardwareController::status() const",
         ),
     )

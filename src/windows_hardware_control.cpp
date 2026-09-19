@@ -33,6 +33,63 @@ constexpr std::size_t kFretZealotChunkBytes = 20;
 constexpr std::size_t kFretZealot2ChunkBytes = 500;
 constexpr DWORD kFretZealotWriteDelayMs = 20;
 constexpr auto kHardwareRetryInterval = std::chrono::seconds(2);
+constexpr auto kHardwareRetryInitialDelay = std::chrono::seconds(2);
+constexpr auto kHardwareRetryMaximumDelay = std::chrono::seconds(30);
+
+using HardwareClock = std::chrono::steady_clock;
+
+struct HardwareRetryState {
+	HardwareClock::time_point next_attempt = HardwareClock::time_point::min();
+	std::chrono::seconds delay = kHardwareRetryInitialDelay;
+
+	bool ready(HardwareClock::time_point now) const
+	{
+		return now >= next_attempt;
+	}
+
+	void force(HardwareClock::time_point now)
+	{
+		next_attempt = now;
+	}
+
+	void succeeded(HardwareClock::time_point now)
+	{
+		delay = kHardwareRetryInitialDelay;
+		next_attempt = now + delay;
+	}
+
+	void failed(HardwareClock::time_point now)
+	{
+		next_attempt = now + delay;
+		delay = std::min(delay + delay, kHardwareRetryMaximumDelay);
+	}
+};
+
+void log_hardware_hresult(const char *device, const char *operation, HRESULT result)
+{
+	std::fprintf(stderr, "Windows hardware %s %s failed hr=0x%08lX\n", device, operation,
+		     static_cast<unsigned long>(result));
+}
+
+void log_hardware_win32_error(const char *device, const char *operation, DWORD error)
+{
+	std::fprintf(stderr, "Windows hardware %s %s failed win32=%lu\n", device, operation,
+		     static_cast<unsigned long>(error));
+}
+
+void log_hardware_midi_error(const char *device, const char *operation, MMRESULT result)
+{
+	std::fprintf(stderr, "Windows hardware %s %s failed midi=%u\n", device, operation,
+		     static_cast<unsigned int>(result));
+}
+
+void publish_hardware_status(const char *device, std::atomic<bool> &status, bool connected)
+{
+	const bool previous = status.exchange(connected, std::memory_order_acq_rel);
+	if (previous != connected)
+		std::fprintf(stderr, "Windows hardware status: %s=%s\n", device,
+			     connected ? "connected" : "disconnected");
+}
 
 std::wstring lowercase_wide(std::wstring value)
 {
@@ -191,8 +248,11 @@ public:
 			if (!windows_midi_output_name_matches(name, preferred))
 				continue;
 			HMIDIOUT handle = nullptr;
-			if (midiOutOpen(&handle, index, 0, 0, CALLBACK_NULL) != MMSYSERR_NOERROR)
+			const MMRESULT open_result = midiOutOpen(&handle, index, 0, 0, CALLBACK_NULL);
+			if (open_result != MMSYSERR_NOERROR) {
+				log_hardware_midi_error("MIDI", "open", open_result);
 				continue;
+			}
 			handle_ = handle;
 			name_ = name;
 			pad_note_feedback_ = windows_midi_uses_pad_note_feedback(name_, protocol);
@@ -229,9 +289,12 @@ public:
 			: build_apc_led_messages(root_pitch_class, mode);
 		for (std::size_t offset = 0; offset + 2 < messages.size(); offset += 3) {
 			const DWORD message = pack_windows_midi_short_message(messages[offset], messages[offset + 1],
-									      messages[offset + 2]);
-			if (midiOutShortMsg(handle_, message) != MMSYSERR_NOERROR)
+										      messages[offset + 2]);
+			const MMRESULT result = midiOutShortMsg(handle_, message);
+			if (result != MMSYSERR_NOERROR) {
+				log_hardware_midi_error("MIDI", "send", result);
 				return false;
+			}
 		}
 		return true;
 	}
@@ -275,6 +338,7 @@ public:
 			const HRESULT result = BluetoothGATTSetCharacteristicValue(
 				handle_, &characteristic_, value, 0, write_flags_);
 			if (FAILED(result)) {
+				log_hardware_hresult("Fret Zealot", "write scale packet", result);
 				close();
 				return false;
 			}
@@ -311,6 +375,7 @@ public:
 									 windows_bluetooth::kGattFlagNone);
 		if (result == HRESULT_FROM_WIN32(ERROR_MORE_DATA) && service_count > 0)
 			return true;
+		log_hardware_hresult("Fret Zealot", "probe services", result);
 		close();
 		return false;
 	}
@@ -325,8 +390,10 @@ private:
 				return true;
 			HANDLE candidate = CreateFileW(path.c_str(), GENERIC_READ | GENERIC_WRITE,
 							       FILE_SHARE_READ | FILE_SHARE_WRITE, nullptr, OPEN_EXISTING, 0, nullptr);
-			if (candidate == INVALID_HANDLE_VALUE)
+			if (candidate == INVALID_HANDLE_VALUE) {
+				log_hardware_win32_error("Fret Zealot", "open BLE interface", GetLastError());
 				return true;
+			}
 			if (!discover(candidate)) {
 				CloseHandle(candidate);
 				return true;
@@ -346,14 +413,18 @@ private:
 		USHORT service_count = 0;
 		HRESULT result = BluetoothGATTGetServices(candidate, 0, nullptr, &service_count,
 								 windows_bluetooth::kGattFlagNone);
-		if (result != HRESULT_FROM_WIN32(ERROR_MORE_DATA) || service_count == 0)
+		if (result != HRESULT_FROM_WIN32(ERROR_MORE_DATA) || service_count == 0) {
+			log_hardware_hresult("Fret Zealot", "discover service count", result);
 			return false;
+		}
 		services_.assign(service_count, {});
 		USHORT returned_services = service_count;
 		result = BluetoothGATTGetServices(candidate, service_count, services_.data(), &returned_services,
 							 windows_bluetooth::kGattFlagNone);
-		if (FAILED(result))
+		if (FAILED(result)) {
+			log_hardware_hresult("Fret Zealot", "discover services", result);
 			return false;
+		}
 
 		bool found_service = false;
 		const GUID *write_characteristic_uuid = nullptr;
@@ -373,28 +444,36 @@ private:
 				break;
 			}
 		}
-		if (!found_service || !write_characteristic_uuid)
+		if (!found_service || !write_characteristic_uuid) {
+			std::fprintf(stderr, "Windows hardware Fret Zealot service not found\n");
 			return false;
+		}
 
 		USHORT characteristic_count = 0;
 		result = BluetoothGATTGetCharacteristics(candidate, &service_, 0, nullptr, &characteristic_count,
 								 windows_bluetooth::kGattFlagNone);
-		if (result != HRESULT_FROM_WIN32(ERROR_MORE_DATA) || characteristic_count == 0)
+		if (result != HRESULT_FROM_WIN32(ERROR_MORE_DATA) || characteristic_count == 0) {
+			log_hardware_hresult("Fret Zealot", "discover characteristic count", result);
 			return false;
+		}
 		characteristics_.assign(characteristic_count, {});
 		USHORT returned_characteristics = characteristic_count;
 		result = BluetoothGATTGetCharacteristics(candidate, &service_, characteristic_count,
 							 characteristics_.data(), &returned_characteristics,
 							 windows_bluetooth::kGattFlagNone);
-		if (FAILED(result))
+		if (FAILED(result)) {
+			log_hardware_hresult("Fret Zealot", "discover characteristics", result);
 			return false;
+		}
 
 		for (USHORT index = 0; index < returned_characteristics; ++index) {
 			const MAO_BTH_LE_GATT_CHARACTERISTIC &candidate_characteristic = characteristics_[index];
 			if (!uuid_matches(candidate_characteristic.CharacteristicUuid, *write_characteristic_uuid))
 				continue;
-			if (!candidate_characteristic.IsWritable && !candidate_characteristic.IsWritableWithoutResponse)
+			if (!candidate_characteristic.IsWritable && !candidate_characteristic.IsWritableWithoutResponse) {
+				std::fprintf(stderr, "Windows hardware Fret Zealot write characteristic is not writable\n");
 				return false;
+			}
 			characteristic_ = candidate_characteristic;
 			write_flags_ = candidate_characteristic.IsWritable
 				? windows_bluetooth::kGattFlagNone
@@ -402,6 +481,7 @@ private:
 			chunk_bytes_ = chunk_bytes;
 			return true;
 		}
+		std::fprintf(stderr, "Windows hardware Fret Zealot write characteristic not found\n");
 		return false;
 	}
 
@@ -434,6 +514,7 @@ public:
 		std::memcpy(value->Data, packet.data(), packet.size());
 		const HRESULT result = BluetoothGATTSetCharacteristicValue(handle_, &characteristic_, value, 0, write_flags_);
 		if (FAILED(result)) {
+			log_hardware_hresult("LiteJam", "write scale packet", result);
 			close();
 			return false;
 		}
@@ -466,6 +547,7 @@ public:
 									 windows_bluetooth::kGattFlagNone);
 		if (result == HRESULT_FROM_WIN32(ERROR_MORE_DATA) && service_count > 0)
 			return true;
+		log_hardware_hresult("LiteJam", "probe services", result);
 		close();
 		return false;
 	}
@@ -479,9 +561,11 @@ private:
 			if (!litejam_name_matches(metadata, preferred_device))
 				return true;
 			HANDLE candidate = CreateFileW(path.c_str(), GENERIC_READ | GENERIC_WRITE,
-						       FILE_SHARE_READ | FILE_SHARE_WRITE, nullptr, OPEN_EXISTING, 0, nullptr);
-			if (candidate == INVALID_HANDLE_VALUE)
+							       FILE_SHARE_READ | FILE_SHARE_WRITE, nullptr, OPEN_EXISTING, 0, nullptr);
+			if (candidate == INVALID_HANDLE_VALUE) {
+				log_hardware_win32_error("LiteJam", "open BLE interface", GetLastError());
 				return true;
+			}
 			if (!discover(candidate)) {
 				CloseHandle(candidate);
 				return true;
@@ -501,14 +585,18 @@ private:
 		USHORT service_count = 0;
 		HRESULT result = BluetoothGATTGetServices(candidate, 0, nullptr, &service_count,
 								 windows_bluetooth::kGattFlagNone);
-		if (result != HRESULT_FROM_WIN32(ERROR_MORE_DATA) || service_count == 0)
+		if (result != HRESULT_FROM_WIN32(ERROR_MORE_DATA) || service_count == 0) {
+			log_hardware_hresult("LiteJam", "discover service count", result);
 			return false;
+		}
 		services_.assign(service_count, {});
 		USHORT returned_services = service_count;
 		result = BluetoothGATTGetServices(candidate, service_count, services_.data(), &returned_services,
 							windows_bluetooth::kGattFlagNone);
-		if (FAILED(result))
+		if (FAILED(result)) {
+			log_hardware_hresult("LiteJam", "discover services", result);
 			return false;
+		}
 
 		bool found_service = false;
 		for (USHORT index = 0; index < returned_services; ++index) {
@@ -520,21 +608,27 @@ private:
 				break;
 			}
 		}
-		if (!found_service)
+		if (!found_service) {
+			std::fprintf(stderr, "Windows hardware LiteJam service not found\n");
 			return false;
+		}
 
 		USHORT characteristic_count = 0;
 		result = BluetoothGATTGetCharacteristics(candidate, &service_, 0, nullptr, &characteristic_count,
 								 windows_bluetooth::kGattFlagNone);
-		if (result != HRESULT_FROM_WIN32(ERROR_MORE_DATA) || characteristic_count == 0)
+		if (result != HRESULT_FROM_WIN32(ERROR_MORE_DATA) || characteristic_count == 0) {
+			log_hardware_hresult("LiteJam", "discover characteristic count", result);
 			return false;
+		}
 		characteristics_.assign(characteristic_count, {});
 		USHORT returned_characteristics = characteristic_count;
 		result = BluetoothGATTGetCharacteristics(candidate, &service_, characteristic_count,
 								 characteristics_.data(), &returned_characteristics,
 								 windows_bluetooth::kGattFlagNone);
-		if (FAILED(result))
+		if (FAILED(result)) {
+			log_hardware_hresult("LiteJam", "discover characteristics", result);
 			return false;
+		}
 
 		for (USHORT index = 0; index < returned_characteristics; ++index) {
 			const MAO_BTH_LE_GATT_CHARACTERISTIC &candidate_characteristic = characteristics_[index];
@@ -543,14 +637,17 @@ private:
 			    !uuid_matches(candidate_characteristic.CharacteristicUuid,
 					       windows_bluetooth::kLiteJamLedCharacteristic))
 				continue;
-			if (!candidate_characteristic.IsWritable && !candidate_characteristic.IsWritableWithoutResponse)
+			if (!candidate_characteristic.IsWritable && !candidate_characteristic.IsWritableWithoutResponse) {
+				std::fprintf(stderr, "Windows hardware LiteJam write characteristic is not writable\n");
 				return false;
+			}
 			characteristic_ = candidate_characteristic;
 			write_flags_ = candidate_characteristic.IsWritable
 				? windows_bluetooth::kGattFlagNone
 				: windows_bluetooth::kGattFlagWriteWithoutResponse;
 			return true;
 		}
+		std::fprintf(stderr, "Windows hardware LiteJam write characteristic not found\n");
 		return false;
 	}
 
@@ -620,6 +717,10 @@ struct WindowsHardwareController::Impl {
 		std::uint64_t midi_sent_revision = 0;
 		std::uint64_t litejam_sent_revision = 0;
 		std::uint64_t fret_zealot_sent_revision = 0;
+		std::uint64_t last_revision = 0;
+		HardwareRetryState midi_retry;
+		HardwareRetryState litejam_retry;
+		HardwareRetryState fret_zealot_retry;
 		for (;;) {
 			int root = -1;
 			RootControlMode mode = RootControlMode::Auto;
@@ -640,54 +741,80 @@ struct WindowsHardwareController::Impl {
 			if (root < 0)
 				continue;
 
-			const bool midi_present = midi.still_present(options.midi_output);
-			if (!midi_present)
-				midi_connected.store(false, std::memory_order_release);
-			if (midi_sent_revision != revision || !midi_present) {
-				if (!midi.active())
-					(void)midi.open(options.midi_output, options.midi_protocol);
-				if (midi.active() && midi.send_scale(root, mode)) {
-					midi_sent_revision = revision;
-					midi_connected.store(true, std::memory_order_release);
+			const auto now = HardwareClock::now();
+			if (revision != last_revision) {
+				last_revision = revision;
+				midi_retry.force(now);
+				litejam_retry.force(now);
+				fret_zealot_retry.force(now);
+			}
+
+			if (midi_retry.ready(now)) {
+				const bool midi_present = midi.still_present(options.midi_output);
+				if (!midi_present)
+					publish_hardware_status("midi", midi_connected, false);
+				if (midi_sent_revision != revision || !midi_present) {
+					if (!midi.active())
+						(void)midi.open(options.midi_output, options.midi_protocol);
+					if (midi.active() && midi.send_scale(root, mode)) {
+						midi_sent_revision = revision;
+						publish_hardware_status("midi", midi_connected, true);
+						midi_retry.succeeded(HardwareClock::now());
+					} else {
+						midi.close();
+						midi_sent_revision = 0;
+						publish_hardware_status("midi", midi_connected, false);
+						midi_retry.failed(HardwareClock::now());
+					}
 				} else {
-					midi.close();
-					midi_sent_revision = 0;
-					midi_connected.store(false, std::memory_order_release);
+					midi_retry.succeeded(HardwareClock::now());
 				}
 			}
 
-			const bool litejam_present = litejam.still_present();
-			if (!litejam_present)
-				litejam_connected.store(false, std::memory_order_release);
-			if (litejam_sent_revision != revision || !litejam_present) {
-				if (litejam.send_scale(root, options.litejam_device)) {
-					litejam_sent_revision = revision;
-					litejam_connected.store(true, std::memory_order_release);
+			if (litejam_retry.ready(now)) {
+				const bool litejam_present = litejam.still_present();
+				if (!litejam_present)
+					publish_hardware_status("litejam", litejam_connected, false);
+				if (litejam_sent_revision != revision || !litejam_present) {
+					if (litejam.send_scale(root, options.litejam_device)) {
+						litejam_sent_revision = revision;
+						publish_hardware_status("litejam", litejam_connected, true);
+						litejam_retry.succeeded(HardwareClock::now());
+					} else {
+						litejam_sent_revision = 0;
+						publish_hardware_status("litejam", litejam_connected, false);
+						litejam_retry.failed(HardwareClock::now());
+					}
 				} else {
-					litejam_sent_revision = 0;
-					litejam_connected.store(false, std::memory_order_release);
+					litejam_retry.succeeded(HardwareClock::now());
 				}
 			}
 
-			const bool fret_zealot_present = fret_zealot.still_present();
-			if (!fret_zealot_present)
-				fret_zealot_connected.store(false, std::memory_order_release);
-			if (fret_zealot_sent_revision != revision || !fret_zealot_present) {
-				if (fret_zealot.send_scale(root, options.fret_zealot_device)) {
-					fret_zealot_sent_revision = revision;
-					fret_zealot_connected.store(true, std::memory_order_release);
+			if (fret_zealot_retry.ready(now)) {
+				const bool fret_zealot_present = fret_zealot.still_present();
+				if (!fret_zealot_present)
+					publish_hardware_status("fret-zealot", fret_zealot_connected, false);
+				if (fret_zealot_sent_revision != revision || !fret_zealot_present) {
+					if (fret_zealot.send_scale(root, options.fret_zealot_device)) {
+						fret_zealot_sent_revision = revision;
+						publish_hardware_status("fret-zealot", fret_zealot_connected, true);
+						fret_zealot_retry.succeeded(HardwareClock::now());
+					} else {
+						fret_zealot_sent_revision = 0;
+						publish_hardware_status("fret-zealot", fret_zealot_connected, false);
+						fret_zealot_retry.failed(HardwareClock::now());
+					}
 				} else {
-					fret_zealot_sent_revision = 0;
-					fret_zealot_connected.store(false, std::memory_order_release);
+					fret_zealot_retry.succeeded(HardwareClock::now());
 				}
 			}
 		}
 		midi.close();
 		litejam.close();
 		fret_zealot.close();
-		midi_connected.store(false, std::memory_order_release);
-		litejam_connected.store(false, std::memory_order_release);
-		fret_zealot_connected.store(false, std::memory_order_release);
+		publish_hardware_status("midi", midi_connected, false);
+		publish_hardware_status("litejam", litejam_connected, false);
+		publish_hardware_status("fret-zealot", fret_zealot_connected, false);
 	}
 
 	WindowsHardwareOptions options;
