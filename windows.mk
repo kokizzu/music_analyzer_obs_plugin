@@ -332,6 +332,86 @@ report-windows-litejam-source:
 test-windows-hardware-retry-contract:
 	python3 scripts/test_windows_hardware_retry_contract.py
 
+.PHONY: test-windows-hardware-retry-runtime
+test-windows-hardware-retry-runtime:
+	python3 scripts/test_windows_hardware_retry_runtime.py
+
+.PHONY: test-windows-hardware-write-runtime
+test-windows-hardware-write-runtime:
+	python3 scripts/test_windows_hardware_write_runtime.py
+
+.PHONY: report-windows-deploy-source
+report-windows-deploy-source:
+	python3 scripts/report_windows_deploy_source.py
+
+.PHONY: inspect-scoped-windows-hardware-diff
+inspect-scoped-windows-hardware-diff:
+	python3 scripts/inspect_scoped_windows_hardware_diff.py
+
+.PHONY: verify-windows-hardware-checklist
+verify-windows-hardware-checklist: test-windows-hardware-retry-contract test-windows-hardware-worker-contract test-windows-hardware-device-contract test-windows-hardware-reconnect test-windows-hardware-status test-windows-hardware-status-runtime test-windows-diagnostic-output test-windows-midi-protocol test-fret-zealot-protocol test-windows-loopback-recovery test-windows-audio-recovery-contract test-windows-hardware-retry-runtime test-windows-hardware-write-runtime verify-windows-standalone verify-windows-runtime-bundle
+	python3 scripts/windows_hardware_checklist.py
+
+.PHONY: plan-commit-windows-hardware-reliability commit-windows-hardware-reliability
+plan-commit-windows-hardware-reliability:
+	python3 scripts/commit_windows_hardware_reliability.py plan
+
+commit-windows-hardware-reliability:
+	python3 scripts/commit_windows_hardware_reliability.py apply
+
+.PHONY: report-windows-hardware-source
+report-windows-hardware-source:
+	python3 scripts/report_windows_hardware_source.py
+
+.PHONY: report-fret-zealot-sdk
+report-fret-zealot-sdk:
+	python3 scripts/report_fret_zealot_sdk.py
+
+.PHONY: report-fret-zealot-sdk-usage
+report-fret-zealot-sdk-usage:
+	python3 scripts/report_fret_zealot_sdk_usage.py
+
+.PHONY: report-windows-worker-source
+report-windows-worker-source:
+	python3 scripts/report_windows_worker_source.py
+
+.PHONY: report-windows-audio-source
+report-windows-audio-source:
+	python3 scripts/report_windows_audio_source.py
+
+.PHONY: report-windows-audio-diff
+report-windows-audio-diff:
+	python3 scripts/report_windows_audio_diff.py
+
+.PHONY: test-windows-hardware-worker-contract
+test-windows-hardware-worker-contract:
+	python3 scripts/test_windows_hardware_worker_contract.py
+
+.PHONY: test-windows-hardware-device-contract
+test-windows-hardware-device-contract:
+	python3 scripts/test_windows_hardware_device_contract.py
+
+.PHONY: test-windows-audio-recovery-contract
+test-windows-audio-recovery-contract:
+	python3 scripts/test_windows_audio_recovery_contract.py
+
+WINDOWS_FRET_ZEALOT_PROTOCOL_TEST_BIN := $(BUILD_DIR)/fret_zealot_protocol_tests
+
+$(WINDOWS_FRET_ZEALOT_PROTOCOL_TEST_BIN): tests/fret_zealot_protocol.cpp src/fret_control.cpp src/fret_control.hpp | $(BUILD_DIR)
+	$(CXX) $(CXXFLAGS) -Isrc tests/fret_zealot_protocol.cpp src/fret_control.cpp -o $@
+
+.PHONY: test-fret-zealot-protocol
+test-fret-zealot-protocol: $(WINDOWS_FRET_ZEALOT_PROTOCOL_TEST_BIN)
+	$(WINDOWS_FRET_ZEALOT_PROTOCOL_TEST_BIN)
+
+.PHONY: report-windows-litejam-source
+report-windows-litejam-source:
+	python3 scripts/report_windows_source_range.py
+
+.PHONY: test-windows-hardware-retry-contract
+test-windows-hardware-retry-contract:
+	python3 scripts/test_windows_hardware_retry_contract.py
+
 .PHONY: report-windows-deploy-source
 report-windows-deploy-source:
 	python3 scripts/report_windows_deploy_source.py

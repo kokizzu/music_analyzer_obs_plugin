@@ -1,4 +1,6 @@
 #include "windows_hardware_control.hpp"
+#include "windows_hardware_retry.hpp"
+#include "windows_hardware_write.hpp"
 
 #if defined(_WIN32)
 
@@ -16,6 +18,7 @@
 #include <cstdint>
 #include <cwctype>
 #include <cstring>
+#include <exception>
 #include <mutex>
 #include <string>
 #include <thread>
@@ -36,37 +39,8 @@ constexpr DWORD kFretZealotModernWriteDelayMs = 1;
 constexpr DWORD kGattWriteRetryDelayMs = 50;
 constexpr int kGattWriteAttempts = 3;
 constexpr auto kHardwareRetryInterval = std::chrono::seconds(2);
-constexpr auto kHardwareRetryInitialDelay = std::chrono::seconds(2);
-constexpr auto kHardwareRetryMaximumDelay = std::chrono::seconds(30);
 
-using HardwareClock = std::chrono::steady_clock;
-
-struct HardwareRetryState {
-	HardwareClock::time_point next_attempt = HardwareClock::time_point::min();
-	std::chrono::seconds delay = kHardwareRetryInitialDelay;
-
-	bool ready(HardwareClock::time_point now) const
-	{
-		return now >= next_attempt;
-	}
-
-	void force(HardwareClock::time_point now)
-	{
-		next_attempt = now;
-	}
-
-	void succeeded(HardwareClock::time_point now)
-	{
-		delay = kHardwareRetryInitialDelay;
-		next_attempt = now + delay;
-	}
-
-	void failed(HardwareClock::time_point now)
-	{
-		next_attempt = now + delay;
-		delay = std::min(delay + delay, kHardwareRetryMaximumDelay);
-	}
-};
+using HardwareClock = HardwareRetryState::clock;
 
 void log_hardware_hresult(const char *device, const char *operation, HRESULT result)
 {
@@ -288,6 +262,12 @@ public:
 				log_hardware_midi_error("MIDI", "open", open_result);
 				continue;
 			}
+			const MMRESULT reset_result = midiOutReset(handle);
+			if (reset_result != MMSYSERR_NOERROR) {
+				log_hardware_midi_error("MIDI", "reset after open", reset_result);
+				midiOutClose(handle);
+				continue;
+			}
 			handle_ = handle;
 			name_ = name;
 			manufacturer_id_ = caps.wMid;
@@ -319,7 +299,8 @@ public:
 		return false;
 	}
 
-	bool send_scale(int root_pitch_class, RootControlMode mode)
+	template <typename ShouldContinue>
+	bool send_scale(int root_pitch_class, RootControlMode mode, ShouldContinue should_continue)
 	{
 		if (!active())
 			return false;
@@ -328,12 +309,20 @@ public:
 			: build_apc_led_messages(root_pitch_class, mode);
 		for (std::size_t offset = 0; offset + 2 < messages.size(); offset += 3) {
 			const DWORD message = pack_windows_midi_short_message(messages[offset], messages[offset + 1],
-										      messages[offset + 2]);
-			const MMRESULT result = midiOutShortMsg(handle_, message);
-			if (result != MMSYSERR_NOERROR) {
-				log_hardware_midi_error("MIDI", "send", result);
+											      messages[offset + 2]);
+			MMRESULT result = MMSYSERR_NOERROR;
+			const HardwareWriteResult write_result = hardware_write_if_current(should_continue, [&]() {
+				result = midiOutShortMsg(handle_, message);
+				if (result != MMSYSERR_NOERROR) {
+					log_hardware_midi_error("MIDI", "send", result);
+					return false;
+				}
+				return true;
+			});
+			if (write_result == HardwareWriteResult::Stale)
+				return true;
+			if (write_result == HardwareWriteResult::Failed)
 				return false;
-			}
 		}
 		return true;
 	}
@@ -366,10 +355,13 @@ public:
 		close();
 	}
 
-	bool send_scale(int root_pitch_class, const std::string &preferred_device)
+	template <typename ShouldContinue>
+	bool send_scale(int root_pitch_class, const std::string &preferred_device, ShouldContinue should_continue)
 	{
 		if (!active() && !open(preferred_device))
 			return false;
+		if (!should_continue())
+			return true;
 		const std::vector<std::uint8_t> packet = build_fret_zealot_major_scale_packet(root_pitch_class);
 		for (std::size_t offset = 0; offset < packet.size(); offset += chunk_bytes_) {
 			const std::size_t chunk_size = std::min(chunk_bytes_, packet.size() - offset);
@@ -378,9 +370,15 @@ public:
 				reinterpret_cast<MAO_BTH_LE_GATT_CHARACTERISTIC_VALUE *>(storage.data());
 			value->DataSize = static_cast<ULONG>(chunk_size);
 			std::memcpy(value->Data, packet.data() + offset, chunk_size);
-			const HRESULT result = write_gatt_with_retry("Fret Zealot", [&]() {
-				return BluetoothGATTSetCharacteristicValue(handle_, &characteristic_, value, 0, write_flags_);
+			HRESULT result = S_OK;
+			const HardwareWriteResult write_result = hardware_write_if_current(should_continue, [&]() {
+				result = write_gatt_with_retry("Fret Zealot", [&]() {
+					return BluetoothGATTSetCharacteristicValue(handle_, &characteristic_, value, 0, write_flags_);
+				});
+				return true;
 			});
+			if (write_result == HardwareWriteResult::Stale)
+				return true;
 			if (FAILED(result)) {
 				log_hardware_hresult("Fret Zealot", "write scale packet", result);
 				close();
@@ -560,19 +558,28 @@ public:
 		close();
 	}
 
-	bool send_scale(int root_pitch_class, const std::string &preferred_device)
+	template <typename ShouldContinue>
+	bool send_scale(int root_pitch_class, const std::string &preferred_device, ShouldContinue should_continue)
 	{
 		if (!active() && !open(preferred_device))
 			return false;
+		if (!should_continue())
+			return true;
 		const std::vector<std::uint8_t> packet = build_litejam_major_scale_packet(root_pitch_class);
 		std::vector<BYTE> storage(sizeof(MAO_BTH_LE_GATT_CHARACTERISTIC_VALUE) + packet.size() - 1, 0);
 		MAO_BTH_LE_GATT_CHARACTERISTIC_VALUE *value =
 			reinterpret_cast<MAO_BTH_LE_GATT_CHARACTERISTIC_VALUE *>(storage.data());
 		value->DataSize = static_cast<ULONG>(packet.size());
 		std::memcpy(value->Data, packet.data(), packet.size());
-		const HRESULT result = write_gatt_with_retry("LiteJam", [&]() {
-			return BluetoothGATTSetCharacteristicValue(handle_, &characteristic_, value, 0, write_flags_);
+		HRESULT result = S_OK;
+		const HardwareWriteResult write_result = hardware_write_if_current(should_continue, [&]() {
+			result = write_gatt_with_retry("LiteJam", [&]() {
+				return BluetoothGATTSetCharacteristicValue(handle_, &characteristic_, value, 0, write_flags_);
+			});
+			return true;
 		});
+		if (write_result == HardwareWriteResult::Stale)
+			return true;
 		if (FAILED(result)) {
 			log_hardware_hresult("LiteJam", "write scale packet", result);
 			close();
@@ -747,9 +754,9 @@ struct WindowsHardwareController::Impl {
 			stop_requested = false;
 			started = true;
 		}
-		midi_worker = std::thread(&Impl::run_midi, this);
-		litejam_worker = std::thread(&Impl::run_litejam, this);
-		fret_zealot_worker = std::thread(&Impl::run_fret_zealot, this);
+		midi_worker = std::thread(&Impl::run_midi_guarded, this);
+		litejam_worker = std::thread(&Impl::run_litejam_guarded, this);
+		fret_zealot_worker = std::thread(&Impl::run_fret_zealot_guarded, this);
 	}
 
 	void update(int root_pitch_class, RootControlMode mode)
@@ -808,6 +815,51 @@ struct WindowsHardwareController::Impl {
 		return !stop_requested && desired_revision == revision;
 	}
 
+	void run_midi_guarded()
+	{
+		try {
+			run_midi();
+		} catch (const std::exception &error) {
+			std::fprintf(stderr, "Windows hardware MIDI worker exception: %s\n", error.what());
+			midi.close();
+			publish_hardware_status("midi", midi_connected, false);
+		} catch (...) {
+			std::fprintf(stderr, "Windows hardware MIDI worker exception: unknown\n");
+			midi.close();
+			publish_hardware_status("midi", midi_connected, false);
+		}
+	}
+
+	void run_litejam_guarded()
+	{
+		try {
+			run_litejam();
+		} catch (const std::exception &error) {
+			std::fprintf(stderr, "Windows hardware LiteJam worker exception: %s\n", error.what());
+			litejam.close();
+			publish_hardware_status("litejam", litejam_connected, false);
+		} catch (...) {
+			std::fprintf(stderr, "Windows hardware LiteJam worker exception: unknown\n");
+			litejam.close();
+			publish_hardware_status("litejam", litejam_connected, false);
+		}
+	}
+
+	void run_fret_zealot_guarded()
+	{
+		try {
+			run_fret_zealot();
+		} catch (const std::exception &error) {
+			std::fprintf(stderr, "Windows hardware Fret Zealot worker exception: %s\n", error.what());
+			fret_zealot.close();
+			publish_hardware_status("fret-zealot", fret_zealot_connected, false);
+		} catch (...) {
+			std::fprintf(stderr, "Windows hardware Fret Zealot worker exception: unknown\n");
+			fret_zealot.close();
+			publish_hardware_status("fret-zealot", fret_zealot_connected, false);
+		}
+	}
+
 	void run_midi()
 	{
 		std::uint64_t attempted_revision = 0;
@@ -839,7 +891,8 @@ struct WindowsHardwareController::Impl {
 					continue;
 				if (!midi.active())
 					(void)midi.open(options.midi_output, options.midi_protocol);
-				const bool write_succeeded = midi.active() && midi.send_scale(root, mode);
+				const auto current_revision = [&]() { return revision_is_current(revision); };
+				const bool write_succeeded = midi.active() && midi.send_scale(root, mode, current_revision);
 				if (write_succeeded) {
 					sent_revision = revision_is_current(revision) ? revision : 0;
 					publish_hardware_status("midi", midi_connected, true);
@@ -887,7 +940,8 @@ struct WindowsHardwareController::Impl {
 			if (sent_revision != revision || !present) {
 				if (!revision_is_current(revision))
 					continue;
-				const bool write_succeeded = litejam.send_scale(root, options.litejam_device);
+				const auto current_revision = [&]() { return revision_is_current(revision); };
+				const bool write_succeeded = litejam.send_scale(root, options.litejam_device, current_revision);
 				if (write_succeeded) {
 					sent_revision = revision_is_current(revision) ? revision : 0;
 					publish_hardware_status("litejam", litejam_connected, true);
@@ -934,7 +988,8 @@ struct WindowsHardwareController::Impl {
 			if (sent_revision != revision || !present) {
 				if (!revision_is_current(revision))
 					continue;
-				const bool write_succeeded = fret_zealot.send_scale(root, options.fret_zealot_device);
+				const auto current_revision = [&]() { return revision_is_current(revision); };
+				const bool write_succeeded = fret_zealot.send_scale(root, options.fret_zealot_device, current_revision);
 				if (write_succeeded) {
 					sent_revision = revision_is_current(revision) ? revision : 0;
 					publish_hardware_status("fret-zealot", fret_zealot_connected, true);

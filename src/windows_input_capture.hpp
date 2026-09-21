@@ -34,8 +34,10 @@ public:
 		worker_ = std::thread([this, name, diagnostics, start = std::move(opened)]() mutable {
 			try {
 				WindowsLoopback endpoint;
+				std::wstring endpoint_id;
 				uint32_t sample_rate = 48000;
 				if (!endpoint.open(sample_rate, name.c_str())) { start.set_value(0); return; }
+				endpoint_id = endpoint.device_id();
 				endpoint.set_diagnostics(diagnostics);
 				std::size_t capacity = std::max<uint32_t>(1, sample_rate / 4);
 				queue_.reserve(capacity);
@@ -46,14 +48,20 @@ public:
 					constexpr auto kInitialDelay = std::chrono::milliseconds(250);
 					constexpr auto kMaximumDelay = std::chrono::milliseconds(2000);
 					auto delay = kInitialDelay;
+					{
+						std::lock_guard<std::mutex> lock(mutex_);
+						queue_.clear();
+					}
 					for (;;) {
 						if (stop_)
 							return false;
-						if (endpoint.open(sample_rate, name.c_str())) {
+						if (endpoint.open(sample_rate, name.c_str(), endpoint_id.c_str())) {
+							endpoint_id = endpoint.device_id();
 							endpoint.set_diagnostics(diagnostics);
 							capacity = std::max<uint32_t>(1, sample_rate / 4);
 							{
 								std::lock_guard<std::mutex> lock(mutex_);
+								queue_.clear();
 								queue_.reserve(capacity);
 							}
 							std::fprintf(stderr, "WASAPI capture recovered: source=%s rate=%u\n",

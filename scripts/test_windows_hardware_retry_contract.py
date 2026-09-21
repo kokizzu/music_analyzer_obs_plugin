@@ -5,16 +5,17 @@ from pathlib import Path
 
 
 SOURCE = Path("src/windows_hardware_control.cpp")
+RETRY_SOURCE = Path("src/windows_hardware_retry.hpp")
 FRET_SOURCE = Path("src/fret_control.cpp")
 
 
 def main() -> int:
-    source = SOURCE.read_text(encoding="utf-8")
+    source = SOURCE.read_text(encoding="utf-8") + "\n" + RETRY_SOURCE.read_text(encoding="utf-8")
     fret_source = FRET_SOURCE.read_text(encoding="utf-8")
     required_fragments = (
-        "constexpr auto kHardwareRetryInitialDelay = std::chrono::seconds(2);",
-        "constexpr auto kHardwareRetryMaximumDelay = std::chrono::seconds(30);",
-        "struct HardwareRetryState",
+        "static constexpr duration initial_delay{2};",
+        "static constexpr duration maximum_delay{30};",
+        "class HardwareRetryState",
         "retry.force(now);",
         "retry.failed(HardwareClock::now());",
         'publish_hardware_status("midi", midi_connected, true);',

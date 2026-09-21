@@ -7,18 +7,93 @@
 #include <functiondiscoverykeys_devpkey.h>
 #include <ks.h>
 #include <ksmedia.h>
+#include <atomic>
 #include <chrono>
 #include <algorithm>
 #include <cmath>
 #include <cstdio>
 #include <cstring>
 #include <cstdint>
+#include <new>
 #include <string>
 #include <vector>
 
 class WindowsLoopback {
 	static constexpr uint32_t kEndpointQueryGraceChecks = 4;
 	static constexpr uint32_t kCaptureErrorGraceChecks = 3;
+	static constexpr auto kEndpointPollInterval = std::chrono::seconds(2);
+
+	class EndpointNotification final : public IMMNotificationClient {
+	public:
+		EndpointNotification(std::atomic<bool> &dirty, bool input, ERole role)
+			: dirty_(dirty), input_(input), role_(role)
+		{
+		}
+
+		HRESULT STDMETHODCALLTYPE QueryInterface(REFIID iid, void **object) override
+		{
+			if (!object)
+				return E_POINTER;
+			*object = nullptr;
+			if (iid == IID_IUnknown || iid == __uuidof(IMMNotificationClient)) {
+				*object = static_cast<IMMNotificationClient *>(this);
+				AddRef();
+				return S_OK;
+			}
+			return E_NOINTERFACE;
+		}
+
+		ULONG STDMETHODCALLTYPE AddRef() override
+		{
+			return ++references_;
+		}
+
+		ULONG STDMETHODCALLTYPE Release() override
+		{
+			const ULONG references = --references_;
+			if (references == 0)
+				delete this;
+			return references;
+		}
+
+		HRESULT STDMETHODCALLTYPE OnDeviceStateChanged(LPCWSTR, DWORD) override
+		{
+			dirty_ = true;
+			return S_OK;
+		}
+
+		HRESULT STDMETHODCALLTYPE OnDeviceAdded(LPCWSTR) override
+		{
+			dirty_ = true;
+			return S_OK;
+		}
+
+		HRESULT STDMETHODCALLTYPE OnDeviceRemoved(LPCWSTR) override
+		{
+			dirty_ = true;
+			return S_OK;
+		}
+
+		HRESULT STDMETHODCALLTYPE OnDefaultDeviceChanged(EDataFlow flow, ERole role, LPCWSTR) override
+		{
+			if (flow == (input_ ? eCapture : eRender) && role == role_)
+				dirty_ = true;
+			return S_OK;
+		}
+
+		HRESULT STDMETHODCALLTYPE OnPropertyValueChanged(LPCWSTR, const PROPERTYKEY) override
+		{
+			dirty_ = true;
+			return S_OK;
+		}
+
+	private:
+		std::atomic<bool> &dirty_;
+		bool input_;
+		ERole role_;
+		std::atomic<ULONG> references_{1};
+	};
+
 	IMMDeviceEnumerator *enumerator_ = nullptr;
 	IMMDevice *device_ = nullptr;
 	IAudioClient *client_ = nullptr;
@@ -31,6 +106,8 @@ class WindowsLoopback {
 	UINT32 channel_stride_ = 0;
 	ERole endpoint_role_ = eMultimedia;
 	std::wstring device_id_;
+	EndpointNotification *notifications_ = nullptr;
+	std::atomic<bool> endpoint_dirty_{false};
 	std::chrono::steady_clock::time_point next_endpoint_check_{};
 	uint32_t endpoint_query_failures_ = 0;
 	uint32_t capture_error_failures_ = 0;
@@ -41,6 +118,7 @@ class WindowsLoopback {
 	uint64_t diagnostic_packets_ = 0;
 	uint64_t diagnostic_frames_ = 0;
 	uint64_t diagnostic_silent_frames_ = 0;
+	uint64_t diagnostic_wait_timeouts_ = 0;
 	double diagnostic_square_sum_ = 0.0;
 	float diagnostic_peak_ = 0.0f;
 	std::chrono::steady_clock::time_point next_diagnostics_log_{};
@@ -50,6 +128,7 @@ class WindowsLoopback {
 		diagnostic_packets_ = 0;
 		diagnostic_frames_ = 0;
 		diagnostic_silent_frames_ = 0;
+		diagnostic_wait_timeouts_ = 0;
 		diagnostic_square_sum_ = 0.0;
 		diagnostic_peak_ = 0.0f;
 	}
@@ -98,12 +177,18 @@ public:
 		if (ready_) CloseHandle(ready_);
 		ready_ = nullptr;
 		if (device_) device_->Release();
+		if (enumerator_ && notifications_)
+			enumerator_->UnregisterEndpointNotificationCallback(notifications_);
+		if (notifications_)
+			notifications_->Release();
+		notifications_ = nullptr;
 		if (enumerator_) enumerator_->Release();
 		if (format_) CoTaskMemFree(format_);
 		capture_ = nullptr; client_ = nullptr; device_ = nullptr; enumerator_ = nullptr; format_ = nullptr;
 		channel_stride_ = 0;
 		endpoint_role_ = eMultimedia;
 		device_id_.clear();
+		endpoint_dirty_ = false;
 		next_endpoint_check_ = {};
 		endpoint_query_failures_ = 0;
 		capture_error_failures_ = 0;
@@ -129,15 +214,17 @@ public:
 			? 0.0
 			: std::sqrt(diagnostic_square_sum_ / static_cast<double>(diagnostic_frames_));
 		std::fprintf(stderr,
-			     "WASAPI audio diagnostics: endpoint=%ls packets=%llu frames=%llu silent_frames=%llu rms=%.4f peak=%.4f\n",
+			"WASAPI audio diagnostics: endpoint=%ls packets=%llu frames=%llu silent_frames=%llu wait_timeouts=%llu rms=%.4f peak=%.4f\n",
 			     device_id_.empty() ? L"(none)" : device_id_.c_str(),
 			     static_cast<unsigned long long>(diagnostic_packets_),
 			     static_cast<unsigned long long>(diagnostic_frames_),
-			     static_cast<unsigned long long>(diagnostic_silent_frames_), rms, diagnostic_peak_);
+			     static_cast<unsigned long long>(diagnostic_silent_frames_),
+			     static_cast<unsigned long long>(diagnostic_wait_timeouts_), rms, diagnostic_peak_);
 		reset_diagnostics();
 		next_diagnostics_log_ = now + std::chrono::seconds(1);
 	}
-	bool open(uint32_t &sample_rate, const char *input_name = nullptr)
+	bool open(uint32_t &sample_rate, const char *input_name = nullptr,
+		      const wchar_t *preferred_input_id = nullptr)
 	{
 		close();
 		input_ = input_name != nullptr;
@@ -147,8 +234,24 @@ public:
 		if (!check(CoCreateInstance(__uuidof(MMDeviceEnumerator), nullptr, CLSCTX_ALL,
 			__uuidof(IMMDeviceEnumerator), reinterpret_cast<void **>(&enumerator_)), "enumerator")) return false;
 		endpoint_role_ = eMultimedia;
+		notifications_ = new (std::nothrow) EndpointNotification(endpoint_dirty_, input_, endpoint_role_);
+		if (notifications_) {
+			const HRESULT notification_result = enumerator_->RegisterEndpointNotificationCallback(notifications_);
+			if (FAILED(notification_result)) {
+				std::fprintf(stderr, "WASAPI endpoint notifications unavailable: HRESULT=0x%08lx\n",
+					static_cast<unsigned long>(notification_result));
+				notifications_->Release();
+				notifications_ = nullptr;
+			}
+		}
 		HRESULT endpoint_result = E_NOTFOUND;
-		if (input_ && input_name[0]) {
+		if (input_ && preferred_input_id && preferred_input_id[0]) {
+			endpoint_result = enumerator_->GetDevice(preferred_input_id, &device_);
+			if (FAILED(endpoint_result))
+				std::fprintf(stderr, "WASAPI preferred capture endpoint unavailable: HRESULT=0x%08lx\n",
+					static_cast<unsigned long>(endpoint_result));
+		}
+		if (!device_ && input_ && input_name && input_name[0]) {
 			IMMDeviceCollection *devices = nullptr;
 			if (!check(enumerator_->EnumAudioEndpoints(eCapture, DEVICE_STATE_ACTIVE, &devices), "enumerate inputs")) return false;
 			UINT count = 0;
@@ -182,11 +285,12 @@ public:
 				if (candidate) candidate->Release();
 			}
 			devices->Release();
-		} else {
+		}
+		if (!device_ && !input_) {
 			endpoint_result = enumerator_->GetDefaultAudioEndpoint(input_ ? eCapture : eRender, endpoint_role_, &device_);
 		}
-		if (FAILED(endpoint_result)) {
-			if (input_ && input_name[0]) return check(endpoint_result, "named capture endpoint");
+		if (!device_) {
+			if (input_ && input_name && input_name[0]) return check(endpoint_result, "named capture endpoint");
 			endpoint_role_ = eConsole;
 			endpoint_result = enumerator_->GetDefaultAudioEndpoint(input_ ? eCapture : eRender, endpoint_role_, &device_);
 		}
@@ -252,18 +356,22 @@ public:
 		if (!check(client_->GetService(__uuidof(IAudioCaptureClient), reinterpret_cast<void **>(&capture_)), "capture service")) return false;
 		if (!check(client_->Start(), "start")) return false;
 		sample_rate = format_->nSamplesPerSec;
+		endpoint_dirty_ = false;
+		next_endpoint_check_ = std::chrono::steady_clock::now() + kEndpointPollInterval;
 		std::fprintf(stderr, "WASAPI opened: input=%d endpoint=%ls rate=%u channels=%u bits=%u stride=%u buffer_frames=%u\n",
 			input_, device_id_.c_str(), sample_rate, format_->nChannels, format_->wBitsPerSample, channel_stride_, capacity);
 		std::fprintf(stderr, "WASAPI %s: %lu Hz, %u channels\n", input_ ? "native input" : "speaker loopback", static_cast<unsigned long>(sample_rate), format_->nChannels);
 		return true;
 	}
 	bool active() const { return capture_ != nullptr; }
+	const std::wstring &device_id() const { return device_id_; }
 	bool wait_input()
 	{
 		const DWORD result = WaitForSingleObject(ready_, 100);
 		if (result == WAIT_OBJECT_0) return true;
 		if (result == WAIT_TIMEOUT) {
-			std::fprintf(stderr, "WASAPI input event timeout: t=%lu\n", static_cast<unsigned long>(GetTickCount()));
+			if (diagnostics_)
+				++diagnostic_wait_timeouts_;
 			return true;
 		}
 		return check(HRESULT_FROM_WIN32(GetLastError()), "wait input event");
@@ -273,9 +381,10 @@ public:
 		if (!active() || !enumerator_ || device_id_.empty())
 			return false;
 		const auto now = std::chrono::steady_clock::now();
-		if (now < next_endpoint_check_)
+		const bool notified = endpoint_dirty_.exchange(false);
+		if (!notified && now < next_endpoint_check_)
 			return false;
-		next_endpoint_check_ = now + std::chrono::milliseconds(500);
+		next_endpoint_check_ = now + kEndpointPollInterval;
 
 		IMMDevice *current_device = nullptr;
 		HRESULT result = input_
