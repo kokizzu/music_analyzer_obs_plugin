@@ -22,8 +22,8 @@ def main() -> None:
     endpoint = section(loopback, "bool endpoint_changed()", "template<class Feed>")
     assert "kEndpointQueryGraceChecks = 4" in loopback
     assert "kCaptureErrorGraceChecks = 3" in loopback
-    assert "endpoint_query_failed(\"default speaker query\"" in endpoint
-    assert "endpoint_query_failed(\"speaker identity query\"" in endpoint
+    assert "endpoint_query_failed(input_ ? \"capture endpoint query\" : \"default speaker query\"" in endpoint
+    assert "endpoint_query_failed(input_ ? \"capture identity query\" : \"speaker identity query\"" in endpoint
     assert "endpoint_query_failures_ = 0" in endpoint
     assert "default speaker query failed; reopening loopback" not in endpoint
 
