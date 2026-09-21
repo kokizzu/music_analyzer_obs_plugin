@@ -18,9 +18,9 @@ def main() -> int:
         "class HardwareRetryState",
         "retry.force(now);",
         "retry.failed(HardwareClock::now());",
-        'publish_hardware_status("midi", midi_connected, true);',
-        'publish_hardware_status("litejam", litejam_connected, true);',
-        'publish_hardware_status("fret-zealot", fret_zealot_connected, true);',
+        'publish_hardware_status("midi", midi_connected, true, "output-sent");',
+        'publish_hardware_status("litejam", litejam_connected, true, "output-sent");',
+        'publish_hardware_status("fret-zealot", fret_zealot_connected, true, "output-sent");',
         'log_hardware_hresult("Fret Zealot", "write scale packet", result);',
         'log_hardware_hresult("LiteJam", "write scale packet", result);',
     )

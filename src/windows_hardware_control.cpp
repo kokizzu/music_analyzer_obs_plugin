@@ -60,12 +60,17 @@ void log_hardware_midi_error(const char *device, const char *operation, MMRESULT
 		     static_cast<unsigned int>(result));
 }
 
-void publish_hardware_status(const char *device, std::atomic<bool> &status, bool connected)
+void publish_hardware_status(const char *device, std::atomic<bool> &status, bool connected,
+				     const char *reason = nullptr)
 {
 	const bool previous = status.exchange(connected, std::memory_order_acq_rel);
-	if (previous != connected)
-		std::fprintf(stderr, "Windows hardware status: %s=%s\n", device,
-			     connected ? "connected" : "disconnected");
+	if (previous == connected)
+		return;
+	std::fprintf(stderr, "Windows hardware status: %s=%s", device,
+		     connected ? "connected" : "disconnected");
+	if (reason && *reason)
+		std::fprintf(stderr, " reason=%s", reason);
+	std::fputc('\n', stderr);
 }
 
 bool is_transient_gatt_error(HRESULT result)
@@ -822,7 +827,7 @@ struct WindowsHardwareController::Impl {
 		} catch (const std::exception &error) {
 			std::fprintf(stderr, "Windows hardware MIDI worker exception: %s\n", error.what());
 			midi.close();
-			publish_hardware_status("midi", midi_connected, false);
+			publish_hardware_status("midi", midi_connected, false, "worker-exception");
 		} catch (...) {
 			std::fprintf(stderr, "Windows hardware MIDI worker exception: unknown\n");
 			midi.close();
@@ -837,7 +842,7 @@ struct WindowsHardwareController::Impl {
 		} catch (const std::exception &error) {
 			std::fprintf(stderr, "Windows hardware LiteJam worker exception: %s\n", error.what());
 			litejam.close();
-			publish_hardware_status("litejam", litejam_connected, false);
+			publish_hardware_status("litejam", litejam_connected, false, "worker-exception");
 		} catch (...) {
 			std::fprintf(stderr, "Windows hardware LiteJam worker exception: unknown\n");
 			litejam.close();
@@ -852,7 +857,7 @@ struct WindowsHardwareController::Impl {
 		} catch (const std::exception &error) {
 			std::fprintf(stderr, "Windows hardware Fret Zealot worker exception: %s\n", error.what());
 			fret_zealot.close();
-			publish_hardware_status("fret-zealot", fret_zealot_connected, false);
+			publish_hardware_status("fret-zealot", fret_zealot_connected, false, "worker-exception");
 		} catch (...) {
 			std::fprintf(stderr, "Windows hardware Fret Zealot worker exception: unknown\n");
 			fret_zealot.close();
@@ -885,7 +890,7 @@ struct WindowsHardwareController::Impl {
 
 			const bool present = midi.still_present(options.midi_output);
 			if (!present)
-				publish_hardware_status("midi", midi_connected, false);
+				publish_hardware_status("midi", midi_connected, false, "device-missing");
 			if (sent_revision != revision || !present) {
 				if (!revision_is_current(revision))
 					continue;
@@ -895,12 +900,12 @@ struct WindowsHardwareController::Impl {
 				const bool write_succeeded = midi.active() && midi.send_scale(root, mode, current_revision);
 				if (write_succeeded) {
 					sent_revision = revision_is_current(revision) ? revision : 0;
-					publish_hardware_status("midi", midi_connected, true);
+					publish_hardware_status("midi", midi_connected, true, "output-sent");
 					retry.succeeded(HardwareClock::now());
 				} else {
 					midi.close();
 					sent_revision = 0;
-					publish_hardware_status("midi", midi_connected, false);
+					publish_hardware_status("midi", midi_connected, false, "output-failed");
 					retry.failed(HardwareClock::now());
 				}
 			} else {
@@ -908,7 +913,7 @@ struct WindowsHardwareController::Impl {
 			}
 		}
 		midi.close();
-		publish_hardware_status("midi", midi_connected, false);
+		publish_hardware_status("midi", midi_connected, false, "worker-stopped");
 	}
 
 	void run_litejam()
@@ -936,7 +941,7 @@ struct WindowsHardwareController::Impl {
 
 			const bool present = litejam.still_present();
 			if (!present)
-				publish_hardware_status("litejam", litejam_connected, false);
+				publish_hardware_status("litejam", litejam_connected, false, "device-missing");
 			if (sent_revision != revision || !present) {
 				if (!revision_is_current(revision))
 					continue;
@@ -944,11 +949,11 @@ struct WindowsHardwareController::Impl {
 				const bool write_succeeded = litejam.send_scale(root, options.litejam_device, current_revision);
 				if (write_succeeded) {
 					sent_revision = revision_is_current(revision) ? revision : 0;
-					publish_hardware_status("litejam", litejam_connected, true);
+					publish_hardware_status("litejam", litejam_connected, true, "output-sent");
 					retry.succeeded(HardwareClock::now());
 				} else {
 					sent_revision = 0;
-					publish_hardware_status("litejam", litejam_connected, false);
+					publish_hardware_status("litejam", litejam_connected, false, "output-failed");
 					retry.failed(HardwareClock::now());
 				}
 			} else {
@@ -956,7 +961,7 @@ struct WindowsHardwareController::Impl {
 			}
 		}
 		litejam.close();
-		publish_hardware_status("litejam", litejam_connected, false);
+		publish_hardware_status("litejam", litejam_connected, false, "worker-stopped");
 	}
 
 	void run_fret_zealot()
@@ -984,7 +989,7 @@ struct WindowsHardwareController::Impl {
 
 			const bool present = fret_zealot.still_present();
 			if (!present)
-				publish_hardware_status("fret-zealot", fret_zealot_connected, false);
+				publish_hardware_status("fret-zealot", fret_zealot_connected, false, "device-missing");
 			if (sent_revision != revision || !present) {
 				if (!revision_is_current(revision))
 					continue;
@@ -992,11 +997,11 @@ struct WindowsHardwareController::Impl {
 				const bool write_succeeded = fret_zealot.send_scale(root, options.fret_zealot_device, current_revision);
 				if (write_succeeded) {
 					sent_revision = revision_is_current(revision) ? revision : 0;
-					publish_hardware_status("fret-zealot", fret_zealot_connected, true);
+					publish_hardware_status("fret-zealot", fret_zealot_connected, true, "output-sent");
 					retry.succeeded(HardwareClock::now());
 				} else {
 					sent_revision = 0;
-					publish_hardware_status("fret-zealot", fret_zealot_connected, false);
+					publish_hardware_status("fret-zealot", fret_zealot_connected, false, "output-failed");
 					retry.failed(HardwareClock::now());
 				}
 			} else {
@@ -1004,7 +1009,7 @@ struct WindowsHardwareController::Impl {
 			}
 		}
 		fret_zealot.close();
-		publish_hardware_status("fret-zealot", fret_zealot_connected, false);
+		publish_hardware_status("fret-zealot", fret_zealot_connected, false, "worker-stopped");
 	}
 
 	WindowsHardwareOptions options;

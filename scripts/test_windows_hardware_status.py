@@ -25,9 +25,11 @@ def main() -> int:
     require(
         "src/windows_hardware_control.cpp",
         (
-            'publish_hardware_status("midi", midi_connected, true)',
-            'publish_hardware_status("litejam", litejam_connected, true)',
-            'publish_hardware_status("fret-zealot", fret_zealot_connected, true)',
+        'publish_hardware_status("midi", midi_connected, true, "output-sent")',
+        'publish_hardware_status("litejam", litejam_connected, true, "output-sent")',
+        'publish_hardware_status("fret-zealot", fret_zealot_connected, true, "output-sent")',
+        '"output-failed"',
+        '"worker-exception"',
             "WindowsHardwareController::status() const",
         ),
     )

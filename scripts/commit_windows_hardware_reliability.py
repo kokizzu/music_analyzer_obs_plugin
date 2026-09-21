@@ -131,6 +131,8 @@ def run(arguments: list[str], *, input_text: str | None = None) -> None:
 
 def staged_makefile_patch() -> str:
     head = subprocess.check_output(["git", "show", "HEAD:windows.mk"], text=True)
+    if MAKEFILE_BLOCK.strip() in head:
+        return ""
     anchor = "report-windows-share-inventory:\n\tpython3 scripts/report_windows_share_inventory.py\n"
     if anchor not in head:
         raise SystemExit("windows.mk anchor is missing from HEAD")
@@ -155,7 +157,9 @@ def plan() -> None:
 
 
 def apply() -> None:
-    run(["git", "apply", "--cached", "--whitespace=nowarn"], input_text=staged_makefile_patch())
+    makefile_patch = staged_makefile_patch()
+    if makefile_patch:
+        run(["git", "apply", "--cached", "--whitespace=nowarn"], input_text=makefile_patch)
     run(["git", "add", "--", *FILES])
     run(["git", "diff", "--cached", "--check"])
     run(["git", "commit", "-m", "Improve Windows hardware and audio recovery"])
