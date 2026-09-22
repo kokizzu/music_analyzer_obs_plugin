@@ -1,10 +1,12 @@
 #include "windows_hardware_control.hpp"
 #include "windows_hardware_retry.hpp"
 #include "windows_hardware_write.hpp"
+#include "windows_hardware_worker.hpp"
 
 #if defined(_WIN32)
 
 #include "windows_bluetooth_gatt.hpp"
+#include "windows_device_notifications.hpp"
 
 #include <windows.h>
 #include <mmsystem.h>
@@ -38,8 +40,6 @@ constexpr DWORD kFretZealotLegacyWriteDelayMs = 20;
 constexpr DWORD kFretZealotModernWriteDelayMs = 1;
 constexpr DWORD kGattWriteRetryDelayMs = 50;
 constexpr int kGattWriteAttempts = 3;
-constexpr auto kHardwareRetryInterval = std::chrono::seconds(2);
-
 using HardwareClock = HardwareRetryState::clock;
 
 void log_hardware_hresult(const char *device, const char *operation, HRESULT result)
@@ -278,6 +278,10 @@ public:
 			manufacturer_id_ = caps.wMid;
 			product_id_ = caps.wPid;
 			pad_note_feedback_ = windows_midi_uses_pad_note_feedback(name_, protocol);
+			if (!clear_feedback()) {
+				close();
+				continue;
+			}
 			std::fprintf(stderr, "Windows MIDI pad output: %s mid=%u pid=%u protocol=%s\n", name_.c_str(),
 				     static_cast<unsigned int>(manufacturer_id_), static_cast<unsigned int>(product_id_),
 				     pad_note_feedback_ ? "mpc-notes" : "apc-grid");
@@ -328,6 +332,23 @@ public:
 				return true;
 			if (write_result == HardwareWriteResult::Failed)
 				return false;
+		}
+		return true;
+	}
+
+	bool clear_feedback()
+	{
+		const std::vector<std::uint8_t> messages = pad_note_feedback_
+			? build_mpc_pad_clear_messages()
+			: build_apc_led_clear_messages();
+		for (std::size_t offset = 0; offset + 2 < messages.size(); offset += 3) {
+			const DWORD message = pack_windows_midi_short_message(messages[offset], messages[offset + 1],
+											 messages[offset + 2]);
+			const MMRESULT result = midiOutShortMsg(handle_, message);
+			if (result != MMSYSERR_NOERROR) {
+				log_hardware_midi_error("MIDI", "clear feedback", result);
+				return false;
+			}
 		}
 		return true;
 	}
@@ -745,47 +766,14 @@ private:
 
 struct WindowsHardwareController::Impl {
 	explicit Impl(const WindowsHardwareOptions &options_value) : options(options_value)
+		, device_notifications(worker_state.device_generation(), worker_state.condition())
 	{
 	}
 
-	void start()
+	void stop_started_workers()
 	{
-		if (!options.enabled)
-			return;
-		{
-			std::lock_guard<std::mutex> lock(mutex);
-			if (started)
-				return;
-			stop_requested = false;
-			started = true;
-		}
-		midi_worker = std::thread(&Impl::run_midi_guarded, this);
-		litejam_worker = std::thread(&Impl::run_litejam_guarded, this);
-		fret_zealot_worker = std::thread(&Impl::run_fret_zealot_guarded, this);
-	}
-
-	void update(int root_pitch_class, RootControlMode mode)
-	{
-		if (!options.enabled || root_pitch_class < 0 || root_pitch_class >= 12)
-			return;
-		std::lock_guard<std::mutex> lock(mutex);
-		if (desired_root == root_pitch_class && desired_mode == mode)
-			return;
-		desired_root = root_pitch_class;
-		desired_mode = mode;
-		++desired_revision;
-		condition.notify_all();
-	}
-
-	void stop()
-	{
-		{
-			std::lock_guard<std::mutex> lock(mutex);
-			if (!started)
-				return;
-			stop_requested = true;
-			condition.notify_all();
-		}
+		worker_state.request_stop();
+		device_notifications.stop();
 		if (midi_worker.joinable())
 			midi_worker.join();
 		if (litejam_worker.joinable())
@@ -793,31 +781,57 @@ struct WindowsHardwareController::Impl {
 		if (fret_zealot_worker.joinable())
 			fret_zealot_worker.join();
 		{
-			std::lock_guard<std::mutex> lock(mutex);
+			std::lock_guard<std::mutex> lock(lifecycle_mutex);
 			started = false;
 		}
 	}
 
-	bool wait_for_state(std::uint64_t &attempted_revision, int &root, RootControlMode &mode,
-				   std::uint64_t &revision)
+	void start()
 	{
-		std::unique_lock<std::mutex> lock(mutex);
-		condition.wait_for(lock, kHardwareRetryInterval, [&]() {
-			return stop_requested || desired_revision != attempted_revision;
-		});
-		if (stop_requested)
-			return false;
-		root = desired_root;
-		mode = desired_mode;
-		revision = desired_revision;
-		attempted_revision = revision;
-		return true;
+		if (!options.enabled)
+			return;
+		{
+			std::lock_guard<std::mutex> lock(lifecycle_mutex);
+			if (started)
+				return;
+			worker_state.reset_for_start();
+			started = true;
+		}
+		try {
+			if (!device_notifications.start())
+				std::fprintf(stderr, "Windows hardware device notifications unavailable; using timed retry fallback\n");
+			midi_worker = std::thread(&Impl::run_midi_guarded, this);
+			litejam_worker = std::thread(&Impl::run_litejam_guarded, this);
+			fret_zealot_worker = std::thread(&Impl::run_fret_zealot_guarded, this);
+		} catch (const std::exception &error) {
+			std::fprintf(stderr, "Windows hardware worker startup failed: %s\n", error.what());
+			stop_started_workers();
+		} catch (...) {
+			std::fprintf(stderr, "Windows hardware worker startup failed: unknown\n");
+			stop_started_workers();
+		}
+	}
+
+	void update(int root_pitch_class, RootControlMode mode)
+	{
+		if (!options.enabled || root_pitch_class < 0 || root_pitch_class >= 12)
+			return;
+		worker_state.update(root_pitch_class, mode);
+	}
+
+	void stop()
+	{
+		{
+			std::lock_guard<std::mutex> lock(lifecycle_mutex);
+			if (!started)
+				return;
+		}
+		stop_started_workers();
 	}
 
 	bool revision_is_current(std::uint64_t revision)
 	{
-		std::lock_guard<std::mutex> lock(mutex);
-		return !stop_requested && desired_revision == revision;
+		return worker_state.current(revision);
 	}
 
 	void run_midi_guarded()
@@ -831,7 +845,7 @@ struct WindowsHardwareController::Impl {
 		} catch (...) {
 			std::fprintf(stderr, "Windows hardware MIDI worker exception: unknown\n");
 			midi.close();
-			publish_hardware_status("midi", midi_connected, false);
+			publish_hardware_status("midi", midi_connected, false, "worker-exception");
 		}
 	}
 
@@ -846,7 +860,7 @@ struct WindowsHardwareController::Impl {
 		} catch (...) {
 			std::fprintf(stderr, "Windows hardware LiteJam worker exception: unknown\n");
 			litejam.close();
-			publish_hardware_status("litejam", litejam_connected, false);
+			publish_hardware_status("litejam", litejam_connected, false, "worker-exception");
 		}
 	}
 
@@ -861,28 +875,36 @@ struct WindowsHardwareController::Impl {
 		} catch (...) {
 			std::fprintf(stderr, "Windows hardware Fret Zealot worker exception: unknown\n");
 			fret_zealot.close();
-			publish_hardware_status("fret-zealot", fret_zealot_connected, false);
+			publish_hardware_status("fret-zealot", fret_zealot_connected, false, "worker-exception");
 		}
 	}
 
 	void run_midi()
 	{
 		std::uint64_t attempted_revision = 0;
+		std::uint64_t seen_device_generation = 0;
 		std::uint64_t sent_revision = 0;
 		std::uint64_t last_revision = 0;
+		std::uint64_t last_device_generation = 0;
 		HardwareRetryState retry;
 		for (;;) {
-			int root = -1;
-			RootControlMode mode = RootControlMode::Auto;
-			std::uint64_t revision = 0;
-			if (!wait_for_state(attempted_revision, root, mode, revision))
+			HardwareWorkerCommand command;
+			if (!worker_state.wait(attempted_revision, seen_device_generation, command))
 				break;
+			const int root = command.root;
+			const RootControlMode mode = command.mode;
+			const std::uint64_t revision = command.revision;
+			const std::uint64_t device_generation = command.device_generation;
 			if (root < 0)
 				continue;
 
 			const auto now = HardwareClock::now();
 			if (revision != last_revision) {
 				last_revision = revision;
+				retry.force(now);
+			}
+			if (device_generation != last_device_generation) {
+				last_device_generation = device_generation;
 				retry.force(now);
 			}
 			if (!retry.ready(now))
@@ -919,21 +941,29 @@ struct WindowsHardwareController::Impl {
 	void run_litejam()
 	{
 		std::uint64_t attempted_revision = 0;
+		std::uint64_t seen_device_generation = 0;
 		std::uint64_t sent_revision = 0;
 		std::uint64_t last_revision = 0;
+		std::uint64_t last_device_generation = 0;
 		HardwareRetryState retry;
 		for (;;) {
-			int root = -1;
-			RootControlMode mode = RootControlMode::Auto;
-			std::uint64_t revision = 0;
-			if (!wait_for_state(attempted_revision, root, mode, revision))
+			HardwareWorkerCommand command;
+			if (!worker_state.wait(attempted_revision, seen_device_generation, command))
 				break;
+			const int root = command.root;
+			const RootControlMode mode = command.mode;
+			const std::uint64_t revision = command.revision;
+			const std::uint64_t device_generation = command.device_generation;
 			if (root < 0)
 				continue;
 
 			const auto now = HardwareClock::now();
 			if (revision != last_revision) {
 				last_revision = revision;
+				retry.force(now);
+			}
+			if (device_generation != last_device_generation) {
+				last_device_generation = device_generation;
 				retry.force(now);
 			}
 			if (!retry.ready(now))
@@ -967,21 +997,29 @@ struct WindowsHardwareController::Impl {
 	void run_fret_zealot()
 	{
 		std::uint64_t attempted_revision = 0;
+		std::uint64_t seen_device_generation = 0;
 		std::uint64_t sent_revision = 0;
 		std::uint64_t last_revision = 0;
+		std::uint64_t last_device_generation = 0;
 		HardwareRetryState retry;
 		for (;;) {
-			int root = -1;
-			RootControlMode mode = RootControlMode::Auto;
-			std::uint64_t revision = 0;
-			if (!wait_for_state(attempted_revision, root, mode, revision))
+			HardwareWorkerCommand command;
+			if (!worker_state.wait(attempted_revision, seen_device_generation, command))
 				break;
+			const int root = command.root;
+			const RootControlMode mode = command.mode;
+			const std::uint64_t revision = command.revision;
+			const std::uint64_t device_generation = command.device_generation;
 			if (root < 0)
 				continue;
 
 			const auto now = HardwareClock::now();
 			if (revision != last_revision) {
 				last_revision = revision;
+				retry.force(now);
+			}
+			if (device_generation != last_device_generation) {
+				last_device_generation = device_generation;
 				retry.force(now);
 			}
 			if (!retry.ready(now))
@@ -1016,16 +1054,13 @@ struct WindowsHardwareController::Impl {
 	WindowsMidiOutput midi;
 	LiteJamGatt litejam;
 	FretZealotGatt fret_zealot;
-	std::mutex mutex;
-	std::condition_variable condition;
+	std::mutex lifecycle_mutex;
+	WindowsHardwareWorkerState worker_state;
+	WindowsDeviceNotifications device_notifications;
 	std::thread midi_worker;
 	std::thread litejam_worker;
 	std::thread fret_zealot_worker;
 	bool started = false;
-	bool stop_requested = false;
-	int desired_root = -1;
-	RootControlMode desired_mode = RootControlMode::Auto;
-	std::uint64_t desired_revision = 0;
 	std::atomic<bool> midi_connected{false};
 	std::atomic<bool> litejam_connected{false};
 	std::atomic<bool> fret_zealot_connected{false};

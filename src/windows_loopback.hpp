@@ -247,6 +247,17 @@ public:
 		HRESULT endpoint_result = E_NOTFOUND;
 		if (input_ && preferred_input_id && preferred_input_id[0]) {
 			endpoint_result = enumerator_->GetDevice(preferred_input_id, &device_);
+			if (SUCCEEDED(endpoint_result) && device_) {
+				DWORD state = DEVICE_STATE_ACTIVE;
+				const HRESULT state_result = device_->GetState(&state);
+				if (FAILED(state_result) || !(state & DEVICE_STATE_ACTIVE)) {
+					std::fprintf(stderr, "WASAPI preferred capture endpoint is not active: state=%lu hr=0x%08lx\n",
+						     static_cast<unsigned long>(state), static_cast<unsigned long>(state_result));
+					device_->Release();
+					device_ = nullptr;
+					endpoint_result = FAILED(state_result) ? state_result : HRESULT_FROM_WIN32(ERROR_DEVICE_NOT_CONNECTED);
+				}
+			}
 			if (FAILED(endpoint_result))
 				std::fprintf(stderr, "WASAPI preferred capture endpoint unavailable: HRESULT=0x%08lx\n",
 					static_cast<unsigned long>(endpoint_result));

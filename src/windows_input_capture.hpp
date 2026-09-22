@@ -3,6 +3,7 @@
 #include "windows_loopback.hpp"
 #include "capture_queue.hpp"
 #include <atomic>
+#include <condition_variable>
 #include <future>
 #include <mutex>
 #include <thread>
@@ -15,13 +16,17 @@ class WindowsInputCapture {
 	std::atomic<bool> stop_{false};
 	std::atomic<bool> failed_{false};
 	std::mutex mutex_;
-	std::vector<float> queue_;
+	mao::CaptureRingBuffer queue_;
+	std::mutex wake_mutex_;
+	std::condition_variable wake_condition_;
 public:
 	~WindowsInputCapture() { close(); }
 	void close()
 	{
 		stop_ = true;
+		wake_condition_.notify_all();
 		if (worker_.joinable()) worker_.join();
+		std::lock_guard<std::mutex> lock(mutex_);
 		queue_.clear();
 	}
 	bool open(const std::string &name, uint32_t &rate, bool diagnostics)
@@ -40,7 +45,10 @@ public:
 				endpoint_id = endpoint.device_id();
 				endpoint.set_diagnostics(diagnostics);
 				std::size_t capacity = std::max<uint32_t>(1, sample_rate / 4);
-				queue_.reserve(capacity);
+				{
+					std::lock_guard<std::mutex> lock(mutex_);
+					queue_.reset(capacity);
+				}
 				start.set_value(sample_rate);
 				std::vector<float> block;
 				block.reserve(sample_rate);
@@ -61,8 +69,7 @@ public:
 							capacity = std::max<uint32_t>(1, sample_rate / 4);
 							{
 								std::lock_guard<std::mutex> lock(mutex_);
-								queue_.clear();
-								queue_.reserve(capacity);
+								queue_.reset(capacity);
 							}
 							std::fprintf(stderr, "WASAPI capture recovered: source=%s rate=%u\n",
 								     name.c_str(), sample_rate);
@@ -70,7 +77,8 @@ public:
 						}
 						std::fprintf(stderr, "WASAPI capture reopen pending: source=%s retry_ms=%lld\n",
 							     name.c_str(), static_cast<long long>(delay.count()));
-						std::this_thread::sleep_for(delay);
+						std::unique_lock<std::mutex> wake_lock(wake_mutex_);
+						wake_condition_.wait_for(wake_lock, delay, [this]() { return stop_.load(); });
 						delay = std::min(delay + delay, kMaximumDelay);
 					}
 				};
@@ -87,7 +95,7 @@ public:
 					endpoint.maybe_log_diagnostics();
 					if (!block.empty()) {
 						std::lock_guard<std::mutex> lock(mutex_);
-						const auto excess = mao::append_capture_samples(queue_, block, capacity);
+						const auto excess = queue_.append(block);
 						if (excess) {
 							std::fprintf(stderr, "WASAPI queue overrun: t=%lu dropped_frames=%zu limit_ms=250\n", static_cast<unsigned long>(GetTickCount()), excess);
 						}
@@ -95,6 +103,10 @@ public:
 				}
 			} catch (const std::exception &error) {
 				std::fprintf(stderr, "WASAPI capture thread exception: %s\n", error.what());
+				failed_ = true;
+				try { start.set_value(0); } catch (const std::future_error &) {}
+			} catch (...) {
+				std::fprintf(stderr, "WASAPI capture thread exception: unknown\n");
 				failed_ = true;
 				try { start.set_value(0); } catch (const std::future_error &) {}
 			}
@@ -108,8 +120,7 @@ public:
 	void drain(std::vector<float> &samples)
 	{
 		std::lock_guard<std::mutex> lock(mutex_);
-		samples.assign(queue_.begin(), queue_.end());
-		queue_.clear();
+		queue_.drain(samples);
 	}
 };
 #endif

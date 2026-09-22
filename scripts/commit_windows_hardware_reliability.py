@@ -10,10 +10,14 @@ from pathlib import Path
 
 
 FILES = (
-    "src/fret_control.cpp",
-    "src/windows_input_capture.hpp",
-    "src/windows_loopback.hpp",
-    "src/windows_hardware_control.cpp",
+	"src/fret_control.cpp",
+	"src/fret_control.hpp",
+	"src/capture_queue.hpp",
+	"src/windows_input_capture.hpp",
+	"src/windows_loopback.hpp",
+	"src/windows_hardware_control.cpp",
+	"src/windows_device_notifications.hpp",
+	"src/windows_hardware_worker.hpp",
     "src/windows_hardware_retry.hpp",
     "src/windows_hardware_write.hpp",
     "tests/fret_zealot_protocol.cpp",
@@ -31,14 +35,21 @@ FILES = (
     "scripts/test_windows_hardware_status.py",
     "scripts/test_windows_hardware_worker_contract.py",
     "scripts/test_windows_hardware_retry_runtime.py",
-    "scripts/test_windows_hardware_write_runtime.py",
+	"scripts/test_windows_hardware_write_runtime.py",
+	"scripts/test_capture_queue_runtime.py",
+	"scripts/test_fret_control_protocol.py",
+	"scripts/test_windows_hardware_worker_runtime.py",
+	"scripts/test_windows_toolchains.py",
     "scripts/test_windows_hardware_reconnect.py",
     "scripts/test_windows_loopback_recovery.py",
     "scripts/windows_hardware_checklist.py",
     "scripts/inspect_scoped_windows_hardware_diff.py",
     "scripts/commit_windows_hardware_reliability.py",
     "tests/windows_hardware_retry_runtime.cpp",
-    "tests/windows_hardware_write_runtime.cpp",
+	"tests/windows_hardware_write_runtime.cpp",
+	"tests/capture_queue_runtime.cpp",
+	"tests/fret_control_protocol.cpp",
+	"tests/windows_hardware_worker_runtime.cpp",
 )
 
 MAKEFILE_BLOCK = """.PHONY: report-windows-hardware-source
@@ -122,6 +133,19 @@ commit-windows-hardware-reliability:
 \tpython3 scripts/commit_windows_hardware_reliability.py apply
 """
 
+MAKEFILE_ADDITIONS = """test-capture-queue-runtime:
+\tpython3 scripts/test_capture_queue_runtime.py
+
+test-fret-control-protocol:
+\tpython3 scripts/test_fret_control_protocol.py
+
+test-windows-hardware-worker-runtime:
+\tpython3 scripts/test_windows_hardware_worker_runtime.py
+
+test-windows-toolchains:
+\tpython3 scripts/test_windows_toolchains.py
+"""
+
 
 def run(arguments: list[str], *, input_text: str | None = None) -> None:
     result = subprocess.run(arguments, check=False, text=True, input=input_text)
@@ -131,12 +155,21 @@ def run(arguments: list[str], *, input_text: str | None = None) -> None:
 
 def staged_makefile_patch() -> str:
     head = subprocess.check_output(["git", "show", "HEAD:windows.mk"], text=True)
-    if MAKEFILE_BLOCK.strip() in head:
+    if MAKEFILE_ADDITIONS.strip() in head:
         return ""
-    anchor = "report-windows-share-inventory:\n\tpython3 scripts/report_windows_share_inventory.py\n"
+    anchor = "test-windows-hardware-write-runtime:\n\tpython3 scripts/test_windows_hardware_write_runtime.py\n"
     if anchor not in head:
-        raise SystemExit("windows.mk anchor is missing from HEAD")
-    desired = head.replace(anchor, anchor + "\n" + MAKEFILE_BLOCK, 1)
+        raise SystemExit("windows.mk runtime target anchor is missing from HEAD")
+    desired = head.replace(anchor, anchor + "\n" + MAKEFILE_ADDITIONS, 1)
+    checklist_anchor = " test-windows-hardware-write-runtime verify-windows-standalone"
+    checklist_replacement = (
+        " test-windows-hardware-write-runtime test-capture-queue-runtime"
+        " test-fret-control-protocol test-windows-hardware-worker-runtime"
+        " test-windows-toolchains verify-windows-standalone"
+    )
+    if checklist_anchor not in desired:
+        raise SystemExit("windows.mk checklist anchor is missing from HEAD")
+    desired = desired.replace(checklist_anchor, checklist_replacement, 1)
     patch = "".join(
         difflib.unified_diff(
             head.splitlines(keepends=True),

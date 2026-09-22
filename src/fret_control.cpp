@@ -391,6 +391,18 @@ std::vector<uint8_t> build_apc_led_messages(int root_pitch_class, RootControlMod
 	return messages;
 }
 
+std::vector<uint8_t> build_apc_led_clear_messages()
+{
+	std::vector<uint8_t> messages;
+	messages.reserve(64 * 3);
+	for (int note = 0; note < 64; ++note) {
+		messages.push_back(kApcSolidFullBrightness);
+		messages.push_back(static_cast<uint8_t>(note));
+		messages.push_back(kApcOff);
+	}
+	return messages;
+}
+
 std::vector<uint8_t> build_mpc_pad_note_messages(int root_pitch_class)
 {
 	constexpr uint8_t kMidiNoteOnChannel10 = 0x99;
@@ -412,6 +424,21 @@ std::vector<uint8_t> build_mpc_pad_note_messages(int root_pitch_class)
 		messages.push_back(kMidiNoteOnChannel10);
 		messages.push_back(static_cast<uint8_t>(midi_note));
 		messages.push_back(velocity);
+	}
+	return messages;
+}
+
+std::vector<uint8_t> build_mpc_pad_clear_messages()
+{
+	constexpr uint8_t kMidiNoteOnChannel10 = 0x99;
+	constexpr int kClassicMpcPadBaseNote = 36;
+	constexpr int kClassicMpcPadCount = 16;
+	std::vector<uint8_t> messages;
+	messages.reserve(static_cast<std::size_t>(kClassicMpcPadCount) * 3);
+	for (int pad = 0; pad < kClassicMpcPadCount; ++pad) {
+		messages.push_back(kMidiNoteOnChannel10);
+		messages.push_back(static_cast<uint8_t>(kClassicMpcPadBaseNote + pad));
+		messages.push_back(0);
 	}
 	return messages;
 }

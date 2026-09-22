@@ -5,10 +5,14 @@ from pathlib import Path
 
 
 SOURCE = Path("src/windows_hardware_control.cpp")
+WORKER_SOURCE = Path("src/windows_hardware_worker.hpp")
+NOTIFICATION_SOURCE = Path("src/windows_device_notifications.hpp")
 
 
 def main() -> int:
-    source = SOURCE.read_text(encoding="utf-8")
+    source = "\n".join(
+        path.read_text(encoding="utf-8") for path in (SOURCE, WORKER_SOURCE, NOTIFICATION_SOURCE)
+    )
     required = (
         "midi_worker = std::thread(&Impl::run_midi_guarded, this)",
         "litejam_worker = std::thread(&Impl::run_litejam_guarded, this)",
@@ -21,9 +25,12 @@ def main() -> int:
         "template <typename ShouldContinue>",
         "hardware_write_if_current(should_continue",
         "if (!should_continue())",
-        "condition.notify_all()",
-        "bool wait_for_state(",
-        "bool revision_is_current(",
+        "worker_state.update(",
+        "worker_state.wait(",
+        "worker_state.current(",
+        "worker_state.request_stop()",
+        "device_notifications.start()",
+        "RegisterDeviceNotificationW(",
         "if (!revision_is_current(revision))",
         "const bool write_succeeded =",
         "std::thread midi_worker;",
