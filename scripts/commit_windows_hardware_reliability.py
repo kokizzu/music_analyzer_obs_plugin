@@ -55,6 +55,9 @@ FILES = (
 	"tests/capture_queue_runtime.cpp",
     "tests/fret_control_protocol.cpp",
     "tests/windows_hardware_worker_runtime.cpp",
+)
+
+REMOVED_FILES = (
     ".github/workflows/windows-toolchains.yml",
 )
 
@@ -205,17 +208,17 @@ def staged_makefile_patch() -> str:
 
 def plan() -> None:
     print("Windows hardware reliability files:")
-    for path in (*FILES, "windows.mk"):
+    for path in (*FILES, *REMOVED_FILES, "windows.mk"):
         print(f"  {path}")
-    run(["git", "status", "--short", "--", *FILES, "windows.mk"])
-    run(["git", "diff", "--stat", "--", *FILES, "windows.mk"])
+    run(["git", "status", "--short", "--", *FILES, *REMOVED_FILES, "windows.mk"])
+    run(["git", "diff", "--stat", "--", *FILES, *REMOVED_FILES, "windows.mk"])
 
 
 def apply() -> None:
     makefile_patch = staged_makefile_patch()
     if makefile_patch:
         run(["git", "apply", "--cached", "--whitespace=nowarn"], input_text=makefile_patch)
-    run(["git", "add", "--", *FILES])
+    run(["git", "add", "--", *FILES, *REMOVED_FILES])
     run(["git", "diff", "--cached", "--check"])
     run(["git", "commit", "-m", "Improve Windows hardware and audio recovery"])
 
