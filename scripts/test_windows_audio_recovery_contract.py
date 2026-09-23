@@ -30,6 +30,11 @@ def main() -> int:
         "WASAPI capture reopen pending",
         "queue_.clear();",
         "endpoint.open(sample_rate, name.c_str(), endpoint_id.c_str())",
+        "kStartupTimeout = std::chrono::seconds(5)",
+        "std::future_status::ready",
+        "WASAPI capture startup timed out",
+        "dropped_samples_",
+        "limit_ms=250",
     )
     missing = [fragment for fragment in required_loopback if fragment not in loopback]
     missing.extend(fragment for fragment in required_capture if fragment not in capture)

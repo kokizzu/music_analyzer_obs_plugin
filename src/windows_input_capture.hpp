@@ -19,6 +19,7 @@ class WindowsInputCapture {
 	mao::CaptureRingBuffer queue_;
 	std::mutex wake_mutex_;
 	std::condition_variable wake_condition_;
+	std::atomic<std::uint64_t> dropped_samples_{0};
 public:
 	~WindowsInputCapture() { close(); }
 	void close()
@@ -34,8 +35,10 @@ public:
 		close();
 		stop_ = false;
 		failed_ = false;
+		dropped_samples_ = 0;
 		std::promise<uint32_t> opened;
 		auto result = opened.get_future();
+		try {
 		worker_ = std::thread([this, name, diagnostics, start = std::move(opened)]() mutable {
 			try {
 				WindowsLoopback endpoint;
@@ -52,6 +55,7 @@ public:
 				start.set_value(sample_rate);
 				std::vector<float> block;
 				block.reserve(sample_rate);
+				auto last_overrun_log = std::chrono::steady_clock::time_point{};
 				auto reopen = [&]() {
 					constexpr auto kInitialDelay = std::chrono::milliseconds(250);
 					constexpr auto kMaximumDelay = std::chrono::milliseconds(2000);
@@ -96,8 +100,17 @@ public:
 					if (!block.empty()) {
 						std::lock_guard<std::mutex> lock(mutex_);
 						const auto excess = queue_.append(block);
+						if (excess)
+							dropped_samples_.fetch_add(excess, std::memory_order_relaxed);
 						if (excess) {
-							std::fprintf(stderr, "WASAPI queue overrun: t=%lu dropped_frames=%zu limit_ms=250\n", static_cast<unsigned long>(GetTickCount()), excess);
+							const auto now = std::chrono::steady_clock::now();
+							if (last_overrun_log == std::chrono::steady_clock::time_point{} ||
+							    now - last_overrun_log >= std::chrono::seconds(1)) {
+								last_overrun_log = now;
+								std::fprintf(stderr, "WASAPI queue overrun: t=%lu dropped_frames=%llu limit_ms=250\n",
+									     static_cast<unsigned long>(GetTickCount()),
+									     static_cast<unsigned long long>(dropped_samples_.load(std::memory_order_relaxed)));
+							}
 						}
 					}
 				}
@@ -111,12 +124,31 @@ public:
 				try { start.set_value(0); } catch (const std::future_error &) {}
 			}
 		});
+		} catch (const std::exception &error) {
+			std::fprintf(stderr, "WASAPI capture thread startup failed: %s\n", error.what());
+			failed_ = true;
+			stop_ = true;
+			return false;
+		} catch (...) {
+			std::fprintf(stderr, "WASAPI capture thread startup failed: unknown\n");
+			failed_ = true;
+			stop_ = true;
+			return false;
+		}
+		constexpr auto kStartupTimeout = std::chrono::seconds(5);
+		if (result.wait_for(kStartupTimeout) != std::future_status::ready) {
+			std::fprintf(stderr, "WASAPI capture startup timed out: source=%s\n", name.c_str());
+			failed_ = true;
+			close();
+			return false;
+		}
 		const uint32_t opened_rate = result.get();
 		if (!opened_rate) { close(); return false; }
 		rate = opened_rate;
 		return true;
 	}
 	bool failed() const { return failed_; }
+	std::uint64_t dropped_samples() const { return dropped_samples_.load(std::memory_order_relaxed); }
 	void drain(std::vector<float> &samples)
 	{
 		std::lock_guard<std::mutex> lock(mutex_);

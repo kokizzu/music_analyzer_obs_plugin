@@ -10,18 +10,21 @@ def require(text: str, fragment: str) -> None:
 
 
 def main() -> int:
-    path = Path("src/windows_hardware_control.cpp")
-    text = path.read_text(encoding="utf-8")
+    text = "\n".join(
+        Path(path).read_text(encoding="utf-8")
+        for path in ("src/windows_hardware_control.cpp", "src/windows_hardware_worker.hpp")
+    )
     for fragment in (
         "bool still_present(const std::string &preferred)",
         "bool still_present()",
         "BluetoothGATTGetServices(handle_",
-            "const bool present = midi.still_present(options.midi_output)",
-            "sent_revision != revision || !present",
-            "const bool present = litejam.still_present()",
-            "sent_revision != revision || !present",
-            "const bool present = fret_zealot.still_present()",
-            "sent_revision != revision || !present",
+            "static bool midi_present(void *context)",
+            "static bool litejam_present(void *context)",
+            "static bool fret_zealot_present(void *context)",
+            "if (sent_revision != command.revision ||",
+            "sent_device_generation != command.device_generation",
+            "device_notifications.start()",
+            "notify_device_change()",
     ):
         require(text, fragment)
     print("Windows hardware reconnect checks: ok")

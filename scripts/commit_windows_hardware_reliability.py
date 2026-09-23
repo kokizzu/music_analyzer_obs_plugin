@@ -17,7 +17,8 @@ FILES = (
 	"src/windows_loopback.hpp",
 	"src/windows_hardware_control.cpp",
 	"src/windows_device_notifications.hpp",
-	"src/windows_hardware_worker.hpp",
+    "src/windows_hardware_worker.hpp",
+    "src/windows_hardware_status.hpp",
     "src/windows_hardware_retry.hpp",
     "src/windows_hardware_write.hpp",
     "tests/fret_zealot_protocol.cpp",
@@ -42,14 +43,18 @@ FILES = (
 	"scripts/test_windows_toolchains.py",
     "scripts/test_windows_hardware_reconnect.py",
     "scripts/test_windows_loopback_recovery.py",
+    "scripts/report_windows_reliability_source.py",
+    "scripts/report_windows_build_log.py",
+    "scripts/test_windows_ci.py",
     "scripts/windows_hardware_checklist.py",
     "scripts/inspect_scoped_windows_hardware_diff.py",
     "scripts/commit_windows_hardware_reliability.py",
     "tests/windows_hardware_retry_runtime.cpp",
 	"tests/windows_hardware_write_runtime.cpp",
 	"tests/capture_queue_runtime.cpp",
-	"tests/fret_control_protocol.cpp",
-	"tests/windows_hardware_worker_runtime.cpp",
+    "tests/fret_control_protocol.cpp",
+    "tests/windows_hardware_worker_runtime.cpp",
+    ".github/workflows/windows-toolchains.yml",
 )
 
 MAKEFILE_BLOCK = """.PHONY: report-windows-hardware-source
@@ -144,6 +149,18 @@ test-windows-hardware-worker-runtime:
 
 test-windows-toolchains:
 \tpython3 scripts/test_windows_toolchains.py
+
+.PHONY: report-windows-reliability-source
+report-windows-reliability-source:
+\tpython3 scripts/report_windows_reliability_source.py
+
+.PHONY: report-windows-build-log
+report-windows-build-log:
+\tpython3 scripts/report_windows_build_log.py
+
+.PHONY: verify-windows-ci
+verify-windows-ci:
+\tpython3 scripts/test_windows_ci.py
 """
 
 
@@ -161,15 +178,19 @@ def staged_makefile_patch() -> str:
     if anchor not in head:
         raise SystemExit("windows.mk runtime target anchor is missing from HEAD")
     desired = head.replace(anchor, anchor + "\n" + MAKEFILE_ADDITIONS, 1)
-    checklist_anchor = " test-windows-hardware-write-runtime verify-windows-standalone"
     checklist_replacement = (
-        " test-windows-hardware-write-runtime test-capture-queue-runtime"
-        " test-fret-control-protocol test-windows-hardware-worker-runtime"
-        " test-windows-toolchains verify-windows-standalone"
+        " test-capture-queue-runtime test-fret-control-protocol"
+        " test-windows-hardware-worker-runtime test-windows-toolchains"
+        " verify-windows-standalone"
     )
-    if checklist_anchor not in desired:
-        raise SystemExit("windows.mk checklist anchor is missing from HEAD")
-    desired = desired.replace(checklist_anchor, checklist_replacement, 1)
+    lines = desired.splitlines(keepends=True)
+    for index, line in enumerate(lines):
+        if line.startswith("verify-windows-hardware-checklist:") and " verify-windows-standalone" in line:
+            lines[index] = line.replace(" verify-windows-standalone", checklist_replacement, 1)
+            break
+    else:
+        raise SystemExit("windows.mk checklist target is missing from HEAD")
+    desired = "".join(lines)
     patch = "".join(
         difflib.unified_diff(
             head.splitlines(keepends=True),

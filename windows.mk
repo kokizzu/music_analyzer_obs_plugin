@@ -352,6 +352,30 @@ test-windows-hardware-worker-runtime:
 test-windows-toolchains:
 	python3 scripts/test_windows_toolchains.py
 
+.PHONY: report-windows-reliability-source
+report-windows-reliability-source:
+	python3 scripts/report_windows_reliability_source.py
+
+.PHONY: report-windows-build-log
+report-windows-build-log:
+	python3 scripts/report_windows_build_log.py
+
+.PHONY: verify-windows-ci
+verify-windows-ci:
+	python3 scripts/test_windows_ci.py
+
+test-capture-queue-runtime:
+	python3 scripts/test_capture_queue_runtime.py
+
+test-fret-control-protocol:
+	python3 scripts/test_fret_control_protocol.py
+
+test-windows-hardware-worker-runtime:
+	python3 scripts/test_windows_hardware_worker_runtime.py
+
+test-windows-toolchains:
+	python3 scripts/test_windows_toolchains.py
+
 .PHONY: report-windows-deploy-source
 report-windows-deploy-source:
 	python3 scripts/report_windows_deploy_source.py
@@ -361,7 +385,7 @@ inspect-scoped-windows-hardware-diff:
 	python3 scripts/inspect_scoped_windows_hardware_diff.py
 
 .PHONY: verify-windows-hardware-checklist
-verify-windows-hardware-checklist: test-windows-hardware-retry-contract test-windows-hardware-worker-contract test-windows-hardware-device-contract test-windows-hardware-reconnect test-windows-hardware-status test-windows-hardware-status-runtime test-windows-diagnostic-output test-windows-midi-protocol test-fret-zealot-protocol test-windows-loopback-recovery test-windows-audio-recovery-contract test-windows-hardware-retry-runtime test-windows-hardware-write-runtime test-capture-queue-runtime test-fret-control-protocol test-windows-hardware-worker-runtime test-windows-toolchains verify-windows-standalone verify-windows-runtime-bundle
+verify-windows-hardware-checklist: test-windows-hardware-retry-contract test-windows-hardware-worker-contract test-windows-hardware-device-contract test-windows-hardware-reconnect test-windows-hardware-status test-windows-hardware-status-runtime test-windows-diagnostic-output test-windows-midi-protocol test-fret-zealot-protocol test-windows-loopback-recovery test-windows-audio-recovery-contract test-windows-hardware-retry-runtime test-windows-hardware-write-runtime test-capture-queue-runtime test-fret-control-protocol test-windows-hardware-worker-runtime test-windows-toolchains test-capture-queue-runtime test-fret-control-protocol test-windows-hardware-worker-runtime test-windows-toolchains verify-windows-standalone verify-windows-runtime-bundle
 	python3 scripts/windows_hardware_checklist.py
 
 .PHONY: plan-commit-windows-hardware-reliability commit-windows-hardware-reliability

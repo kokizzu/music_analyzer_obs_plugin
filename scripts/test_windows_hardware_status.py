@@ -20,14 +20,28 @@ def main() -> int:
         (
             "struct WindowsHardwareStatus",
             "WindowsHardwareStatus status() const",
+            "WindowsHardwareDeviceStatus midi",
+        ),
+    )
+    require(
+        "src/windows_hardware_status.hpp",
+        (
+            "enum class WindowsHardwareStatusReason",
+            "WindowsHardwareDeviceStatus",
+            "WindowsHardwareStatusChange",
+            "WindowsHardwareStatusState",
+            "record(bool new_connected",
+            "snapshot() const",
+            "transitions",
+            "failures",
         ),
     )
     require(
         "src/windows_hardware_control.cpp",
         (
-        'publish_hardware_status("midi", midi_connected, true, "output-sent")',
-        'publish_hardware_status("litejam", litejam_connected, true, "output-sent")',
-        'publish_hardware_status("fret-zealot", fret_zealot_connected, true, "output-sent")',
+        'run_hardware_worker(worker_state, midi_backend(), "midi", midi_status',
+        'run_hardware_worker(worker_state, litejam_backend(), "litejam", litejam_status',
+        'run_hardware_worker(worker_state, fret_zealot_backend(), "fret-zealot", fret_zealot_status',
         '"output-failed"',
         '"worker-exception"',
             "WindowsHardwareController::status() const",

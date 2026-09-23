@@ -26,12 +26,16 @@ def main() -> int:
         "hardware_write_if_current(should_continue",
         "if (!should_continue())",
         "worker_state.update(",
-        "worker_state.wait(",
+        "run_hardware_worker(worker_state,",
         "worker_state.current(",
         "worker_state.request_stop()",
+        "HardwareWorkerLifecycleState",
+        "lifecycle_state.begin_start()",
+        "lifecycle_state.begin_stop()",
+        "sent_device_generation",
         "device_notifications.start()",
         "RegisterDeviceNotificationW(",
-        "if (!revision_is_current(revision))",
+        "if (!state.current(command.revision))",
         "const bool write_succeeded =",
         "std::thread midi_worker;",
         "std::thread litejam_worker;",
@@ -40,8 +44,8 @@ def main() -> int:
     missing = [fragment for fragment in required if fragment not in source]
     if missing:
         raise SystemExit("missing independent hardware worker contract: " + "; ".join(missing))
-    if source.count("HardwareRetryState retry;") != 3:
-        raise SystemExit("expected one retry state per hardware worker")
+    if source.count("HardwareRetryState retry;") != 1:
+        raise SystemExit("expected one shared retry loop for all hardware workers")
     print("Windows hardware worker contract: ok")
     return 0
 

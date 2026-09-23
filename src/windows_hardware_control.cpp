@@ -40,8 +40,6 @@ constexpr DWORD kFretZealotLegacyWriteDelayMs = 20;
 constexpr DWORD kFretZealotModernWriteDelayMs = 1;
 constexpr DWORD kGattWriteRetryDelayMs = 50;
 constexpr int kGattWriteAttempts = 3;
-using HardwareClock = HardwareRetryState::clock;
-
 void log_hardware_hresult(const char *device, const char *operation, HRESULT result)
 {
 	std::fprintf(stderr, "Windows hardware %s %s failed hr=0x%08lX\n", device, operation,
@@ -60,17 +58,32 @@ void log_hardware_midi_error(const char *device, const char *operation, MMRESULT
 		     static_cast<unsigned int>(result));
 }
 
-void publish_hardware_status(const char *device, std::atomic<bool> &status, bool connected,
-				     const char *reason = nullptr)
+WindowsHardwareStatusReason status_reason(const char *reason)
 {
-	const bool previous = status.exchange(connected, std::memory_order_acq_rel);
-	if (previous == connected)
+	if (!reason)
+		return WindowsHardwareStatusReason::Unknown;
+	if (std::strcmp(reason, "device-missing") == 0)
+		return WindowsHardwareStatusReason::DeviceMissing;
+	if (std::strcmp(reason, "output-sent") == 0)
+		return WindowsHardwareStatusReason::OutputSent;
+	if (std::strcmp(reason, "output-failed") == 0)
+		return WindowsHardwareStatusReason::OutputFailed;
+	if (std::strcmp(reason, "worker-exception") == 0)
+		return WindowsHardwareStatusReason::WorkerException;
+	if (std::strcmp(reason, "worker-stopped") == 0)
+		return WindowsHardwareStatusReason::WorkerStopped;
+	return WindowsHardwareStatusReason::Unknown;
+}
+
+void publish_hardware_status(const char *device, WindowsHardwareStatusState &status, bool connected,
+				     const char *reason)
+{
+	const auto code = status_reason(reason);
+	const auto change = status.record(connected, code);
+	if (!change.connection_changed && !change.reason_changed)
 		return;
-	std::fprintf(stderr, "Windows hardware status: %s=%s", device,
-		     connected ? "connected" : "disconnected");
-	if (reason && *reason)
-		std::fprintf(stderr, " reason=%s", reason);
-	std::fputc('\n', stderr);
+	std::fprintf(stderr, "Windows hardware status: %s=%s reason=%s\n", device,
+		     connected ? "connected" : "disconnected", reason ? reason : "unknown");
 }
 
 bool is_transient_gatt_error(HRESULT result)
@@ -313,9 +326,14 @@ public:
 	{
 		if (!active())
 			return false;
-		const std::vector<std::uint8_t> messages = pad_note_feedback_
-			? build_mpc_pad_note_messages(root_pitch_class)
-			: build_apc_led_messages(root_pitch_class, mode);
+		if (cached_root_ != root_pitch_class || cached_mode_ != mode || messages_.empty()) {
+			messages_ = pad_note_feedback_
+				? build_mpc_pad_note_messages(root_pitch_class)
+				: build_apc_led_messages(root_pitch_class, mode);
+			cached_root_ = root_pitch_class;
+			cached_mode_ = mode;
+		}
+		const std::vector<std::uint8_t> &messages = messages_;
 		for (std::size_t offset = 0; offset + 2 < messages.size(); offset += 3) {
 			const DWORD message = pack_windows_midi_short_message(messages[offset], messages[offset + 1],
 											      messages[offset + 2]);
@@ -364,6 +382,9 @@ public:
 		manufacturer_id_ = 0;
 		product_id_ = 0;
 		pad_note_feedback_ = false;
+		messages_.clear();
+		cached_root_ = -1;
+		cached_mode_ = RootControlMode::Auto;
 	}
 
 private:
@@ -372,6 +393,9 @@ private:
 	WORD manufacturer_id_ = 0;
 	WORD product_id_ = 0;
 	bool pad_note_feedback_ = false;
+	std::vector<std::uint8_t> messages_;
+	int cached_root_ = -1;
+	RootControlMode cached_mode_ = RootControlMode::Auto;
 };
 
 class FretZealotGatt {
@@ -391,9 +415,11 @@ public:
 		const std::vector<std::uint8_t> packet = build_fret_zealot_major_scale_packet(root_pitch_class);
 		for (std::size_t offset = 0; offset < packet.size(); offset += chunk_bytes_) {
 			const std::size_t chunk_size = std::min(chunk_bytes_, packet.size() - offset);
-			std::vector<BYTE> storage(sizeof(MAO_BTH_LE_GATT_CHARACTERISTIC_VALUE) + chunk_bytes_ - 1, 0);
+			const std::size_t storage_size = sizeof(MAO_BTH_LE_GATT_CHARACTERISTIC_VALUE) + chunk_bytes_ - 1;
+			if (write_storage_.size() < storage_size)
+				write_storage_.resize(storage_size);
 			MAO_BTH_LE_GATT_CHARACTERISTIC_VALUE *value =
-				reinterpret_cast<MAO_BTH_LE_GATT_CHARACTERISTIC_VALUE *>(storage.data());
+				reinterpret_cast<MAO_BTH_LE_GATT_CHARACTERISTIC_VALUE *>(write_storage_.data());
 			value->DataSize = static_cast<ULONG>(chunk_size);
 			std::memcpy(value->Data, packet.data() + offset, chunk_size);
 			HRESULT result = S_OK;
@@ -433,6 +459,7 @@ public:
 		write_flags_ = windows_bluetooth::kGattFlagNone;
 		chunk_bytes_ = kFretZealotChunkBytes;
 		write_delay_ms_ = kFretZealotLegacyWriteDelayMs;
+		write_storage_.clear();
 	}
 
 	bool still_present()
@@ -575,6 +602,7 @@ private:
 	ULONG write_flags_ = windows_bluetooth::kGattFlagNone;
 	std::size_t chunk_bytes_ = kFretZealotChunkBytes;
 	DWORD write_delay_ms_ = kFretZealotLegacyWriteDelayMs;
+	std::vector<BYTE> write_storage_;
 };
 
 class LiteJamGatt {
@@ -592,9 +620,11 @@ public:
 		if (!should_continue())
 			return true;
 		const std::vector<std::uint8_t> packet = build_litejam_major_scale_packet(root_pitch_class);
-		std::vector<BYTE> storage(sizeof(MAO_BTH_LE_GATT_CHARACTERISTIC_VALUE) + packet.size() - 1, 0);
+		const std::size_t storage_size = sizeof(MAO_BTH_LE_GATT_CHARACTERISTIC_VALUE) + packet.size() - 1;
+		if (write_storage_.size() < storage_size)
+			write_storage_.resize(storage_size);
 		MAO_BTH_LE_GATT_CHARACTERISTIC_VALUE *value =
-			reinterpret_cast<MAO_BTH_LE_GATT_CHARACTERISTIC_VALUE *>(storage.data());
+			reinterpret_cast<MAO_BTH_LE_GATT_CHARACTERISTIC_VALUE *>(write_storage_.data());
 		value->DataSize = static_cast<ULONG>(packet.size());
 		std::memcpy(value->Data, packet.data(), packet.size());
 		HRESULT result = S_OK;
@@ -629,6 +659,7 @@ public:
 		service_ = {};
 		characteristic_ = {};
 		write_flags_ = windows_bluetooth::kGattFlagNone;
+		write_storage_.clear();
 	}
 
 	bool still_present()
@@ -760,6 +791,7 @@ private:
 	MAO_BTH_LE_GATT_SERVICE service_ = {};
 	MAO_BTH_LE_GATT_CHARACTERISTIC characteristic_ = {};
 	ULONG write_flags_ = windows_bluetooth::kGattFlagNone;
+	std::vector<BYTE> write_storage_;
 };
 
 } // namespace
@@ -780,34 +812,30 @@ struct WindowsHardwareController::Impl {
 			litejam_worker.join();
 		if (fret_zealot_worker.joinable())
 			fret_zealot_worker.join();
-		{
-			std::lock_guard<std::mutex> lock(lifecycle_mutex);
-			started = false;
-		}
+		lifecycle_state.finish_stop();
 	}
 
 	void start()
 	{
 		if (!options.enabled)
 			return;
-		{
-			std::lock_guard<std::mutex> lock(lifecycle_mutex);
-			if (started)
-				return;
-			worker_state.reset_for_start();
-			started = true;
-		}
+		if (!lifecycle_state.begin_start())
+			return;
+		worker_state.reset_for_start();
 		try {
 			if (!device_notifications.start())
 				std::fprintf(stderr, "Windows hardware device notifications unavailable; using timed retry fallback\n");
 			midi_worker = std::thread(&Impl::run_midi_guarded, this);
 			litejam_worker = std::thread(&Impl::run_litejam_guarded, this);
 			fret_zealot_worker = std::thread(&Impl::run_fret_zealot_guarded, this);
+			lifecycle_state.mark_running();
 		} catch (const std::exception &error) {
 			std::fprintf(stderr, "Windows hardware worker startup failed: %s\n", error.what());
+			lifecycle_state.mark_stopping_after_start_failure();
 			stop_started_workers();
 		} catch (...) {
 			std::fprintf(stderr, "Windows hardware worker startup failed: unknown\n");
+			lifecycle_state.mark_stopping_after_start_failure();
 			stop_started_workers();
 		}
 	}
@@ -821,17 +849,87 @@ struct WindowsHardwareController::Impl {
 
 	void stop()
 	{
-		{
-			std::lock_guard<std::mutex> lock(lifecycle_mutex);
-			if (!started)
-				return;
-		}
+		if (!lifecycle_state.begin_stop())
+			return;
 		stop_started_workers();
 	}
 
 	bool revision_is_current(std::uint64_t revision)
 	{
 		return worker_state.current(revision);
+	}
+
+	static bool midi_present(void *context)
+	{
+		auto *impl = static_cast<Impl *>(context);
+		return impl->midi.still_present(impl->options.midi_output);
+	}
+
+	static bool midi_send(void *context, int root, RootControlMode mode,
+				      const HardwareWorkerProbe &probe)
+	{
+		auto *impl = static_cast<Impl *>(context);
+		if (!impl->midi.active())
+			(void)impl->midi.open(impl->options.midi_output, impl->options.midi_protocol);
+		return impl->midi.active() && impl->midi.send_scale(root, mode,
+			[&probe]() { return probe.current(); });
+	}
+
+	static void midi_close(void *context)
+	{
+		static_cast<Impl *>(context)->midi.close();
+	}
+
+	static bool litejam_present(void *context)
+	{
+		return static_cast<Impl *>(context)->litejam.still_present();
+	}
+
+	static bool litejam_send(void *context, int root, RootControlMode,
+					const HardwareWorkerProbe &probe)
+	{
+		auto *impl = static_cast<Impl *>(context);
+		return impl->litejam.send_scale(root, impl->options.litejam_device,
+			[&probe]() { return probe.current(); });
+	}
+
+	static void litejam_close(void *context)
+	{
+		static_cast<Impl *>(context)->litejam.close();
+	}
+
+	static bool fret_zealot_present(void *context)
+	{
+		return static_cast<Impl *>(context)->fret_zealot.still_present();
+	}
+
+	static bool fret_zealot_send(void *context, int root, RootControlMode,
+					     const HardwareWorkerProbe &probe)
+	{
+		auto *impl = static_cast<Impl *>(context);
+		return impl->fret_zealot.send_scale(root, impl->options.fret_zealot_device,
+			[&probe]() { return probe.current(); });
+	}
+
+	static void fret_zealot_close(void *context)
+	{
+		static_cast<Impl *>(context)->fret_zealot.close();
+	}
+
+	HardwareWorkerBackend midi_backend()
+	{
+		return {this, &Impl::midi_present, &Impl::midi_send, &Impl::midi_close};
+	}
+
+	HardwareWorkerBackend litejam_backend()
+	{
+		return {this, &Impl::litejam_present, &Impl::litejam_send, &Impl::litejam_close};
+	}
+
+	HardwareWorkerBackend fret_zealot_backend()
+	{
+		return {this, &Impl::fret_zealot_present, &Impl::fret_zealot_send,
+			&Impl::fret_zealot_close};
 	}
 
 	void run_midi_guarded()
@@ -841,11 +939,11 @@ struct WindowsHardwareController::Impl {
 		} catch (const std::exception &error) {
 			std::fprintf(stderr, "Windows hardware MIDI worker exception: %s\n", error.what());
 			midi.close();
-			publish_hardware_status("midi", midi_connected, false, "worker-exception");
+			publish_hardware_status("midi", midi_status, false, "worker-exception");
 		} catch (...) {
 			std::fprintf(stderr, "Windows hardware MIDI worker exception: unknown\n");
 			midi.close();
-			publish_hardware_status("midi", midi_connected, false, "worker-exception");
+			publish_hardware_status("midi", midi_status, false, "worker-exception");
 		}
 	}
 
@@ -856,11 +954,11 @@ struct WindowsHardwareController::Impl {
 		} catch (const std::exception &error) {
 			std::fprintf(stderr, "Windows hardware LiteJam worker exception: %s\n", error.what());
 			litejam.close();
-			publish_hardware_status("litejam", litejam_connected, false, "worker-exception");
+			publish_hardware_status("litejam", litejam_status, false, "worker-exception");
 		} catch (...) {
 			std::fprintf(stderr, "Windows hardware LiteJam worker exception: unknown\n");
 			litejam.close();
-			publish_hardware_status("litejam", litejam_connected, false, "worker-exception");
+			publish_hardware_status("litejam", litejam_status, false, "worker-exception");
 		}
 	}
 
@@ -871,199 +969,45 @@ struct WindowsHardwareController::Impl {
 		} catch (const std::exception &error) {
 			std::fprintf(stderr, "Windows hardware Fret Zealot worker exception: %s\n", error.what());
 			fret_zealot.close();
-			publish_hardware_status("fret-zealot", fret_zealot_connected, false, "worker-exception");
+			publish_hardware_status("fret-zealot", fret_zealot_status, false, "worker-exception");
 		} catch (...) {
 			std::fprintf(stderr, "Windows hardware Fret Zealot worker exception: unknown\n");
 			fret_zealot.close();
-			publish_hardware_status("fret-zealot", fret_zealot_connected, false, "worker-exception");
+			publish_hardware_status("fret-zealot", fret_zealot_status, false, "worker-exception");
 		}
 	}
 
 	void run_midi()
 	{
-		std::uint64_t attempted_revision = 0;
-		std::uint64_t seen_device_generation = 0;
-		std::uint64_t sent_revision = 0;
-		std::uint64_t last_revision = 0;
-		std::uint64_t last_device_generation = 0;
-		HardwareRetryState retry;
-		for (;;) {
-			HardwareWorkerCommand command;
-			if (!worker_state.wait(attempted_revision, seen_device_generation, command))
-				break;
-			const int root = command.root;
-			const RootControlMode mode = command.mode;
-			const std::uint64_t revision = command.revision;
-			const std::uint64_t device_generation = command.device_generation;
-			if (root < 0)
-				continue;
-
-			const auto now = HardwareClock::now();
-			if (revision != last_revision) {
-				last_revision = revision;
-				retry.force(now);
-			}
-			if (device_generation != last_device_generation) {
-				last_device_generation = device_generation;
-				retry.force(now);
-			}
-			if (!retry.ready(now))
-				continue;
-
-			const bool present = midi.still_present(options.midi_output);
-			if (!present)
-				publish_hardware_status("midi", midi_connected, false, "device-missing");
-			if (sent_revision != revision || !present) {
-				if (!revision_is_current(revision))
-					continue;
-				if (!midi.active())
-					(void)midi.open(options.midi_output, options.midi_protocol);
-				const auto current_revision = [&]() { return revision_is_current(revision); };
-				const bool write_succeeded = midi.active() && midi.send_scale(root, mode, current_revision);
-				if (write_succeeded) {
-					sent_revision = revision_is_current(revision) ? revision : 0;
-					publish_hardware_status("midi", midi_connected, true, "output-sent");
-					retry.succeeded(HardwareClock::now());
-				} else {
-					midi.close();
-					sent_revision = 0;
-					publish_hardware_status("midi", midi_connected, false, "output-failed");
-					retry.failed(HardwareClock::now());
-				}
-			} else {
-				retry.succeeded(HardwareClock::now());
-			}
-		}
-		midi.close();
-		publish_hardware_status("midi", midi_connected, false, "worker-stopped");
+		run_hardware_worker(worker_state, midi_backend(), "midi", midi_status,
+				    &publish_hardware_status);
 	}
 
 	void run_litejam()
 	{
-		std::uint64_t attempted_revision = 0;
-		std::uint64_t seen_device_generation = 0;
-		std::uint64_t sent_revision = 0;
-		std::uint64_t last_revision = 0;
-		std::uint64_t last_device_generation = 0;
-		HardwareRetryState retry;
-		for (;;) {
-			HardwareWorkerCommand command;
-			if (!worker_state.wait(attempted_revision, seen_device_generation, command))
-				break;
-			const int root = command.root;
-			const RootControlMode mode = command.mode;
-			const std::uint64_t revision = command.revision;
-			const std::uint64_t device_generation = command.device_generation;
-			if (root < 0)
-				continue;
-
-			const auto now = HardwareClock::now();
-			if (revision != last_revision) {
-				last_revision = revision;
-				retry.force(now);
-			}
-			if (device_generation != last_device_generation) {
-				last_device_generation = device_generation;
-				retry.force(now);
-			}
-			if (!retry.ready(now))
-				continue;
-
-			const bool present = litejam.still_present();
-			if (!present)
-				publish_hardware_status("litejam", litejam_connected, false, "device-missing");
-			if (sent_revision != revision || !present) {
-				if (!revision_is_current(revision))
-					continue;
-				const auto current_revision = [&]() { return revision_is_current(revision); };
-				const bool write_succeeded = litejam.send_scale(root, options.litejam_device, current_revision);
-				if (write_succeeded) {
-					sent_revision = revision_is_current(revision) ? revision : 0;
-					publish_hardware_status("litejam", litejam_connected, true, "output-sent");
-					retry.succeeded(HardwareClock::now());
-				} else {
-					sent_revision = 0;
-					publish_hardware_status("litejam", litejam_connected, false, "output-failed");
-					retry.failed(HardwareClock::now());
-				}
-			} else {
-				retry.succeeded(HardwareClock::now());
-			}
-		}
-		litejam.close();
-		publish_hardware_status("litejam", litejam_connected, false, "worker-stopped");
+		run_hardware_worker(worker_state, litejam_backend(), "litejam", litejam_status,
+				    &publish_hardware_status);
 	}
 
 	void run_fret_zealot()
 	{
-		std::uint64_t attempted_revision = 0;
-		std::uint64_t seen_device_generation = 0;
-		std::uint64_t sent_revision = 0;
-		std::uint64_t last_revision = 0;
-		std::uint64_t last_device_generation = 0;
-		HardwareRetryState retry;
-		for (;;) {
-			HardwareWorkerCommand command;
-			if (!worker_state.wait(attempted_revision, seen_device_generation, command))
-				break;
-			const int root = command.root;
-			const RootControlMode mode = command.mode;
-			const std::uint64_t revision = command.revision;
-			const std::uint64_t device_generation = command.device_generation;
-			if (root < 0)
-				continue;
-
-			const auto now = HardwareClock::now();
-			if (revision != last_revision) {
-				last_revision = revision;
-				retry.force(now);
-			}
-			if (device_generation != last_device_generation) {
-				last_device_generation = device_generation;
-				retry.force(now);
-			}
-			if (!retry.ready(now))
-				continue;
-
-			const bool present = fret_zealot.still_present();
-			if (!present)
-				publish_hardware_status("fret-zealot", fret_zealot_connected, false, "device-missing");
-			if (sent_revision != revision || !present) {
-				if (!revision_is_current(revision))
-					continue;
-				const auto current_revision = [&]() { return revision_is_current(revision); };
-				const bool write_succeeded = fret_zealot.send_scale(root, options.fret_zealot_device, current_revision);
-				if (write_succeeded) {
-					sent_revision = revision_is_current(revision) ? revision : 0;
-					publish_hardware_status("fret-zealot", fret_zealot_connected, true, "output-sent");
-					retry.succeeded(HardwareClock::now());
-				} else {
-					sent_revision = 0;
-					publish_hardware_status("fret-zealot", fret_zealot_connected, false, "output-failed");
-					retry.failed(HardwareClock::now());
-				}
-			} else {
-				retry.succeeded(HardwareClock::now());
-			}
-		}
-		fret_zealot.close();
-		publish_hardware_status("fret-zealot", fret_zealot_connected, false, "worker-stopped");
+		run_hardware_worker(worker_state, fret_zealot_backend(), "fret-zealot", fret_zealot_status,
+				    &publish_hardware_status);
 	}
 
 	WindowsHardwareOptions options;
 	WindowsMidiOutput midi;
 	LiteJamGatt litejam;
 	FretZealotGatt fret_zealot;
-	std::mutex lifecycle_mutex;
+	HardwareWorkerLifecycleState lifecycle_state;
 	WindowsHardwareWorkerState worker_state;
 	WindowsDeviceNotifications device_notifications;
 	std::thread midi_worker;
 	std::thread litejam_worker;
 	std::thread fret_zealot_worker;
-	bool started = false;
-	std::atomic<bool> midi_connected{false};
-	std::atomic<bool> litejam_connected{false};
-	std::atomic<bool> fret_zealot_connected{false};
+	WindowsHardwareStatusState midi_status;
+	WindowsHardwareStatusState litejam_status;
+	WindowsHardwareStatusState fret_zealot_status;
 };
 
 WindowsHardwareController::WindowsHardwareController(const WindowsHardwareOptions &options)
@@ -1098,11 +1042,14 @@ WindowsHardwareStatus WindowsHardwareController::status() const
 {
 	if (!impl_)
 		return {};
-	return WindowsHardwareStatus{
-		impl_->midi_connected.load(std::memory_order_acquire),
-		impl_->litejam_connected.load(std::memory_order_acquire),
-		impl_->fret_zealot_connected.load(std::memory_order_acquire),
-	};
+	WindowsHardwareStatus result;
+	result.midi = impl_->midi_status.snapshot();
+	result.litejam = impl_->litejam_status.snapshot();
+	result.fret_zealot = impl_->fret_zealot_status.snapshot();
+	result.midi_connected = result.midi.connected;
+	result.litejam_connected = result.litejam.connected;
+	result.fret_zealot_connected = result.fret_zealot.connected;
+	return result;
 }
 
 void WindowsHardwareController::print_midi_devices()
