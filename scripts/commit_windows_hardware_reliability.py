@@ -34,6 +34,7 @@ FILES = (
     "scripts/test_windows_hardware_device_contract.py",
     "scripts/test_windows_hardware_retry_contract.py",
     "scripts/test_windows_hardware_status.py",
+    "scripts/test_windows_hardware_protocol.py",
     "scripts/test_windows_hardware_worker_contract.py",
     "scripts/test_windows_hardware_retry_runtime.py",
 	"scripts/test_windows_hardware_write_runtime.py",

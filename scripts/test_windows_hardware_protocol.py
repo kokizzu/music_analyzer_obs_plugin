@@ -9,6 +9,7 @@ SOURCE_PATHS = (
     ROOT / "src" / "windows_hardware_control.cpp",
     ROOT / "src" / "windows_hardware_control.hpp",
     ROOT / "src" / "windows_bluetooth_gatt.hpp",
+    ROOT / "src" / "windows_hardware_worker.hpp",
 )
 
 REQUIREMENTS = {
@@ -42,10 +43,12 @@ REQUIREMENTS = {
         "kLiteJamLedCharacteristic",
     ),
     "Reconnect output retry": (
-        "const bool midi_present = midi.still_present",
-        "midi_sent_revision != revision || !midi_present",
-        "litejam_sent_revision != revision || !litejam_present",
-        "fret_zealot_sent_revision != revision || !fret_zealot_present",
+        "static bool midi_present(void *context)",
+        "static bool litejam_present(void *context)",
+        "static bool fret_zealot_present(void *context)",
+        "sent_revision != command.revision ||",
+        "sent_device_generation != command.device_generation",
+        "device_notifications.start()",
     ),
 }
 
