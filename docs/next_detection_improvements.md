@@ -1,15 +1,17 @@
 # Next detection improvements
 
-All five requested areas are in progress. A cached-data screen is not a live
-accuracy improvement, and rejected models are not enabled.
+The benchmark tooling and exact tempo-scoring optimization are implemented.
+Native spectral Voice verification is experimental and disabled by default.
+The BPM accuracy, chord and drum proposals have not passed their improvement
+gates. A cached-data screen is not a live accuracy improvement.
 
 | Area | Work and current evidence | Remaining work |
 | --- | --- | --- |
-| Three-second BPM | Weighted phase coverage, empty-cell penalty and octave-margin screen reproduces the cached baseline, but loses one correct FiloBass result; rejected. A necessary-condition early veto matches 250,000 generated selector cases and is integrated locally to avoid impossible PCM scans. | Verify integrated timing/output preservation and find an additional accuracy gain. |
-| Native timbre | Log/ratio features with onset, decay, stability and harmonics, grouped by instrument identity for holdout; linear model makes no accepted changes. The bounded forest produces one wrong held-out reassignment and no gains, so it is rejected. | Richer evidence, current-source replay and independent positives before model promotion. |
-| Chord ambiguity | Two-frame, defining-tone/chroma reranking gains three correct frames but introduces three wrong labels across MAPS/MAESTRO; rejected. | A rule that preserves correct chords and avoids new wrong labels, with transition-delay measurements. |
-| Drum discrimination | Native band/body/shape classifiers trained on the full one-shot capture and tested on independent 29k/Virtuosity samples; linear and nonlinear models make no accepted changes. | Capture richer attack/decay evidence, then validate a useful rule across protected kits and full mixes. |
-| Sustained playback | Complete WAV replay, 100 ms windows / 50 ms hops, throughput and paced modes; reports p50/p95/p99/worst time, CPU, peak-RSS growth, deadline misses, transitions and one-hop reversals. First three-corpus fingerprinted throughput capture completes; deadline misses occur under concurrent load. MIDI-supported duration scoring is implemented and measured on MAPS. | Finish paced replay and broaden labelled duration coverage. |
+| Three-second BPM | Phase/octave and backbeat trials rejected. Exact arithmetic caching preserves 3,000 scorer cases, including the 64/65-peak cache boundary. A necessary-condition early veto matches 250,000 generated selector cases and is integrated locally. | Additional accuracy gain remains unproven. |
+| Native timbre | Pure native 100 ms cepstral extractor and two-stage bounded forest; native inference matches 2,940 capture cases. Expanded integrated replay removes 81 wrong Voice cells, including one held-out piano cell, without correct Voice losses or unrelated changes. | Full single-note audit and broader independent piano positives before enabling by default. |
+| Chord ambiguity | Defining-tone/chroma reranking introduces three wrong labels; rejected. Strict source-agreement alternative produces no gains; rejected. | No new chord rule is promoted. |
+| Drum discrimination | Band/body, attack/decay, periodicity and spectral-shape classifiers tested on independent 29k/Virtuosity samples: no accepted changes. | No new drum model is promoted. |
+| Sustained playback | Complete throughput and paced replay with 100 ms windows / 50 ms hops, timing, CPU, RSS, deadlines, transitions and reversals. MIDI-supported duration scoring measured on MAPS. | Broader labelled duration coverage remains useful. |
 
 Commands:
 
@@ -27,6 +29,16 @@ make measure-sustained-analyzer
 make measure-sustained-analyzer-paced
 make test-sustained-piano
 make measure-sustained-piano
+make test-pcm-tempo-score-cache
+make test-backbeat-tempo
+make screen-backbeat-tempo
+make screen-chord-source-agreement
+make test-drum-attack-shapes
+make evaluate-drum-attack-shapes
+make evaluate-drum-spectral-shapes
+make test-native-timbre-features
+make test-native-timbre-reference
+make test-native-mfcc-voice
 ```
 
 The screens use existing local cached TSVs. NumPy classifiers use the existing
@@ -54,6 +66,40 @@ Fingerprint-capture `build/sustained_analyzer/f5c86bd58fec/report.json` complete
 is zero for these runs. Under concurrent machine load, corrected-mode deadline
 misses are 0, 79 and 2 respectively; native misses are 0, 1 and 5. These timings
 do not demonstrate an isolated speedup from the early veto.
+
+Paced capture `build/sustained_analyzer/026281d2bcc0/report.json` also completes
+all three recordings. Native/corrected deadline misses are 2/2, 1/92 and 23/3
+respectively. These runs share machine load and do not establish isolated latency.
+
+The exact scorer cache reuses peak square roots and pair weights without changing
+candidate or summation order. One 19-peak microbenchmark measures 0.2112 ms for
+the frozen reference and 0.1327 ms for cached scoring (about 37% less time).
+This is a scorer measurement, not a whole-analyzer latency claim. Native/Python
+PCM-energy parity remains valid at fingerprint `native-pcm-parity-d1189877f12e`.
+
+The spectral extractor uses three Hann spectra from the current audio window,
+26 mel bands and 12 non-constant cepstral coefficients plus their temporal
+differences. It retains rate-dependent geometry, not audio history. Independent
+NumPy/native parity covers 18 rate/signal cases. Warm 48 kHz extraction averages
+0.2398 ms in its microbenchmark; the integrated hook constructs geometry only
+when a proposal exists, so that number is not its complete cold-path cost.
+
+The first Keyboard/Voice forest is a proposal model only: its standalone
+integrated audit lost eight correct Voice cells across three protected NSynth
+notes. A local-triad guard removed every measured benefit. Neither is enabled
+alone. The second-stage spectral verifier blocks those losses and a separate
+held-out mixture loss. It uses the frozen parent hash and conservative threshold
+rounding in both Python and C++. Canonical models under `models/` preserve
+training/input hashes; regeneration does not retrain them.
+
+Expanded paired replay `build/next_detection/integrated-voice-8f6659cc9eaf/report.json`
+covers 7,435 windows across piano, singer-disjoint human voices, protected notes,
+instrument controls and recording-held-out mixtures. It removes 20 training
+piano, one held-out piano, 48 training Voice, three Guitar, five Bass, two Other
+and two training mixture wrong Voice cells. Correct Voice losses, unscored
+removals, any-row pitch losses and unrelated-output changes are all zero. The
+independent gain is only one 50 ms cell; broad timbre accuracy is not established.
+Incomplete mixture pitch labels are never counted as wrong-note benefits.
 
 `build/sustained_piano/7db7c29c6cde/report.json` scores the first 30 seconds of
 an aligned MAPS solo-piano recording: 98.70 held-note-seconds, 13.45 missing in

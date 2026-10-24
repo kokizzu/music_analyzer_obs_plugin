@@ -20,6 +20,31 @@ PATHS = ["accuracy_next.mk", "docs/next_detection_improvements.md",
          "src/pcm_tempo_evidence.hpp", "tests/tempo_candidate_gate.cpp",
          "scripts/measure_sustained_piano.py", "scripts/midi_sustain_reference.py",
          "tests/test_sustained_piano.py"]
+PATHS += ['scripts/evaluate_backbeat_tempo.py', 'tests/test_backbeat_tempo.py',
+          'scripts/evaluate_chord_source_agreement.py', 'scripts/evaluate_drum_attack_shapes.py',
+          'tests/test_drum_attack_shapes.py', 'scripts/evaluate_keyboard_voice_classifier.py',
+          'scripts/export_keyboard_voice_model.py', 'scripts/evaluate_native_mfcc_voice.py',
+          'scripts/export_native_mfcc_voice.py', 'scripts/native_timbre_reference.py',
+          'models/keyboard_voice_classifier.json', 'models/native_mfcc_voice.json',
+          'src/keyboard_voice_classifier.hpp', 'src/keyboard_voice_model_data.hpp',
+          'src/native_timbre_features.hpp', 'src/native_mfcc_voice.hpp', 'src/native_mfcc_voice_model_data.hpp',
+          'tests/keyboard_voice_classifier.cpp', 'tests/test_keyboard_voice_classifier.py',
+          'tests/native_timbre_features.cpp', 'tests/test_native_timbre_reference.py',
+          'tests/native_mfcc_voice.cpp', 'tests/test_native_mfcc_voice.py', 'tests/native_mfcc_voice_vectors.json',
+          'tests/pcm_tempo_score_cache.cpp']
+
+
+def publication_text(path):
+    text = (ROOT / path).read_text()
+    if path == 'accuracy_next.mk':
+        # Keep replay targets that depend on older unpublished analyzer/harness
+        # work local; publish independently buildable libraries and screens.
+        blocked = ('capture-', 'audit-keyboard-', 'native_mfcc_voice_evidence_replay',
+                   'native_keyboard_voice_replay', 'native_keyboard_voice_pair',
+                   'measure-keyboard-voice-', 'native_temporal_voice_evidence_replay')
+        text = '\n\n'.join(block for block in text.split('\n\n') if not any(token in block for token in blocked))
+        text = text.rstrip() + '\n'
+    return text
 
 
 def git(*args, data=None):
@@ -42,7 +67,9 @@ def identity():
 
 
 def checks():
-    for target in ("test-next-detection", "test-tempo-candidate-gate", "test-sustained-analyzer", "test-sustained-piano"):
+    for target in ("test-next-detection", "test-tempo-candidate-gate", "test-sustained-analyzer", "test-sustained-piano",
+                   'test-backbeat-tempo', 'test-drum-attack-shapes', 'test-keyboard-voice-classifier',
+                   'test-native-timbre-features', 'test-native-timbre-reference', 'test-native-mfcc-voice', 'test-pcm-tempo-score-cache'):
         subprocess.run(["make", target], cwd=ROOT, check=True)
     # Validate the benchmark against the actual primary-branch interface too;
     # local uncommitted fields must not become hidden publication dependencies.
@@ -72,21 +99,26 @@ def main():
         assert not git("diff", "--cached", "--name-only").strip(), "Preserve existing staged work"
         head = git("rev-parse", "HEAD").strip()
         assert head == tip, "Existing unpushed/remote work needs review before scoped publication"
-        for path in PATHS:
-            assert not git("ls-files", "--", path).strip(), "Checkpoint path already tracked: " + path
         base = git("show", "HEAD:Makefile")
-        staged_make = base + "\n# Detection measurement checkpoint.\ninclude accuracy_next.mk\n"
+        staged_make = base if 'include accuracy_next.mk' in base else base + "\n# Detection measurement checkpoint.\ninclude accuracy_next.mk\n"
         patch = "".join(difflib.unified_diff(base.splitlines(True), staged_make.splitlines(True), fromfile="a/Makefile", tofile="b/Makefile"))
+        contents = {}
         for path in PATHS:
-            text = (ROOT / path).read_text()
-            patch += "".join(difflib.unified_diff([], text.splitlines(True), fromfile="/dev/null", tofile="b/" + path))
+            text = publication_text(path)
+            tracked = bool(git('ls-files', '--', path).strip())
+            previous = git('show', 'HEAD:' + path) if tracked else ''
+            if text == previous:
+                continue
+            contents[path] = text
+            patch += "".join(difflib.unified_diff(previous.splitlines(True), text.splitlines(True), fromfile='a/' + path if tracked else '/dev/null', tofile="b/" + path))
         PLAN.parent.mkdir(parents=True, exist_ok=True)
         PLAN.with_suffix(".patch").write_text(patch)
         state = dict(head=head, branch=branch, remote=remote, primary=primary,
-                     paths={p: hashlib.sha256((ROOT / p).read_bytes()).hexdigest() for p in PATHS},
+                     paths={p: hashlib.sha256((ROOT / p).read_bytes()).hexdigest() for p in contents},
+                     contents=contents, make_changed=base != staged_make,
                      staged_make=staged_make)
         PLAN.write_text(json.dumps(state, indent=2) + "\n")
-        print(json.dumps(dict(paths=PATHS, patch=str(PLAN.with_suffix('.patch').relative_to(ROOT)), branch=branch), indent=2))
+        print(json.dumps(dict(paths=list(contents), patch=str(PLAN.with_suffix('.patch').relative_to(ROOT)), branch=branch), indent=2))
         return
     state = json.loads(PLAN.read_text())
     assert (branch, remote, primary) == (state["branch"], state["remote"], state["primary"])
@@ -95,20 +127,24 @@ def main():
         assert git("rev-parse", "HEAD").strip() == state["head"] == tip
         assert not git("diff", "--cached", "--name-only").strip()
         checks()
-        git("add", "--", *PATHS)
-        blob = git("hash-object", "-w", "--stdin", data=state["staged_make"]).strip()
-        git("update-index", "--cacheinfo", "100644," + blob + ",Makefile")
+        for path, content in state['contents'].items():
+            assert publication_text(path) == content
+            blob = git('hash-object', '-w', '--stdin', data=content).strip()
+            git('update-index', '--add', '--cacheinfo', '100644,' + blob + ',' + path)
+        if state['make_changed']:
+            blob = git("hash-object", "-w", "--stdin", data=state["staged_make"]).strip()
+            git("update-index", "--cacheinfo", "100644," + blob + ",Makefile")
         git("diff", "--cached", "--check")
         print(git("diff", "--cached", "--stat"))
         return
     if args.mode == "commit":
         assert git("rev-parse", "HEAD").strip() == state["head"] == tip
-        assert set(git("diff", "--cached", "--name-only").splitlines()) == set(PATHS + ["Makefile"])
+        assert set(git("diff", "--cached", "--name-only").splitlines()) == set(list(state['contents']) + (["Makefile"] if state['make_changed'] else []))
         assert git("show", ":Makefile") == state["staged_make"]
-        for path in PATHS:
-            assert hashlib.sha256(git("show", ":" + path).encode()).hexdigest() == state["paths"][path]
+        for path, content in state['contents'].items():
+            assert git("show", ":" + path) == content
         git("diff", "--cached", "--check")
-        print(git("commit", "-m", "Add causal detection screens and sustained playback benchmarks"))
+        print(git("commit", "-m", "Add native spectral verification and cache exact tempo scoring"))
         state["commit"] = git("rev-parse", "HEAD").strip()
         PLAN.write_text(json.dumps(state, indent=2) + "\n")
         return

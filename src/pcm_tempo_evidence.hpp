@@ -21,14 +21,27 @@ inline int estimate_tempo(const std::vector<Peak> &peaks)
 {
 	if (peaks.size() < 3 || peaks.back().time - peaks.front().time < .45) return 0;
 	double total = 0, best = 0;
-	for (const auto &peak : peaks) total += std::sqrt(std::max(peak.strength, 0.0));
+	std::vector<double> roots(peaks.size());
+	for (std::size_t i = 0; i < peaks.size(); ++i) {
+		roots[i] = std::sqrt(std::max(peaks[i].strength, 0.0));
+		total += roots[i];
+	}
+	// Peak strengths do not depend on the BPM hypothesis. Cache their exact
+	// original arithmetic once, preserving summation order and tie behavior.
+	// Real three-second novelty streams contain fewer than 20 peaks; bound the
+	// quadratic cache and retain the on-demand path for arbitrary caller input.
+	const bool cache_pairs = peaks.size() <= 64;
+	std::vector<double> pair_weights(cache_pairs ? peaks.size() * peaks.size() : 0);
+	if (cache_pairs) for (std::size_t a = 0; a < peaks.size(); ++a)
+		for (std::size_t b = a + 1; b < peaks.size(); ++b)
+			pair_weights[a * peaks.size() + b] = std::pow(peaks[a].strength * peaks[b].strength, .5);
 	int winner = 0;
 	std::vector<double> phase(peaks.size());
 	for (int bpm = 50; bpm <= 220; ++bpm) {
 		const double period = 60.0 / bpm;
 		const double tolerance = std::clamp(period * .12, .035, .085);
 		double score = 0;
-		for (std::size_t i = 0; i < peaks.size(); ++i) phase[i] = std::sqrt(std::max(peaks[i].strength, 0.0));
+		std::copy(roots.begin(), roots.end(), phase.begin());
 		for (std::size_t older = 0; older < peaks.size(); ++older) {
 			for (std::size_t newer = older + 1; newer < peaks.size(); ++newer) {
 				const auto &a = peaks[older];
@@ -39,9 +52,10 @@ inline int estimate_tempo(const std::vector<Peak> &peaks)
 				const double error = std::abs(delta - beats * period);
 				if (error > tolerance) continue;
 				const double match = 1 - error / tolerance;
-				score += std::pow(a.strength * b.strength, .5) * (beats == 1 ? 1 : .18) * match * match;
-				phase[older] += std::sqrt(std::max(b.strength, 0.0)) * match;
-				phase[newer] += std::sqrt(std::max(a.strength, 0.0)) * match;
+				const double weight = cache_pairs ? pair_weights[older * peaks.size() + newer] : std::pow(a.strength * b.strength, .5);
+				score += weight * (beats == 1 ? 1 : .18) * match * match;
+				phase[older] += roots[newer] * match;
+				phase[newer] += roots[older] * match;
 			}
 		}
 		if (peaks.size() >= 4 && score > 0 && total > 1e-6)

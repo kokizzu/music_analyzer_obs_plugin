@@ -7,6 +7,7 @@ import argparse
 import csv
 import hashlib
 import json
+import os
 from pathlib import Path
 import struct
 import subprocess
@@ -14,6 +15,11 @@ import sys
 import wave
 
 ROOT = Path(__file__).resolve().parents[1]
+
+
+def source_reference(base, relative, destination):
+    """Resolve a fixture symlink before normalizing its parent references."""
+    return os.path.relpath((base / relative).resolve(strict=True), destination.resolve(strict=True))
 
 
 def digest(path):

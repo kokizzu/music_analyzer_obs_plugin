@@ -2,6 +2,10 @@
 import importlib.util
 from pathlib import Path
 import unittest
+import tempfile
+import sys
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "scripts"))
+from measure_sustained_analyzer import source_reference
 
 spec = importlib.util.spec_from_file_location("next_detection", Path(__file__).resolve().parents[1] / "scripts/evaluate_next_detection.py")
 module = importlib.util.module_from_spec(spec)
@@ -31,6 +35,22 @@ class Tests(unittest.TestCase):
 
     def test_enharmonic_template(self):
         self.assertEqual(module.chord_template("C#dim"), module.chord_template("Dbdim"))
+
+    def test_symlinked_fixture_parent_is_resolved_before_relative_path(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            physical = root / "library" / "fixtures"
+            physical.mkdir(parents=True)
+            audio = root / "library" / "audio"
+            audio.mkdir()
+            source = audio / "note.wav"
+            source.write_bytes(b"test")
+            alias = root / "fixture"
+            alias.symlink_to(physical, target_is_directory=True)
+            destination = root / "capture"
+            destination.mkdir()
+            relative = source_reference(alias, "../audio/note.wav", destination)
+            self.assertEqual((destination / relative).resolve(), source)
 
 
 if __name__ == "__main__":
