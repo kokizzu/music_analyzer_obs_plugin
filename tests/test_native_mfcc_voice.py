@@ -34,6 +34,9 @@ assert len(scores) == len(vectors)
 for actual, row in zip(scores, vectors):
     assert abs(actual - row['score']) < 1e-12
     assert (actual >= state['threshold']) == (row['score'] >= state['threshold'])
+    if row.get('protected'):
+        assert actual < state['threshold']
+assert sum(row.get('protected', False) for row in vectors) == 8
 assert any(value >= state['threshold'] for value in scores)
 assert any(value < state['threshold'] for value in scores)
 print('Native spectral verifier:', len(scores), 'parity cases passed')

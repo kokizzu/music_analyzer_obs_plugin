@@ -34,6 +34,10 @@ int main(int argc, char **argv)
 	if (!extractor.extract(samples.data(), samples.size(), 48000, features) || !extractor.extract(scaled.data(), scaled.size(), 48000, quiet)) return 1;
 	for (std::size_t i = 0; i < features.size(); ++i) if (std::abs(features[i] - quiet[i]) > 1e-5) return 1;
 	const auto original = features;
+	// Geometry may change across hosts; no previous signal may affect output.
+	std::vector<float> noise(1600, .25f);
+	extractor.extract(noise.data(), noise.size(), 16000, quiet);
+	if (!extractor.extract(samples.data(), samples.size(), 48000, features) || features != original) return 1;
 	samples.resize(7200, .9f);
 	if (!extractor.extract(samples.data(), 4800, 48000, features) || features != original) return 1;
 	samples[0] = std::numeric_limits<float>::quiet_NaN();
@@ -42,5 +46,11 @@ int main(int argc, char **argv)
 	const auto start = std::chrono::steady_clock::now();
 	for (int i = 0; i < 1000; ++i) extractor.extract(scaled.data(), scaled.size(), 48000, features);
 	const double average = std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - start).count() / 1000;
-	std::printf("Native cepstra: amplitude/causality/invalid-input checks passed; warm 48kHz mean %.4f ms\n", average);
+	const auto cold_start = std::chrono::steady_clock::now();
+	for (int i = 0; i < 1000; ++i) {
+		mao::timbre::CepstralExtractor cold;
+		cold.extract(scaled.data(), scaled.size(), 48000, features);
+	}
+	const double cold_average = std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - cold_start).count() / 1000;
+	std::printf("Native cepstra: amplitude/causality/rate-reset/invalid-input checks passed; 48kHz warm %.4f ms, cold %.4f ms\n", average, cold_average);
 }

@@ -32,6 +32,9 @@ PATHS += ['scripts/evaluate_backbeat_tempo.py', 'tests/test_backbeat_tempo.py',
           'tests/native_timbre_features.cpp', 'tests/test_native_timbre_reference.py',
           'tests/native_mfcc_voice.cpp', 'tests/test_native_mfcc_voice.py', 'tests/native_mfcc_voice_vectors.json',
           'tests/pcm_tempo_score_cache.cpp']
+PATHS += ['scripts/prepare_native_voice_primary.py', 'scripts/measure_keyboard_voice_pair.py',
+          'tests/native_keyboard_voice_pair.cpp', 'tests/non_tempo_snapshot.hpp',
+          'src/experimental_keyboard_voice_hook.inc']
 
 
 def publication_text(path):

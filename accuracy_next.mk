@@ -3,6 +3,18 @@
 inspect-primary-branch: scripts/inspect_primary_branch.py
 	$(PYTHON) scripts/inspect_primary_branch.py
 
+.PHONY: prepare-native-voice-primary
+prepare-native-voice-primary: scripts/prepare_native_voice_primary.py
+	$(PYTHON) scripts/prepare_native_voice_primary.py
+
+.PHONY: freeze-native-voice-hook
+freeze-native-voice-hook: scripts/prepare_native_voice_primary.py
+	$(PYTHON) scripts/prepare_native_voice_primary.py --freeze-hook
+
+.PHONY: measure-native-voice-primary
+measure-native-voice-primary: scripts/measure_keyboard_voice_pair.py scripts/prepare_native_voice_primary.py
+	$(PYTHON) scripts/measure_keyboard_voice_pair.py --primary --spectral
+
 $(BUILD_DIR)/analyzer.o $(BUILD_DIR)/analyzer_test.o $(BUILD_DIR)/analyzer_test_basic_pitch.o $(BUILD_DIR)/analyzer_internal.o: src/tempo_candidate_gate.hpp
 $(BUILD_DIR)/analyzer.o $(BUILD_DIR)/analyzer_test.o $(BUILD_DIR)/analyzer_test_basic_pitch.o $(BUILD_DIR)/analyzer_internal.o: src/keyboard_voice_classifier.hpp src/keyboard_voice_model_data.hpp
 $(BUILD_DIR)/analyzer.o $(BUILD_DIR)/analyzer_test.o $(BUILD_DIR)/analyzer_test_basic_pitch.o $(BUILD_DIR)/analyzer_internal.o: src/native_mfcc_voice.hpp src/native_mfcc_voice_model_data.hpp src/native_timbre_features.hpp

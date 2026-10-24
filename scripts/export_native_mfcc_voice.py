@@ -31,6 +31,10 @@ def main():
         parent = json.loads((ROOT / 'models/keyboard_voice_classifier.json').read_text())
         capture = next(ROOT / p for p in state['inputs'] if p.endswith('candidates.tsv'))
         selected = {True: [], False: []}
+        protected = {'vocal_acoustic_000-065-100': {8800},
+                     'vocal_acoustic_000-070-075': {6400, 13600, 15200, 23200, 32800},
+                     'vocal_acoustic_000-069-050': {47200, 49600}}
+        regressions = []
         with capture.open() as stream:
             for row in csv.DictReader(stream, delimiter='\t'):
                 if row['mfcc_valid'] != '1':
@@ -39,13 +43,19 @@ def main():
                     continue
                 score = lower_probability(state['model'], transformed(row, state['features']))
                 flag = score >= state['threshold']
+                if (int(row['end_sample']) in protected.get(row['sample_id'], set()) and
+                        int(row['midi']) == int(row['sample_id'].rsplit('-', 2)[1])):
+                    assert not flag, 'Known correct Voice regression must be vetoed'
+                    regressions.append(dict(raw=[float(row[key]) for key in state['features']], score=score,
+                                            sample_id=row['sample_id'], end_sample=row['end_sample'], protected=True))
                 if len(selected[flag]) < 16:
                     selected[flag].append(dict(raw=[float(row[key]) for key in state['features']], score=score,
                                                sample_id=row['sample_id'], end_sample=row['end_sample']))
         assert all(selected.values())
+        assert len(regressions) == 8
         destination = ROOT / 'tests/native_mfcc_voice_vectors.json'
-        destination.write_text(json.dumps(dict(model_sha256=digest(canonical), vectors=selected[True] + selected[False]), indent=2) + '\n')
-        print('Exported 32 frozen parity vectors')
+        destination.write_text(json.dumps(dict(model_sha256=digest(canonical), vectors=selected[True] + selected[False] + regressions), indent=2) + '\n')
+        print('Exported 32 parity vectors and eight protected Voice regressions')
         return
     if args.freeze:
         assert all(digest(ROOT / p) == expected for p, expected in state['inputs'].items())
