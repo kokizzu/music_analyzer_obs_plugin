@@ -10737,3 +10737,6 @@ commit-low-bass-keyboard-routing: scripts/manage_low_bass_keyboard_routing_commi
 	$(PYTHON) scripts/manage_low_bass_keyboard_routing_commit.py commit
 push-low-bass-keyboard-routing: scripts/manage_low_bass_keyboard_routing_commit.py
 	$(PYTHON) scripts/manage_low_bass_keyboard_routing_commit.py push
+
+# Detection measurement checkpoint.
+include accuracy_next.mk
