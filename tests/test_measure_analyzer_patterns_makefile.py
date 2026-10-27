@@ -5,6 +5,7 @@ import sys as _makefile_sys
 from pathlib import Path as _MakefilePath
 _makefile_sys.path.insert(0, str(_MakefilePath(__file__).resolve().parents[1] / 'scripts'))
 from makefile_source import read_makefile
+from visual_row_contract import assert_visual_row_contract
 
 import pathlib
 import re
@@ -1597,7 +1598,6 @@ def main() -> int:
         "REAL_NOTE_FULL_MIX_AGG_MIN_FIRST_ROW_PERCENT ?= 30",
         "REAL_NOTE_FULL_MIX_AGG_MIN_GUITAR_FIRST_ROW_PERCENT ?= 43",
         "REAL_NOTE_FULL_MIX_AGG_MIN_OTHER_FIRST_ROW_PERCENT ?= 15",
-        "REAL_NOTE_FULL_MIX_AGG_MIN_VISUAL_ROW_PERCENT ?= 38",
         "REAL_NOTE_FULL_MIX_AGG_MIN_GUITAR_VISUAL_ROW_PERCENT ?= 15",
         "REAL_NOTE_FULL_MIX_AGG_MIN_OTHER_VISUAL_ROW_PERCENT ?= 30",
     ]:
@@ -1611,6 +1611,7 @@ def main() -> int:
     real_note_sharded_unlocked_recipe = target_recipe(
         makefile, "test-real-note-samples-full-mix-parallel-unlocked"
     )
+    assert_visual_row_contract(makefile, real_note_sharded_unlocked_recipe)
     assert "$(MAKE) $(REAL_NOTE_FULL_MIX_TEST_MAKE_JOBS) REAL_NOTE_FULL_MIX_SHARD_OUTPUT_PREFIX=\"$(REAL_NOTE_FULL_MIX_SHARD_OUTPUT_PREFIX)\" $(REAL_NOTE_FULL_MIX_SHARD_TARGETS)" in real_note_sharded_unlocked_recipe, (
         "real-note full-mix parallel target must fan out deterministic shards through jobserver-aware make"
     )
@@ -1628,11 +1629,8 @@ def main() -> int:
     )
     for text in [
         "--min-first-row-percent \"$(REAL_NOTE_FULL_MIX_AGG_MIN_FIRST_ROW_PERCENT)\"",
-        "--min-visual-row-percent \"$(REAL_NOTE_FULL_MIX_AGG_MIN_VISUAL_ROW_PERCENT)\"",
         "--guitar-min-first-row-percent \"$(REAL_NOTE_FULL_MIX_AGG_MIN_GUITAR_FIRST_ROW_PERCENT)\"",
         "--other-min-first-row-percent \"$(REAL_NOTE_FULL_MIX_AGG_MIN_OTHER_FIRST_ROW_PERCENT)\"",
-        "--guitar-min-visual-row-percent \"$(REAL_NOTE_FULL_MIX_AGG_MIN_GUITAR_VISUAL_ROW_PERCENT)\"",
-        "--other-min-visual-row-percent \"$(REAL_NOTE_FULL_MIX_AGG_MIN_OTHER_VISUAL_ROW_PERCENT)\"",
         "$(REAL_NOTE_FULL_MIX_SHARD_OUTS)",
     ]:
         assert text in real_note_sharded_unlocked_recipe, (
@@ -3470,7 +3468,6 @@ def main() -> int:
             "iowa_orchestra_full_attributes.shard-$*.err",
         ),
         "$(BUILD_DIR)/vocalset_attributes.shard-%.tsv": (
-            "$(VOCALSET_SAMPLE_DIR)/manifest.tsv",
             "MUSIC_ANALYZER_REAL_NOTE_REQUIRED_SAMPLES=\"$(VOCALSET_MIN_VOCALS)\"",
             "MUSIC_ANALYZER_REAL_NOTE_SAMPLE_ROOT=\"$(VOCALSET_SAMPLE_DIR)\"",
             "MUSIC_ANALYZER_REAL_NOTE_ATTRIBUTE_TSV=\"$@\"",
@@ -3481,6 +3478,11 @@ def main() -> int:
         ),
     }.items():
         idmt_attribute_shard_recipe = target_recipe(makefile, target)
+        if target == "$(BUILD_DIR)/vocalset_attributes.shard-%.tsv":
+            prerequisites = idmt_attribute_shard_recipe.splitlines()[0].split()
+            assert any(source in prerequisites for source in (
+                "$(VOCALSET_SAMPLE_DIR)/manifest.tsv", "prepare-vocalset-samples"
+            )), "VocalSet shards must depend on their manifest or its preparation target"
         for text in required_parts:
             assert text in idmt_attribute_shard_recipe, (
                 f"{target} must include {text}"
