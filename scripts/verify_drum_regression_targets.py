@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """Verify the fixed drum regression targets are present in the Makefile."""
+from makefile_source import read_makefile
 
 from pathlib import Path
 
@@ -12,7 +13,7 @@ TARGETS = (
 
 
 def main() -> None:
-    lines = Path("Makefile").read_text(encoding="utf-8").splitlines()
+    lines = read_makefile(Path("Makefile"), encoding="utf-8").splitlines()
     declared = {line.split(":", 1)[0] for line in lines if ":" in line and not line.startswith("\t")}
     missing = [target for target in TARGETS if target not in declared]
     if missing:

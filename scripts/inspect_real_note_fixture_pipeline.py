@@ -2,6 +2,7 @@
 """Print real-note manifest/runtime configuration and fixture-prep sources."""
 
 from __future__ import annotations
+from makefile_source import read_makefile
 
 from pathlib import Path
 
@@ -18,7 +19,7 @@ def main() -> int:
         if not path.is_file():
             continue
         found = True
-        lines = path.read_text(encoding="utf-8").splitlines()
+        lines = read_makefile(path, encoding="utf-8").splitlines()
         matched = [index for index, line in enumerate(lines) if any(needle in line for needle in NEEDLES)]
         if not matched:
             continue

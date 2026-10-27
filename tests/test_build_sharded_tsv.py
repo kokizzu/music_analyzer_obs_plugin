@@ -1,6 +1,10 @@
 #!/usr/bin/env python3
 
 from __future__ import annotations
+import sys as _makefile_sys
+from pathlib import Path as _MakefilePath
+_makefile_sys.path.insert(0, str(_MakefilePath(__file__).resolve().parents[1] / 'scripts'))
+from makefile_source import read_makefile
 
 import pathlib
 import subprocess
@@ -59,7 +63,7 @@ def main() -> int:
         if second.returncode != 0:
             raise AssertionError(f"second builder failed:\nstdout={second_out}\nstderr={second_err}")
 
-        combined = target.read_text(encoding="utf-8").splitlines()
+        combined = read_makefile(target, encoding="utf-8").splitlines()
         if combined != ["name", "alpha", "beta"]:
             raise AssertionError(f"unexpected combined TSV: {combined!r}")
         if (tmp / "combined.tsv.lock").exists():
@@ -90,7 +94,7 @@ def main() -> int:
                 "outer lock did not allow its sharded builder to complete:\n"
                 f"stdout={outer.stdout}\nstderr={outer.stderr}"
             )
-        outer_combined = outer_target.read_text(encoding="utf-8").splitlines()
+        outer_combined = read_makefile(outer_target, encoding="utf-8").splitlines()
         if outer_combined != ["name", "alpha", "beta"]:
             raise AssertionError(f"unexpected outer-lock TSV: {outer_combined!r}")
         if (tmp / "outer-lock-combined.tsv.lock").exists():
@@ -188,7 +192,7 @@ def main() -> int:
                 "empty MAKE_JOBS path did not inherit the parent make jobserver:\n"
                 f"stdout={jobserver.stdout}\nstderr={jobserver.stderr}"
             )
-        jobserver_combined = jobserver_target.read_text(encoding="utf-8").splitlines()
+        jobserver_combined = read_makefile(jobserver_target, encoding="utf-8").splitlines()
         if jobserver_combined != ["name", "alpha", "beta"]:
             raise AssertionError(f"unexpected jobserver TSV: {jobserver_combined!r}")
 

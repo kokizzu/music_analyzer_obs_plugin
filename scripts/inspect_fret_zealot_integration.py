@@ -2,6 +2,7 @@
 """Locate Fret Zealot packet-builder and device-control integration references."""
 
 from __future__ import annotations
+from makefile_source import read_makefile
 
 from pathlib import Path
 
@@ -24,7 +25,7 @@ def main() -> int:
         if path.suffix.lower() not in TEXT_SUFFIXES and path.name != "Makefile":
             continue
         try:
-            lines = path.read_text(encoding="utf-8", errors="replace").splitlines()
+            lines = read_makefile(path, encoding="utf-8", errors="replace").splitlines()
         except OSError:
             continue
         for index, line in enumerate(lines):

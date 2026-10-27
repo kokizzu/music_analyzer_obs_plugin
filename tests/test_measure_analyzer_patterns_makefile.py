@@ -1,6 +1,10 @@
 #!/usr/bin/env python3
 
 from __future__ import annotations
+import sys as _makefile_sys
+from pathlib import Path as _MakefilePath
+_makefile_sys.path.insert(0, str(_MakefilePath(__file__).resolve().parents[1] / 'scripts'))
+from makefile_source import read_makefile
 
 import pathlib
 import re
@@ -63,7 +67,7 @@ def continuation_variable_body(makefile: str, variable: str) -> str:
 
 
 def main() -> int:
-    makefile = MAKEFILE.read_text(encoding="utf-8")
+    makefile = read_makefile(MAKEFILE, encoding="utf-8")
     for target in [
         "$(BUILD_DIR)/fret_control_tests.o",
         "$(BUILD_DIR)/analyzer_test.o",

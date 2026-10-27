@@ -2,6 +2,7 @@
 """Locate source, Make, and script references for the GAPS guitar replay."""
 
 from __future__ import annotations
+from makefile_source import read_makefile
 
 from pathlib import Path
 
@@ -21,7 +22,7 @@ def main() -> int:
         if any(part in SKIP for part in path.parts) or not path.is_file() or not eligible(path):
             continue
         try:
-            text = path.read_text(encoding="utf-8", errors="ignore")
+            text = read_makefile(path, encoding="utf-8", errors="ignore")
         except OSError:
             continue
         if "gaps" in text.lower():
@@ -30,7 +31,7 @@ def main() -> int:
     for path in matches:
         print(path.relative_to(ROOT))
     print("gaps_make_targets")
-    for line in (ROOT / "Makefile").read_text(encoding="utf-8").splitlines():
+    for line in read_makefile(ROOT / "Makefile", encoding="utf-8").splitlines():
         if ":" in line and not line.startswith(("\t", "#", " ")) and "gaps" in line.lower():
             print(line)
     return 0

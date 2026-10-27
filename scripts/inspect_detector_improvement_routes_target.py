@@ -1,11 +1,12 @@
 #!/usr/bin/env python3
 """Show the Makefile definition for detector-improvement-routes targets."""
+from makefile_source import read_makefile
 
 from pathlib import Path
 
 
 def main() -> None:
-    lines = Path("Makefile").read_text(encoding="utf-8").splitlines()
+    lines = read_makefile(Path("Makefile"), encoding="utf-8").splitlines()
     for index, line in enumerate(lines):
         if "detector-improvement-routes" not in line and "analyze-detector-improvement-routes" not in line:
             continue

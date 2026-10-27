@@ -1,29 +1,29 @@
 #!/usr/bin/env python3
-"""List repository Make targets, optionally filtered by a case-insensitive term."""
+"""List Make targets whose names match a regular expression."""
 
 from __future__ import annotations
+from makefile_source import read_makefile
 
+import argparse
 import re
-import sys
 from pathlib import Path
 
 
 def main() -> int:
-    if len(sys.argv) not in {2, 3}:
-        print("usage: list_make_targets.py MAKEFILE [TERM]", file=sys.stderr)
-        return 2
-    makefile = Path(sys.argv[1])
-    term = sys.argv[2].lower() if len(sys.argv) == 3 else ""
-    targets: set[str] = set()
-    for line in makefile.read_text(encoding="utf-8").splitlines():
-        if not line or line[0].isspace() or line.startswith("#"):
-            continue
-        match = re.match(r"^([A-Za-z0-9_.%/-]+(?:\s+[A-Za-z0-9_.%/-]+)*):", line)
-        if match is None:
-            continue
-        targets.update(match.group(1).split())
-    for target in sorted(target for target in targets if term in target.lower()):
-        print(target)
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--file", default="Makefile")
+    parser.add_argument("--pattern", default=".")
+    parser.add_argument("legacy_file", nargs="?")
+    parser.add_argument("legacy_pattern", nargs="?")
+    args = parser.parse_args()
+
+    expression = re.compile(args.legacy_pattern if args.legacy_pattern is not None else args.pattern, re.IGNORECASE)
+    target_pattern = re.compile(r"^([A-Za-z0-9_.@%/+:-]+):(?:\s|$)")
+    path = Path(args.legacy_file or args.file)
+    for line_number, line in enumerate(read_makefile(path, encoding="utf-8", errors="replace").splitlines(), 1):
+        match = target_pattern.match(line)
+        if match and expression.search(match.group(1)):
+            print(f"{line_number}: {match.group(1)}")
     return 0
 
 

@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """List declared Makefile targets containing an optional case-insensitive term."""
+from makefile_source import read_makefile
 
 from pathlib import Path
 import re
@@ -12,7 +13,7 @@ TARGET = re.compile(r"^([A-Za-z0-9][A-Za-z0-9_.%/-]*):(?:\s|$)")
 
 def main() -> int:
     term = sys.argv[1].lower() if len(sys.argv) > 1 else "gaps"
-    for line in (ROOT / "Makefile").read_text(encoding="utf-8").splitlines():
+    for line in read_makefile(ROOT / "Makefile", encoding="utf-8").splitlines():
         match = TARGET.match(line)
         if match is None:
             continue

@@ -2,6 +2,7 @@
 """List explicit Android-related Makefile targets for repeatable verification."""
 
 from __future__ import annotations
+from makefile_source import read_makefile
 
 import re
 from pathlib import Path
@@ -12,7 +13,7 @@ TARGET = re.compile(r"^([A-Za-z0-9_.-]+):")
 
 def main() -> int:
     targets: list[str] = []
-    for line in Path("Makefile").read_text(encoding="utf-8").splitlines():
+    for line in read_makefile(Path("Makefile"), encoding="utf-8").splitlines():
         match = TARGET.match(line)
         if match and "android" in match.group(1):
             targets.append(match.group(1))

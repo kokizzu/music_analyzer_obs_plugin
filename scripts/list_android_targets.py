@@ -2,6 +2,7 @@
 """List Makefile targets that build or test the Android application."""
 
 from __future__ import annotations
+from makefile_source import read_makefile
 
 from pathlib import Path
 import re
@@ -12,7 +13,7 @@ TARGET = re.compile(r"^([A-Za-z0-9][A-Za-z0-9_.-]*):")
 
 
 def main() -> int:
-    for line in (ROOT / "Makefile").read_text(encoding="utf-8").splitlines():
+    for line in read_makefile(ROOT / "Makefile", encoding="utf-8").splitlines():
         match = TARGET.match(line)
         if match and "android" in match.group(1).lower():
             print(match.group(1))

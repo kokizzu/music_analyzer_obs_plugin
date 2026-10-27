@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """Repeatable Linux-to-Windows standalone build operations."""
+from makefile_source import read_makefile
 import shutil
 import subprocess
 import sys
@@ -65,7 +66,7 @@ def build():
             stamp = obj.with_suffix('.command')
             command = [cc if src.suffix=='.c' else cxx, *common, *flags, '-c',str(src),'-o',str(obj)]
             signature = json.dumps(command) + ''.join(hashlib.sha256(p.read_bytes()).hexdigest() for p in [src, *sorted((ROOT/'src').glob('*.hpp'))])
-            if not obj.exists() or not stamp.exists() or stamp.read_text() != signature:
+            if not obj.exists() or not stamp.exists() or read_makefile(stamp) != signature:
                 run(command)
                 stamp.write_text(signature)
             objects.append(obj)
@@ -95,7 +96,7 @@ def verify():
     for name in ['MusicAnalyzer','HalfMusicAnalyzer']:
         with (BUILD/(name+'-self-test.log')).open('w') as log:
             result = subprocess.run(['wine',str(out/(name+'.exe')),'--self-test'], env=env, stdout=log,stderr=subprocess.STDOUT,timeout=120)
-        text = (BUILD/(name+'-self-test.log')).read_text()
+        text = read_makefile(BUILD/(name+'-self-test.log'))
         if result.returncode or 'standalone self-test: ok' not in text:
             raise RuntimeError(name+' self-test failed; see '+str(BUILD/(name+'-self-test.log')))
         evidence[name+'.exe']['wine_self_test'] = 'passed'
@@ -138,7 +139,7 @@ def package():
     shutil.copy2(BUILD/'verification.json',out/'verification.json')
     provenance = {'commit':subprocess.check_output(['git','rev-parse','HEAD'],cwd=ROOT,text=True).strip(),
                   'working_tree_modified':bool(subprocess.check_output(['git','status','--porcelain'],cwd=ROOT,text=True).strip()),
-                  'sdl':json.loads((BUILD/'sdl-provenance.json').read_text()),
+                  'sdl':json.loads(read_makefile(BUILD/'sdl-provenance.json')),
                   'physical_windows_audio_tested':False}
     (out/'build-provenance.json').write_text(json.dumps(provenance,indent=2))
     archive = BUILD/'MusicAnalyzer-Windows11-x64.zip'

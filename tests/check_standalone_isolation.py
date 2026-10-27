@@ -1,4 +1,8 @@
 #!/usr/bin/env python3
+import sys as _makefile_sys
+from pathlib import Path as _MakefilePath
+_makefile_sys.path.insert(0, str(_MakefilePath(__file__).resolve().parents[1] / 'scripts'))
+from makefile_source import read_makefile
 
 from pathlib import Path
 
@@ -12,13 +16,13 @@ def require(condition, message):
 
 
 def main():
-    makefile = (ROOT / "Makefile").read_text(encoding="utf-8")
-    cmake = (ROOT / "CMakeLists.txt").read_text(encoding="utf-8")
-    plugin = (ROOT / "src" / "plugin.cpp").read_text(encoding="utf-8")
-    standalone = (ROOT / "src" / "standalone.cpp").read_text(encoding="utf-8")
-    renderer = (ROOT / "src" / "visualizer_renderer.cpp").read_text(encoding="utf-8")
-    icon_header = (ROOT / "src" / "app_icon_rgba.hpp").read_text(encoding="utf-8")
-    bass_guitar_icon_header = (ROOT / "src" / "app_icon_bass_guitar_rgba.hpp").read_text(encoding="utf-8")
+    makefile = read_makefile(ROOT / "Makefile", encoding="utf-8")
+    cmake = read_makefile(ROOT / "CMakeLists.txt", encoding="utf-8")
+    plugin = read_makefile(ROOT / "src" / "plugin.cpp", encoding="utf-8")
+    standalone = read_makefile(ROOT / "src" / "standalone.cpp", encoding="utf-8")
+    renderer = read_makefile(ROOT / "src" / "visualizer_renderer.cpp", encoding="utf-8")
+    icon_header = read_makefile(ROOT / "src" / "app_icon_rgba.hpp", encoding="utf-8")
+    bass_guitar_icon_header = read_makefile(ROOT / "src" / "app_icon_bass_guitar_rgba.hpp", encoding="utf-8")
 
     require("SDL2_CFLAGS" in makefile and "SDL2_LIBS" in makefile, "Makefile must define SDL flags")
     require("$(BUILD_DIR)/standalone.o" in makefile, "standalone object rule missing")

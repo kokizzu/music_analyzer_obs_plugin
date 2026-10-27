@@ -1,12 +1,13 @@
 #!/usr/bin/env python3
 """List Makefile targets related to detection and external device diagnostics."""
+from makefile_source import read_makefile
 
 from pathlib import Path
 import sys
 
 
 def main() -> None:
-    lines = Path("Makefile").read_text(encoding="utf-8").splitlines()
+    lines = read_makefile(Path("Makefile"), encoding="utf-8").splitlines()
     requested = sys.argv[1] if len(sys.argv) == 2 else ""
     if requested:
         for index, line in enumerate(lines):

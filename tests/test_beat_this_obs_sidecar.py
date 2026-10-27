@@ -1,5 +1,9 @@
 #!/usr/bin/env python3
 """Guard the OBS-side Beat This boundary without starting OBS or a model."""
+import sys as _makefile_sys
+from pathlib import Path as _MakefilePath
+_makefile_sys.path.insert(0, str(_MakefilePath(__file__).resolve().parents[1] / 'scripts'))
+from makefile_source import read_makefile
 
 from pathlib import Path
 
@@ -13,9 +17,9 @@ def require(condition: bool, message: str) -> None:
 
 
 def main() -> None:
-    plugin = (ROOT / "src" / "plugin.cpp").read_text(encoding="utf-8")
-    client = (ROOT / "src" / "beat_this_sidecar_client.cpp").read_text(encoding="utf-8")
-    makefile = (ROOT / "Makefile").read_text(encoding="utf-8")
+    plugin = read_makefile(ROOT / "src" / "plugin.cpp", encoding="utf-8")
+    client = read_makefile(ROOT / "src" / "beat_this_sidecar_client.cpp", encoding="utf-8")
+    makefile = read_makefile(ROOT / "Makefile", encoding="utf-8")
 
     require('obs_data_set_default_bool(settings, "enable_beat_this_sidecar", false)' in plugin,
             "sidecar must remain disabled by default")

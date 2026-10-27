@@ -2,6 +2,7 @@
 """Summarize Basic Pitch replay tests and Make targets without shell probing."""
 
 from __future__ import annotations
+from makefile_source import read_makefile
 
 from pathlib import Path
 import re
@@ -19,14 +20,14 @@ TESTS = (
 
 def print_make_targets() -> None:
     print("## Make targets")
-    for line in MAKEFILE.read_text(encoding="utf-8").splitlines():
+    for line in read_makefile(MAKEFILE, encoding="utf-8").splitlines():
         if "basic-pitch" in line.lower() and re.match(r"^[A-Za-z0-9_.-]+:", line):
             print(line)
 
 
 def print_test_contract(path: Path) -> None:
     print(f"## {path.relative_to(ROOT)}")
-    lines = path.read_text(encoding="utf-8").splitlines()
+    lines = read_makefile(path, encoding="utf-8").splitlines()
     selected: list[tuple[int, str]] = []
     for index, line in enumerate(lines, start=1):
         if ("TEST(" in line or "REQUIRE" in line or "CHECK(" in line or

@@ -2,6 +2,7 @@
 """Show the real-note Make target and files it uses or writes."""
 
 from __future__ import annotations
+from makefile_source import read_makefile
 
 from pathlib import Path
 
@@ -10,7 +11,7 @@ ROOT = Path(__file__).resolve().parent.parent
 
 
 def print_target(path: Path, target: str) -> None:
-    lines = path.read_text(encoding="utf-8").splitlines()
+    lines = read_makefile(path, encoding="utf-8").splitlines()
     for index, line in enumerate(lines):
         if line.startswith(f"{target}:"):
             for line_no in range(index, min(index + 12, len(lines))):

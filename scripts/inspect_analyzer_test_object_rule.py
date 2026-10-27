@@ -1,12 +1,13 @@
 #!/usr/bin/env python3
 """Print Makefile rules that build or consume analyzer_test.o."""
+from makefile_source import read_makefile
 
 from pathlib import Path
 
 
 def main() -> None:
     path = Path("Makefile")
-    lines = path.read_text(encoding="utf-8").splitlines()
+    lines = read_makefile(path, encoding="utf-8").splitlines()
     hits = [index for index, line in enumerate(lines) if "analyzer_test.o" in line]
     if not hits:
         raise SystemExit("No analyzer_test.o Makefile rule found.")

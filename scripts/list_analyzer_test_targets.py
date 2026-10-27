@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """List analyzer-related Makefile test targets for focused verification."""
+from makefile_source import read_makefile
 
 from pathlib import Path
 import re
@@ -10,7 +11,7 @@ TARGET = re.compile(r"^([A-Za-z0-9_.-]+):")
 
 def main() -> None:
     targets = []
-    for line in Path("Makefile").read_text(encoding="utf-8").splitlines():
+    for line in read_makefile(Path("Makefile"), encoding="utf-8").splitlines():
         match = TARGET.match(line)
         if not match:
             continue

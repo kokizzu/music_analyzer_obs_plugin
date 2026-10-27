@@ -2,6 +2,7 @@
 """Report whether the compact annotated IDMT bass fixture workflow is wired."""
 
 from __future__ import annotations
+from makefile_source import read_makefile
 
 from pathlib import Path
 
@@ -18,7 +19,7 @@ TARGETS = (
 
 
 def main() -> int:
-    makefile = (ROOT / "Makefile").read_text(encoding="utf-8")
+    makefile = read_makefile(ROOT / "Makefile", encoding="utf-8")
     complete = True
     for label, relative in EXPECTED.items():
         present = (ROOT / relative).is_file()

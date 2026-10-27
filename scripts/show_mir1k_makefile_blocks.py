@@ -2,6 +2,7 @@
 """Print MIR-1K Makefile target blocks with their line numbers."""
 
 from __future__ import annotations
+from makefile_source import read_makefile
 
 import pathlib
 import subprocess
@@ -11,7 +12,7 @@ PATH = pathlib.Path("Makefile")
 
 
 def main() -> int:
-    lines = PATH.read_text(encoding="utf-8").splitlines()
+    lines = read_makefile(PATH, encoding="utf-8").splitlines()
     indexed = subprocess.run(["git", "show", ":Makefile"], check=True, text=True,
                              capture_output=True).stdout
     print("index contains immediate pre-MIR anchor: " +

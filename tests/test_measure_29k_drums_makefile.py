@@ -2,12 +2,16 @@
 """Keep the independent 29k primary-label audit reproducible."""
 
 from __future__ import annotations
+import sys as _makefile_sys
+from pathlib import Path as _MakefilePath
+_makefile_sys.path.insert(0, str(_MakefilePath(__file__).resolve().parents[1] / 'scripts'))
+from makefile_source import read_makefile
 
 import pathlib
 
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
-MAKEFILE = (ROOT / "Makefile").read_text(encoding="utf-8")
+MAKEFILE = read_makefile(ROOT / "Makefile", encoding="utf-8")
 
 
 def require(needle: str) -> None:

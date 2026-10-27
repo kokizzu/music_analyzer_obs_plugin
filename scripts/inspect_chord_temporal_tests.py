@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """Locate chord-tracking tests and internal test seams."""
+from makefile_source import read_makefile
 
 from pathlib import Path
 
@@ -9,7 +10,7 @@ ROOT = Path(__file__).resolve().parent.parent
 
 def main() -> int:
     source = ROOT / "tests" / "analyzer_internal.cpp"
-    lines = source.read_text(encoding="utf-8").splitlines()
+    lines = read_makefile(source, encoding="utf-8").splitlines()
     for index, line in enumerate(lines):
         if "ChordTrackingState tracking" not in line:
             continue
@@ -19,7 +20,7 @@ def main() -> int:
         break
     makefile = ROOT / "Makefile"
     print("makefile-targets=")
-    for number, line in enumerate(makefile.read_text(encoding="utf-8").splitlines(), start=1):
+    for number, line in enumerate(read_makefile(makefile, encoding="utf-8").splitlines(), start=1):
         if "analyzer_internal" in line:
             print(f"{number:6} {line}")
     return 0
@@ -30,7 +31,7 @@ def legacy_main() -> int:
         if not source.is_file() or source.suffix not in {".cpp", ".py", ".sh"}:
             continue
         try:
-            lines = source.read_text(encoding="utf-8").splitlines()
+            lines = read_makefile(source, encoding="utf-8").splitlines()
         except UnicodeDecodeError:
             continue
         matches = [index for index, line in enumerate(lines) if "ChordTrackingState" in line or "stabilize_chord" in line]

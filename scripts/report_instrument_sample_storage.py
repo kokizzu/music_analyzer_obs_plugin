@@ -2,6 +2,7 @@
 """Report the configured external location used for instrument fixtures."""
 
 from __future__ import annotations
+from makefile_source import read_makefile
 
 import os
 import re
@@ -20,12 +21,12 @@ def main() -> int:
     print(f"repository={ROOT}")
     print(f"repository_realpath={ROOT.resolve()}")
     print("makefile_variables:")
-    for line in MAKEFILE.read_text(encoding="utf-8").splitlines():
+    for line in read_makefile(MAKEFILE, encoding="utf-8").splitlines():
         match = PATTERN.match(line)
         if match:
             print(f"  {match.group(1)}={match.group(2)}")
 
-    makefile_text = MAKEFILE.read_text(encoding="utf-8")
+    makefile_text = read_makefile(MAKEFILE, encoding="utf-8")
     missing_scripts = []
     for match in re.finditer(r"scripts/([A-Za-z0-9_.-]+\.py)", makefile_text):
         relative = Path("scripts") / match.group(1)
@@ -104,26 +105,26 @@ def main() -> int:
         print("sneakybass_sfz_sample_counts:")
         for sfz in sfz_files:
             count = sum("sample=" in line.lower()
-                        for line in sfz.read_text(encoding="utf-8", errors="replace").splitlines())
+                        for line in read_makefile(sfz, encoding="utf-8", errors="replace").splitlines())
             if count:
                 print(f"  {sfz.relative_to(source_root)}={count}")
         for sfz in sfz_files[:3]:
             print(f"  sfz={sfz.relative_to(source_root)}")
-            lines = sfz.read_text(encoding="utf-8", errors="replace").splitlines()
+            lines = read_makefile(sfz, encoding="utf-8", errors="replace").splitlines()
             for line in lines[:8]:
                 print(f"    {line}")
             sample_lines = [line for line in lines if "sample=" in line.lower()]
             for line in sample_lines[:4]:
                 print(f"    sample: {line}")
         mapped_files = [sfz for sfz in sfz_files
-                        if "sample=" in sfz.read_text(encoding="utf-8", errors="replace").lower()]
+                        if "sample=" in read_makefile(sfz, encoding="utf-8", errors="replace").lower()]
         if mapped_files:
             mapped = mapped_files[0]
             print(f"sneakybass_first_mapping={mapped.relative_to(source_root)}")
-            for line in mapped.read_text(encoding="utf-8", errors="replace").splitlines()[:24]:
+            for line in read_makefile(mapped, encoding="utf-8", errors="replace").splitlines()[:24]:
                 print(f"  {line}")
             sample_value = next(
-                (line.split("=", 1)[1].strip() for line in mapped.read_text(
+                (line.split("=", 1)[1].strip() for line in read_makefile(mapped,
                     encoding="utf-8", errors="replace").splitlines() if line.lower().startswith("sample=")),
                 "",
             )

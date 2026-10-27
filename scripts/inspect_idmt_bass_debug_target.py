@@ -2,6 +2,7 @@
 """Show the Make recipes for the focused IDMT bass diagnostics."""
 
 from __future__ import annotations
+from makefile_source import read_makefile
 
 from pathlib import Path
 
@@ -20,7 +21,7 @@ def show_target(lines: list[str], target: str) -> None:
 
 
 def main() -> int:
-    lines = (ROOT / "Makefile").read_text(encoding="utf-8").splitlines()
+    lines = read_makefile(ROOT / "Makefile", encoding="utf-8").splitlines()
     show_target(lines, "debug-idmt-bass-high-register-sample")
     show_target(lines, "test-idmt-bass-single-track")
     return 0

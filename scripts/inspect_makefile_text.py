@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """Print Makefile lines containing a requested literal term."""
+from makefile_source import read_makefile
 
 from pathlib import Path
 
@@ -9,7 +10,7 @@ ROOT = Path(__file__).resolve().parent.parent
 
 def main() -> int:
     term = "analyzer_instrument_samples"
-    lines = (ROOT / "Makefile").read_text(encoding="utf-8").splitlines()
+    lines = read_makefile(ROOT / "Makefile", encoding="utf-8").splitlines()
     found = False
     for number, line in enumerate(lines, start=1):
         if term not in line:

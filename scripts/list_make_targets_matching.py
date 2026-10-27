@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """List declared Makefile targets containing one or more search terms."""
+from makefile_source import read_makefile
 
 import re
 import sys
@@ -14,7 +15,7 @@ def main() -> None:
     if not terms:
         raise SystemExit("usage: list_make_targets_matching.py TERM [TERM ...]")
     targets = []
-    for line in (ROOT / "Makefile").read_text(encoding="utf-8").splitlines():
+    for line in read_makefile(ROOT / "Makefile", encoding="utf-8").splitlines():
         match = re.match(r"^([A-Za-z0-9_.%/-]+):", line)
         if not match:
             continue

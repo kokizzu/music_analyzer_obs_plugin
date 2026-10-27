@@ -2,6 +2,7 @@
 """Report Fret Zealot scale-refresh code paths for regression diagnosis."""
 
 from __future__ import annotations
+from makefile_source import read_makefile
 
 from pathlib import Path
 import re
@@ -36,7 +37,7 @@ METHODS = (
 
 
 def print_method(path: Path, method: str) -> bool:
-    lines = path.read_text(encoding="utf-8").splitlines()
+    lines = read_makefile(path, encoding="utf-8").splitlines()
     declaration = re.compile(
         r"^\s*(?:(?:public|private|protected)\s+)?(?:static\s+)?[\w<>\[\]]+\s+"
         + re.escape(method)
@@ -68,7 +69,7 @@ def main() -> None:
             raise SystemExit(f"missing Fret Zealot source: {path.relative_to(ROOT)}")
         print(f"=== {path.relative_to(ROOT)}")
         if path.name == "ExternalDeviceManager.java":
-            lines = path.read_text(encoding="utf-8").splitlines()
+            lines = read_makefile(path, encoding="utf-8").splitlines()
             print(f"\n--- {path.relative_to(ROOT)}:1 state")
             for index in range(min(240, len(lines))):
                 print(f"{index + 1:4}: {lines[index]}")

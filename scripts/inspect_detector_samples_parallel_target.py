@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """Print the Makefile recipe for the aggregate detector sample gate."""
+from makefile_source import read_makefile
 
 from pathlib import Path
 
@@ -8,7 +9,7 @@ TARGET = "test-detector-samples-parallel:"
 
 
 def main() -> None:
-    lines = Path("Makefile").read_text(encoding="utf-8").splitlines()
+    lines = read_makefile(Path("Makefile"), encoding="utf-8").splitlines()
     for index, line in enumerate(lines):
         if line.startswith(TARGET):
             for context_line in lines[index:index + 32]:

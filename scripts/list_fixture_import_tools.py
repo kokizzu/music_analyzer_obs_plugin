@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """List repository fixture scripts relevant to real-audio imports."""
+from makefile_source import read_makefile
 
 from pathlib import Path
 
@@ -20,7 +21,7 @@ targets = (
     "report-piano-guitar-owner-aliases:",
     "report-same-pitch-guitar-owner-separation:",
 )
-makefile = Path("Makefile").read_text(encoding="utf-8").splitlines()
+makefile = read_makefile(Path("Makefile"), encoding="utf-8").splitlines()
 for number, line in enumerate(makefile, start=1):
     if line in targets:
         print(f"MAKE {number}: {line}")

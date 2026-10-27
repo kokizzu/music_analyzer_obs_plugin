@@ -2,6 +2,7 @@
 """Report fixture cache paths and whether they resolve outside the checkout."""
 
 from __future__ import annotations
+from makefile_source import read_makefile
 
 import os
 import re
@@ -38,7 +39,7 @@ def main() -> int:
     sources = [ROOT / "Makefile", *sorted((ROOT / "scripts").glob("*.py"))]
     for source in sources:
         try:
-            content = source.read_text(encoding="utf-8")
+            content = read_makefile(source, encoding="utf-8")
         except OSError:
             continue
         for line_number, line in enumerate(content.splitlines(), start=1):

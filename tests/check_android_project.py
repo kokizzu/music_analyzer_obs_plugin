@@ -1,4 +1,8 @@
 #!/usr/bin/env python3
+import sys as _makefile_sys
+from pathlib import Path as _MakefilePath
+_makefile_sys.path.insert(0, str(_MakefilePath(__file__).resolve().parents[1] / 'scripts'))
+from makefile_source import read_makefile
 
 from pathlib import Path
 
@@ -12,60 +16,42 @@ def require(condition, message):
 
 
 def main():
-    app_gradle = (ROOT / "android" / "app" / "build.gradle").read_text(encoding="utf-8")
-    root_gradle = (ROOT / "android" / "build.gradle").read_text(encoding="utf-8")
-    settings_gradle = (ROOT / "android" / "settings.gradle").read_text(encoding="utf-8")
-    gradle_properties = (ROOT / "android" / "gradle.properties").read_text(encoding="utf-8")
-    makefile = (ROOT / "Makefile").read_text(encoding="utf-8")
-    setup_script = (ROOT / "scripts" / "setup_android.sh").read_text(encoding="utf-8")
-    emulator_setup_script = (ROOT / "scripts" / "setup_android_emulator.sh").read_text(encoding="utf-8")
-    route_audio_script = (ROOT / "scripts" / "route_android_emulator_audio.sh").read_text(encoding="utf-8")
-    android_profile_script = (ROOT / "scripts" / "profile_android_app.sh").read_text(encoding="utf-8")
-    android_audio_status_script = (ROOT / "scripts" / "android_audio_status.sh").read_text(encoding="utf-8")
-    android_root_script = (ROOT / "scripts" / "set_android_debug_root.sh").read_text(encoding="utf-8")
-    native_cmake = (ROOT / "android" / "app" / "src" / "main" / "cpp" / "CMakeLists.txt").read_text(
+    app_gradle = read_makefile(ROOT / "android" / "app" / "build.gradle", encoding="utf-8")
+    root_gradle = read_makefile(ROOT / "android" / "build.gradle", encoding="utf-8")
+    settings_gradle = read_makefile(ROOT / "android" / "settings.gradle", encoding="utf-8")
+    gradle_properties = read_makefile(ROOT / "android" / "gradle.properties", encoding="utf-8")
+    makefile = read_makefile(ROOT / "Makefile", encoding="utf-8")
+    setup_script = read_makefile(ROOT / "scripts" / "setup_android.sh", encoding="utf-8")
+    emulator_setup_script = read_makefile(ROOT / "scripts" / "setup_android_emulator.sh", encoding="utf-8")
+    route_audio_script = read_makefile(ROOT / "scripts" / "route_android_emulator_audio.sh", encoding="utf-8")
+    android_profile_script = read_makefile(ROOT / "scripts" / "profile_android_app.sh", encoding="utf-8")
+    android_audio_status_script = read_makefile(ROOT / "scripts" / "android_audio_status.sh", encoding="utf-8")
+    android_root_script = read_makefile(ROOT / "scripts" / "set_android_debug_root.sh", encoding="utf-8")
+    native_cmake = read_makefile(ROOT / "android" / "app" / "src" / "main" / "cpp" / "CMakeLists.txt",
         encoding="utf-8"
     )
-    bridge = (ROOT / "android" / "app" / "src" / "main" / "cpp" / "android_bridge.cpp").read_text(
+    bridge = read_makefile(ROOT / "android" / "app" / "src" / "main" / "cpp" / "android_bridge.cpp",
         encoding="utf-8"
     )
-    activity = (
-        ROOT / "android" / "app" / "src" / "main" / "java" / "dev" / "benalu" / "musicanalyzer" / "MainActivity.java"
-    ).read_text(encoding="utf-8")
-    manifest = (ROOT / "android" / "app" / "src" / "main" / "AndroidManifest.xml").read_text(encoding="utf-8")
-    native_api = (
-        ROOT / "android" / "app" / "src" / "main" / "java" / "dev" / "benalu" / "musicanalyzer" /
-        "MusicAnalyzerNative.java"
-    ).read_text(encoding="utf-8")
-    external_devices = (
-        ROOT / "android" / "app" / "src" / "main" / "java" / "dev" / "benalu" / "musicanalyzer" /
-        "ExternalDeviceManager.java"
-    ).read_text(encoding="utf-8")
-    fret_zealot_sdk_controller = (
-        ROOT / "android" / "app" / "src" / "main" / "java" / "dev" / "benalu" / "musicanalyzer" /
-        "FretZealotSdkController.java"
-    ).read_text(encoding="utf-8")
-    auphy_sct86pro_controller = (
-        ROOT / "android" / "app" / "src" / "main" / "java" / "dev" / "benalu" / "musicanalyzer" /
-        "AuphySct86ProController.java"
-    ).read_text(encoding="utf-8")
-    fret_zealot_sdk = (
-        ROOT / "android" / "fz-android-sdk" / "src" / "main" / "java" / "com" / "fz" / "blelib" /
-        "LEDBLELib.java"
-    ).read_text(encoding="utf-8")
-    fret_zealot_attributes = (
-        ROOT / "android" / "fz-android-sdk" / "src" / "main" / "java" / "com" / "fz" / "blelib" /
-        "SampleGattAttributes.java"
-    ).read_text(encoding="utf-8")
-    fret_zealot_gatt = (
-        ROOT / "android" / "fz-android-sdk" / "src" / "main" / "java" / "com" / "fz" / "blelib" /
-        "BluetoothLeService.java"
-    ).read_text(encoding="utf-8")
-    fret_zealot_manifest = (
-        ROOT / "android" / "fz-android-sdk" / "src" / "main" / "AndroidManifest.xml"
-    ).read_text(encoding="utf-8")
-    fret_control = (ROOT / "src" / "fret_control.cpp").read_text(encoding="utf-8")
-    external_control_docs = (ROOT / "docs" / "external_fret_control.md").read_text(encoding="utf-8")
+    activity = read_makefile(ROOT / "android" / "app" / "src" / "main" / "java" / "dev" / "benalu" / "musicanalyzer" / "MainActivity.java", encoding="utf-8")
+    manifest = read_makefile(ROOT / "android" / "app" / "src" / "main" / "AndroidManifest.xml", encoding="utf-8")
+    native_api = read_makefile(ROOT / "android" / "app" / "src" / "main" / "java" / "dev" / "benalu" / "musicanalyzer" /
+        "MusicAnalyzerNative.java", encoding="utf-8")
+    external_devices = read_makefile(ROOT / "android" / "app" / "src" / "main" / "java" / "dev" / "benalu" / "musicanalyzer" /
+        "ExternalDeviceManager.java", encoding="utf-8")
+    fret_zealot_sdk_controller = read_makefile(ROOT / "android" / "app" / "src" / "main" / "java" / "dev" / "benalu" / "musicanalyzer" /
+        "FretZealotSdkController.java", encoding="utf-8")
+    auphy_sct86pro_controller = read_makefile(ROOT / "android" / "app" / "src" / "main" / "java" / "dev" / "benalu" / "musicanalyzer" /
+        "AuphySct86ProController.java", encoding="utf-8")
+    fret_zealot_sdk = read_makefile(ROOT / "android" / "fz-android-sdk" / "src" / "main" / "java" / "com" / "fz" / "blelib" /
+        "LEDBLELib.java", encoding="utf-8")
+    fret_zealot_attributes = read_makefile(ROOT / "android" / "fz-android-sdk" / "src" / "main" / "java" / "com" / "fz" / "blelib" /
+        "SampleGattAttributes.java", encoding="utf-8")
+    fret_zealot_gatt = read_makefile(ROOT / "android" / "fz-android-sdk" / "src" / "main" / "java" / "com" / "fz" / "blelib" /
+        "BluetoothLeService.java", encoding="utf-8")
+    fret_zealot_manifest = read_makefile(ROOT / "android" / "fz-android-sdk" / "src" / "main" / "AndroidManifest.xml", encoding="utf-8")
+    fret_control = read_makefile(ROOT / "src" / "fret_control.cpp", encoding="utf-8")
+    external_control_docs = read_makefile(ROOT / "docs" / "external_fret_control.md", encoding="utf-8")
 
     require("productFlavors" in app_gradle, "Android app must define product flavors")
     require("complete" in app_gradle, "complete Android flavor missing")
@@ -290,7 +276,7 @@ def main():
             "toggleDeviceAutoconnect(deviceIndex)" in activity and
             "nativeTouchTarget" in bridge and "nativeTouchTarget" in native_api,
             "Android device labels must expose per-device autoconnect touch targets")
-    renderer = (ROOT / "src" / "visualizer_renderer.cpp").read_text(encoding="utf-8")
+    renderer = read_makefile(ROOT / "src" / "visualizer_renderer.cpp", encoding="utf-8")
     require("kDeviceDisplayOrder = {4, 0, 1, 2, 3}" in renderer and
             "kDeviceNames = {\"AU\", \"LJ\", \"FZ\", \"APC\", \"MV\"}" in renderer and
             "devices[kDeviceDisplayOrder[i]]" in renderer,
@@ -322,7 +308,7 @@ def main():
             "basic_pitch_pcm_history.cpp" in native_cmake,
             "Android native build must link the analyzer's Basic Pitch support units")
     require("ONNX Runtime is unavailable in this Android build" in
-            (ROOT / "src" / "basic_pitch_onnx_runtime.cpp").read_text(encoding="utf-8"),
+            read_makefile(ROOT / "src" / "basic_pitch_onnx_runtime.cpp", encoding="utf-8"),
             "Android must compile the Basic Pitch runtime adapter without desktop ONNX headers")
     require("AuphySct86ProController" in external_devices and
             "isAuphySct86ProName" in external_devices and
