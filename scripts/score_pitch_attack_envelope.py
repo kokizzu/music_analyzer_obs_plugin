@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """Score completed native envelope replays with the unchanged CC64 reference."""
+import argparse
 import csv
 import json
 from audit_keyboard_recovery import coverage
@@ -13,7 +14,11 @@ def read(path):
 
 
 def main():
-    pointer=read(ROOT/'build/pitch_attack_envelope_native/current.json')
+    parser=argparse.ArgumentParser()
+    parser.add_argument('--display',action='store_true')
+    args=parser.parse_args()
+    prefix='pitch_attack_display_native' if args.display else 'pitch_attack_envelope_native'
+    pointer=read(ROOT/'build'/prefix/'current.json')
     replay_path=ROOT/pointer['report']
     replay=read(replay_path)
     assert replay['complete'] and digest(replay_path)==pointer['sha256']
@@ -27,7 +32,8 @@ def main():
     assert digest(directory/'src/analyzer.cpp')==built['cpp_sha256']
     assert digest(directory/'src/analyzer.hpp')==built['hpp_sha256']
     assert all(digest(ROOT/p)==h for p,h in built['inputs']['assets'].items())
-    assert digest(ROOT/'scripts/replay_pitch_attack_envelope.py')==built['inputs']['script_sha256']
+    if not args.display:
+        assert digest(ROOT/'scripts/replay_pitch_attack_envelope.py')==built['inputs']['script_sha256']
     assert digest(directory/'evidence.json')==plan['evidence_sha256']
     evidence=read(directory/'evidence.json')
     assert all(digest(ROOT/p)==h for p,h in evidence['inputs'].items())
@@ -102,11 +108,13 @@ def main():
             after_score['matched_attacks']>=before_score['matched_attacks'])
         results[name]=dict(deltas=delta,before=before_score,after=after_score,additions=additions,removals=removals,passed=safe)
         print(name,json.dumps(dict(deltas=delta,attack_gain=after_score['matched_attacks']-before_score['matched_attacks'],passed=safe)),flush=True)
-    passed=all(r['passed'] for r in results.values())
+    benefit=any(r['after']['matched_attacks']>r['before']['matched_attacks'] or
+                r['deltas']['held_added_seconds']>r['deltas']['held_removed_seconds']+1e-8 for r in results.values())
+    passed=benefit and all(r['passed'] for r in results.values())
     assert all(digest(ROOT/p)==h for p,h in inputs.items())
-    atomic_json(directory/'score.json',dict(inputs=inputs,results=results,passed=passed,
-        decision='requires_live_worker_validation' if passed else 'reject_native_confirmation',
-        scope='Paired actual native envelopes with captured causal evidence; development only, no live worker or production promotion.'))
+    atomic_json(directory/'score.json',dict(inputs=inputs,results=results,passed=passed,benefit=benefit,
+        decision='requires_live_worker_validation' if passed else 'reject_native_display' if args.display else 'reject_native_confirmation',
+        scope='Paired actual native display with captured causal evidence; development only, no live worker or production promotion.'))
     print(directory.relative_to(ROOT)/'score.json',flush=True)
 
 

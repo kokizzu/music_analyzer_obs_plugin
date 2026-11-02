@@ -1067,3 +1067,32 @@ Artifacts are under `build/pitch_attack_envelope_native/9bf32267d49cc8fb/`;
 `score.json` includes individual additions and removals. The evidence supports
 testing a separate display recovery path that preserves analytical tracking
 and occupied rows, rather than promoting this confirmation mutation.
+
+### Display-only first-hit recovery
+
+`make test-piano-attack-display` tests a separate recovery helper against the
+primary interface: tracking is const, only an unconfirmed first hit is eligible,
+missing evidence/raw notes and duplicate visible notes are rejected, and a
+fully occupied pitch-class column is preserved. The helper is unused by the
+production analyzer. `make replay-pitch-attack-display` inserts it only in an
+isolated primary export, after analytical/chord/routing decisions finish.
+It copies a current raw note into an available display row without seeding
+confirmation or retaining a release envelope. It shares the previous trial's
+frozen audio-only support, avoiding a new model/threshold search.
+
+`make score-pitch-attack-display` verifies the 3,600 disabled-path endpoints and
+scores the actual native display snapshots. There are four added display cells,
+three additional matched attacks and .20 seconds of key-held coverage recovered.
+Unlike early confirmation, this trial removes no cells or supported time and
+changes no surviving cells, unrelated rows or tempo. There are no
+annotation-unsupported additions. However, three additions remain isolated
+50 ms flashes (two on development recording 2 and one on recording 3), so the
+unchanged isolation gate fails. The variant remains disabled and has no
+calibration, new held-out, live-worker or latency qualification.
+
+Artifacts are `build/pitch_attack_display_native/381fe8745f049c1b/`, including
+`build.json`, `plan.json`, `replay.json` and `score.json`. Native analytical
+preservation is established for this development replay, while stable useful
+attack recovery remains unresolved. Future continuity work must continue to
+require fresh independent pitch support rather than assume every recovered
+note should persist.

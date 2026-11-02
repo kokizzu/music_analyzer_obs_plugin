@@ -40,3 +40,17 @@ replay-pitch-attack-envelope: scripts/replay_pitch_attack_envelope.py tests/pitc
 .PHONY: score-pitch-attack-envelope
 score-pitch-attack-envelope: scripts/score_pitch_attack_envelope.py
 	.separator-venv/bin/python scripts/score_pitch_attack_envelope.py
+
+.PHONY: build-pitch-attack-display replay-pitch-attack-display
+build-pitch-attack-display: scripts/replay_pitch_attack_display.py src/piano_attack_display.hpp tests/piano_attack_display.cpp
+	.separator-venv/bin/python scripts/replay_pitch_attack_display.py --build
+replay-pitch-attack-display: scripts/replay_pitch_attack_display.py src/piano_attack_display.hpp tests/piano_attack_display.cpp
+	.separator-venv/bin/python scripts/replay_pitch_attack_display.py
+
+.PHONY: score-pitch-attack-display
+score-pitch-attack-display: scripts/score_pitch_attack_envelope.py
+	.separator-venv/bin/python scripts/score_pitch_attack_envelope.py --display
+
+.PHONY: test-piano-attack-display
+test-piano-attack-display: scripts/test_piano_attack_display.py tests/piano_attack_display.cpp src/piano_attack_display.hpp
+	.separator-venv/bin/python scripts/test_piano_attack_display.py

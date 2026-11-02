@@ -15,7 +15,9 @@ PATHS=['make/keyboard_attack.mk','make/pitch_attack_evidence.mk','docs/routing_d
        'scripts/screen_pitch_attack_evidence.py','scripts/screen_pitch_attack_ondemand.py',
        'scripts/screen_pitch_attack_prefetch.py','scripts/checkpoint_pitch_attack.py',
        'tests/pitch_attack_evidence.cpp','tests/pitch_attack_history_parity.cpp','tests/test_pitch_attack_queue.py',
-       'scripts/replay_pitch_attack_envelope.py','scripts/score_pitch_attack_envelope.py','tests/pitch_attack_replay_support.hpp']
+       'scripts/replay_pitch_attack_envelope.py','scripts/score_pitch_attack_envelope.py','tests/pitch_attack_replay_support.hpp',
+       'src/piano_attack_display.hpp','tests/piano_attack_display.cpp','scripts/test_piano_attack_display.py',
+       'scripts/replay_pitch_attack_display.py']
 
 
 def read(path):
@@ -54,12 +56,22 @@ def verify():
     for path in PATHS:
         if path.endswith('.py'):
             ast.parse((ROOT/path).read_text())
-    for target in ('test-pitch-attack-queue','test-pitch-attack-history','score-pitch-attack-envelope'):
+    for target in ('test-pitch-attack-queue','test-pitch-attack-history','test-piano-attack-display',
+                   'score-pitch-attack-envelope','score-pitch-attack-display'):
         subprocess.run(['make',target],cwd=ROOT,check=True)
     pointer=read(ROOT/'build/pitch_attack_envelope_native/current.json')
     native=read((ROOT/pointer['report']).parent/'score.json')
     assert not native['passed'] and native['decision']=='reject_native_confirmation'
     assert abs(sum(r['deltas']['held_removed_seconds'] for r in native['results'].values())-.05)<1e-8
+    pointer=read(ROOT/'build/pitch_attack_display_native/current.json')
+    display=read((ROOT/pointer['report']).parent/'score.json')
+    assert not display['passed'] and display['decision']=='reject_native_display'
+    assert sum(r['deltas']['isolated_additions'] for r in display['results'].values())==3
+    assert sum(r['after']['matched_attacks']-r['before']['matched_attacks'] for r in display['results'].values())==3
+    for row in display['results'].values():
+        for metric in ('removed_cells','held_removed_seconds','supported_removed_seconds','unsupported_added_seconds',
+                       'unrelated_changed_frames','tempo_changed_frames','surviving_cell_changed_frames'):
+            assert abs(row['deltas'][metric])<1e-8
     for name in ('analyzer.cpp','analyzer.hpp'):
         assert git('show','HEAD:src/'+name)==git('show','e903cb7:src/'+name)
     print('Verified actual model evidence, completion-time guards, admission scores and unchanged production analyzer',flush=True)
@@ -82,7 +94,7 @@ def main():
     print(git('diff','--cached','--stat'),flush=True)
     if args.stage:
         return
-    print(git('commit','-m','Reject early native pitch confirmation after paired preservation regressions'),flush=True)
+    print(git('commit','-m','Preserve native analytical state in disabled piano attack display recovery trial'),flush=True)
     print(git('push',remote,'HEAD:'+primary),flush=True)
     assert identity()[3]==git('rev-parse','HEAD').strip()
 
