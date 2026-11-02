@@ -490,3 +490,46 @@ These simple rules are rejected. Attack counts alone do not justify isolated
 display additions. `build/keyboard_confirmation_audit.json` preserves the
 per-case raw descriptors and tracking state for further causal analysis; no
 held-out data or native behavior is changed by the audit.
+
+### Recording-disjoint first-hit verifier screens
+
+`make evaluate-keyboard-confirmation` fits the existing bounded forest on two
+training recordings and evaluates the third, rotating the recording held aside.
+It uses causal native descriptors, MIDI number, raw level and envelope; labels
+are never inputs. A .95 minimum cutoff plus a margin over fitting negatives
+admits no fully-held candidates. Allowing the cutoff to depend only on fitting
+negatives produces unsupported additions on the other recordings.
+
+`make capture-joint-pitch` explores a different pitch cue: a nonnegative joint
+spectral explanation of all 88 piano pitches, using 106 isolated references
+from one acoustic piano identity. The references cover 59 pitches; missing
+templates use frequency-axis interpolation from the nearest reference pitch.
+Each causal 100 ms performance window is independently resampled to 16 kHz,
+Hann-windowed and fitted for 80 fixed multiplicative iterations. The first
+three training performances contribute 3,600 windows and 980 first-hit cases.
+No performance recording fits the dictionary, and no held-out recording is
+used. Batched columns are independent; synthetic tests cover harmonic
+competition, simultaneous notes, silence and invalid input.
+
+Capture: `build/joint_pitch/143d517357f2b5c2/report.json`. True held first-hit
+candidates have median relative activation .438/.631/.344 in recordings
+one/two/three, versus .0023/.0092/.0072 for unsupported candidates. Their ranges
+still overlap. This separation is diagnostic evidence, not detection accuracy.
+
+Eight exploratory leave-recording-out screens compare native/joint features,
+fully-held/pedal-supported labels, and fixed .95/negative-derived cutoffs.
+All are rejected. The strict native pedal-support screen initially appears
+safe: three additions recover .15 seconds and two matched attacks without
+unsupported additions. Inspecting adjacent original display frames shows all
+three would be isolated flashes, rather than a confirmation bridge. A focused
+continuity regression now prevents these from passing the screen. The joint
+strict pedal variant also adds unsupported duration on recording three.
+
+Reports: `build/{keyboard,joint}_confirmation_evaluation*.json` record all
+eight variants, fitting-negative cutoffs, model trees, accepted endpoints and
+causal timing scores. These are training screens, not independent test results;
+neither outside-instrument controls nor calibration/held-out data is consulted
+to rescue the failed candidates. No confirmation bypass or joint fit is
+integrated into the runtime. The next investigation must address missing raw
+pitch evidence and continuous note reconstruction, rather than isolated
+first-hit display additions.

@@ -341,3 +341,45 @@ publish-keyboard-coherence: scripts/checkpoint_keyboard_coherence.py
 .PHONY: audit-keyboard-confirmation
 audit-keyboard-confirmation: scripts/audit_keyboard_confirmation.py
 	$(PYTHON) scripts/audit_keyboard_confirmation.py
+
+.PHONY: evaluate-keyboard-confirmation test-keyboard-confirmation
+evaluate-keyboard-confirmation: scripts/evaluate_keyboard_confirmation.py
+	.separator-venv/bin/python scripts/evaluate_keyboard_confirmation.py
+test-keyboard-confirmation: tests/test_keyboard_confirmation.py scripts/evaluate_keyboard_confirmation.py
+	$(PYTHON) tests/test_keyboard_confirmation.py
+
+.PHONY: capture-joint-pitch test-joint-pitch
+capture-joint-pitch: scripts/capture_joint_pitch.py scripts/joint_pitch_reference.py
+	.separator-venv/bin/python scripts/capture_joint_pitch.py
+test-joint-pitch: tests/test_joint_pitch_reference.py scripts/joint_pitch_reference.py
+	.separator-venv/bin/python tests/test_joint_pitch_reference.py
+
+.PHONY: evaluate-joint-confirmation
+evaluate-joint-confirmation: scripts/evaluate_keyboard_confirmation.py
+	.separator-venv/bin/python scripts/evaluate_keyboard_confirmation.py --joint
+
+.PHONY: evaluate-confirmation-empirical evaluate-joint-confirmation-empirical
+evaluate-confirmation-empirical: scripts/evaluate_keyboard_confirmation.py
+	.separator-venv/bin/python scripts/evaluate_keyboard_confirmation.py --empirical-cutoff
+evaluate-joint-confirmation-empirical: scripts/evaluate_keyboard_confirmation.py
+	.separator-venv/bin/python scripts/evaluate_keyboard_confirmation.py --joint --empirical-cutoff
+
+.PHONY: evaluate-confirmation-pedal evaluate-joint-confirmation-pedal
+evaluate-confirmation-pedal: scripts/evaluate_keyboard_confirmation.py
+	.separator-venv/bin/python scripts/evaluate_keyboard_confirmation.py --empirical-cutoff --pedal-support
+evaluate-joint-confirmation-pedal: scripts/evaluate_keyboard_confirmation.py
+	.separator-venv/bin/python scripts/evaluate_keyboard_confirmation.py --joint --empirical-cutoff --pedal-support
+
+.PHONY: evaluate-confirmation-pedal-strict evaluate-joint-confirmation-pedal-strict
+evaluate-confirmation-pedal-strict: scripts/evaluate_keyboard_confirmation.py
+	.separator-venv/bin/python scripts/evaluate_keyboard_confirmation.py --pedal-support
+evaluate-joint-confirmation-pedal-strict: scripts/evaluate_keyboard_confirmation.py
+	.separator-venv/bin/python scripts/evaluate_keyboard_confirmation.py --joint --pedal-support
+
+.PHONY: verify-confirmation-research stage-confirmation-research publish-confirmation-research
+verify-confirmation-research: scripts/checkpoint_confirmation_research.py
+	$(PYTHON) scripts/checkpoint_confirmation_research.py
+stage-confirmation-research: scripts/checkpoint_confirmation_research.py
+	$(PYTHON) scripts/checkpoint_confirmation_research.py --stage
+publish-confirmation-research: scripts/checkpoint_confirmation_research.py
+	$(PYTHON) scripts/checkpoint_confirmation_research.py --publish
