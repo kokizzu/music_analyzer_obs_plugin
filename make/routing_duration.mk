@@ -285,3 +285,59 @@ stage-low-keyboard-evidence: scripts/checkpoint_low_keyboard_evidence.py
 	$(PYTHON) scripts/checkpoint_low_keyboard_evidence.py --stage
 publish-low-keyboard-evidence: scripts/checkpoint_low_keyboard_evidence.py
 	$(PYTHON) scripts/checkpoint_low_keyboard_evidence.py --publish
+
+.PHONY: test-low-keyboard-coherence
+$(BUILD_DIR)/low_keyboard_coherence_test: tests/low_keyboard_coherence.cpp src/low_keyboard_coherence.hpp | $(BUILD_DIR)
+	$(CXX) $(CXXFLAGS) -Isrc $< -o $@
+test-low-keyboard-coherence: $(BUILD_DIR)/low_keyboard_coherence_test
+	$(BUILD_DIR)/low_keyboard_coherence_test
+
+$(BUILD_DIR)/low_keyboard_coherence_history: tests/low_keyboard_coherence_history.cpp src/low_keyboard_coherence.hpp | $(BUILD_DIR)
+	$(CXX) $(CXXFLAGS) -Isrc $< -o $@
+.PHONY: test-low-keyboard-coherence-history
+test-low-keyboard-coherence-history: $(BUILD_DIR)/low_keyboard_coherence_history
+	$(BUILD_DIR)/low_keyboard_coherence_history
+
+.PHONY: build-low-keyboard-coherence-trial
+build-low-keyboard-coherence-trial: scripts/build_keyboard_alias_trial.py scripts/low_keyboard_coherence_trial.py src/low_keyboard_coherence.hpp tests/low_keyboard_coherence_pair.cpp
+	$(PYTHON) scripts/build_keyboard_alias_trial.py --coherence
+
+.PHONY: measure-low-keyboard-coherence
+measure-low-keyboard-coherence: scripts/measure_low_keyboard_coherence.py
+	$(PYTHON) scripts/measure_low_keyboard_coherence.py
+
+.PHONY: calibrate-low-keyboard-coherence freeze-low-keyboard-coherence measure-low-keyboard-coherence-heldout
+calibrate-low-keyboard-coherence: scripts/validate_low_keyboard_coherence.py
+	$(PYTHON) scripts/validate_low_keyboard_coherence.py --calibration
+freeze-low-keyboard-coherence: scripts/validate_low_keyboard_coherence.py
+	$(PYTHON) scripts/validate_low_keyboard_coherence.py --freeze
+measure-low-keyboard-coherence-heldout: scripts/validate_low_keyboard_coherence.py
+	$(PYTHON) scripts/validate_low_keyboard_coherence.py --heldout
+
+.PHONY: plan-coherence-controls validate-coherence-controls-a validate-coherence-controls-b validate-coherence-controls-c validate-coherence-controls-d
+plan-coherence-controls: scripts/validate_low_keyboard_coherence_controls.py
+	$(PYTHON) scripts/validate_low_keyboard_coherence_controls.py --plan
+validate-coherence-controls-a: scripts/validate_low_keyboard_coherence_controls.py
+	$(PYTHON) scripts/validate_low_keyboard_coherence_controls.py --shard 0
+validate-coherence-controls-b: scripts/validate_low_keyboard_coherence_controls.py
+	$(PYTHON) scripts/validate_low_keyboard_coherence_controls.py --shard 1
+validate-coherence-controls-c: scripts/validate_low_keyboard_coherence_controls.py
+	$(PYTHON) scripts/validate_low_keyboard_coherence_controls.py --shard 2
+validate-coherence-controls-d: scripts/validate_low_keyboard_coherence_controls.py
+	$(PYTHON) scripts/validate_low_keyboard_coherence_controls.py --shard 3
+
+.PHONY: benchmark-low-keyboard-coherence
+benchmark-low-keyboard-coherence: scripts/benchmark_low_keyboard_coherence.py tests/low_keyboard_coherence_latency.cpp
+	$(PYTHON) scripts/benchmark_low_keyboard_coherence.py
+
+.PHONY: verify-keyboard-coherence stage-keyboard-coherence publish-keyboard-coherence
+verify-keyboard-coherence: scripts/checkpoint_keyboard_coherence.py
+	$(PYTHON) scripts/checkpoint_keyboard_coherence.py
+stage-keyboard-coherence: scripts/checkpoint_keyboard_coherence.py
+	$(PYTHON) scripts/checkpoint_keyboard_coherence.py --stage
+publish-keyboard-coherence: scripts/checkpoint_keyboard_coherence.py
+	$(PYTHON) scripts/checkpoint_keyboard_coherence.py --publish
+
+.PHONY: audit-keyboard-confirmation
+audit-keyboard-confirmation: scripts/audit_keyboard_confirmation.py
+	$(PYTHON) scripts/audit_keyboard_confirmation.py

@@ -78,11 +78,16 @@ def low_fundamental_sources(cpp, header):
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--low-fundamental', action='store_true')
+    parser.add_argument('--coherence', action='store_true')
     args = parser.parse_args()
+    assert not (args.coherence and args.low_fundamental)
     identity()
     assets = (['src/low_keyboard_fundamental_guard.inc', 'tests/low_keyboard_fundamental.cpp', 'tests/low_keyboard_pair.cpp']
               if args.low_fundamental else ['src/keyboard_alias_visibility_guard.inc', 'tests/keyboard_alias_visibility.cpp', 'tests/keyboard_alias_visibility_pair.cpp'])
     assets.append('tests/note_grid_comparison.hpp')
+    if args.coherence:
+        assets = ['src/low_keyboard_coherence.hpp', 'tests/low_keyboard_coherence.cpp', 'tests/low_keyboard_coherence_pair.cpp',
+                  'tests/note_grid_comparison.hpp', 'scripts/low_keyboard_coherence_trial.py']
     base = ROOT / 'build/routing_duration_primary/02001c66f49dc729'
     objects = [base / (name + '.o') for name in ('BTT', 'DFT', 'Filter', 'STFT', 'Statistics', 'fastsin',
                'basic_pitch_onnx_worker', 'basic_pitch_onnx_runtime', 'basic_pitch_onnx_decoder', 'basic_pitch_pcm_history')]
@@ -94,7 +99,7 @@ def main():
                   objects={str(p.relative_to(ROOT)): digest(p) for p in objects}, script_sha256=digest(Path(__file__)),
                   comparison_sha256=digest(ROOT / 'build/piano_guitar_trial/5423eaeda3f96b38/non_tempo_snapshot.hpp'))
     key = hashlib.sha256(json.dumps(inputs, sort_keys=True).encode()).hexdigest()[:16]
-    directory = ROOT / ('build/low_keyboard_trial' if args.low_fundamental else 'build/keyboard_alias_trial') / key
+    directory = ROOT / ('build/low_keyboard_coherence_trial' if args.coherence else 'build/low_keyboard_trial' if args.low_fundamental else 'build/keyboard_alias_trial') / key
     directory.mkdir(parents=True, exist_ok=True)
     checkpoint = directory / 'build.json'
     if checkpoint.exists():
@@ -105,9 +110,13 @@ def main():
         with tarfile.open(fileobj=io.BytesIO(archive)) as stream:
             stream.extractall(directory, filter='data')
         transform = low_fundamental_sources if args.low_fundamental else candidate_sources
+        if args.coherence:
+            from low_keyboard_coherence_trial import candidate_sources as transform
         cpp, header = transform(git('show', 'HEAD:src/analyzer.cpp'), git('show', 'HEAD:src/analyzer.hpp'))
         (directory / 'src/analyzer.cpp').write_text(cpp)
         (directory / 'src/analyzer.hpp').write_text(header)
+        if args.coherence:
+            (directory / 'src/low_keyboard_coherence.hpp').write_bytes((ROOT / assets[0]).read_bytes())
         include = ['-I' + str(directory / 'src'), '-I' + str(sdk[0].parent), '-I' + str(base / 'third_party/beat_and_tempo_tracking')]
         subprocess.run(['g++', '-O2', '-std=c++17', *include, str(ROOT / assets[1]),
                         *map(str, objects), '-lm', '-pthread', '-ldl', '-o', str(directory / 'regression')], check=True)

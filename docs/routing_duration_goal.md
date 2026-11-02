@@ -429,3 +429,64 @@ using a 400 ms window, .01 normalized floor, latched fundamental-or-third
 evidence and three prior original-display frames. This is offline evidence,
 not a native or held-out result. Report:
 `build/low_keyboard_coherence/dc5f99cb5044a9d7/report.json`.
+
+### Native coherence trial: held-out preservation failure
+
+The isolated native implementation keeps 400 ms of causal audio, checks exact
+100 ms / 50 ms overlap, and clears history on source/format resets, changed
+drop counts, missing/invalid input, unfinished analysis or ineligible settings.
+The fundamental and third-harmonic projections use Hann weighting, weighted
+DC subtraction and RMS normalization. Evidence remains latched only while the
+original, unmodified low pitch stays displayed. Suppression applies only to
+newly recovered late low cells; detector tracking, ownership, ranking and
+normalization stay unchanged. The trial bypasses Basic Pitch fusion.
+
+`make test-low-keyboard-coherence` first reproduces an unsupported persistent
+low conjecture and then passes with the causal guard. Additional history tests
+cover continuous decay, missing fundamentals, absence, exact-overlap drop
+changes, unfinished frames, nonfinite input and rate switches. Both targets
+operate independently of the production analyzer.
+
+Build: `build/low_keyboard_coherence_trial/853fb60c971cb873/build.json`.
+Training native replays reproduce the per-recording offline aggregate metrics exactly: 56.55 seconds
+of unsupported display removed with no held/pedal-supported duration lost and
+unchanged matched attacks. The maximum native training call is 25.6263 ms.
+Separate calibration removes 44.55 seconds without protected losses. Parameters
+were frozen before held-out replay. Measurement directories under
+`build/low_keyboard_coherence_measurement/`: `42d8b5cd0dd12a07` (training),
+`829d090513a0e3e9` (calibration), `54c758308a514c37` (held out).
+
+The four-recording held-out split removes 20.8846 seconds of unsupported
+display, but recording four loses 14.5833 ms of genuinely held coverage.
+The preservation gate therefore fails. This trial remains disabled and is not
+integrated into production; its threshold is not adjusted using that failure.
+Attack and early-release improvements remain unresolved.
+
+All 1,154 controls finish in
+`build/low_keyboard_coherence_controls/4126b0a9fd9c84d1/` (94,834 endpoints).
+Shards zero and one pass; shards two and three fail. Piano performances 13 and
+15 each lose one protected cell at original and derived 48 kHz rates. These
+are two source performances, not four independent recordings. No unrelated,
+surviving-cell or tempo changes, added Keyboard pitches, or deadline misses
+are recorded. The extra piano losses independently support rejecting the guard.
+
+`make benchmark-low-keyboard-coherence` preserves the existing 50 ms wall p99,
+50 ms maximum thread CPU, 1 ms mean added CPU and 2 ms p99 added CPU gates.
+Its five paired passes (1,000 endpoints) measure 18.4351 ms wall p99,
+20.5695 ms wall maximum, 20.5194 ms CPU maximum, .2688 ms mean added CPU and
+2.3104 ms p99 added CPU. There are no deadline misses, but the last gate fails.
+Report: `build/low_keyboard_coherence_latency/b1071b59a4aec0fe/report.json`.
+Neither the quality nor performance gate is relaxed to enable this trial.
+
+### First-hit confirmation audit
+
+`make audit-keyboard-confirmation` examines the three training recordings only.
+It considers a first raw Keyboard hit that is unconfirmed, unsmoothed and absent
+from final Keyboard. A hypothetical confirmation bypass adds 65 matched attacks
+and 10.95 seconds of held coverage, but also 32.14 seconds of unsupported
+display. Requiring strong native Keyboard ownership/scores still adds 14.57
+seconds of unsupported display for only six additional matched attacks.
+These simple rules are rejected. Attack counts alone do not justify isolated
+display additions. `build/keyboard_confirmation_audit.json` preserves the
+per-case raw descriptors and tracking state for further causal analysis; no
+held-out data or native behavior is changed by the audit.
