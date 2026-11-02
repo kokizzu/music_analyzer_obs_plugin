@@ -110,3 +110,59 @@ plan-routing-replay-repair: scripts/repair_routing_replay_checkpoints.py
 	$(PYTHON) scripts/repair_routing_replay_checkpoints.py
 apply-routing-replay-repair: scripts/repair_routing_replay_checkpoints.py
 	$(PYTHON) scripts/repair_routing_replay_checkpoints.py --apply
+
+.PHONY: evaluate-voice-duplicate
+evaluate-voice-duplicate: scripts/evaluate_voice_duplicate.py
+	$(PYTHON) scripts/evaluate_voice_duplicate.py
+
+.PHONY: build-piano-voice-trial
+build-piano-voice-trial: scripts/build_piano_voice_trial.py src/experimental_piano_voice_hook.inc tests/piano_voice_pair.cpp
+	$(PYTHON) scripts/build_piano_voice_trial.py
+
+.PHONY: measure-piano-voice-trial measure-piano-voice-controls
+measure-piano-voice-trial: scripts/measure_piano_voice_trial.py
+	$(PYTHON) scripts/measure_piano_voice_trial.py
+measure-piano-voice-controls: scripts/measure_piano_voice_trial.py
+	$(PYTHON) scripts/measure_piano_voice_trial.py --controls
+
+.PHONY: audit-keyboard-recovery
+audit-keyboard-recovery: scripts/audit_keyboard_recovery.py
+	$(PYTHON) scripts/audit_keyboard_recovery.py
+
+.PHONY: validate-piano-voice-extensions
+validate-piano-voice-extensions: scripts/validate_piano_voice_extensions.py
+	$(PYTHON) scripts/validate_piano_voice_extensions.py
+
+.PHONY: evaluate-keyboard-recovery
+evaluate-keyboard-recovery: scripts/evaluate_keyboard_recovery.py
+	.separator-venv/bin/python scripts/evaluate_keyboard_recovery.py
+
+.PHONY: trace-primary-duration
+trace-primary-duration: scripts/trace_primary_duration.py tests/primary_duration_trace.cpp tests/primary_duration_trace.hpp
+	$(PYTHON) scripts/trace_primary_duration.py
+
+.PHONY: test-keyboard-recovery
+test-keyboard-recovery: tests/test_keyboard_recovery.py scripts/evaluate_keyboard_recovery.py scripts/audit_keyboard_recovery.py
+	$(PYTHON) tests/test_keyboard_recovery.py
+
+.PHONY: audit-keyboard-tracking-recovery
+audit-keyboard-tracking-recovery: scripts/audit_keyboard_tracking_recovery.py
+	$(PYTHON) scripts/audit_keyboard_tracking_recovery.py
+
+.PHONY: capture-routing-regression-evidence
+capture-routing-regression-evidence: scripts/capture_routing_regression_evidence.py
+	$(PYTHON) scripts/capture_routing_regression_evidence.py
+
+.PHONY: evaluate-routing-consensus
+evaluate-routing-consensus: scripts/evaluate_routing_consensus.py
+	$(PYTHON) scripts/evaluate_routing_consensus.py
+
+.PHONY: test-routing-consensus
+test-routing-consensus: tests/test_routing_consensus.py scripts/evaluate_routing_consensus.py
+	$(PYTHON) tests/test_routing_consensus.py
+
+.PHONY: verify-voice-duration-evidence publish-voice-duration-evidence
+verify-voice-duration-evidence: scripts/checkpoint_voice_duration_evidence.py
+	$(PYTHON) scripts/checkpoint_voice_duration_evidence.py
+publish-voice-duration-evidence: scripts/checkpoint_voice_duration_evidence.py
+	$(PYTHON) scripts/checkpoint_voice_duration_evidence.py --publish

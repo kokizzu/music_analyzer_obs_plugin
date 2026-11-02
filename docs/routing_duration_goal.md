@@ -226,3 +226,80 @@ the exact affected entries were previewed, their checkpoint backed up, and
 only those entries invalidated for replay. No mismatched result is accepted by
 the publication verifier. `plan-routing-replay-repair` and
 `apply-routing-replay-repair` preserve the reviewed selection and rollback copy.
+
+## Voice native replay and duration tracing
+
+The frozen forest was screened on Voice duplicates without refitting or
+changing its cutoff. `make evaluate-voice-duplicate` reports 16 training and
+83 held-out piano Voice cells removed. Every labelled NSynth Voice pitch and
+every VocalSet Voice-row pitch is protected. The diagnostic family predicate
+now uses the actual `vocals` identifier; a regression test covers both
+NSynth pitch labels and conservative protection of all human Voice pitches.
+
+An isolated primary export adds only the disabled
+`experimental_piano_voice_filter` setting and Voice hook. It does not replace
+the dirty working analyzer or modify the published primary analyzer. Build:
+`build/piano_voice_trial/6c412eed26b1221e/build.json`. Native reports:
+
+| Voice replay | Windows | Removed Voice cells | Protected Voice-row changes |
+| --- | ---: | ---: | ---: |
+| Eight piano performances | 9,600 | 99 (83 held out) | 0 |
+| Existing 246 controls | 12,819 | 0 | 0 |
+| 164 extended cases | 18,155 | 53 | 1 |
+
+Reports are `build/piano_voice_pair/79e637eb626694e5/report.json`,
+`build/piano_voice_pair/8ede7313ac105261/report.json`, and
+`build/piano_voice_extensions/ebc264a1f5031e97/report.json`. Disabled output
+matches primary evidence; actual removals match offline predictions wherever
+candidate captures exist. Other rows, chords, drums, nine tempo values and
+surviving Voice cells are unchanged; no pitch leaves the union of rows. No
+measured enabled call misses 50 ms.
+
+The expanded set includes derived 48 kHz versions of all 102 Voice controls,
+36 real MIR-1K mixtures, the reserved Guitar/piano cases at both rates, and a
+continuous 60-second MedleyDB mixture at original and derived rates. All
+mixture Voice rows are preserved, including pitches absent from incomplete
+annotations. One 48 kHz VocalSet control loses a protected MIDI 77 cell.
+The control's representative labelled pitch is MIDI 53; this is a conservative
+protected-row failure, not a proven fundamental loss. The predeclared gate
+fails and the candidate is not enabled or integrated into primary.
+
+`make capture-routing-regression-evidence` captures native features for every
+observed protected-row regression, with exact disabled-output parity. The
+proposed three-hop consensus requires three consecutive same-MIDI eligible
+forest decisions. At 100 ms / 50 ms, first and third windows do not overlap.
+It resets on a missing decision and between recordings. Offline
+`build/routing_consensus_evaluation.json` retains 54 Guitar and nine Voice
+held-out piano removals and makes no protected-row change in the existing
+controls or known regressions. This is **not native validation**. The observed
+failures are regression cases; fresh recording-disjoint controls are required
+before promoting a revised implementation. Three tests cover confirmation,
+gaps and independent pitch histories.
+
+The duration-specific recovery model fits 370 training rows, including 47
+fully held missing-Keyboard cells, with 106 separate negative calibration
+rows. Its frozen .95 threshold admits no changes, so it is rejected rather
+than called an improvement. `build/keyboard_recovery_evaluation.json` preserves
+the model and split evidence. Three tests cover physical eligibility,
+nonfinite/profile rejection and causal next-hop label coverage.
+
+`make trace-primary-duration` instruments only an exported primary source
+copy to capture Keyboard grids before smoothing, immediately after smoothing,
+and after postprocessing, together with tracking envelopes and hit/miss
+counts. Every final note row, chord, drum and exported tempo value matches
+the original baseline at all 3,600 training endpoints. Trace report:
+`build/primary_duration_trace/954041e8c8c9eb7f/report.json`.
+
+| Training performance | Missing held time: raw absent | Confirmation | Postprocessing | Unsupported duration: raw / smoothed / final |
+| --- | ---: | ---: | ---: | ---: |
+| 1 | 115.11 s | 4.06 s | 4.69 s | 107.66 / 195.08 / 398.80 s |
+| 2 | 102.54 s | 4.34 s | 4.17 s | 163.38 / 248.18 / 598.19 s |
+| 3 | 74.11 s | 3.94 s | 3.70 s | 93.38 / 184.35 / 402.63 s |
+
+Smoothing-selection loss is zero in these traces. These are causal MIDI
+annotation measurements, not acoustic-decay truth. They locate larger errors
+before smoothing and in postprocessing; globally lengthening release is not
+supported by this evidence. Intersecting the strong-native/Guitar-supported
+recovery candidates with surviving smoothed cells yields no training changes
+(`build/keyboard_tracking_recovery_audit.json`), so that shortcut is also
+insufficient. The full routing, attack and duration goal remains active.

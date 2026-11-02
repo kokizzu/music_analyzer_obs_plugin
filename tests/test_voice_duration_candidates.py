@@ -7,9 +7,16 @@ from unittest.mock import patch
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'scripts'))
 from audit_voice_duration_candidates import screen
+from evaluate_voice_duplicate import protected_voice
 
 
 class CandidateScreenTests(unittest.TestCase):
+    def test_protected_voice_uses_actual_dataset_family(self):
+        self.assertTrue(protected_voice(dict(family='vocals', group='NSynth-voice', midi=60), 60))
+        self.assertFalse(protected_voice(dict(family='vocals', group='NSynth-voice', midi=60), 61))
+        self.assertTrue(protected_voice(dict(family='vocals', group='VocalSet-f1', midi=60), 61))
+        self.assertFalse(protected_voice(dict(family='guitar', group='guitar', midi=60), 60))
+
     def run_screen(self, frames):
         with tempfile.TemporaryDirectory() as directory:
             path = Path(directory) / 'capture.tsv'

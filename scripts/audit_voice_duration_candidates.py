@@ -10,6 +10,7 @@ from evaluate_guitar_music_model import frame_context
 from routing_duration_baseline import ROOT, atomic_json, digest
 from midi_sustain_reference import read_intervals
 from routing_duration_score import score
+from evaluate_voice_duplicate import protected_voice
 
 
 def screen(path, model):
@@ -56,7 +57,7 @@ def main():
     inputs = {str(canonical.relative_to(ROOT)): digest(canonical),
               str(Path(__file__).relative_to(ROOT)): digest(Path(__file__))}
     for name in ('evaluate_guitar_duplicate_model.py', 'evaluate_guitar_music_model.py',
-                 'midi_sustain_reference.py', 'routing_duration_score.py'):
+                 'midi_sustain_reference.py', 'routing_duration_score.py', 'evaluate_voice_duplicate.py'):
         inputs['scripts/' + name] = digest(ROOT / 'scripts' / name)
     metrics = {}
     for kind, relative in [('piano', 'build/routing_candidate_evidence/42e25eb544a48fc7/report.json'),
@@ -101,7 +102,7 @@ def main():
             else:
                 result.update(held_recovery_seconds=0., unsupported_added_seconds=0.)
             result['protected_voice_losses'] = sum(
-                sample.get('family') == 'voice' and (sample.get('midi') is None or midi == sample['midi'])
+                protected_voice(sample, midi)
                 for _, midi in changed['voice']) if kind == 'controls' else 0
             # Any Keys addition on an isolated non-Keyboard control is wrong
             # instrument routing, irrespective of its pitch annotation.
