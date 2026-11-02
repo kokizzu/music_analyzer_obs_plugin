@@ -863,3 +863,60 @@ The separate qualification report is
 `build/multiscale_low_keyboard_qualification/report.json`. These gates qualify
 the measured experiment's preservation and cost; production remains unchanged
 while its benefit on additional piano performances is unresolved.
+
+### Short-window exposure and the rejected phase trial
+
+`make audit-multiscale-exposure` explains the already evaluated recordings
+without changing the detector or accessing new held-out performances. Fresh
+recordings 21–24 contain 35,194 original low display cells and 1,637.850
+annotation-unsupported low-note seconds. Of these, 626.609 seconds meet the
+three-prior-visible-hop and history-warmup conditions. All are protected by
+latched spectral evidence: 587.961 seconds first acquire 100 ms fundamental
+support, 34.848 seconds first acquire 100 ms third-harmonic support, and the
+remaining 3.800 seconds first acquire 400 ms support. There are no proposed
+rejections even before restricting removal to late low-note insertions.
+Thus the neutral result is not a lack of low-note error exposure.
+
+The synthetic regression `make test-multiscale-exposure` demonstrates one
+selectivity limitation: MIDI 40 generates above-threshold 100 ms amplitude
+at MIDI 36, while the 400 ms measurement rejects it. That proves leakage
+can establish short-window support; it does not prove that each protected
+performance cell has that particular cause. The complete audit is
+`build/multiscale_exposure_audit/report.json`.
+
+A separate fixed hypothesis requires two adjacent 100 ms projections to
+have amplitude at least .01 and phase-derived frequency within 25 cents of
+the candidate fundamental or third. Existing 400 ms support and original
+display-history rules remain unchanged. Tests compare complex projection
+magnitudes with the amplitude reference and cover brief notes, different
+played pitches, silence, warmup and resets at all three sample rates.
+Commands live in `make/phase_low_keyboard.mk`; the former multiwindow trial
+is retained unchanged.
+
+`make screen-phase-low-keyboard` removes 977 unsupported training cells
+(48.85 note-seconds), with no supported-time or matched-attack loss. The
+isolated native build `build/phase_low_keyboard_native/457dd81a7f48eb95/`
+reproduces the exact training removal sets. Native report:
+`build/phase_low_keyboard_measurement/bf1df8ac312b1818/report.json`.
+Separate calibration removes 811 cells and 40.5 unsupported note-seconds,
+with no supported-time, attack, surviving-cell, unrelated or tempo loss:
+`build/phase_low_keyboard_measurement/6a35d1d6c9e272e4/report.json`.
+
+Both `make validate-phase-piano-13` and `make validate-phase-piano-15` fail
+the unchanged protection gate, at original and derived 48 kHz rates. Piano
+13 loses one protected MIDI 36 cell at 7.8 s; it is pedal-supported after
+key release (key end 5.792708 s, CC64-supported end 9.564583 s). Piano 15
+loses one MIDI 32 cell at 11.4 s protected by the existing anticipatory
+tolerance before its 11.581250 s onset. Neither case loses key-held time,
+but that does not override the failed preservation gate. Original/derived
+rates are two representations of each recording, not four independent
+performances. Reports:
+`build/phase_low_keyboard_regressions/23c359bf2f1a72f0/report-13.json` and
+`report-15.json`. Context is recomputed in
+`build/phase_low_keyboard_regression_context.json`.
+
+This phase trial stays disabled and outside production. No new held-out
+recordings, full instrument suite or latency benchmark are consumed after
+these known failures. The parameters and protection gate are not relaxed
+to rescue the experiment. `make verify-phase-low-keyboard` validates the
+successful training/calibration evidence and the recorded regression failures.
