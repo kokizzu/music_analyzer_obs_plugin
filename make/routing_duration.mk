@@ -383,3 +383,27 @@ stage-confirmation-research: scripts/checkpoint_confirmation_research.py
 	$(PYTHON) scripts/checkpoint_confirmation_research.py --stage
 publish-confirmation-research: scripts/checkpoint_confirmation_research.py
 	$(PYTHON) scripts/checkpoint_confirmation_research.py --publish
+
+.PHONY: capture-joint-note-coverage test-joint-note-coverage
+capture-joint-note-coverage: scripts/capture_joint_note_coverage.py
+	.separator-venv/bin/python scripts/capture_joint_note_coverage.py
+test-joint-note-coverage: tests/test_joint_note_coverage.py
+	.separator-venv/bin/python tests/test_joint_note_coverage.py
+
+.PHONY: screen-joint-note-coverage
+screen-joint-note-coverage: scripts/screen_joint_note_coverage.py
+	.separator-venv/bin/python scripts/screen_joint_note_coverage.py
+
+.PHONY: test-joint-grace-rules calibrate-joint-grace
+test-joint-grace-rules: tests/test_joint_grace_rules.py scripts/joint_grace_rules.py
+	$(PYTHON) tests/test_joint_grace_rules.py
+calibrate-joint-grace: scripts/calibrate_joint_grace.py
+	.separator-venv/bin/python scripts/calibrate_joint_grace.py
+
+.PHONY: verify-joint-grace stage-joint-grace publish-joint-grace
+verify-joint-grace: scripts/checkpoint_joint_grace.py
+	.separator-venv/bin/python scripts/checkpoint_joint_grace.py
+stage-joint-grace: scripts/checkpoint_joint_grace.py
+	.separator-venv/bin/python scripts/checkpoint_joint_grace.py --stage
+publish-joint-grace: scripts/checkpoint_joint_grace.py
+	.separator-venv/bin/python scripts/checkpoint_joint_grace.py --publish

@@ -533,3 +533,40 @@ to rescue the failed candidates. No confirmation bypass or joint fit is
 integrated into the runtime. The next investigation must address missing raw
 pitch evidence and continuous note reconstruction, rather than isolated
 first-hit display additions.
+
+### Continuous joint-fit coverage and frozen release-grace calibration
+
+`make capture-joint-note-coverage` retains all 88 pitch activations at all 3,600
+training endpoints: 316,800 estimates. It reuses the fixed isolated-reference
+dictionary. Tests prove the exact first-window zero padding and that changing
+future audio cannot alter earlier windows at 16/44.1/48 kHz. Capture:
+`build/joint_note_coverage/017a9ad67bd36e7d/report.json`.
+
+`make screen-joint-note-coverage` records a training-only grid of 125 rules:
+current/latched low-writer removal, two release-grace variants, and recovery
+of missing Keys pitches already supported by Guitar and strong native scores.
+None of the low-removal or Guitar-supported variants combine benefit with zero
+protected loss/unsupported additions. Some release-grace variants pass this
+exploratory training screen (`build/joint_note_coverage_screen.json`).
+
+The selected rule requires an already smoothed, confirmed Keyboard note with
+at least three raw hits and three prior **unmodified** final visible frames.
+It can restore one hop only when the last erasure is same-pitch Other cleanup,
+and the current joint fit has relative activation at least .8 and explained
+projection at least .3. Restorations cannot sustain their own eligibility.
+This rule adds 11 training cells, recovering .366264 seconds of held coverage
+with zero unsupported additions. The restored cells extend existing display,
+rather than introducing isolated first-hit flashes.
+
+`make calibrate-joint-grace` reproduces that exact training selection and writes
+`frozen-training.json` **before** accessing recording-four calibration. Two
+independent instrumented primary exports reconstruct all 1,200 calibration
+endpoints exactly. Applying the frozen rule offline adds three cells: .084002
+seconds of held coverage, including .050000 seconds of internal dropout and
+.034002 seconds of premature release. Matched attacks are unchanged and
+unsupported additions remain zero. Report:
+`build/joint_grace_calibration/83a1aabf4a68fee2/report.json`.
+
+This is a prospective release-recovery hypothesis, not a native implementation
+or promotion. Instrument controls, recording-disjoint held-out replay, native
+numerical parity and latency remain required. No held-out data is used here.
