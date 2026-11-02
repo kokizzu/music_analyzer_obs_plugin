@@ -463,3 +463,5 @@ stage-native-joint-grace: scripts/checkpoint_native_joint_grace.py
 	$(PYTHON) scripts/checkpoint_native_joint_grace.py --stage
 publish-native-joint-grace: scripts/checkpoint_native_joint_grace.py
 	$(PYTHON) scripts/checkpoint_native_joint_grace.py --publish
+
+include make/joint_body.mk

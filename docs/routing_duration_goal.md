@@ -654,3 +654,63 @@ The scorer's display-onset count does not measure rearticulation while a pitch
 remains lit. That existing limitation does not erase this failed gate. A future
 release rule must preserve attack behavior with independent evidence rather
 than treating every confirmed-note erasure as a duration-only gap.
+
+### Stable-body variant: fresh piano gain, rejected instrument preservation
+
+The pre-existing `stable-body` training rule additionally requires the highest
+Keyboard-score-plus-.01-ownership descriptor for the pitch to have no vocal
+profile, pitch stability at least .75, onset strength at most .1 and decay at
+most .15. These values were screened before the first native held-out failure;
+the variant does not tune them against that failed recording. Native tests
+cover strongest-candidate selection, attack/decay/profile vetoes, missing
+candidates and nonfinite onset strength.
+
+`make build-joint-body-trial` retains the first trial unchanged and builds a
+separate disabled experiment. Build:
+`build/joint_body_native/24cc08e20352e385/build.json`. Exact causal/capacity
+parity passes on the original training/calibration data: six training cells
+recover .166264 seconds; one calibration cell recovers .050000 seconds.
+There are no unsupported additions or matched-attack losses. Reports under
+`build/joint_body_measurement/`: `8557dacbfe01ca3c` and `8c611ec686832360`.
+
+Four additional recordings, indices 17–20, are selected by metadata before
+audio decoding or MIDI-label evaluation. Their original audio and MIDI hashes
+are disjoint from the prior first 16 recordings and original fitting/calibration
+selection. The exact candidate and selection are frozen in
+`build/joint_body_fresh/frozen-3877a43a9e4e961d.json`. Each original-rate 60 s
+prefix is independently compared with the unmodified default-on primary replay.
+All 4,800 before endpoints match primary exactly. Recording 19 gains one 50 ms
+held cell; recordings 17/18/20 have no duration change. Matched display attacks
+remain 48/47/155/84 respectively. Unsupported, pedal-only and tolerance-only
+additions are zero. No note removals, surviving-cell changes, unrelated changes
+or tempo changes occur. This is a small recording-disjoint piano gain, not
+evidence of useful general instrument recovery.
+
+`make plan-joint-body-controls` freezes 1,154 preservation cases. All four
+shards of `build/joint_body_controls/28eb805570ce51ef/` finish: 94,834 paired
+endpoints. They record 69 added Keyboard cells: 26 annotation-supported piano
+cells, 37 additions on labeled non-piano sources (23 rate/clip cases), and six
+unscored mixed-music additions (four cases). There are no removed notes,
+unsupported annotated-piano additions, wrong isolated-piano pitches, surviving
+visible-cell/unrelated/tempo changes or 50 ms deadline misses. Derived rates
+are not independent recordings. Each shard fails the preservation gate.
+The known foreign-source additions alone disqualify this trial; mixed-music
+additions are separately unverified, not asserted to be wrong notes.
+
+One explicit counterexample is acoustic brass MIDI 39: the native fitter
+restores Keyboard MIDI 58, a third-harmonic alias, at original/derived rates.
+Voice and guitar controls also acquire Keyboard cells. A piano-only spectral
+dictionary can explain another instrument's harmonics; stable pitch evidence
+does not establish a Keyboard source. The feature stays disabled, with no
+production analyzer integration. Full latency qualification and additional
+piano attack scoring are not run after this instrument-preservation failure.
+
+`make audit-joint-body-context` tests whether actual existing three-hop Piano
+routing confirmations could provide an independent family cue. The brass
+sample has none at either rate. However, current or recent confirmations up
+to three seconds retain only one held-recovery training cell (.05 seconds),
+plus a cell with no key-held benefit. Most successful training restorations
+occur 3.05–13.55 seconds after a confirmation. No context latch is lengthened
+to recover them and no new rule is promoted. Audit:
+`build/joint_context_audit/report.json`. A stronger instrument cue remains
+necessary before overriding the native Other cleanup.
