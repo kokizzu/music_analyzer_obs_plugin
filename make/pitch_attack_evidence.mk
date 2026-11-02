@@ -1,4 +1,5 @@
 # Isolated Basic Pitch evidence; production decoder and request cadence unchanged.
+include make/pitch_continuity_validation.mk
 .PHONY: build-pitch-attack-evidence capture-pitch-attack-evidence
 build-pitch-attack-evidence: scripts/capture_pitch_attack_evidence.py tests/pitch_attack_evidence.cpp
 	.separator-venv/bin/python scripts/capture_pitch_attack_evidence.py --build

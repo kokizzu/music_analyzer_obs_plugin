@@ -5,6 +5,9 @@ import subprocess
 result = subprocess.run(['ps', '-eo', 'pid,ppid,etime,pcpu,stat,args'], text=True, capture_output=True, check=True)
 print(result.stdout.splitlines()[0])
 for line in result.stdout.splitlines():
+    if any(name in line for name in ('validate_pitch_continuity_calibration.py','pitch_continuity_calibration/','checkpoint_pitch_calibration.py')):
+        print(line)
+        continue
     if any(name in line for name in ('screen_pitch_attack_continuity.py','replay_pitch_attack_continuity.py','pitch_attack_continuity_native/','checkpoint_pitch_continuity.py')):
         print(line)
         continue

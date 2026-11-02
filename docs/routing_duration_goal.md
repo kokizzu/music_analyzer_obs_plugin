@@ -1150,3 +1150,39 @@ remains 7.5–10.5% of one core, excluding feature extraction; the 5 ms preparat
 assumption is not a benchmark. `make verify-pitch-continuity` recomputes scores
 and exact native additions. Production remains unchanged while those broader
 qualification requirements and the overall duration objective remain open.
+
+### Frozen separate-recording calibration
+
+Commands for the next qualification stage live in
+`make/pitch_continuity_validation.mk`. `make freeze-pitch-continuity-calibration`
+pins the native/ONNX binaries, model/dictionary/classifier hashes, feature data,
+driver and scoring helpers, the original thresholds and the three-hop display
+limit before capturing calibration evidence. The complete audio/MIDI hashes
+of calibration recording `training-4` are disjoint from development recordings
+1–3 and dictionary-fitting recordings 25–44. This is a known calibration
+performance used by earlier studies, not a newly reserved held-out recording.
+
+The capture/prepare/replay/score targets run sequentially. Original PCM yields
+1,161 dense model snapshots. The audio-triggered schedule executes 83 available
+model requests; one additional scheduled cue occurs before model warmup.
+The estimated model-worker share is 4.28% of one core, excluding feature
+extraction and actual integration cost. Five-millisecond preparation is still
+an assumption, and these measurements are not latency qualification.
+All-pitch seed/sustain support is frozen before reading MIDI note intervals.
+The native cache and numerical gates are unchanged from development.
+
+All 1,200 disabled-path endpoints match the primary reference. The enabled
+native replay adds one supported MIDI 53 cell at 39.75 s, recovering 50 ms of
+key-held coverage and reducing onset-gap duration from 29.940163125095 to
+29.890163125095 seconds. Matched attacks remain 123; this is no new matched
+attack on calibration. There are no removed cells, supported-time losses,
+unsupported additions, isolated additions, surviving-cell changes, unrelated
+output changes or tempo changes. The preservation gate passes.
+
+Artifacts are `build/pitch_continuity_calibration/66b2f935153a348e/`, including
+the frozen `plan.json`, actual `model.tsv`, `support.json`, native `pair.tsv`
+and `score.json`. `make verify-pitch-calibration` regenerates identical causal
+support and recomputes the native score. This limited calibration success does
+not establish fresh held-out performance, continuous negative-control safety,
+live-worker correctness or latency. The experiment remains disabled and the
+overall routing/duration goal remains active.
