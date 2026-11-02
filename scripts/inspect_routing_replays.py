@@ -5,6 +5,9 @@ import subprocess
 result = subprocess.run(['ps', '-eo', 'pid,ppid,etime,pcpu,stat,args'], text=True, capture_output=True, check=True)
 print(result.stdout.splitlines()[0])
 for line in result.stdout.splitlines():
+    if any(name in line for name in ('screen_pitch_attack_continuity.py','replay_pitch_attack_continuity.py','pitch_attack_continuity_native/','checkpoint_pitch_continuity.py')):
+        print(line)
+        continue
     if any(name in line for name in ('replay_pitch_attack_display.py', 'pitch_attack_display_native/', 'replay_pitch_attack_envelope.py', 'pitch_attack_envelope_native/', 'screen_pitch_attack_prefetch.py', 'screen_pitch_attack_evidence.py', 'screen_pitch_attack_ondemand.py', 'checkpoint_pitch_attack.py')):
         print(line)
         continue

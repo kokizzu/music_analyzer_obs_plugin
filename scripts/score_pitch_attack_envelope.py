@@ -15,9 +15,11 @@ def read(path):
 
 def main():
     parser=argparse.ArgumentParser()
-    parser.add_argument('--display',action='store_true')
+    modes=parser.add_mutually_exclusive_group()
+    modes.add_argument('--display',action='store_true')
+    modes.add_argument('--continuity',action='store_true')
     args=parser.parse_args()
-    prefix='pitch_attack_display_native' if args.display else 'pitch_attack_envelope_native'
+    prefix='pitch_attack_continuity_native' if args.continuity else 'pitch_attack_display_native' if args.display else 'pitch_attack_envelope_native'
     pointer=read(ROOT/'build'/prefix/'current.json')
     replay_path=ROOT/pointer['report']
     replay=read(replay_path)
@@ -32,7 +34,7 @@ def main():
     assert digest(directory/'src/analyzer.cpp')==built['cpp_sha256']
     assert digest(directory/'src/analyzer.hpp')==built['hpp_sha256']
     assert all(digest(ROOT/p)==h for p,h in built['inputs']['assets'].items())
-    if not args.display:
+    if not(args.display or args.continuity):
         assert digest(ROOT/'scripts/replay_pitch_attack_envelope.py')==built['inputs']['script_sha256']
     assert digest(directory/'evidence.json')==plan['evidence_sha256']
     evidence=read(directory/'evidence.json')
@@ -113,7 +115,7 @@ def main():
     passed=benefit and all(r['passed'] for r in results.values())
     assert all(digest(ROOT/p)==h for p,h in inputs.items())
     atomic_json(directory/'score.json',dict(inputs=inputs,results=results,passed=passed,benefit=benefit,
-        decision='requires_live_worker_validation' if passed else 'reject_native_display' if args.display else 'reject_native_confirmation',
+        decision='requires_live_worker_validation' if passed else 'reject_native_continuity' if args.continuity else 'reject_native_display' if args.display else 'reject_native_confirmation',
         scope='Paired actual native display with captured causal evidence; development only, no live worker or production promotion.'))
     print(directory.relative_to(ROOT)/'score.json',flush=True)
 

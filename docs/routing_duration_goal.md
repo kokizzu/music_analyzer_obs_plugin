@@ -1096,3 +1096,57 @@ preservation is established for this development replay, while stable useful
 attack recovery remains unresolved. Future continuity work must continue to
 require fresh independent pitch support rather than assume every recovered
 note should persist.
+
+### Bounded continuity with separate attack and sustain evidence
+
+`make screen-pitch-attack-continuity` first freezes audio-only decisions, then
+reads MIDI for scoring. It uses all raw first-hit trace candidates and accounts
+for existing visible rows and their remaining capacity. Original causal worker
+simulation, 150 ms input expiry and assumed 5 ms preparation remain unchanged.
+The interruption audit in `build/pitch_attack_continuity_screen/interruptions.json`
+finds fresh neural support at every immediate successor of the four native
+recoveries. Two successors fail relative pitch dominance; one of those also
+falls below the family threshold. Additional inference is not the remedy.
+
+A control retains all attack gates on each continuing frame, and a second
+control additionally requests fresh inference while an overlay is active.
+Both retain two isolated flashes; extra requests make no admission difference.
+The bounded seed-context variant keeps the strict original attack gates, but
+applies a separate sustain rule for at most three 50 ms display hops: current
+explained projection must remain at least .3 and fresh neural note confidence
+at least .3. Family and relative-dominance eligibility come from the seed.
+The cache stops immediately on pitch-support loss, native handoff, expiry,
+missing row capacity or reset. It does not synthesize an unconditional release
+tail or modify analytical tracking.
+
+| Development policy | Added cells | Held coverage recovered | Attack gain | Unsupported additions | Isolated additions |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Original first-hit display | 4 | .20 s | 3 | 0 s | 3 |
+| Strict gates on each continuing frame | 6 | .30 s | 3 | 0 s | 2 |
+| Same gates with inference refresh | 6 | .30 s | 3 | 0 s | 2 |
+| Bounded seed context, current spectral/neural sustain | 8 | .40 s | 3 | 0 s | 0 |
+
+`make test-pitch-attack-continuity` covers completion ordering, freshness,
+future-output independence, native handoff, capacity, bounded seed lifetime
+and current pitch support. `make test-native-piano-attack-continuity` checks
+the C++ cache's expiry, immediate support-loss retirement, reset, lack of
+resurrection and occupied-row preservation. The native implementation is
+unused by production and injected only into an isolated primary export.
+
+`make replay-pitch-attack-continuity` and `make score-pitch-attack-continuity`
+reproduce the exact eight simulated additions in actual native output. Each
+of the three development recordings gains one matched attack. All 3,600
+disabled-path endpoints match the previous primary replay. There are no
+removed cells, key-held/supported losses, unsupported additions, isolated
+additions, surviving-cell changes, unrelated output changes or tempo changes.
+The native artifacts are
+`build/pitch_attack_continuity_native/e0e07f89f02d4b24/`; the screen and frozen
+all-pitch support are under `build/pitch_attack_continuity_screen/`.
+
+This is development feasibility with captured causal model results. No new
+calibration, held-out performances, continuous instrument controls, live-worker
+integration or latency qualification is claimed. Estimated model-worker cost
+remains 7.5–10.5% of one core, excluding feature extraction; the 5 ms preparation
+assumption is not a benchmark. `make verify-pitch-continuity` recomputes scores
+and exact native additions. Production remains unchanged while those broader
+qualification requirements and the overall duration objective remain open.

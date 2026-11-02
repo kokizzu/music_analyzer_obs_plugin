@@ -54,3 +54,27 @@ score-pitch-attack-display: scripts/score_pitch_attack_envelope.py
 .PHONY: test-piano-attack-display
 test-piano-attack-display: scripts/test_piano_attack_display.py tests/piano_attack_display.cpp src/piano_attack_display.hpp
 	.separator-venv/bin/python scripts/test_piano_attack_display.py
+
+.PHONY: test-pitch-attack-continuity screen-pitch-attack-continuity
+test-pitch-attack-continuity: tests/test_pitch_attack_continuity.py scripts/pitch_attack_continuity.py
+	.separator-venv/bin/python tests/test_pitch_attack_continuity.py
+screen-pitch-attack-continuity: scripts/screen_pitch_attack_continuity.py scripts/pitch_attack_continuity.py
+	.separator-venv/bin/python scripts/screen_pitch_attack_continuity.py
+
+.PHONY: test-native-piano-attack-continuity
+test-native-piano-attack-continuity: scripts/test_piano_attack_display.py tests/piano_attack_continuity.cpp src/piano_attack_continuity.hpp
+	.separator-venv/bin/python scripts/test_piano_attack_display.py --continuity
+
+.PHONY: replay-pitch-attack-continuity score-pitch-attack-continuity
+replay-pitch-attack-continuity: scripts/replay_pitch_attack_continuity.py src/piano_attack_continuity.hpp tests/piano_attack_continuity.cpp
+	.separator-venv/bin/python scripts/replay_pitch_attack_continuity.py
+score-pitch-attack-continuity: scripts/score_pitch_attack_envelope.py
+	.separator-venv/bin/python scripts/score_pitch_attack_envelope.py --continuity
+
+.PHONY: verify-pitch-continuity stage-pitch-continuity publish-pitch-continuity
+verify-pitch-continuity:
+	.separator-venv/bin/python scripts/checkpoint_pitch_continuity.py
+stage-pitch-continuity:
+	.separator-venv/bin/python scripts/checkpoint_pitch_continuity.py --stage
+publish-pitch-continuity:
+	.separator-venv/bin/python scripts/checkpoint_pitch_continuity.py --publish
