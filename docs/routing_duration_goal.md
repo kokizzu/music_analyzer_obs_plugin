@@ -380,9 +380,52 @@ that experimental fix.
 
 However, causal training replays in
 `build/keyboard_alias_measurement/5bcd43eafc4fc573/report.json` change no note
-sets or durations in any of three performances. They change surviving cell
-levels in 1,043 frames. Therefore the duration gate fails: this is not a
+sets or durations in any of three performances. An earlier claim of changed
+surviving cell levels in 1,043 frames is withdrawn: that counter incorrectly
+compared every duplicate-MIDI cell with every other duplicate. A focused
+identity regression exposes the error; the corrected comparator matches the
+cell multiset one-to-one and tolerates row permutation. The independent
+note-set and duration results remain zero. Therefore the duration gate fails: this is not a
 measured timing improvement. No held-out data is consulted to rescue this
 trial, and the wrapper/flag is not integrated into production. Attack,
 premature-release and lingering-note behavior improvements remain required
 for completion of the active goal.
+
+### Low-note duration attribution and frozen experimental guard
+
+`make trace-keyboard-stages` observes post-smoothing mutations in an exported
+primary analyzer. Its 3,600 training endpoints exactly reconstruct primary
+output. The late low-Keyboard recovery writer contributes 772.64 seconds of
+annotation-unsupported duration while recovering 9.70 seconds of held coverage.
+Trace: `build/keyboard_stage_trace/034803c68151329e/report.json`.
+
+A focused regression proves that higher harmonics alone can manufacture a low
+fundamental. The isolated guard requires direct evidence at least .001 of the
+strongest probe level. It vetoes emission of the original pitch-class winner,
+preserving ranking and normalization. Rejecting before winner selection exposed
+an octave runner-up; that failed trial is retained and covered by a regression.
+The guard is experimental and is not integrated into the production analyzer.
+
+Frozen native build: `build/low_keyboard_trial/74626cea8617a3c7/build.json`.
+Training removes 1.70 seconds of unsupported duration; calibration removes
+2.20 seconds. The recording-disjoint held-out split removes only one 50 ms
+cell. Correct held/pedal-supported duration, matched attacks, surviving cells,
+unrelated grids and tempo remain unchanged. Reports under
+`build/low_keyboard_measurement/`: `fee0dc0e64085c38` (training),
+`7f84fa46b6edbbf9` (calibration), `7c9cd886327aae31` (held out).
+
+All four shards of `build/low_keyboard_controls/268291bdcd67a2de/` pass:
+1,154 original/derived cases, including 324 labelled low-note samples at two
+rates and the prior instrument/music suites. There are no protected-note
+losses, added Keyboard pitches, unrelated changes or 50 ms deadline misses.
+Derived rates are not independent recordings. This preservation result does
+not make the very small held-out piano gain a solution to duration accuracy.
+
+Training-only release-grace screens add unsupported duration and remain
+rejected (`build/keyboard_grace_audit.json`). A separate causal Hann-window
+frequency-projection screen examines longer low-frequency evidence. Its best
+loss-free training configuration removes 56.55 seconds of unsupported display,
+using a 400 ms window, .01 normalized floor, latched fundamental-or-third
+evidence and three prior original-display frames. This is offline evidence,
+not a native or held-out result. Report:
+`build/low_keyboard_coherence/dc5f99cb5044a9d7/report.json`.

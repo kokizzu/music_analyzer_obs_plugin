@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """Compile the focused visibility regression against a primary source export."""
+import argparse
 import hashlib
 import io
 import json
@@ -12,8 +13,11 @@ from routing_duration_baseline import ROOT, atomic_json, digest
 
 
 def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--low-fundamental', action='store_true')
+    args = parser.parse_args()
     identity()
-    source = ROOT / 'tests/keyboard_alias_visibility.cpp'
+    source = ROOT / ('tests/low_keyboard_fundamental.cpp' if args.low_fundamental else 'tests/keyboard_alias_visibility.cpp')
     inputs = dict(source_tree=git('rev-parse', 'HEAD:src').strip(), test_sha256=digest(source), script_sha256=digest(Path(__file__)))
     key = hashlib.sha256(json.dumps(inputs, sort_keys=True).encode()).hexdigest()[:16]
     directory = ROOT / 'build/keyboard_alias_visibility' / key

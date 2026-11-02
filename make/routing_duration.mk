@@ -222,3 +222,66 @@ verify-native-routing-consensus: scripts/publish_native_routing_consensus.py
 	$(PYTHON) scripts/publish_native_routing_consensus.py
 publish-native-routing-consensus: scripts/publish_native_routing_consensus.py
 	$(PYTHON) scripts/publish_native_routing_consensus.py --publish
+
+.PHONY: trace-keyboard-stages test-keyboard-stage-trace
+trace-keyboard-stages: scripts/trace_keyboard_stages.py tests/keyboard_stage_trace.cpp tests/keyboard_stage_trace.hpp
+	$(PYTHON) scripts/trace_keyboard_stages.py
+$(BUILD_DIR)/keyboard_stage_trace_test: tests/keyboard_stage_trace_test.cpp tests/keyboard_stage_trace.hpp | $(BUILD_DIR)
+	$(CXX) $(CXXFLAGS) -Isrc -Itests $< -o $@
+test-keyboard-stage-trace: $(BUILD_DIR)/keyboard_stage_trace_test tests/test_keyboard_stage_trace.py
+	$(BUILD_DIR)/keyboard_stage_trace_test
+	$(PYTHON) tests/test_keyboard_stage_trace.py
+
+.PHONY: test-low-keyboard-fundamental-baseline
+test-low-keyboard-fundamental-baseline: scripts/test_keyboard_alias_visibility.py tests/low_keyboard_fundamental.cpp
+	$(PYTHON) scripts/test_keyboard_alias_visibility.py --low-fundamental
+
+.PHONY: build-low-keyboard-trial
+build-low-keyboard-trial: scripts/build_keyboard_alias_trial.py src/low_keyboard_fundamental_guard.inc tests/low_keyboard_fundamental.cpp tests/low_keyboard_pair.cpp
+	$(PYTHON) scripts/build_keyboard_alias_trial.py --low-fundamental
+
+.PHONY: measure-low-keyboard-trial
+measure-low-keyboard-trial: scripts/measure_low_keyboard_trial.py
+	$(PYTHON) scripts/measure_low_keyboard_trial.py
+
+.PHONY: test-note-grid-comparison
+$(BUILD_DIR)/note_grid_comparison: tests/note_grid_comparison.cpp tests/note_grid_comparison.hpp | $(BUILD_DIR)
+	$(CXX) $(CXXFLAGS) -Isrc -Itests $< -o $@
+test-note-grid-comparison: $(BUILD_DIR)/note_grid_comparison
+	$(BUILD_DIR)/note_grid_comparison
+
+.PHONY: audit-keyboard-grace
+audit-keyboard-grace: scripts/audit_keyboard_grace.py
+	$(PYTHON) scripts/audit_keyboard_grace.py
+
+.PHONY: calibrate-low-keyboard-trial freeze-low-keyboard-parameters measure-low-keyboard-heldout
+calibrate-low-keyboard-trial: scripts/measure_low_keyboard_trial.py
+	$(PYTHON) scripts/measure_low_keyboard_trial.py --calibration
+freeze-low-keyboard-parameters: scripts/freeze_low_keyboard_parameters.py
+	$(PYTHON) scripts/freeze_low_keyboard_parameters.py
+measure-low-keyboard-heldout: scripts/measure_low_keyboard_trial.py
+	$(PYTHON) scripts/measure_low_keyboard_trial.py --heldout
+
+.PHONY: plan-low-keyboard-controls validate-low-keyboard-controls-a validate-low-keyboard-controls-b validate-low-keyboard-controls-c validate-low-keyboard-controls-d
+plan-low-keyboard-controls: scripts/validate_low_keyboard_controls.py
+	$(PYTHON) scripts/validate_low_keyboard_controls.py --plan
+validate-low-keyboard-controls-a: scripts/validate_low_keyboard_controls.py
+	$(PYTHON) scripts/validate_low_keyboard_controls.py --shard 0
+validate-low-keyboard-controls-b: scripts/validate_low_keyboard_controls.py
+	$(PYTHON) scripts/validate_low_keyboard_controls.py --shard 1
+validate-low-keyboard-controls-c: scripts/validate_low_keyboard_controls.py
+	$(PYTHON) scripts/validate_low_keyboard_controls.py --shard 2
+validate-low-keyboard-controls-d: scripts/validate_low_keyboard_controls.py
+	$(PYTHON) scripts/validate_low_keyboard_controls.py --shard 3
+
+.PHONY: evaluate-low-keyboard-coherence
+evaluate-low-keyboard-coherence: scripts/evaluate_low_keyboard_coherence.py
+	.separator-venv/bin/python scripts/evaluate_low_keyboard_coherence.py
+
+.PHONY: verify-low-keyboard-evidence stage-low-keyboard-evidence publish-low-keyboard-evidence
+verify-low-keyboard-evidence: scripts/checkpoint_low_keyboard_evidence.py
+	$(PYTHON) scripts/checkpoint_low_keyboard_evidence.py
+stage-low-keyboard-evidence: scripts/checkpoint_low_keyboard_evidence.py
+	$(PYTHON) scripts/checkpoint_low_keyboard_evidence.py --stage
+publish-low-keyboard-evidence: scripts/checkpoint_low_keyboard_evidence.py
+	$(PYTHON) scripts/checkpoint_low_keyboard_evidence.py --publish

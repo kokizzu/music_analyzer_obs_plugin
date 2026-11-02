@@ -1,5 +1,6 @@
 #include "analyzer.hpp"
 #include "non_tempo_snapshot.hpp"
+#include "note_grid_comparison.hpp"
 #include <algorithm>
 #include <chrono>
 #include <cmath>
@@ -72,14 +73,7 @@ int main(int argc, char **argv)
 		const auto all_before = any_notes(before), all_after = any_notes(after);
 		std::set<int> lost;
 		std::set_difference(all_before.begin(), all_before.end(), all_after.begin(), all_after.end(), std::inserter(lost, lost.end()));
-		bool survivor_changed = false;
-		for (const auto &row : before.keyboard_notes.rows)
-			for (const auto &a : row) {
-				if (!a.active) continue;
-				for (const auto &after_row : after.keyboard_notes.rows)
-					for (const auto &b : after_row)
-						if (b.active && b.midi == a.midi && !mao_test::same_cell(a, b)) survivor_changed = true;
-			}
+		const bool survivor_changed = mao_test::surviving_grid_cells_changed(before.keyboard_notes, after.keyboard_notes);
 		std::string drums;
 		for (const auto &drum : before.drums) if (drum.active) drums += (drums.empty() ? "" : ",") + std::string(drum.label);
 		const bool bpm_changed = before.estimated_bpm != after.estimated_bpm || before.bpm_confidence != after.bpm_confidence ||
