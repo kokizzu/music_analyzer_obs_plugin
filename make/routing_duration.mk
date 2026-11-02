@@ -467,3 +467,4 @@ publish-native-joint-grace: scripts/checkpoint_native_joint_grace.py
 include make/joint_body.mk
 include make/piano_context.mk
 include make/keyboard_release.mk
+include make/keyboard_attack.mk

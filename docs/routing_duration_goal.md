@@ -920,3 +920,76 @@ recordings, full instrument suite or latency benchmark are consumed after
 these known failures. The parameters and protection gate are not relaxed
 to rescue the experiment. `make verify-phase-low-keyboard` validates the
 successful training/calibration evidence and the recorded regression failures.
+
+### First-hit context and supervised dictionary studies
+
+`make screen-piano-context-attacks` applies the existing frozen 27-feature
+instrument classifier to the 980 first-hit cases. Its .99 cutoff admits eight
+cells, including .15 annotation-unsupported note-seconds, and adds no matched
+attacks. The same classifier score applies to every candidate in a frame;
+instrument confidence does not establish the correct pitch. Adding the fixed
+joint-pitch floors (.8 relative activation, .3 explained projection) leaves
+one supported 50 ms internal-dropout repair, with no attack gain. That limited
+training assay is not native confirmation or promotion evidence.
+
+A separate predeclared cutoff uses the original fitting/calibration negative
+maximum plus .001 (.9312624345928283), without refitting the classifier or
+searching first-hit labels for a cutoff. With the same joint-pitch floors it
+admits 31 cells and gains four matched attacks, but adds .20 unsupported
+note-seconds. It fails the safety gate. Reports:
+`build/piano_context_attack_screen/report.json`,
+`build/piano_context_joint_attack_screen/report.json`, and
+`build/piano_context_empirical_joint_attack_screen/report.json`.
+
+`make screen-supervised-piano-attacks` tests timbre adaptation with nonnegative
+spectral learning: 40 epochs, four masked activation updates per epoch, and
+a prior penalty. Only fitting-recording MIDI masks constrain learning;
+inference jointly estimates all 88 pitches without MIDI masks. Never-observed
+pitch columns retain their prior. The mask includes trailing-window overlap,
+CC64-supported duration and the existing release tolerance, excludes future
+onsets and ignores percussion. Focused tests verify these boundaries,
+nonnegative/normalized learned bases, inactive-column preservation and input
+validation.
+
+Each dictionary is fitted on two complete development recordings and frozen
+before inferring the third. The family classifier was previously fitted on
+all three, so this is pitch-dictionary cross-validation, not whole-pipeline
+held-out proof. It gains four attacks across the folds, with .10 unsupported
+note-seconds and 16 isolated additions; it is rejected. Report:
+`build/supervised_piano_attack_screen/a5e51624f9ac2c67/report.json`.
+
+To test whether greater fitting diversity resolves the aliases,
+`make transfer-real-piano-dictionary` freezes recordings 25–44 as **fitting**
+data before decoding. Their complete audio/MIDI hashes are disjoint from
+the known first 24 and original fitting/calibration selection. The study
+collects 12,000 causal 100 ms spectra and fits on 11,666 frames with nonempty
+MIDI masks. The model is frozen before evaluation on the existing three
+development recordings. Recordings 45 onward are not decoded or evaluated.
+No new recordings are presented as held-out validation of their own fitting.
+
+The resulting development outcomes are:
+
+| Dictionary / eligibility | Added cells | Matched-attack gain | Unsupported addition | Isolated additions |
+| --- | ---: | ---: | ---: | ---: |
+| Prior isolated-reference dictionary, empirical context cutoff | 31 | 4 | .20 s | 16 |
+| Leave-recording-out adapted dictionaries | 36 | 4 | .10 s | 16 |
+| Twenty-performance adapted dictionary | 33 | 9 | .30 s | 18 |
+| Same dictionary, fixed causal activation rise | 13 | 6 | .15 s | 5 |
+
+The last rule requires current activation to be at least twice the maximum
+of the preceding three hops. Tests prove that future activation cannot affect
+this decision. It reduces unsupported additions but does not eliminate them.
+Single-hop display additions do not simulate the native confirmation envelope;
+the isolated-cell counts remain visible and are not waived as a runtime gate.
+The twenty-recording transfer and rise reports are
+`build/real_piano_dictionary_transfer/cfb32e5534dc943f/report.json` and
+`build/piano_attack_rise_screen/report.json`. All unsafe variants remain
+outside production. No new native implementation, calibration, held-out
+evaluation or latency qualification is claimed for them.
+
+Review of the existing primary Basic Pitch path finds 22 decoder lookahead
+frames (about 250 ms) and at most two history snapshots per second. Those
+existing paths do not establish a solution to the 150 ms attack target; no
+new model inference or timing claim is made in this study. The evidence
+continues to require pitch-specific attack validation in addition to a global
+instrument cue. Commands and verification live in `make/keyboard_attack.mk`.
