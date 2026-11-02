@@ -748,3 +748,34 @@ for this recovery role and remains outside the runtime. No new held-out
 positive recordings, native integration or latency qualification are consumed
 for a candidate with no retained benefit. Feature tests verify source-identity
 grouping, gain invariance, causal trailing-window extraction and silence.
+
+### Release-tail attribution: reject shortening without independent support
+
+`make audit-keyboard-release-tails` joins the existing raw/smoothed/final
+Keyboard trace with continuous joint fits and training MIDI/CC64 intervals.
+Across the same three 60 s training prefixes, raw-absent final notes divide
+into 9,418 smoothed cells and 16,205 post-smoothing additions. The former
+contain 295.095 unsupported note-seconds, but also 72.456 key-held and 48.406
+pedal-only seconds. The latter contain 776.433 unsupported note-seconds,
+21.805 key-held and 6.837 pedal-only seconds. These are simultaneous-note
+durations and can exceed elapsed audio time; neither category is inherently
+incorrect. Existing stage attribution identifies late low-keyboard insertion
+as the dominant post-smoothing source.
+
+A large tracking miss count does not prove an envelope remains active.
+For example, a final cell can be added after smoothing with zero envelope,
+zero smoothed level and an unconfirmed tracker. The regression test excludes
+that case from release-tail eligibility. Actual smoothed tails in this
+measurement have no more than 13 missed hops, consistent with the existing
+.65 s envelope; the much larger miss counts belong to later additions.
+
+The single fixed removal hypothesis requires absent current raw level,
+positive smoothed/final levels, a confirmed positive envelope, at least two
+misses, and both joint relative and explained activation below .01. It selects
+5,064 cells: 194.224 unsupported note-seconds, **14.109 key-held seconds**,
+16.266 pedal-only seconds and 28.601 tolerance-only seconds. It therefore
+fails preservation on training data and is not implemented in the runtime.
+No calibration or held-out recordings are inspected for this failed rule.
+Report: `build/keyboard_release_tail_audit/report.json`; regression:
+`make test-keyboard-release-tails`. Reducing release time alone cannot fix
+the larger postprocessing-addition error source and risks the supported tails.
