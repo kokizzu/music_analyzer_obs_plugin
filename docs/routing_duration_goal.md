@@ -714,3 +714,37 @@ occur 3.05–13.55 seconds after a confirmation. No context latch is lengthened
 to recover them and no new rule is promoted. Audit:
 `build/joint_context_audit/report.json`. A stronger instrument cue remains
 necessary before overriding the native Other cleanup.
+
+### Dedicated acoustic-piano context screen: insufficient recovery coverage
+
+`make capture-piano-context` collects 11,123 causal current-window contexts:
+24 existing cepstral values and three relative segment RMS values. The first
+three piano performances provide fitting positives; recording four and all
+isolated acoustic-piano identity 004 provide calibration positives. Known
+non-keyboard NSynth instruments and real guitar/singer identities use a frozen
+identity hash split, with derived rates in their source identity's cohort.
+Other keyboard timbres and mixtures are excluded from this binary label scope.
+Source hashes, cohorts and extraction scripts are recorded in
+`build/piano_context_data/6bd7cc884c68ff15/report.json`.
+
+`make evaluate-piano-context` fits 24 depth-eight trees and freezes the model
+before evaluating held identities. The cutoff is the larger of .99 and the
+maximum fitting/calibration negative score plus .001. Frozen model and report:
+`build/piano_context_model/3b35eca632935a8c/`. At .99, it accepts 37/3,529
+fitting piano frames and 9/1,703 calibration piano frames, with zero accepted
+negatives among 3,308 fitting, 651 calibration and 1,932 held-out frames.
+The latter cover 14 held-out negative identities, with maximum score .921094.
+There are no held-out positive performances in this screen. Five sampled
+contexts per negative clip do not establish continuous-replay preservation.
+
+`make audit-piano-context-recovery` applies that exact frozen model to the
+already observed stable-body proposals. It accepts none of the six training,
+one calibration or 69 preservation-suite added cells. Maximum training
+proposal score is .955562; calibration is .883993. Thus it rejects the known
+foreign-source additions but also removes all measured recovery benefit.
+The cutoff is not lowered to rescue these examples. Audit:
+`build/piano_context_recovery/report.json`. This context guard is rejected
+for this recovery role and remains outside the runtime. No new held-out
+positive recordings, native integration or latency qualification are consumed
+for a candidate with no retained benefit. Feature tests verify source-identity
+grouping, gain invariance, causal trailing-window extraction and silence.
