@@ -1,4 +1,5 @@
 # First-hit attack evidence; runtime changes require independent replay gates.
+include make/pitch_attack_evidence.mk
 .PHONY: screen-piano-context-attacks
 screen-piano-context-attacks: scripts/screen_piano_context_attacks.py
 	.separator-venv/bin/python scripts/screen_piano_context_attacks.py

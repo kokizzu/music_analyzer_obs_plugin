@@ -993,3 +993,46 @@ existing paths do not establish a solution to the 150 ms attack target; no
 new model inference or timing claim is made in this study. The evidence
 continues to require pitch-specific attack validation in addition to a global
 instrument cue. Commands and verification live in `make/keyboard_attack.mk`.
+
+### Actual Basic Pitch evidence and causal scheduling
+
+`make capture-pitch-attack-evidence` exports the primary PCM-history, ONNX
+runtime and decoder into an isolated build. Only the diagnostic snapshot
+stride changes from 500 to 50 ms. It captures 3,483 actual model results over
+the existing three development prefixes, using original PCM without gain.
+The original decoder and raw note/onset tensor frame 168 are recorded together.
+`make test-pitch-attack-history` proves bit-identical waveforms at shared
+snapshot endpoints at 16, 44.1 and 48 kHz. Production cadence is unchanged.
+
+The request simulator selects the latest pending input on one worker, rounds
+measured execution time upward to whole samples, and exposes results only
+after completion. Inputs older than 150 ms expire. Queue regression tests
+cover overload, availability, expiry, rounding and preparation delay.
+
+| Development request policy / decoder | Added cells | Attack gain | Unsupported addition | Isolated additions | Estimated worker CPU / one core |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Existing 500 ms cadence / original decoder | 4 | 0 | 0 s | 1 | 5.8% |
+| Dense 50 ms / original decoder | 14 | 3 | 0 s | 8 | 57–58% |
+| Dense 50 ms / raw near-edge note | 19 | 6 | 0 s | 11 | 57–58% |
+| Audio activation rise / raw near-edge note | 4 | 2 | 0 s | 3 | 3.2–4.2% |
+| Audio strong-pitch change / raw near-edge note | 8 | 3 | 0 s | 5 | 7.5–10.5% |
+
+All admissions also require the frozen family classifier and twenty-performance
+joint-pitch dictionary gates. Request scheduling uses current/past audio cues,
+frozen before first-hit annotation lookup. Prefetch charges an assumed 5 ms
+preparation delay before measured inference. This assumption is not a native
+timing benchmark, and the worker percentages exclude feature extraction.
+The current-input on-demand screen is separately marked an optimistic upper
+bound: its result completes after the input endpoint, so its additions cannot
+be claimed as available there. Native confirmation normally occurs on the
+second hit; merely waiting until the next hop may provide no attack benefit.
+
+Reports are `build/pitch_attack_evidence/c2298a7181c716c3/report.json`,
+`build/pitch_attack_model_screen/report.json`,
+`build/pitch_attack_ondemand_bound/report.json`, and
+`build/pitch_attack_prefetch_screen/report.json`.
+`make verify-pitch-attack-evidence` checks input hashes, admission scores,
+completion guards and the unchanged primary analyzer. These are development
+simulations, with isolated flashes still unresolved. Native envelope, row
+capacity, calibration, recording-disjoint validation and actual latency gates
+remain required before promotion. No feature is enabled by this checkpoint.
