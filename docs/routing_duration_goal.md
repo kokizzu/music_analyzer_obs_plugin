@@ -1036,3 +1036,34 @@ completion guards and the unchanged primary analyzer. These are development
 simulations, with isolated flashes still unresolved. Native envelope, row
 capacity, calibration, recording-disjoint validation and actual latency gates
 remain required before promotion. No feature is enabled by this checkpoint.
+
+### Rejected native early-confirmation replay
+
+`make replay-pitch-attack-envelope` tests the native confirmation mechanism
+before a live worker integration. The fixed development strong-pitch-change /
+near-edge-note policy supplies all 88 pitches at every endpoint, using current
+joint-fit and family features and only completed captured model results.
+Support is frozen before MIDI scoring; no annotated first-hit case list drives
+the native trial. Supported candidates use the existing new-note level floor
+for immediate confirmation, preserving the native release envelope and all
+downstream processing. The setting defaults to false in the isolated export.
+
+`make score-pitch-attack-envelope` verifies all 3,600 disabled-path endpoints
+against the previous primary replay and scores the actual enabled snapshots:
+
+| Development recording | Added / removed cells | Attack gain | Key-held time lost | Isolated additions | Unrelated frames / surviving-cell changes |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| 1 | 1 / 0 | 1 | 0 s | 0 | 0 / 0 |
+| 2 | 3 / 3 | 1 | .05 s | 2 | 2 / 1 |
+| 3 | 1 / 1 | 1 | 0 s | 1 | 0 / 0 |
+
+There are no annotation-unsupported additions or tempo changes, but those
+facts do not override the correct-note loss, ambiguous-row changes and
+surviving-cell regression. Early confirmation changes later decisions and
+capacity competition; single-hop post-display additions do not model these
+interactions. The trial is rejected without calibration or new held-out access.
+No live-worker or latency qualification is claimed. Production is unchanged.
+Artifacts are under `build/pitch_attack_envelope_native/9bf32267d49cc8fb/`;
+`score.json` includes individual additions and removals. The evidence supports
+testing a separate display recovery path that preserves analytical tracking
+and occupied rows, rather than promoting this confirmation mutation.

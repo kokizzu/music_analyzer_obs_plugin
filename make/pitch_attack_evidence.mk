@@ -32,3 +32,11 @@ stage-pitch-attack-evidence:
 	.separator-venv/bin/python scripts/checkpoint_pitch_attack.py --stage
 publish-pitch-attack-evidence:
 	.separator-venv/bin/python scripts/checkpoint_pitch_attack.py --publish
+
+.PHONY: replay-pitch-attack-envelope
+replay-pitch-attack-envelope: scripts/replay_pitch_attack_envelope.py tests/pitch_attack_replay_support.hpp
+	.separator-venv/bin/python scripts/replay_pitch_attack_envelope.py
+
+.PHONY: score-pitch-attack-envelope
+score-pitch-attack-envelope: scripts/score_pitch_attack_envelope.py
+	.separator-venv/bin/python scripts/score_pitch_attack_envelope.py
