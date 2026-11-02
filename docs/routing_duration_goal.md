@@ -1,6 +1,8 @@
 # Native routing and note-duration goal
 
-Status: active. No new detection behavior is promoted yet.
+Status: active. The native Piano/Guitar duplicate filter passes its first
+integrated gates and is available behind a false-by-default experimental
+setting. No default behavior change is promoted yet.
 
 Improve native instrument routing and note duration on the verified upstream
 primary branch. Reduce wrong Guitar/Voice routing on solo piano; improve
@@ -100,5 +102,78 @@ make capture-routing-candidates
 ```
 
 The scorer has ten focused regression tests. No model is trained or enabled by
-these targets. The objective is not complete merely because these measurements
-and tests pass.
+the four baseline targets above. The objective is not complete merely because
+these measurements and tests pass.
+
+## Controls, alignment and native candidate
+
+`build/routing_controls/84b9eb144888ea8d/report.json` contains 150 original-rate
+controls: 48 NSynth Guitar clips, all 22 available NSynth Voice clips and 80
+recording-distinct human Voice excerpts. Guitar identity and singer groups are
+split before evaluation. The bare Keyboard-duplicate rule would lose 340
+correct Guitar cells and 19 correct Voice cells, so it is rejected.
+
+`build/routing_polycontrols/8fc4e60bf6c3a79b/report.json` adds 32 Guitar-TECHS
+P1 clips for fitting, 32 P2 clips for held-out testing and 16 acoustic chord
+recordings. Every Guitar-row pitch is conservatively protected, even if absent
+from note annotations. The early 53-feature model makes 64 protected row
+changes; these must not all be called verified correct-note losses. A native
+Guitar-owner veto leaves 15 changes, including six annotation-supported notes
+and nine unverified pitches. Both variants are rejected. The strict all-native-
+candidates-must-be-Keyboard-or-Bass veto gives no held-out piano gain and is
+also rejected.
+
+`build/routing_guitarset_controls/9801a45ca6c823e8/report.json` adds actual
+ten-second chordal Guitar performances: performers 00/01 for fitting, 02 for
+negative cutoff calibration, and 05 held out. Performers 03/04 remain reserved.
+The improved model combines 29 native descriptors, 24 current-window cepstra
+and nine current-window ownership-context features. It fits 1,787 cells, with
+133 separate negative-calibration cells; held-out observations do not set its
+weights or cutoff. The cutoff is .9. Near split boundaries the lower of both
+branches is used, with uncertainty `(1 + abs(value)) * 1e-10`.
+
+Canonical weights: `models/piano_guitar_verifier.json`, SHA-256
+`f5721ff9a0ff45fa45b994fe02f1f99c6f5607db4de0ebedc0a4d3d85759b6d6`.
+The generated native forest has 2,004 nodes. C++/Python checks pass 11,012
+probability/profile cases from the captured data, with 32 independent-of-audio
+frozen vectors for routine tests. Three context tests cover competing Guitar
+evidence, candidate-order/history independence and empty-frame markers.
+
+The actual native paired build is
+`build/piano_guitar_trial/5423eaeda3f96b38/build.json`. It applies the hook to
+primary sources without replacing older worktree edits. With the flag off,
+every tested endpoint matches the prior published analyzer. With it on:
+
+| Actual native gate | Windows | Wrong piano Guitar cells removed | Correct Guitar losses / protected chord-row changes |
+| --- | ---: | ---: | ---: |
+| Eight piano recordings | 9,600 | 1,271 (533 held out) | 0 / 0 |
+| 246 single-note, human Voice, recorded-chord and musical controls | 12,819 | Not scored as piano | 0 / 0 |
+
+Reports: `build/piano_guitar_pair/67994976db4bc16f/report.json` (piano) and
+`build/piano_guitar_pair/6d370d0731dc86a1/report.json` (controls). Runtime removals
+match offline predictions at every endpoint. No surviving Guitar-row cell is
+modified; every other note row, chord/root state and drum state compared by the
+paired harness is identical. All nine compared tempo values are identical and
+no MIDI disappears from the union of rows. No measured before/after call
+misses its 50 ms deadline. The experiment uses no external inference worker.
+
+`AnalysisSettings::experimental_piano_guitar_filter` remains `false`. The hook
+requires a matching visible Keyboard pitch, no vocal profile, native-only
+fusion, and the calibrated 100 ms window / 50 ms hop. It changes only Guitar
+display duplication after chord/root analysis; Keyboard note duration and
+Voice behavior are unchanged. The same limited insertion is present locally,
+and `make test-analyzer-internal` passes all 1,029 existing checks with the
+default disabled setting. Remaining older local edits are not published with it.
+
+Alignment audit `build/routing_alignment/6ef01f7387affe42/report.json` compares
+spectral novelty with MIDI onset envelopes over each prefix and its thirds.
+Whole-prefix peaks are 10–20 ms from zero. This supports absence of a large
+systematic offset; it is not independent proof of note-level alignment and
+does not correct or shift any labels. Three diagnostic tests cover known
+positive/negative offsets, silence and invalid shapes.
+
+Before enabling the native filter by default, extend regression coverage to
+the remaining Guitar recordings, untouched piano/performance records, actual
+mixed sources where labelled, and the application's 48 kHz input path. Voice
+routing and the requested note-duration behavior changes remain unfinished.
+Neither these routing gains nor green tests fulfill the full goal by themselves.

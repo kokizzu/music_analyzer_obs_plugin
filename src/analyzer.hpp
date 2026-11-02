@@ -136,6 +136,7 @@ struct AnalysisSettings {
 	// Test/corpus-harness diagnostic only. When set, retain this candidate in
 	// the final tempo debug snapshot even when it is not in the score top five.
 	int tempo_debug_probe_bpm = 0;
+	bool experimental_piano_guitar_filter = false;
 	// Optional Basic Pitch mirror configuration.  These paths are deliberately
 	// empty by default: model loading and inference remain outside OBS's audio
 	// callback and the feature stays disabled unless the user supplies both
