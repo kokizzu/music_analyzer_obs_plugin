@@ -1186,3 +1186,38 @@ support and recomputes the native score. This limited calibration success does
 not establish fresh held-out performance, continuous negative-control safety,
 live-worker correctness or latency. The experiment remains disabled and the
 overall routing/duration goal remains active.
+
+### Prospective held-out cohort and independent primary replay
+
+`make build-pitch-heldout-tools` builds an independent primary replay and a
+standalone native cepstral extractor from the verified primary source tree.
+Before new source decoding, the extractor matches all 4,800 known feature
+endpoints exactly, with no family-decision mismatches. The primary replay
+matches 2,400 known output endpoints, including the development/calibration
+boundary. Tool artifacts are `build/pitch_heldout_tools/06aec4200b7fb541/`.
+
+`make freeze-pitch-continuity-heldout` selects the first twelve eligible
+performances after manifest row 44, excluding complete audio/MIDI hashes in
+the earlier 44, original baseline selection or current cohort. PCM format and
+minimum duration are checked without decoding samples. The frozen selection
+is `fresh-45` through `fresh-56` under
+`build/pitch_continuity_heldout/e6e6ad529ce07f1c/plan.json`. These are new to the
+audited development/fitting/calibration cohorts; no claim of performer- or
+session-disjointness is made from file hashes alone. All twelve are selected
+before audio decoding or MIDI interval scoring, with no threshold changes.
+
+`make run-pitch-continuity-heldout` processes each original 60-second prefix
+through the independent primary, actual model capture, frozen audio support
+and unchanged native continuity cache. MIDI intervals are read only after
+that recording's support and native replay are frozen. The prospective rule
+stops at the first preservation failure. If all twelve preserve output,
+useful attack/held-coverage gains must occur on at least two recordings before
+advancing to continuous controls and live-worker/latency qualification.
+
+`make test-score-pitch-continuity-pair` tests correct-note loss, unsupported
+addition, isolated flashes, exact-primary comparison and CC64-supported
+duration beyond key-release grace. `make verify-pitch-heldout` recomputes
+completed cases and writes an explicitly provisional `verified_snapshot.json`
+when the cohort is still running. It never treats unevaluated recordings as
+passed. The experiment stays disabled; this protocol and its completed-case
+checkpoints do not establish whole-cohort success or production readiness.

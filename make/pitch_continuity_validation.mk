@@ -1,4 +1,5 @@
 # Frozen recording-disjoint calibration; no production promotion.
+include make/pitch_heldout.mk
 .PHONY: freeze-pitch-continuity-calibration capture-pitch-continuity-calibration prepare-pitch-continuity-calibration replay-pitch-continuity-calibration score-pitch-continuity-calibration
 freeze-pitch-continuity-calibration:
 	.separator-venv/bin/python scripts/validate_pitch_continuity_calibration.py freeze
