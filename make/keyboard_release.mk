@@ -65,6 +65,10 @@ validate-multiscale-controls-d: scripts/validate_multiscale_controls.py
 benchmark-multiscale-low-keyboard: scripts/benchmark_multiscale_low_keyboard.py
 	.separator-venv/bin/python scripts/benchmark_multiscale_low_keyboard.py
 
+.PHONY: qualify-multiscale-low-keyboard
+qualify-multiscale-low-keyboard: scripts/qualify_multiscale_low_keyboard.py
+	.separator-venv/bin/python scripts/qualify_multiscale_low_keyboard.py
+
 .PHONY: verify-multiscale-low-keyboard stage-multiscale-low-keyboard publish-multiscale-low-keyboard
 verify-multiscale-low-keyboard: scripts/checkpoint_multiscale_low_keyboard.py
 	.separator-venv/bin/python scripts/checkpoint_multiscale_low_keyboard.py

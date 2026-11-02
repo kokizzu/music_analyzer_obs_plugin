@@ -823,8 +823,43 @@ directory's per-recording subdirectories.
 
 Thus fresh-recording benefit is unproven despite training/calibration gains.
 The trial stays disabled and is not promoted. The 1,154-case preservation
-selection is prepared in `build/multiscale_low_keyboard_controls/02e823638e79b6e3/plan.json`;
-its replay shards and the separate CPU/wall latency benchmark have **not**
-run. Their Make targets are provided for repeatable later qualification.
-Neither the neutral fresh results nor the prepared plan count as passing
-full instrument preservation or latency qualification.
+selection was prepared in `build/multiscale_low_keyboard_controls/02e823638e79b6e3/plan.json`.
+At the initial trial checkpoint, its replay shards and the separate CPU/wall
+latency benchmark had not run. Their subsequent results follow below; the
+neutral fresh results alone do not establish a general performance benefit.
+
+### Multiwindow preservation and latency qualification
+
+All four `validate-multiscale-controls-*` shards finish and pass: 1,154 cases,
+94,834 paired endpoints. They remove 3,261 Keyboard cells with zero added
+cells, annotated correct-any-row losses, annotated correct-Keyboard losses,
+surviving-cell changes, unrelated changes, tempo changes or 50 ms deadline
+misses. This includes the original/derived-rate piano recordings 13 and 15
+that failed the old 400 ms guard. `make qualify-multiscale-low-keyboard`
+recomputes these checks from hashed TSVs, original PCM, source references and
+MIDI annotations; it does not merely trust each shard's passed flag.
+
+Of these removals, 1,887 are wrong pitches on labeled isolated keyboard-family
+samples (including non-acoustic keyboard timbres). The expected played pitch
+is preserved. Other family totals are 981 on `other`, 349 on guitar, five on
+vocals and 39 on `control` clips. These counts are removed cells, not claims
+that every removed pitch in mixed music is incorrect. The mixed-music
+annotations do not exhaustively label all possible piano parts.
+
+All 16 original/48 kHz cases for piano performances 9–16 have zero changes.
+Derived rates are not independent recordings. Together with neutral fresh
+recordings 21–24, this still leaves general performance benefit unproven,
+despite isolated-note improvements and fitting/calibration duration gains.
+No thresholds are adjusted using these results and no behavior is promoted.
+
+`make benchmark-multiscale-low-keyboard` runs separately after all preservation
+jobs terminate. Five passes provide 1,000 paired windows under the unchanged
+50/50/1/2 ms gates: wall p99 16.3097 ms, wall maximum 17.2039 ms, thread CPU
+maximum 17.1646 ms, mean added CPU .13166831 ms and p99 added CPU 1.3071 ms.
+There are no wall deadline misses, decision inconsistencies, surviving-cell,
+unrelated or tempo changes. Report:
+`build/multiscale_low_keyboard_latency/04a27c0cfa215aba/report.json`.
+The separate qualification report is
+`build/multiscale_low_keyboard_qualification/report.json`. These gates qualify
+the measured experiment's preservation and cost; production remains unchanged
+while its benefit on additional piano performances is unresolved.

@@ -10,7 +10,8 @@ from routing_duration_baseline import ROOT, digest
 PATHS=['make/keyboard_release.mk','docs/routing_duration_goal.md','src/multiscale_low_keyboard.hpp',
        'scripts/screen_multiscale_low_keyboard.py','tests/test_multiscale_low_keyboard.py','tests/multiscale_low_keyboard.cpp',
        'scripts/build_multiscale_low_keyboard.py','scripts/measure_multiscale_low_keyboard.py','scripts/run_multiscale_fresh.py',
-       'scripts/validate_multiscale_controls.py','scripts/benchmark_multiscale_low_keyboard.py','scripts/checkpoint_multiscale_low_keyboard.py']
+       'scripts/validate_multiscale_controls.py','scripts/benchmark_multiscale_low_keyboard.py','scripts/checkpoint_multiscale_low_keyboard.py',
+       'scripts/qualify_multiscale_low_keyboard.py','scripts/inspect_routing_replays.py']
 
 
 def read(path):
@@ -62,7 +63,16 @@ def verify():
             ast.parse((ROOT/path).read_text())
     for target in ('test-multiscale-low-keyboard','test-native-multiscale-low-keyboard'):
         subprocess.run(['make',target],cwd=ROOT,check=True)
-    print('Verified disabled native multiwindow trial: train/calibration gain, four fresh recordings unchanged; full controls/latency remain unrun',flush=True)
+    qualification=ROOT/'build/multiscale_low_keyboard_qualification/report.json'
+    if qualification.exists():
+        report=read(qualification)
+        assert all(digest(ROOT/p)==h for p,h in report['inputs'].items())
+        assert not report['promote'] and report['fresh_unsupported_removed_seconds']==0
+        assert report['preservation_passed'] and report['latency_run'] and report['latency_passed']
+        assert report['preservation']['cases']==1154 and report['preservation']['windows']==94834
+        assert report['preservation']['removed']==3261 and report['isolated_keyboard_wrong_pitches_removed']==1887
+        assert all(not r['removed'] and not r['correct_losses'] for r in report['piano_performances'].values())
+    print('Verified disabled native multiwindow trial: train/calibration gain, four fresh recordings unchanged; consult separate preservation/latency qualification',flush=True)
 
 
 def main():
@@ -83,7 +93,10 @@ def main():
     print(git('diff','--cached','--stat'),flush=True)
     if args.stage:
         return
-    print(git('commit','-m','Validate disabled multiwindow low-note trial and record neutral fresh results'),flush=True)
+    message=('Qualify multiwindow instrument preservation and CPU latency'
+             if (ROOT/'build/multiscale_low_keyboard_qualification/report.json').exists() else
+             'Validate disabled multiwindow low-note trial and record neutral fresh results')
+    print(git('commit','-m',message),flush=True)
     print(git('push',remote,'HEAD:'+primary),flush=True)
     assert identity()[3]==git('rev-parse','HEAD').strip()
 
