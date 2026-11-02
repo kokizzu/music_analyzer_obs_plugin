@@ -407,3 +407,19 @@ stage-joint-grace: scripts/checkpoint_joint_grace.py
 	.separator-venv/bin/python scripts/checkpoint_joint_grace.py --stage
 publish-joint-grace: scripts/checkpoint_joint_grace.py
 	.separator-venv/bin/python scripts/checkpoint_joint_grace.py --publish
+
+.PHONY: test-native-joint-pitch
+test-native-joint-pitch: scripts/test_native_joint_pitch.py src/joint_piano_fit.hpp tests/joint_piano_fit_replay.cpp
+	.separator-venv/bin/python scripts/test_native_joint_pitch.py
+
+.PHONY: test-joint-piano-fit-safety
+$(BUILD_DIR)/joint_piano_fit_safety: tests/joint_piano_fit_safety.cpp src/joint_piano_fit.hpp | $(BUILD_DIR)
+	$(CXX) $(CXXFLAGS) -Isrc $< -o $@
+test-joint-piano-fit-safety: $(BUILD_DIR)/joint_piano_fit_safety
+	$(BUILD_DIR)/joint_piano_fit_safety
+
+.PHONY: stage-native-joint-pitch publish-native-joint-pitch
+stage-native-joint-pitch: scripts/checkpoint_native_joint_pitch.py
+	.separator-venv/bin/python scripts/checkpoint_native_joint_pitch.py --stage
+publish-native-joint-pitch: scripts/checkpoint_native_joint_pitch.py
+	.separator-venv/bin/python scripts/checkpoint_native_joint_pitch.py --publish

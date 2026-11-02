@@ -570,3 +570,29 @@ unsupported additions remain zero. Report:
 This is a prospective release-recovery hypothesis, not a native implementation
 or promotion. Instrument controls, recording-disjoint held-out replay, native
 numerical parity and latency remain required. No held-out data is used here.
+
+### Native joint fitter parity
+
+`make test-native-joint-pitch` builds the standalone C++ current-window fitter
+in `src/joint_piano_fit.hpp`. It reproduces the reference's linear resampling,
+Hann window, 4096-point FFT, three-bin smoothing, normalized projection and
+80 simultaneous multiplicative updates. Dictionary and Gram geometry are
+configured once; no audio history or predictions are used across calls.
+The test loads the frozen dictionary from build artifacts; no dictionary
+weights are added to the production binary or repository.
+
+All 316,800 training pitch estimates match the reference within 1.60e-13,
+with zero .8/.3 eligibility threshold mismatches. Additional silent/tonal/noise
+streams at 16/44.1/48 kHz also match within 1.34e-14, including initially padded
+windows. The latest training run measures about .60–.61 ms mean fitting time;
+its maximum is 3.44 ms. These are isolated fitter wall times, not analyzer
+latency-gate results. `build/native_joint_pitch/current.json` identifies the
+input-hashed parity report and raw outputs.
+
+`make test-joint-piano-fit-safety` covers unconfigured use, silence, rate
+switches, unsupported geometry, nonfinite PCM and invalid dictionaries. Its
+regression exposed a rejected dictionary leaving the old model active; failed
+configuration now invalidates the fitter. Dictionary columns must be finite,
+nonnegative and normalized. The analyzer does not call this helper yet; native
+release integration must preserve cleanup provenance and original-display
+history before instrument controls, held-out replay and latency qualification.
