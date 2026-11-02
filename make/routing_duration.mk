@@ -423,3 +423,43 @@ stage-native-joint-pitch: scripts/checkpoint_native_joint_pitch.py
 	.separator-venv/bin/python scripts/checkpoint_native_joint_pitch.py --stage
 publish-native-joint-pitch: scripts/checkpoint_native_joint_pitch.py
 	.separator-venv/bin/python scripts/checkpoint_native_joint_pitch.py --publish
+
+.PHONY: test-joint-grace-history
+$(BUILD_DIR)/joint_grace_history: tests/joint_grace_history.cpp src/joint_grace_history.hpp | $(BUILD_DIR)
+	$(CXX) $(CXXFLAGS) -Isrc $< -o $@
+test-joint-grace-history: $(BUILD_DIR)/joint_grace_history
+	$(BUILD_DIR)/joint_grace_history
+
+.PHONY: build-joint-grace-trial
+build-joint-grace-trial: scripts/build_joint_grace_trial.py
+	$(PYTHON) scripts/build_joint_grace_trial.py
+
+.PHONY: test-joint-grace-restore
+$(BUILD_DIR)/joint_grace_restore: tests/joint_grace_restore.cpp src/joint_grace_restore.hpp | $(BUILD_DIR)
+	$(CXX) $(CXXFLAGS) -Isrc $< -o $@
+test-joint-grace-restore: $(BUILD_DIR)/joint_grace_restore
+	$(BUILD_DIR)/joint_grace_restore
+
+.PHONY: measure-joint-grace-training measure-joint-grace-calibration
+measure-joint-grace-training: scripts/measure_joint_grace.py
+	$(PYTHON) scripts/measure_joint_grace.py
+measure-joint-grace-calibration: scripts/measure_joint_grace.py
+	$(PYTHON) scripts/measure_joint_grace.py --calibration
+
+.PHONY: freeze-joint-grace-native measure-joint-grace-heldout-a measure-joint-grace-heldout-b measure-joint-grace-heldout-c measure-joint-grace-heldout-d
+freeze-joint-grace-native: scripts/run_joint_grace_heldout.py
+	$(PYTHON) scripts/run_joint_grace_heldout.py --freeze
+measure-joint-grace-heldout-a: scripts/run_joint_grace_heldout.py
+	$(PYTHON) scripts/run_joint_grace_heldout.py --record heldout-1
+measure-joint-grace-heldout-b: scripts/run_joint_grace_heldout.py
+	$(PYTHON) scripts/run_joint_grace_heldout.py --record heldout-2
+measure-joint-grace-heldout-c: scripts/run_joint_grace_heldout.py
+	$(PYTHON) scripts/run_joint_grace_heldout.py --record heldout-3
+measure-joint-grace-heldout-d: scripts/run_joint_grace_heldout.py
+	$(PYTHON) scripts/run_joint_grace_heldout.py --record heldout-4
+
+.PHONY: stage-native-joint-grace publish-native-joint-grace
+stage-native-joint-grace: scripts/checkpoint_native_joint_grace.py
+	$(PYTHON) scripts/checkpoint_native_joint_grace.py --stage
+publish-native-joint-grace: scripts/checkpoint_native_joint_grace.py
+	$(PYTHON) scripts/checkpoint_native_joint_grace.py --publish

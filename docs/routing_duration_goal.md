@@ -596,3 +596,61 @@ configuration now invalidates the fitter. Dictionary columns must be finite,
 nonnegative and normalized. The analyzer does not call this helper yet; native
 release integration must preserve cleanup provenance and original-display
 history before instrument controls, held-out replay and latency qualification.
+
+### Isolated native release trial: held-out attack regression
+
+`make build-joint-grace-trial` builds a disabled-by-default experiment from
+an instrumented primary export. It retains all 93 mutator observations so
+the last cleanup responsible for each erasure is known. This diagnostic
+observer is not a production integration. The model dictionary is generated
+only inside the build directory; primary analyzer sources remain unchanged.
+
+Native history tests prove that only three prior original visible frames can
+authorize restoration. Missing pitches, changed drop counts, unfinished calls
+and explicit resets break the run. The exported engine wires history reset to
+source/format resets and disabled/ineligible frames. Restored frames never
+update their own history. Restoration tests cover duplicate
+rejection, missing source cells, hidden rows and occupied visible rows.
+
+The first native replay exposed a representational gap in the offline model:
+the grid has only three rows per pitch class. The native helper initially also
+treated hidden cells as occupied. A regression fixes hidden-cell reuse while
+preserving visible cells. Both training and calibration comparisons now apply
+the native row-capacity limit; no visible note is evicted to force a restore.
+The original full-set parity failure remains recorded in
+`build/joint_grace_measurement/f680d08dcd07d8cd/` and `449d02cb4b0231aa/`.
+
+Current isolated build: `build/joint_grace_native/900451015dcecef6/build.json`.
+Capacity-aware training restores eight cells and .266264 seconds of held
+coverage; calibration restores one cell and .050000 seconds. Three training
+and two calibration proposals are blocked by occupied visible rows. There are
+no protected losses, unsupported additions, surviving visible-cell changes,
+unrelated changes or tempo changes. Reports under
+`build/joint_grace_measurement/`: `390d754488cad6be` (training),
+`c7f454a3d3626fdd` (calibration).
+
+The exact build, thresholds, capacity rule, source hashes and recording-disjoint
+selection are frozen before held-out access in
+`build/joint_grace_heldout/frozen-eb001a122070725c.json`.
+
+| Held-out recording | Added cells | Held recovery | Unsupported additions | Matched display attacks before / after |
+| --- | ---: | ---: | ---: | ---: |
+| 1 | 3 | 0 | 0 | 149 / 149 |
+| 2 | 5 | .076042 s | 0 | 112 / 111 |
+| 3 | 2 | .029167 s | 0 | 104 / 104 |
+| 4 | 0 | 0 | 0 | 130 / 130 |
+
+Reports are in the per-recording subdirectories of `build/joint_grace_heldout/`.
+Recording three reduces premature release by .029167 seconds, but recording
+two loses one matched display attack when a gap is filled. Therefore the trial
+fails the unchanged attack gate and stays disabled. Recordings one/four also
+fail the per-recording benefit requirement, with no held recovery; these are
+distinct from the attack regression. No held or pedal-supported duration is
+removed, and no unrelated/surviving visible-cell or tempo changes occur. Maximum
+held-out analysis wall time is 26.0785 ms, but a full latency qualification and
+outside-instrument preservation suite are not run for this rejected trial.
+
+The scorer's display-onset count does not measure rearticulation while a pitch
+remains lit. That existing limitation does not erase this failed gate. A future
+release rule must preserve attack behavior with independent evidence rather
+than treating every confirmed-note erasure as a duration-only gap.
