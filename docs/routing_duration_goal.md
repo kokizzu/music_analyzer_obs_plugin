@@ -125,7 +125,9 @@ also rejected.
 
 `build/routing_guitarset_controls/9801a45ca6c823e8/report.json` adds actual
 ten-second chordal Guitar performances: performers 00/01 for fitting, 02 for
-negative cutoff calibration, and 05 held out. Performers 03/04 remain reserved.
+negative cutoff calibration, and 05 held out. Performers 03/04 were reserved
+until the expanded evaluation below; they must not subsequently be described
+as untouched validation data for a revised model.
 The improved model combines 29 native descriptors, 24 current-window cepstra
 and nine current-window ownership-context features. It fits 1,787 cells, with
 133 separate negative-calibration cells; held-out observations do not set its
@@ -177,3 +179,50 @@ the remaining Guitar recordings, untouched piano/performance records, actual
 mixed sources where labelled, and the application's 48 kHz input path. Voice
 routing and the requested note-duration behavior changes remain unfinished.
 Neither these routing gains nor green tests fulfill the full goal by themselves.
+
+## Expanded evaluation and rejected extrapolation
+
+The frozen native implementation was checked against all 346 available NSynth
+Guitar clips, preserving the labelled Guitar pitch at all 27,680 original-rate
+endpoints. Derived 48 kHz versions cover another 27,680 endpoints, also without
+a labelled Guitar-pitch loss. These are resampled copies, not independent
+recordings. Reports are under `build/piano_guitar_extensions/`:
+`a08d4ff7c59b86cc` (original), `6c86dfbf33340870` and `52c43eb944858288`
+(48 kHz shards). No measured enabled call exceeded its 50 ms deadline.
+
+The reserved-performance report `93a449f0b4f656bd` tests eight GuitarSet
+performances from players 03/04 and four additional piano recordings, each at
+its original rate and derived 48 kHz. It exposes three protected Guitar-row
+removals in `03_Jazz3-150-C_comp`, reproduced at both rates (six cells total).
+The removed MIDI 54 is absent from that recording's note annotations; these
+are **protected row changes**, not six verified correct-note losses. The
+predeclared conservative gate nevertheless fails. Do not relax that gate
+after observing this recording or enable the filter by default from the
+earlier smaller green control set.
+
+`make audit-voice-duration-candidates` screens extrapolating the frozen model
+to Voice duplicates and single-hop Keyboard gaps using training recordings
+only. No model or cutoff is refit, and no runtime behavior changes. It finds
+14 removable piano Voice cells and no protected Voice loss in the sampled
+training controls. Voice needs dedicated held-out and native validation.
+
+The same screen proposes eight Keyboard additions. Causal MIDI scoring shows
+only 0.15 seconds of recovered held-key coverage and 0.10 seconds of added
+annotation-unsupported duration. Reject this gap rule as a runtime fix.
+Three regression tests ensure repairs cannot extend themselves, require the
+original preceding Keyboard pitch and current Guitar support, and require a
+matching visible Keyboard pitch for Voice suppression.
+
+Use `make inspect-routing-replays` for authoritative process inspection in the
+command environment. A process inventory from another tool runtime cannot
+establish that a replay has stopped. `make verify-routing-extensions` rechecks
+every saved endpoint, hash, removed pitch, protected loss and unrelated-state
+gate before publishing this negative evidence. The broader goal remains
+active: Voice and duration improvements are unfinished.
+
+Identical replay selections now use a nonblocking process lock. A tool-runtime
+inventory error initially caused overlapping runs and five TSV hash mismatches;
+the exact affected entries were previewed, their checkpoint backed up, and
+only those entries invalidated for replay. No mismatched result is accepted by
+the publication verifier. `plan-routing-replay-repair` and
+`apply-routing-replay-repair` preserve the reviewed selection and rollback copy.

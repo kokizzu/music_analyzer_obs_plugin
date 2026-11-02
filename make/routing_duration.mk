@@ -76,3 +76,37 @@ measure-piano-guitar-controls: scripts/measure_piano_guitar_trial.py
 .PHONY: test-guitar-music-context
 test-guitar-music-context: tests/test_guitar_music_context.py scripts/evaluate_guitar_music_model.py
 	$(PYTHON) tests/test_guitar_music_context.py
+
+.PHONY: validate-piano-guitar-all validate-piano-guitar-rate48-a validate-piano-guitar-rate48-b validate-piano-guitar-reserved
+validate-piano-guitar-all: scripts/validate_piano_guitar_extensions.py
+	$(PYTHON) scripts/run_routing_extensions.py --mode original
+validate-piano-guitar-rate48-a: scripts/validate_piano_guitar_extensions.py
+	$(PYTHON) scripts/run_routing_extensions.py --mode rate48 --shards 2 --shard 0
+validate-piano-guitar-rate48-b: scripts/validate_piano_guitar_extensions.py
+	$(PYTHON) scripts/run_routing_extensions.py --mode rate48 --shards 2 --shard 1
+validate-piano-guitar-reserved: scripts/validate_piano_guitar_extensions.py
+	$(PYTHON) scripts/run_routing_extensions.py --mode reserved
+
+.PHONY: audit-voice-duration-candidates
+audit-voice-duration-candidates: scripts/audit_voice_duration_candidates.py
+	$(PYTHON) scripts/audit_voice_duration_candidates.py
+
+.PHONY: inspect-routing-replays
+inspect-routing-replays: scripts/inspect_routing_replays.py
+	$(PYTHON) scripts/inspect_routing_replays.py
+
+.PHONY: test-voice-duration-candidates
+test-voice-duration-candidates: tests/test_voice_duration_candidates.py scripts/audit_voice_duration_candidates.py
+	$(PYTHON) tests/test_voice_duration_candidates.py
+
+.PHONY: verify-routing-extensions publish-routing-extensions
+verify-routing-extensions: scripts/checkpoint_routing_extensions.py
+	$(PYTHON) scripts/checkpoint_routing_extensions.py
+publish-routing-extensions: scripts/checkpoint_routing_extensions.py
+	$(PYTHON) scripts/checkpoint_routing_extensions.py --publish
+
+.PHONY: plan-routing-replay-repair apply-routing-replay-repair
+plan-routing-replay-repair: scripts/repair_routing_replay_checkpoints.py
+	$(PYTHON) scripts/repair_routing_replay_checkpoints.py
+apply-routing-replay-repair: scripts/repair_routing_replay_checkpoints.py
+	$(PYTHON) scripts/repair_routing_replay_checkpoints.py --apply
