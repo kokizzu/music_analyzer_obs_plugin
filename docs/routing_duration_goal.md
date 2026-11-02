@@ -779,3 +779,52 @@ No calibration or held-out recordings are inspected for this failed rule.
 Report: `build/keyboard_release_tail_audit/report.json`; regression:
 `make test-keyboard-release-tails`. Reducing release time alone cannot fix
 the larger postprocessing-addition error source and risks the supported tails.
+
+### Multiwindow low-note evidence: native parity, no fresh-recording gain
+
+The rejected 400 ms guard can miss a brief fundamental before its long window
+warms up. A separate experiment combines 100 ms and 400 ms weighted-mean/Hann
+measurements. Either exact fundamental or third-harmonic amplitude at least
+.01 of the window RMS normalization protects the pitch while the original
+display remains continuous. Short support can latch before long-window
+warmup. Removal still requires 400 ms history, three prior original visible
+hops and a note newly inserted by the final low-keyboard recovery. Source,
+rate, exact PCM overlap, drop-count and unfinished-frame discontinuities reset
+history. The original rejected guard and its parameters remain unchanged.
+
+`make test-multiscale-low-keyboard` checks original-display history and early
+short support. `make test-native-multiscale-low-keyboard` verifies a brief-note
+fixture at 16/44.1/48 kHz that the old long-window trial rejects. The isolated
+build also passes the existing fundamental/third, silence, absence, decay,
+nonfinite-input, rate/drop and unfinished-analysis tests. Production sources
+do not include this experiment; its flag is false in the exported trial API.
+
+`make screen-multiscale-low-keyboard` produces
+`build/multiscale_low_keyboard/eccdf0fef5d9a750/report.json`. Native build
+`build/multiscale_low_keyboard_native/ec738e83351c85da/build.json` reproduces
+the exact training removal sets: 54/49/26 unsupported cells, or 6.45
+note-seconds total. Supported time, additions, surviving-cell/unrelated/tempo
+changes and matched-attack losses are zero. Training attacks remain
+170/205/185. Native report:
+`build/multiscale_low_keyboard_measurement/b45880865d72c671/report.json`.
+Separate recording-four calibration removes 135 unsupported cells (6.75
+note-seconds) with the same preservation checks passing:
+`build/multiscale_low_keyboard_measurement/9044266c6a95b241/report.json`.
+
+The exact build and original-rate 60 s selections 21–24 are frozen before
+replay in `build/multiscale_low_keyboard_fresh/frozen-8a1371232dc7af1a.json`.
+Full audio/MIDI hashes are disjoint from the known first 20 and original
+fitting/calibration selection; this is a file-disjoint claim, not proof of
+independent composers or corpora. Each pair's before output matches the
+unmodified primary replay across all 4,800 endpoints. All four recordings
+have zero additions or removals. Attacks stay 103/91/129/69 and no protected,
+surviving-cell, unrelated or tempo changes occur. Reports are in that frozen
+directory's per-recording subdirectories.
+
+Thus fresh-recording benefit is unproven despite training/calibration gains.
+The trial stays disabled and is not promoted. The 1,154-case preservation
+selection is prepared in `build/multiscale_low_keyboard_controls/02e823638e79b6e3/plan.json`;
+its replay shards and the separate CPU/wall latency benchmark have **not**
+run. Their Make targets are provided for repeatable later qualification.
+Neither the neutral fresh results nor the prepared plan count as passing
+full instrument preservation or latency qualification.
