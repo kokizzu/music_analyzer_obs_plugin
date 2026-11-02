@@ -1,8 +1,9 @@
 # Native routing and note-duration goal
 
-Status: active. The native Piano/Guitar duplicate filter passes its first
-integrated gates and is available behind a false-by-default experimental
-setting. No default behavior change is promoted yet.
+Status: active. Corroborated native Guitar/Voice duplicate suppression is now
+enabled by default on the validated native input geometry. Gains are modest;
+attack, early-release and lingering-note improvements remain unfinished.
+The earlier single-window experiments stay disabled.
 
 Improve native instrument routing and note duration on the verified upstream
 primary branch. Reduce wrong Guitar/Voice routing on solo piano; improve
@@ -303,3 +304,85 @@ supported by this evidence. Intersecting the strong-native/Guitar-supported
 recovery candidates with surviving smoothed cells yields no training changes
 (`build/keyboard_tracking_recovery_audit.json`), so that shortcut is also
 insufficient. The full routing, attack and duration goal remains active.
+
+## Promoted native temporal corroboration
+
+`AnalysisSettings::native_piano_duplicate_consensus` is now `true` by default.
+It uses the frozen forest and cutoff above, without refitting. A pitch must
+remain visibly duplicated in Keyboard and Guitar/Voice, with an eligible
+current-window forest decision, for three consecutive analysis hops before
+the foreign-row duplicate is removed. Missing predictions, disabled/ineligible
+frames, dropped audio, unfinished analysis, source changes, format changes and
+engine resets break corroboration. Per-pitch histories are independent and
+counters saturate. Keyboard pitches/envelopes are never changed by this filter.
+
+The production path is restricted to native FullMix, 100 ms windows / 50 ms
+hops, and 16/44.1/48 kHz input. It is bypassed when Basic Pitch fusion or the
+older single-window Guitar experiment is explicitly enabled. Setting
+`native_piano_duplicate_consensus = false` restores the original display path.
+The older Guitar experiment remains false; the failed single-window Voice and
+alias experiments are not integrated into production.
+
+The cached native build is `build/routing_consensus_trial/398797777fb6e1fa`.
+Its current-window cepstral extractor retains FFT/filter geometry per engine,
+not a history used for classification. Thirty-two exact cold/warm parity
+cases cover all supported rates, rate switches and invalid input. Native
+consensus tests cover confirmation, reset, missing/dropped/unfinished frames,
+independent pitches and counter saturation.
+
+| Actual native gate | Cases | Windows | Guitar / Voice duplicate cells removed | Protected changes |
+| --- | ---: | ---: | ---: | ---: |
+| Original piano split | 8 | 9,600 | 127 / 9 (held out: 54 / 9) | 0 |
+| Original controls | 246 | 12,819 | 0 / 0 | 0 |
+| Extended regression and fresh cases | 260 | 30,175 | 63 / 8 | 0 |
+
+Paired reports: `build/routing_consensus_pair/e63350f9b5113f8b/report.json`
+and `31e4706686b5b160/report.json` in the same parent. Extended plan and both
+shards: `build/routing_consensus_extensions/3aa507e9ead66390/`. The extended
+plan includes 96 fresh cases: four additional piano performances, four
+previously unused GuitarSet player-05 recordings, and two unused source
+recordings per each of 20 singers, each at original and derived 48 kHz.
+Voice selection excludes source recordings from prior captures, not merely
+adjacent segments. Derived versions are not counted as independent recordings.
+Fresh piano cases remove 14 Guitar cells at each rate; fresh Voice gain is zero.
+
+All 52,594 paired endpoints preserve unrelated note grids/chords/drums and nine
+compared tempo values; surviving foreign-row cells are identical and no pitch
+leaves the union of rows. Actual decisions equal offline three-hop decisions
+where native feature captures exist. Every enabled call in the cached-build
+quality replays finishes within 50 ms. Gains are deliberately reported as
+small routing improvements, not resolution of the larger baseline errors.
+
+The uncached prototype's control run records one 54.6 ms wall-time call and
+its five-pass latency test fails the predeclared 2 ms p99 CPU-difference gate
+(2.1535 ms). Both failures remain recorded. The cached implementation passes
+the unchanged gates in `build/routing_consensus_latency/33f4c14f94b8e79e/`:
+1,000 calls, 17.6544 ms wall p99, 18.2782 ms maximum, 18.2279 ms maximum thread
+CPU, 0.0717 ms mean added CPU, 1.9436 ms p99 added CPU, and zero deadline misses.
+No conclusion about the original outlier's CPU cause is inferred from repeats.
+
+Prospective primary sources with the real default-on constructor are compiled
+and replayed at `build/routing_consensus_rollout/682b938120772cd4/`. All 1,200
+endpoints match the validated explicit-on reference, including its 29 Guitar
+and eight Voice removals. Publication stages these tested primary source blobs
+instead of the older dirty analyzer. The limited hook is also merged into the
+working analyzer; its 1,029 existing internal checks pass. Older working edits
+remain intact and are not included in this publication.
+
+### Alias visibility experiment: regression fixed, no duration gain
+
+The focused primary regression reproduces an invisible Keyboard cell becoming
+a visible lower-octave alias. A Keyboard-only, parameter-gated wrapper blocks
+that resurrection and preserves the visible-source case. The isolated native
+candidate is `build/keyboard_alias_trial/89c9f41afdc094e2/`; its regression
+test passes. The baseline demonstration target intentionally fails before
+that experimental fix.
+
+However, causal training replays in
+`build/keyboard_alias_measurement/5bcd43eafc4fc573/report.json` change no note
+sets or durations in any of three performances. They change surviving cell
+levels in 1,043 frames. Therefore the duration gate fails: this is not a
+measured timing improvement. No held-out data is consulted to rescue this
+trial, and the wrapper/flag is not integrated into production. Attack,
+premature-release and lingering-note behavior improvements remain required
+for completion of the active goal.

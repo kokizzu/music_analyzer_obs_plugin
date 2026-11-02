@@ -2,6 +2,8 @@
 
 #include "basic_pitch_onnx_worker.hpp"
 #include "basic_pitch_pcm_history.hpp"
+#include "routing_duplicate_consensus.hpp"
+#include "native_timbre_features.hpp"
 
 #include <array>
 #include <cstddef>
@@ -137,6 +139,7 @@ struct AnalysisSettings {
 	// the final tempo debug snapshot even when it is not in the score top five.
 	int tempo_debug_probe_bpm = 0;
 	bool experimental_piano_guitar_filter = false;
+	bool native_piano_duplicate_consensus = true;
 	// Optional Basic Pitch mirror configuration.  These paths are deliberately
 	// empty by default: model loading and inference remain outside OBS's audio
 	// callback and the feature stays disabled unless the user supplies both
@@ -415,6 +418,8 @@ public:
 				  const char *source_name, uint64_t dropped_windows);
 
 private:
+	routing::DuplicateConsensus<kNoteProbeCount * 2> routing_duplicate_consensus_;
+	timbre::CepstralExtractor routing_cepstra_;
 	struct Probe {
 		int midi = 0;
 		float freq = 0.0f;

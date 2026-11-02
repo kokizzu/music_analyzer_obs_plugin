@@ -1,5 +1,5 @@
 .PHONY: test-routing-duration-score
-$(BUILD_DIR)/analyzer.o $(BUILD_DIR)/analyzer_test.o $(BUILD_DIR)/analyzer_basic_pitch.o $(BUILD_DIR)/analyzer_test_basic_pitch.o $(BUILD_DIR)/analyzer_internal.o: src/piano_guitar_features.hpp src/piano_guitar_verifier.hpp src/piano_guitar_model_data.hpp src/native_timbre_features.hpp
+$(BUILD_DIR)/analyzer.o $(BUILD_DIR)/analyzer_test.o $(BUILD_DIR)/analyzer_basic_pitch.o $(BUILD_DIR)/analyzer_test_basic_pitch.o $(BUILD_DIR)/analyzer_internal.o: src/piano_guitar_features.hpp src/piano_guitar_verifier.hpp src/piano_guitar_model_data.hpp src/native_timbre_features.hpp src/routing_duplicate_consensus.hpp src/native_piano_consensus_cached_hook.inc
 test-routing-duration-score: tests/test_routing_duration_score.py
 	$(PYTHON) tests/test_routing_duration_score.py
 
@@ -166,3 +166,59 @@ verify-voice-duration-evidence: scripts/checkpoint_voice_duration_evidence.py
 	$(PYTHON) scripts/checkpoint_voice_duration_evidence.py
 publish-voice-duration-evidence: scripts/checkpoint_voice_duration_evidence.py
 	$(PYTHON) scripts/checkpoint_voice_duration_evidence.py --publish
+
+.PHONY: test-native-routing-consensus
+$(BUILD_DIR)/routing_duplicate_consensus: tests/routing_duplicate_consensus.cpp src/routing_duplicate_consensus.hpp | $(BUILD_DIR)
+	$(CXX) $(CXXFLAGS) -Isrc $< -o $@
+test-native-routing-consensus: $(BUILD_DIR)/routing_duplicate_consensus
+	$(BUILD_DIR)/routing_duplicate_consensus
+
+.PHONY: build-routing-consensus-trial
+build-routing-consensus-trial: scripts/build_routing_consensus_trial.py src/native_piano_consensus_cached_hook.inc tests/routing_consensus_pair.cpp
+	$(PYTHON) scripts/build_routing_consensus_trial.py
+
+.PHONY: measure-routing-consensus-piano measure-routing-consensus-controls
+measure-routing-consensus-piano: scripts/measure_routing_consensus.py
+	$(PYTHON) scripts/measure_routing_consensus.py
+measure-routing-consensus-controls: scripts/measure_routing_consensus.py
+	$(PYTHON) scripts/measure_routing_consensus.py --controls
+
+.PHONY: plan-routing-consensus-validation validate-routing-consensus-a validate-routing-consensus-b
+plan-routing-consensus-validation: scripts/validate_routing_consensus.py
+	$(PYTHON) scripts/validate_routing_consensus.py --plan
+validate-routing-consensus-a: scripts/validate_routing_consensus.py
+	$(PYTHON) scripts/validate_routing_consensus.py --shard 0
+validate-routing-consensus-b: scripts/validate_routing_consensus.py
+	$(PYTHON) scripts/validate_routing_consensus.py --shard 1
+
+.PHONY: benchmark-routing-consensus
+benchmark-routing-consensus: scripts/benchmark_routing_consensus.py tests/routing_consensus_latency.cpp
+	$(PYTHON) scripts/benchmark_routing_consensus.py
+
+.PHONY: test-keyboard-alias-visibility-baseline
+test-keyboard-alias-visibility-baseline: scripts/test_keyboard_alias_visibility.py tests/keyboard_alias_visibility.cpp
+	$(PYTHON) scripts/test_keyboard_alias_visibility.py
+
+.PHONY: test-routing-cepstral-cache
+$(BUILD_DIR)/routing_cepstral_cache: tests/routing_cepstral_cache.cpp src/native_timbre_features.hpp | $(BUILD_DIR)
+	$(CXX) $(CXXFLAGS) -Isrc $< -o $@
+test-routing-cepstral-cache: $(BUILD_DIR)/routing_cepstral_cache
+	$(BUILD_DIR)/routing_cepstral_cache
+
+.PHONY: build-keyboard-alias-trial
+build-keyboard-alias-trial: scripts/build_keyboard_alias_trial.py src/keyboard_alias_visibility_guard.inc tests/keyboard_alias_visibility.cpp tests/keyboard_alias_visibility_pair.cpp
+	$(PYTHON) scripts/build_keyboard_alias_trial.py
+
+.PHONY: measure-keyboard-alias-trial
+measure-keyboard-alias-trial: scripts/measure_keyboard_alias_trial.py
+	$(PYTHON) scripts/measure_keyboard_alias_trial.py
+
+.PHONY: prepare-routing-consensus-rollout
+prepare-routing-consensus-rollout: scripts/prepare_routing_consensus_rollout.py tests/routing_consensus_default.cpp
+	$(PYTHON) scripts/prepare_routing_consensus_rollout.py
+
+.PHONY: verify-native-routing-consensus publish-native-routing-consensus
+verify-native-routing-consensus: scripts/publish_native_routing_consensus.py
+	$(PYTHON) scripts/publish_native_routing_consensus.py
+publish-native-routing-consensus: scripts/publish_native_routing_consensus.py
+	$(PYTHON) scripts/publish_native_routing_consensus.py --publish
