@@ -107,11 +107,21 @@ def run():
             name=sample['id'];job=directory/name;job.mkdir(parents=True,exist_ok=True)
             if name not in state['recordings']:
                 raw=ROOT/sample['raw'];rate=sample['rate'];assert digest(raw)==sample['raw_sha256']
-                feature=job/'features.tsv';subprocess.run([str(ROOT/plan['tools']/'features'),str(raw),str(rate),str(feature)],check=True)
-                frames,requests=audio_gates(raw,feature,rate,matrix,context)
-                requested=job/'requests.txt';requested.write_text(''.join(str(e)+'\n' for e in requests));model=job/'model.tsv'
-                subprocess.run([str(ROOT/plan['selected']/'replay'),str(raw),str(rate),str(ROOT/model_inputs['library']),str(ROOT/model_inputs['model']),str(model),str(requested)],check=True,timeout=1800,stdout=subprocess.DEVNULL)
-                text,stats=support_text(frames,requests,model,rate);support=job/'support.tsv';support.write_text(text)
+                feature=job/'features.tsv';requested=job/'requests.txt';model=job/'model.tsv';support=job/'support.tsv'
+                if rate in (16000,44100,48000):
+                    subprocess.run([str(ROOT/plan['tools']/'features'),str(raw),str(rate),str(feature)],check=True)
+                    frames,requests=audio_gates(raw,feature,rate,matrix,context)
+                    requested.write_text(''.join(str(e)+'\n' for e in requests))
+                    subprocess.run([str(ROOT/plan['selected']/'replay'),str(raw),str(rate),str(ROOT/model_inputs['library']),str(ROOT/model_inputs['model']),str(model),str(requested)],check=True,timeout=1800,stdout=subprocess.DEVNULL)
+                    text,stats=support_text(frames,requests,model,rate);support.write_text(text)
+                else:
+                    # The frozen native trial explicitly resets/bypasses its cache
+                    # outside these three rates. Exercise that actual path without
+                    # resampling the reference PCM or inventing unsupported gates.
+                    for path in (feature,requested,model,support):
+                        path.write_text('')
+                    stats=dict(requests=0,processed=0,estimated_worker_core_share=0.,
+                        scope='Native unsupported-rate bypass; no feature/model evaluation')
                 output=job/'pair.tsv';subprocess.run([str(NATIVE/'pair'),str(raw),str(rate),str(output),str(support)],check=True,timeout=3600)
                 with output.open() as stream,(ROOT/sample['reference']).open() as reference:
                     rows=list(csv.DictReader(stream,delimiter='\t'));expected=list(csv.DictReader(reference,delimiter='\t'))

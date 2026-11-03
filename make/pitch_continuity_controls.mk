@@ -1,4 +1,7 @@
 # Frozen continuous instrument-control qualification.
+.PHONY: test-pitch-control-tail
+test-pitch-control-tail:
+	.separator-venv/bin/python tests/test_pitch_control_tail.py
 .PHONY: build-selected-pitch-evidence test-selected-pitch-evidence
 build-selected-pitch-evidence:
 	.separator-venv/bin/python scripts/build_selected_pitch_evidence.py --build

@@ -1298,7 +1298,7 @@ not new held-out accuracy or real-time performance claims.
 
 `make freeze-pitch-continuity-controls` pins the existing 1,154-case continuous
 suite, original cached PCM, reference outputs, models, helpers and executables.
-The frozen plan is `build/pitch_continuity_controls/e0198b1769b15e26/plan.json`,
+The current frozen plan is recorded by `build/pitch_continuity_controls/current.json`,
 covering 94,834 endpoints. Original and resampled cases are not independent
 recordings. `make run-pitch-continuity-controls` checks actual paired native
 output, stops on the first regression and checkpoints every completed case.
@@ -1309,3 +1309,14 @@ The control evaluation is in progress. `make verify-pitch-controls` records
 only the completed prefix as provisional. Captured model execution times and
 assumed preparation cost do not qualify a live asynchronous worker. Production
 remains unchanged pending full controls, live integration and latency evidence.
+The initial run preserved 15 cases before the feature harness rejected a
+22.05 kHz control. The revised protocol exercises the native trial's existing
+unsupported-rate bypass directly with empty support, preserving original PCM
+and its reference clock. It does not resample that control or claim model
+support at an ineligible rate. The earlier interrupted plan remains intact.
+That revision preserved 166 cases before a short vocal recording exposed a
+partial-final-hop mismatch in the evidence helper. The next revision ignores
+the incomplete tail exactly as the native replay does; original PCM files stay
+intact. `make test-pitch-control-tail` checks that trailing samples cannot enter
+any completed endpoint's causal evidence. Interrupted prefixes are not a
+whole-suite result.

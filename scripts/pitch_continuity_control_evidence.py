@@ -11,7 +11,10 @@ from transfer_real_piano_dictionary import observations
 
 def audio_gates(raw,feature_path,rate,matrix,context):
     audio=np.fromfile(raw,dtype='<f4');count=round(rate*.1);hop=round(rate*.05)
-    assert len(audio)%hop==0 and np.isfinite(audio).all()
+    assert np.isfinite(audio).all() and len(audio)>=hop
+    # Match native replay: trailing samples without a complete hop produce
+    # no endpoint and must not enter an earlier causal observation.
+    audio=audio[:len(audio)//hop*hop]
     x=observations(audio.astype(float),rate);activation=__import__('joint_pitch_reference').fit(matrix,x)
     relative=activation/np.maximum(activation.max(axis=0),1e-12)
     explained=activation/np.maximum(matrix.T@x,1e-12)
