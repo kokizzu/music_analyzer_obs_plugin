@@ -1,4 +1,5 @@
 # Source-disjoint held-out qualification tools.
+include make/pitch_continuity_controls.mk
 include make/keyboard_routing_audit.mk
 .PHONY: build-pitch-heldout-tools
 build-pitch-heldout-tools: scripts/build_pitch_heldout_tools.py tests/piano_context_pcm.cpp tests/pitch_primary_replay.cpp

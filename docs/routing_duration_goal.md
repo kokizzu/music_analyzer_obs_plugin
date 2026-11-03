@@ -1281,3 +1281,31 @@ prior sounding support from early visibility without prior-note support.
 `make verify-pitch-heldout` now recomputes both the completed native cohort and
 this development-only diagnostic. The broader instrument-routing and duration
 objective remains open.
+
+### Sparse inference and continuous controls
+
+`make test-selected-pitch-evidence` verifies an isolated request-driven model
+producer against the dense producer. All 613 requested snapshots across four
+known recordings match exactly, including legacy and raw edge outputs. PCM
+history advances on every hop, even when inference is skipped. Empty schedules
+require no runtime/model load. The request parser rejects malformed, duplicate,
+unaligned and overflowing endpoints; a focused regression caught and fixed
+the overflow case before the final parity run.
+
+`make test-pitch-control-gates` reproduces all request endpoints and exact
+all-pitch seed/sustain masks across 4,800 known frames. These are parity checks,
+not new held-out accuracy or real-time performance claims.
+
+`make freeze-pitch-continuity-controls` pins the existing 1,154-case continuous
+suite, original cached PCM, reference outputs, models, helpers and executables.
+The frozen plan is `build/pitch_continuity_controls/e0198b1769b15e26/plan.json`,
+covering 94,834 endpoints. Original and resampled cases are not independent
+recordings. `make run-pitch-continuity-controls` checks actual paired native
+output, stops on the first regression and checkpoints every completed case.
+Known nonpiano and unscored additions are rejected. Isolated-piano annotations
+verify pitch only; MIDI controls retain sustain-pedal context.
+
+The control evaluation is in progress. `make verify-pitch-controls` records
+only the completed prefix as provisional. Captured model execution times and
+assumed preparation cost do not qualify a live asynchronous worker. Production
+remains unchanged pending full controls, live integration and latency evidence.

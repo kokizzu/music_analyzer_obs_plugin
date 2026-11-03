@@ -5,6 +5,9 @@ import subprocess
 result = subprocess.run(['ps', '-eo', 'pid,ppid,etime,pcpu,stat,args'], text=True, capture_output=True, check=True)
 print(result.stdout.splitlines()[0])
 for line in result.stdout.splitlines():
+    if any(name in line for name in ('validate_pitch_continuity_controls.py', 'build_selected_pitch_evidence.py', 'pitch_continuity_controls/', 'selected_pitch_evidence_native/')):
+        print(line)
+        continue
     if any(name in line for name in ('build_pitch_heldout_tools.py','validate_pitch_continuity_heldout.py','pitch_continuity_heldout/','pitch_heldout_tools/')):
         print(line)
         continue
