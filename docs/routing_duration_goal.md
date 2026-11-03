@@ -1221,3 +1221,63 @@ completed cases and writes an explicitly provisional `verified_snapshot.json`
 when the cohort is still running. It never treats unevaluated recordings as
 passed. The experiment stays disabled; this protocol and its completed-case
 checkpoints do not establish whole-cohort success or production readiness.
+
+### Completed held-out result
+
+The frozen twelve-recording protocol finished without a preservation failure:
+14,400 actual native paired endpoints match the independent primary on the
+disabled path. The enabled cache adds three display cells. `fresh-50` recovers
+50 ms of key-held coverage without a new matched attack; `fresh-55` recovers
+50 ms and one matched attack. `fresh-56` adds one cell within the existing
+pedal/release allowance, with no key-held recovery or new matched attack.
+The other nine recordings have no output changes. There are no removed cells,
+key-held/supported losses, unsupported additions, isolated flashes, surviving
+cell changes, unrelated output changes or tempo changes.
+
+The two beneficial recordings meet the predeclared minimum, so `report.json`
+records `requires_controls_live_worker_and_latency`. This is a modest gain
+across twelve minutes of input, not evidence that the full routing/duration
+problem is solved. The experiment remains disabled. Continuous negative
+controls, actual asynchronous-worker integration and latency qualification
+are still required before promotion. Recordings 45–56 are now consumed
+validation data and must not be presented as fresh in a later tuned trial.
+
+### Development routing-gap attribution
+
+While the held-out parameters remained frozen, `make audit-keyboard-routing-gaps`
+examined only the original three development recordings. It joins actual
+primary display rows, raw/smoothed tracking and debug candidates with key-held
+MIDI intervals. The duration partitions reproduce the existing score exactly:
+
+| Stage when Keyboard display is missing | Missing held note-seconds |
+| --- | ---: |
+| Raw Keyboard grid has no note | 291.761 |
+| Raw note awaits confirmation | 12.331 |
+| Smoothed note is removed by later processing | 12.560 |
+
+Within the raw-absent category, the same pitch is visible in another instrument
+row for 206.344 note-seconds, including 110.535 in Guitar or Voice. For 54.936
+of those Guitar/Voice note-seconds, the frozen piano-context gate also passes.
+These are observational overlaps, not a validated rerouting rule; pitch,
+instrument-family safety and continuous controls still need verification.
+They show why recovering Keyboard first hits alone cannot address most of the
+missing Keyboard coverage. The audit reads no held-out recordings and changes
+no model, threshold or runtime behavior.
+
+The activation-edge score records 867 missed attacks on development. Of these,
+399 begin while Keyboard is already visible at that pitch. A prior MIDI note
+is still sounding in 224 cases, and another 94 fall within prior-note release
+grace; 81 have no prior-note annotation support. This partition does not prove
+that every early visibility is an acoustic error. In particular, preserving
+pedal-supported tones while detecting rearticulation needs an onset measure;
+forcing visibility gaps to manufacture new activation edges would be wrong.
+Another 160 missed attacks have the pitch visible in Guitar/Voice by the
+deadline, and 224 have it in other rows. Counts are mutually exclusive under
+the documented partition order, not claims of causal attribution.
+
+The complete audit is `build/keyboard_routing_gap_audit.json`.
+`make test-keyboard-routing-gaps` covers activation-edge matching and separates
+prior sounding support from early visibility without prior-note support.
+`make verify-pitch-heldout` now recomputes both the completed native cohort and
+this development-only diagnostic. The broader instrument-routing and duration
+objective remains open.

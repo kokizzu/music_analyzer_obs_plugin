@@ -14,7 +14,8 @@ from validate_pitch_continuity_heldout import load
 PATHS=['make/pitch_continuity_validation.mk','make/pitch_heldout.mk','docs/routing_duration_goal.md','scripts/inspect_routing_replays.py',
        'scripts/build_pitch_heldout_tools.py','tests/piano_context_pcm.cpp','tests/pitch_primary_replay.cpp',
        'scripts/score_pitch_continuity_pair.py','tests/test_score_pitch_continuity_pair.py',
-       'scripts/validate_pitch_continuity_heldout.py','scripts/checkpoint_pitch_heldout.py']
+       'scripts/validate_pitch_continuity_heldout.py','scripts/checkpoint_pitch_heldout.py',
+       'make/keyboard_routing_audit.mk','scripts/audit_keyboard_routing_gaps.py','tests/test_keyboard_routing_gaps.py']
 
 
 def read(path):
@@ -54,6 +55,16 @@ def verify():
             assert len(completed)==12
             assert snapshot['passed']==(sum(r['benefit'] for r in completed.values())>=2)
     subprocess.run(['make','test-score-pitch-continuity-pair'],cwd=ROOT,check=True)
+    subprocess.run(['make','test-keyboard-routing-gaps'],cwd=ROOT,check=True)
+    subprocess.run(['make','audit-keyboard-routing-gaps'],cwd=ROOT,check=True)
+    audit=read(ROOT/'build/keyboard_routing_gap_audit.json')
+    assert all(digest(ROOT/p)==h for p,h in audit['inputs'].items())
+    assert set(audit['recordings'])=={'training-1','training-2','training-3'}
+    raw_missing=sum(r['stages']['raw_keyboard_absent']['missing_held_seconds'] for r in audit['recordings'].values())
+    confirmation_missing=sum(r['stages']['confirmation']['missing_held_seconds'] for r in audit['recordings'].values())
+    assert abs(raw_missing-291.7610650202849)<1e-7 and abs(confirmation_missing-12.331463770256388)<1e-7
+    assert sum(r['attacks']['missed'] for r in audit['recordings'].values())==867
+    assert sum(r['attacks']['prior_visibility_context']['prior_note_sounding'] for r in audit['recordings'].values())==224
     for path in PATHS:
         if path.endswith('.py'):
             ast.parse((ROOT/path).read_text())
@@ -77,7 +88,7 @@ def main():
     print(git('diff','--cached','--stat'),flush=True)
     if args.stage:
         return
-    print(git('commit','-m','Freeze disjoint piano continuity cohort and verify independent primary replay'),flush=True)
+    print(git('commit','-m','Record completed piano continuity holdout and audit broader routing gaps'),flush=True)
     print(git('push',remote,'HEAD:'+primary),flush=True)
     assert identity()[3]==git('rev-parse','HEAD').strip()
 
