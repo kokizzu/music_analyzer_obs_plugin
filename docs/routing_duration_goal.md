@@ -1305,8 +1305,8 @@ output, stops on the first regression and checkpoints every completed case.
 Known nonpiano and unscored additions are rejected. Isolated-piano annotations
 verify pitch only; MIDI controls retain sustain-pedal context.
 
-The control evaluation is in progress. `make verify-pitch-controls` records
-only the completed prefix as provisional. Captured model execution times and
+The control evaluation has stopped on its first failure. `make verify-pitch-controls`
+recomputes the completed prefix; unevaluated cases have no pass claim. Captured model execution times and
 assumed preparation cost do not qualify a live asynchronous worker. Production
 remains unchanged pending full controls, live integration and latency evidence.
 The initial run preserved 15 cases before the feature harness rejected a
@@ -1320,3 +1320,64 @@ the incomplete tail exactly as the native replay does; original PCM files stay
 intact. `make test-pitch-control-tail` checks that trailing samples cannot enter
 any completed endpoint's causal evidence. Interrupted prefixes are not a
 whole-suite result.
+
+### Rejected controls and subsequent development screens
+
+The final protocol `5d777aa119406a41` evaluated 697 of 1,154 cases. Case
+`extended-regression-piano-reserve-12-48k` adds three cells, including one
+isolated flash. It removes no cells and changes no surviving cells, unrelated
+outputs or tempo, but the isolated-flash gate fails. The terminal decision is
+`reject_controls`; the continuity feature stays unused by production. No live
+integration of that rejected feature is warranted.
+
+`make test-note-onset-score` verifies independent per-pitch attack scoring,
+including repeated strikes during a sustained tone, one-to-one matching,
+short-note deadlines, percussion exclusion, right censoring and invalid/future
+events. It does not force display gaps to create attack events.
+
+`make screen-routing-onset-proposals` uses only development recordings 1–3.
+A counterfactual Keyboard admission requires an existing Guitar/Voice pitch,
+the unchanged strict piano seed gate and fresh neural note support. It recovers
+5.541 note-seconds of key-held coverage, but adds .05 seconds outside MIDI/pedal
+support on recording 3, so this proposal is cancelled before native integration.
+A separate sparse neural-onset rising-edge screen matches only 19/18/19 attacks
+versus 170/205/185 display-edge matches. It is also rejected as a replacement
+attack signal. These screens change no classifier threshold or runtime route,
+and do not read new held-out performances or tune against the failed control.
+
+### Bounded diagnostic recording and measured worker timing
+
+New evidence uses `build/detection_validation.sqlite3`: normalized references,
+compressed content-addressed payloads and transactional writes. No new per-run
+JSON/TSV archive is retained. Existing frozen study files remain intact.
+Payload collection stops at 128 MiB compressed or 4,096 unique payloads; it
+refuses further growth without silently deleting evidence. Repeated replay
+stores a stable result identity; volatile wall timing is printed only.
+
+`make capture-analyzer-diagnostic` records the Linux default speaker monitor
+for 15 seconds (duration configurable from 1–120 seconds), stores mono PCM once
+and replays it through the verified committed-primary engine. A 20-recording
+limit bounds collection; reaching it refuses new recordings without deleting
+old ones. `make replay-analyzer-diagnostic` replays the latest recording;
+an explicit recording ID can select another. Temporary interchange files are
+removed after use. Replaying the same recording/binary checks exact output.
+This is a separate diagnostic command, not a change to the dirty standalone UI.
+
+`make test-analyzer-diagnostic` and `make test-detection-validation-store`
+check audio validation, format identity, capacity, deduplication, compression,
+transaction rollback and integrity. `make test-primary-diagnostic-replay` runs
+the actual primary on a synthetic one-second clip twice: 20 endpoints and exact
+output equality. Live monitor capture was not exercised: automatic tool review
+rejected the invocation containing a duration Make-variable assignment, stating
+that exactly one existing target must be invoked. No equivalent capture retry
+was attempted after that rejection.
+
+`make benchmark-detection-worker` builds from verified primary worker sources,
+then measures 100 actual asynchronous submissions paced at 50 ms after warmup.
+The existing primary waveform refresh remains 500 ms; this is a submission
+stress test. All 100 results were observed, with p99 completion 39.141 ms,
+maximum 39.181 ms and p99 submit cost .060 ms. The predeclared 45/50/1 ms and
+zero-unobserved-results worker gates pass. Timing is observed by 1 ms polling
+and excludes history preparation. It does not measure a device queue, audio
+callback, UI, long-run thermals or actual audio drops, and cannot qualify the
+rejected continuity feature for promotion.
