@@ -545,6 +545,8 @@ private:
 	void rebuild_window(std::size_t window_samples);
 	void reset_note_envelopes();
 	void reset_analysis_state();
+	void reset_basic_pitch_recovery_context();
+	uint64_t basic_pitch_recovery_dropped_windows_ = 0;
 	void update_tempo(float event_strength, float event_body_strength, float event_low_body_strength,
 			  float event_mid_body_strength, float event_subdivision_strength,
 			  float flux_strength, float flux_body_strength, float flux_low_body_strength,

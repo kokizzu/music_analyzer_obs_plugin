@@ -25,6 +25,7 @@ bool BasicPitchOnnxWorker::start()
 		return false;
 	}
 	stop_requested_ = false;
+	reset_context_locked();
 	startup_complete_ = false;
 	last_error_.clear();
 	running_ = true;
@@ -45,6 +46,23 @@ void BasicPitchOnnxWorker::stop()
 		worker_.join();
 	std::lock_guard<std::mutex> lock(mutex_);
 	running_ = false;
+}
+
+void BasicPitchOnnxWorker::reset_context_locked()
+{
+	latest_ = {};
+	result_sequence_ = 0;
+	processed_sequence_ = pending_sequence_;
+	first_valid_sequence_ = pending_sequence_ + 1;
+}
+
+void BasicPitchOnnxWorker::reset_context()
+{
+	{
+		std::lock_guard<std::mutex> lock(mutex_);
+		reset_context_locked();
+	}
+	condition_.notify_all();
 }
 
 bool BasicPitchOnnxWorker::submit(const float *waveform, std::size_t count, uint64_t *sequence)
@@ -69,22 +87,24 @@ bool BasicPitchOnnxWorker::wait_for_result(uint32_t timeout_ms)
 	std::unique_lock<std::mutex> lock(mutex_);
 	const uint64_t sequence = pending_sequence_;
 	return condition_.wait_for(lock, std::chrono::milliseconds(timeout_ms), [this, sequence] {
-		return result_sequence_ >= sequence || (startup_complete_ && !last_error_.empty()) || !running_;
-	});
+		return sequence < first_valid_sequence_ || result_sequence_ >= sequence ||
+		       (startup_complete_ && !last_error_.empty()) || !running_;
+	}) && sequence >= first_valid_sequence_;
 }
 
 bool BasicPitchOnnxWorker::wait_for_result(uint64_t sequence, uint32_t timeout_ms)
 {
 	std::unique_lock<std::mutex> lock(mutex_);
 	return condition_.wait_for(lock, std::chrono::milliseconds(timeout_ms), [this, sequence] {
-		return result_sequence_ >= sequence || (startup_complete_ && !last_error_.empty()) || !running_;
-	});
+		return sequence < first_valid_sequence_ || result_sequence_ >= sequence ||
+		       (startup_complete_ && !last_error_.empty()) || !running_;
+	}) && sequence >= first_valid_sequence_;
 }
 
 bool BasicPitchOnnxWorker::copy_latest(BasicPitchCausalNotes &notes, uint64_t *sequence) const
 {
 	std::lock_guard<std::mutex> lock(mutex_);
-	if (result_sequence_ == 0)
+	if (result_sequence_ == 0 || result_sequence_ < first_valid_sequence_)
 		return false;
 	notes = latest_;
 	if (sequence)
@@ -129,17 +149,20 @@ void BasicPitchOnnxWorker::run()
 		BasicPitchOnnxOutput output;
 		if (!runtime.infer(waveform.data(), waveform.size(), output)) {
 			std::lock_guard<std::mutex> lock(mutex_);
-			last_error_ = runtime.last_error();
-			processed_sequence_ = sequence;
+			if (sequence >= first_valid_sequence_)
+				last_error_ = runtime.last_error();
+			processed_sequence_ = std::max(processed_sequence_, sequence);
 			condition_.notify_all();
 			continue;
 		}
 		const BasicPitchCausalNotes notes = decoder.decode(output);
 		{
 			std::lock_guard<std::mutex> lock(mutex_);
-			latest_ = notes;
-			processed_sequence_ = sequence;
-			result_sequence_ = sequence;
+			processed_sequence_ = std::max(processed_sequence_, sequence);
+			if (sequence >= first_valid_sequence_) {
+				latest_ = notes;
+				result_sequence_ = sequence;
+			}
 		}
 		condition_.notify_all();
 	}

@@ -42,9 +42,25 @@ def save_recording(store,pcm,rate):
 
 def primary_tool():
     identity();metadata=json.loads((TOOLS/'build.json').read_text())
+    binary=TOOLS/'primary'
+    with Store() as store:
+        row=store.connection.execute("select payload from evidence where id='primary-replay-tool'").fetchone()
+        if row:
+            promoted=json.loads(store.get(row[0]));metadata=promoted['metadata'];binary=ROOT/promoted['binary']
     assert metadata['inputs']['source_tree']==git('rev-parse','HEAD:src').strip(),'Rebuild and qualify the primary replay for the current source tree'
-    assert digest(TOOLS/'primary')==metadata['binaries']['primary']
-    return TOOLS/'primary',metadata
+    assert digest(binary)==metadata['binaries']['primary']
+    return binary,metadata
+
+
+def verify_recovery_lineage():
+    if all(git('show','HEAD:src/'+name)==git('show','e903cb7:src/'+name) for name in ('analyzer.cpp','analyzer.hpp')):
+        return
+    with Store() as store:
+        row=store.connection.execute("select payload from evidence where id='source-recovery'").fetchone()
+        assert row,'Current primary needs separately verified source provenance'
+        result=json.loads(store.get(row[0]))
+        assert result['cases_passed']==7 and result['epoch_passed']
+        assert all(store.get(checksum).decode()==git('show','HEAD:src/'+name) for name,checksum in result['source_payloads'].items())
 
 
 def replay(store,key):

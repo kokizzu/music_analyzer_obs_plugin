@@ -10,6 +10,7 @@ from publish_next_detection import git,identity
 from routing_duration_baseline import ROOT,atomic_json,digest
 from routing_duration_score import merge
 from validate_pitch_continuity_controls import load
+from analyzer_diagnostic import verify_recovery_lineage
 
 PATHS=['make/pitch_heldout.mk','make/pitch_continuity_controls.mk',
        'tests/pitch_evidence_requests.hpp','tests/pitch_evidence_requests.cpp',
@@ -82,8 +83,7 @@ def verify():
     for path in PATHS:
         if path.endswith('.py'):
             ast.parse((ROOT/path).read_text())
-    for name in ('analyzer.cpp','analyzer.hpp'):
-        assert git('show','HEAD:src/'+name)==git('show','e903cb7:src/'+name)
+    verify_recovery_lineage()
     atomic_json(directory/'verified_snapshot.json',dict(snapshot=snapshot,
         scope='Completed cases only; a running prefix is provisional. No production or live latency claim.'))
     print(json.dumps(dict(completed=len(completed),selected=len(plan['cases']),complete=snapshot['complete'],

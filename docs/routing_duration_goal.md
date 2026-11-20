@@ -1367,7 +1367,7 @@ This is a separate diagnostic command, not a change to the dirty standalone UI.
 check audio validation, format identity, capacity, deduplication, compression,
 transaction rollback and integrity. `make test-primary-diagnostic-replay` runs
 the actual primary on a synthetic one-second clip twice: 20 endpoints and exact
-output equality. Live monitor capture was not exercised: automatic tool review
+output equality. At that publication, live monitor capture was not exercised: automatic tool review
 rejected the invocation containing a duration Make-variable assignment, stating
 that exactly one existing target must be invoked. No equivalent capture retry
 was attempted after that rejection.
@@ -1381,3 +1381,32 @@ zero-unobserved-results worker gates pass. Timing is observed by 1 ms polling
 and excludes history preparation. It does not measure a device queue, audio
 callback, UI, long-run thermals or actual audio drops, and cannot qualify the
 rejected continuity feature for promotion.
+
+### Source recovery regression and focused fix
+
+`make test-primary-source-recovery` reproduced stale Basic Pitch results in
+seven committed-primary cases: explicit reset, source change, sample-rate
+change, analysis-window change, null input, input-mode change and a new dropped
+window count. Clearing only the engine's local notes allowed the worker's last
+completed result to repopulate them before new-context model warmup.
+
+The focused candidate reuses the existing local worker context-generation
+implementation and connects it to primary engine resets. Pending/completed
+results are invalidated without restarting the model; an old in-flight result
+cannot publish into the new context. Dropped-window counter changes invalidate
+model history/results without altering native tracking. Unrelated local
+analyzer and standalone edits are preserved, rather than staged wholesale.
+
+`make test-source-recovery` passes all seven real-model cases. A deterministic
+blocked-runtime fixture also proves in-flight isolation, pending cancellation,
+fresh monotonic sequence publication and clean worker restart. Two ordinary
+recordings (development 1 and calibration 4) preserve all 2,400 primary output
+endpoints byte for byte. The candidate worker observes all 100 stress-paced
+results: p99 completion 39.104 ms, maximum 40.149 ms, p99 submit .028 ms, within
+the unchanged 45/50/1 ms gates. The verified replay executable replaces one
+authoritative current-primary tool; older frozen studies keep their references.
+
+The default `make capture-analyzer-diagnostic` invocation now passed live
+speaker-monitor capture: 720,710 samples at 48 kHz (15.015 seconds), followed by
+300 primary replay endpoints. The monitor was silent (RMS and peak zero), so
+this validates transport/storage/replay only, not musical detection accuracy.

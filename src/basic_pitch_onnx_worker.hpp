@@ -25,6 +25,9 @@ public:
 
 	bool start();
 	void stop();
+	// Discard queued/completed results from a previous audio source. In-flight
+	// inference may finish, but cannot publish into the new context.
+	void reset_context();
 	bool submit(const float *waveform, std::size_t count, uint64_t *sequence = nullptr);
 	bool wait_for_result(uint32_t timeout_ms);
 	bool wait_for_result(uint64_t sequence, uint32_t timeout_ms);
@@ -33,6 +36,7 @@ public:
 
 private:
 	void run();
+	void reset_context_locked();
 
 	const std::string runtime_library_path_;
 	const std::string model_path_;
@@ -44,6 +48,7 @@ private:
 	uint64_t pending_sequence_ = 0;
 	uint64_t processed_sequence_ = 0;
 	uint64_t result_sequence_ = 0;
+	uint64_t first_valid_sequence_ = 1;
 	bool running_ = false;
 	bool stop_requested_ = false;
 	bool startup_complete_ = false;

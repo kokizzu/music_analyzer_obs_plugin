@@ -1,4 +1,12 @@
 # Frozen continuous instrument-control qualification.
+.PHONY: test-primary-source-recovery test-source-recovery
+test-primary-source-recovery:
+	$(PYTHON) scripts/validate_source_recovery.py
+test-source-recovery:
+	$(PYTHON) scripts/validate_source_recovery.py --candidate
+.PHONY: inspect-detection-lifecycle
+inspect-detection-lifecycle:
+	$(PYTHON) scripts/checkpoint_detection_diagnostics.py inspect
 .PHONY: test-note-onset-score
 test-note-onset-score:
 	$(PYTHON) tests/test_note_onset_score.py

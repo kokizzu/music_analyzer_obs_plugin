@@ -30067,6 +30067,15 @@ void AnalysisEngine::reset()
 	active_source_[0] = '\0';
 }
 
+void AnalysisEngine::reset_basic_pitch_recovery_context()
+{
+	if (basic_pitch_worker_)
+		basic_pitch_worker_->reset_context();
+	basic_pitch_pcm_history_.reset();
+	basic_pitch_notes_ = {};
+	basic_pitch_notes_ready_ = false;
+}
+
 void AnalysisEngine::update_basic_pitch_vocal_fusion(const float *samples, std::size_t count,
 						     const AnalysisSettings &settings)
 {
@@ -30254,6 +30263,7 @@ void AnalysisEngine::reset_note_envelopes()
 
 void AnalysisEngine::reset_analysis_state()
 {
+	reset_basic_pitch_recovery_context();
 	routing_duplicate_consensus_.reset();
 	clear_permissive_beat_tracker();
 	reset_note_envelopes();
@@ -32401,6 +32411,11 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 
 	AnalysisSnapshot snapshot;
 	const char *resolved_source_name = source_name && *source_name ? source_name : "Music";
+
+	if (dropped_windows != basic_pitch_recovery_dropped_windows_) {
+		basic_pitch_recovery_dropped_windows_ = dropped_windows;
+		reset_basic_pitch_recovery_context();
+	}
 	const AnalysisInputMode input_mode = resolve_input_mode(settings, resolved_source_name);
 	if (!has_active_input_mode_ || active_input_mode_ != input_mode ||
 	    std::strncmp(active_source_, resolved_source_name, sizeof(active_source_)) != 0) {
