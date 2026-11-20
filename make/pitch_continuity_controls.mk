@@ -1,4 +1,24 @@
 # Frozen continuous instrument-control qualification.
+.PHONY: test-regression-recordings register-detection-regressions replay-detection-regressions
+test-regression-recordings:
+	$(PYTHON) tests/test_regression_recordings.py
+register-detection-regressions:
+	$(PYTHON) scripts/regression_recordings.py register
+replay-detection-regressions:
+	$(PYTHON) scripts/regression_recordings.py replay
+.PHONY: test-pipeline-diagnostics check-primary-standalone-build
+test-pipeline-diagnostics:
+	$(PYTHON) tests/test_pipeline_diagnostics.py
+check-primary-standalone-build:
+	$(PYTHON) scripts/pipeline_diagnostics.py
+.PHONY: measure-workspace-pipeline
+measure-workspace-pipeline: standalone-basic-pitch
+	$(PYTHON) scripts/pipeline_diagnostics.py --workspace
+.PHONY: test-native-note-candidates screen-native-note-candidates
+test-native-note-candidates:
+	$(PYTHON) tests/test_native_note_candidates.py
+screen-native-note-candidates:
+	.separator-venv/bin/python scripts/screen_native_note_candidates.py
 .PHONY: test-primary-source-recovery test-source-recovery
 test-primary-source-recovery:
 	$(PYTHON) scripts/validate_source_recovery.py

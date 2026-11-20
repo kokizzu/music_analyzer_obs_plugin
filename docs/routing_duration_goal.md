@@ -1410,3 +1410,61 @@ The default `make capture-analyzer-diagnostic` invocation now passed live
 speaker-monitor capture: 720,710 samples at 48 kHz (15.015 seconds), followed by
 300 primary replay endpoints. The monitor was silent (RMS and peak zero), so
 this validates transport/storage/replay only, not musical detection accuracy.
+
+### Native-repeat and uncertainty candidates: cancelled
+
+Tests precede the development implementation in
+`make test-native-note-candidates`. The repeat policy requires a native .5
+onset rising edge while the pitch remains visible, the existing strict piano
+gate and fresh .3 neural pitch support, with 150 ms expiry/refractory. Events
+are added to the existing attack signal, preserving held/pedal-supported notes.
+On the three development recordings it adds 17 events: seven increase matched
+attacks and ten are unmatched. `make screen-native-note-candidates` therefore
+records `cancel_development`; it is not wired into the runtime.
+
+The uncertainty policy waits for three consecutive .8-confidence ownership
+observations and otherwise uses Ambiguous. Although it retains the same pitch
+in a counterfactual row set, it removes protected instrument-row cells and
+loses 31.723, 15.081 and 25.974 seconds of supported Keyboard coverage. It fails
+on development before any new held-out or negative-control access, and records
+`cancel_protected_row_loss`. Existing routing remains unchanged.
+
+### Paced full-app diagnostics and retained real-recording cases
+
+`make check-primary-standalone-build` exposed a pre-existing committed-source
+build mismatch: standalone references `enable_vocal_detection`,
+`enable_other_detection`, `show_vocal_row` and `kVisualizerHeightWithVocalRow`
+that are absent from its committed settings/renderer headers. This check fails;
+the source-recovery change does not resolve or conceal that separate blocker.
+The working local app has additional unrelated implementations, which are not
+published as part of this change.
+
+`make measure-workspace-pipeline` builds an isolated instrumented copy of that
+workspace app against its matching, freshly built headers and objects. It opens
+a real SDL window, requests Basic Pitch, and paces the first ten seconds of an
+existing real piano recording through stdin at 50 ms hops. Probes measure actual
+engine analysis duration and first presentation of each snapshot against the
+producer's source clock. Instrumentation preserves existing idle-history
+invalidation. Nothing changes the regular standalone binary's processing code.
+
+The final run accounts for all 200 input hops: 191 analyses/presentations and
+nine explicit idle skips, with zero unaccounted controlled-stream hops. P99
+analysis is 26.271 ms; p99 source-block-to-present is 32.215 ms, maximum 119.548 ms.
+The 50/100/250 ms analysis/presentation gates pass. This includes controlled
+transport, analysis, UI rendering and presentation calls, but does not measure
+physical-device/driver latency, display scanout or model-evidence age. Those
+fields remain unknown rather than being reported as zero audio drops. Workspace
+source/object hashes are recorded, so this cannot be mistaken for a clean-primary
+app build qualification. `make test-pipeline-diagnostics` covers timing clocks,
+coalesced presentations, invalid data and explicit idle-hop accounting.
+
+`make register-detection-regressions` retains three stable failure anchors:
+wrong-row piano, repeated strike with an earlier pedal-supported tone, and the
+isolated flash in the rejected continuity experiment. Two existing audio files,
+their MIDI/reference inputs and content hashes are normalized in the same SQLite
+store; PCM is not copied. `make test-regression-recordings` proves shared-input
+deduplication and refusal of changed source files. `make replay-detection-regressions`
+runs the current primary on the two unique inputs and preserves all 2,400 output
+endpoints across the three anchored cases. Shared inputs are not counted as
+independent recordings. Live captured silence also replays identically through
+the new primary on all 300 endpoints.

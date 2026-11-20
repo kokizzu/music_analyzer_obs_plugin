@@ -17,6 +17,8 @@ PATHS=['make/pitch_continuity_controls.mk','docs/routing_duration_goal.md',
     'scripts/benchmark_detection_worker.py','tests/detection_worker_latency.cpp','scripts/checkpoint_detection_diagnostics.py']
 PATHS += ['scripts/source_recovery_patch.py','scripts/validate_source_recovery.py','tests/source_recovery.cpp',
     'tests/worker_context_epoch.cpp','scripts/checkpoint_pitch_controls.py']
+PATHS += ['scripts/native_note_candidates.py','scripts/screen_native_note_candidates.py','tests/test_native_note_candidates.py',
+    'scripts/pipeline_diagnostics.py','tests/test_pipeline_diagnostics.py','scripts/regression_recordings.py','tests/test_regression_recordings.py']
 RUNTIME=['src/analyzer.cpp','src/analyzer.hpp','src/basic_pitch_onnx_worker.cpp','src/basic_pitch_onnx_worker.hpp']
 
 
@@ -43,13 +45,22 @@ def evidence(store,key):
 
 def verify():
     identity()
-    for target in ('test-note-onset-score','test-detection-validation-store','test-analyzer-diagnostic'):
+    for target in ('test-note-onset-score','test-detection-validation-store','test-analyzer-diagnostic',
+        'test-native-note-candidates','test-pipeline-diagnostics','test-regression-recordings'):
         subprocess.run(['make',target],cwd=ROOT,check=True)
     for path in PATHS:
         if path.endswith('.py'):
             ast.parse((ROOT/path).read_text())
     with Store() as store:
         screen=evidence(store,'routing-onset-screen');worker=evidence(store,'worker-latency')
+        native=evidence(store,'native-note-candidates');pipeline=evidence(store,'workspace-pipeline');regression=evidence(store,'regression-replay')
+        assert native['repeat_decision']=='cancel_development' and native['uncertainty_decision']=='cancel_protected_row_loss'
+        assert pipeline['passed_pipeline_budget'] and pipeline['controlled_stream_hop_gaps']==0 and pipeline['intentional_idle_hops']==9
+        assert pipeline['physical_capture_latency_ms'] is None and pipeline['audio_dropped_windows'] is None
+        assert regression['passed'] and len(regression['cases'])==3 and regression['unique_inputs']==2
+        assert pipeline['source_tree']==regression['source_tree']==git('rev-parse','HEAD:src').strip()
+        from regression_recordings import verify_files
+        verify_files(store)
     assert set(screen['recordings'])=={'training-1','training-2','training-3'}
     assert screen['routing_decision']==screen['onset_decision']=='reject_development'
     assert screen['recordings']['training-3']['routing']['unsupported_seconds_delta']>0
@@ -58,12 +69,13 @@ def verify():
     subprocess.run(['make','verify-pitch-controls'],cwd=ROOT,check=True)
     verify_recovery_lineage()
     recovery()
-    print('Verified: rejected admission proposals, passing worker budget, tested diagnostic storage/replay. No runtime promotion.',flush=True)
+    print('Verified: rejected admission proposals, source-recovery provenance, paced workspace pipeline and retained regression replay. No additional runtime promotion.',flush=True)
 
 
 def main():
     parser=argparse.ArgumentParser();parser.add_argument('mode',choices=('verify','stage','publish','inspect'));args=parser.parse_args()
     if args.mode=='inspect':
+        print(json.dumps(dict(head=git('rev-parse','HEAD').strip(),remote_tip=identity()[3])),flush=True)
         source=git('show','HEAD:src/standalone.cpp');lines=source.splitlines()
         for anchor,width in (('class StandaloneAnalyzer',230),('auto reset_visual_state',210)):
             start=next(i for i,line in enumerate(lines) if anchor in line)
@@ -86,7 +98,9 @@ def main():
     print(git('diff','--cached','--stat'),flush=True)
     if args.mode=='stage':
         return
-    print(git('commit','-m','Invalidate stale Basic Pitch results across source discontinuities'),flush=True)
+    changed=set(git('diff','--cached','--name-only').splitlines())
+    message='Invalidate stale Basic Pitch results across source discontinuities' if changed&set(RUNTIME) else 'Add paced app diagnostics and retained real-recording regressions'
+    print(git('commit','-m',message),flush=True)
     # Publish the exact replay executable validated above as the new primary
     # reference. Other frozen historical studies retain their original tools.
     metadata=json.loads((ROOT/'build/pitch_heldout_tools/06aec4200b7fb541/build.json').read_text())
